@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+
+
+
+@layer components {
+  .all-\[unset\] {
+    all: unset;
+  }
+
+  .ripple {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .ripple::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .ripple:active::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  .ripple:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05);
+  }
+
+  .gradient-border {
+    position: relative;
+    background: white;
+    border-radius: 0.375rem; /* sm */
+    z-index: 0;
+  }
+
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: linear-gradient(45deg, #f97316, #ef4444, #8b5cf6, #6366f1);
+    border-radius: inherit;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    -webkit-mask-composite: destination-out;
+    opacity: 0.4;
+    transition: opacity 0.3s ease;
+    z-index: -1; /* ✅ Important */
+    pointer-events: none;
+  }
+
+  .gradient-border:hover::before {
+    opacity: 0.7;
+  }
+
+  .cursor-glow {
+    position: relative;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .cursor-glow::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      rgba(139, 92, 246, 0.15) 0%,
+      transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: -1; /* ✅ behind content */
+  }
+
+  .cursor-glow:hover::after {
+    opacity: 1;
+  }
+}
+
+:root {
+  --2xl: 0px 25px 50px 0px rgba(0, 0, 0, 0.25);
+  --base: 0px 1px 3px 0px rgba(0, 0, 0, 0.1), 0px 1px 2px 0px rgba(0, 0, 0, 0.06);
+  --bottom-purple: rgba(109, 28, 125, 1);
+  --button-button1-semibold-font-family: "Roboto", Helvetica;
+  --button-button1-semibold-font-size: 16px;
+  --button-button1-semibold-font-style: normal;
+  --button-button1-semibold-font-weight: 600;
+  --button-button1-semibold-letter-spacing: 0px;
+  --button-button1-semibold-line-height: 100%;
+  --light-modebackgrounddefault: rgba(255, 255, 255, 1);
+  --light-modebackgroundprimary: rgba(44, 113, 246, 1);
+  --light-modebackgroundprimary-hover: rgba(34, 87, 190, 1);
+  --light-modetextdefault: rgba(32, 32, 32, 1);
+  --light-modetextprimary: rgba(44, 113, 246, 1);
+  --light-modetextsecondary: rgba(137, 137, 138, 1);
+  --magenta-red: rgba(225, 43, 71, 1);
+  --purple-pink: rgba(198, 37, 129, 1);
+  --red-orange: rgba(241, 90, 41, 1);
+  --top-orange: rgba(242, 156, 43, 1);
+}
