@@ -34,14 +34,14 @@ export function Header({ title, subtitle, showActions = false }: HeaderProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const buttonRefs = {
-    bell: useRef<HTMLButtonElement>(null),
-    chat: useRef<HTMLButtonElement>(null),
-    filter: useRef<HTMLButtonElement>(null),
-    export: useRef<HTMLButtonElement>(null),
-    addUser: useRef<HTMLButtonElement>(null),
+    bell: useRef<HTMLButtonElement>(null!),
+    chat: useRef<HTMLButtonElement>(null!),
+    filter: useRef<HTMLButtonElement>(null!),
+    export: useRef<HTMLButtonElement>(null!),
+    addUser: useRef<HTMLButtonElement>(null!),
   }
 
-  const handleMouseMove = (ref: React.RefObject<HTMLButtonElement>) => (e: React.MouseEvent) => {
+  const handleMouseMove = (ref: React.RefObject<HTMLButtonElement | null>) => (e: React.MouseEvent) => {
     if (ref.current) {
       const rect = ref.current.getBoundingClientRect()
       const x = ((e.clientX - rect.left) / rect.width) * 100

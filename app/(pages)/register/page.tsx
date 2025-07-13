@@ -44,7 +44,7 @@ export default function Register() {
       try {
         const res = await fetch(`${API_URL}/access/roles/`);
         const data = await res.json();
-        const roleNames = data.results?.map((role: any) => role.name) || [];
+        const roleNames = data.results?.map((role: { name: string }) => role.name) || [];
         setRoles(roleNames);
       } catch (error) {
         console.error('Error fetching roles:', error);

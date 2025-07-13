@@ -9,7 +9,7 @@ import {
   PencilLine,
   Trash2,
   Search,
-  Save,
+ 
   Menu,
 } from "lucide-react"
 import {
@@ -30,8 +30,26 @@ import {
 import { useToast } from "@/app/Context/ToastContext"
 import GradientButton from "@/app/utils/GradientButton"
 
+// Define types for better type safety
+type Permission = {
+  view: boolean
+  edit: boolean
+  write: boolean
+  delete: boolean
+}
+
+type UserPermissions = {
+  [key: string]: Permission
+}
+
+type UserData = {
+  id: number
+  type: string
+  permissions: UserPermissions
+}
+
 // Sample user data
-const userData = [
+const userData: UserData[] = [
   {
     id: 1,
     type: "Admin",
@@ -68,13 +86,28 @@ const permissionIcons = {
 }
 
 export default function UsersPage() {
-  const [data, setData] = useState(userData)
+  const [data, setData] = useState<UserData[]>(userData)
   const [searchTerm, setSearchTerm] = useState("")
   const [newType, setNewType] = useState("")
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { showToast } = useToast();
-  const [ripples, setRipples] = useState<
-    { key: string; x: number; y: number; id: number }[]
-  >([])
+
+  // Available menu options
+  const menuOptions = [
+    "Dashboard",
+    "User Management", 
+    "Vehicles",
+    "Staff",
+    "MOTs & Inspections",
+    "Mechanic Jobs",
+    "SU Transport Data",
+    "Audit Expiry Dates",
+    "Knowledge Library",
+    "Document List",
+    "Outstanding Tasks",
+    "Reminders",
+    "RBAC"
+  ]
 
   const togglePermission = (id: number, module: string, permission: string) => {
     setData((prev) =>
@@ -86,7 +119,7 @@ export default function UsersPage() {
                 ...user.permissions,
                 [module]: {
                   ...user.permissions[module],
-                  [permission]: !user.permissions[module][permission],
+                  [permission]: !(user.permissions[module] as Permission)[permission as keyof Permission],
                 },
               },
             }
@@ -95,19 +128,7 @@ export default function UsersPage() {
     )
   }
 
-  const handleRipple = (
-    e: React.MouseEvent<HTMLButtonElement>,
-    key: string
-  ) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    const id = Date.now()
-    setRipples((prev) => [...prev, { key, x, y, id }])
-    setTimeout(() => {
-      setRipples((prev) => prev.filter((r) => r.id !== id))
-    }, 600)
-  }
+
 
   const renderPermissions = (
     userId: number,
@@ -120,9 +141,8 @@ export default function UsersPage() {
         return (
           <button
             key={permKey}
-            onClick={(e) => {
+            onClick={() => {
               togglePermission(userId, module, permKey)
-              handleRipple(e, `${userId}-${module}-${permKey}`)
             }}
             className={`ripple w-6 h-6 rounded-md flex items-center justify-center transition-all ${
               isActive
@@ -146,8 +166,9 @@ export default function UsersPage() {
     user.type.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleAddUser = () => {
-    if (!newType.trim()) return
+  const handleAddUser = (selectedMenu?: string) => {
+    const userType = selectedMenu || newType.trim()
+    if (!userType) return
 
     const newId = Math.max(...data.map((u) => u.id)) + 1
 
@@ -155,19 +176,20 @@ export default function UsersPage() {
       ? allModules
       : ["site", "dashboard"]
 
-    const defaultPermissions = defaultModules.reduce((acc, mod) => {
+    const defaultPermissions: UserPermissions = defaultModules.reduce((acc, mod) => {
       acc[mod] = { view: false, edit: false, write: false, delete: false }
       return acc
-    }, {} as Record<string, Record<string, boolean>>)
+    }, {} as UserPermissions)
 
-    const newUser = {
+    const newUser: UserData = {
       id: newId,
-      type: newType.trim(),
+      type: userType,
       permissions: defaultPermissions,
     }
 
     setData((prev) => [...prev, newUser])
     setNewType("")
+    setIsMenuOpen(false)
   }
 
   const handleSave = () => {
@@ -259,12 +281,31 @@ export default function UsersPage() {
             onChange={(e) => setNewType(e.target.value)}
             className="sm:w-1/3 w-full bg-white border border-gray-300 text-gray-800 placeholder:text-gray-400 rounded-md py-2 px-3 focus:outline-none"
           />
-          <button
-          
-            className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-all"
-          >
-            Menu
-          </button>
+          {/* Menu Dialog */}
+          <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+            <DialogTrigger asChild>
+              <button className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-all flex items-center gap-2">
+                <Menu size={16} />
+                Menu
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md bg-white">
+              <DialogHeader>
+                <DialogTitle>Select Menu to Add</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-2 max-h-60 overflow-y-auto">
+                {menuOptions.map((menu) => (
+                  <button
+                    key={menu}
+                    onClick={() => handleAddUser(menu)}
+                    className="text-left p-3 rounded-md hover:bg-gray-100 transition-colors border border-gray-200"
+                  >
+                    {menu}
+                  </button>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
           <GradientButton
             text="Save"
             width="120px"

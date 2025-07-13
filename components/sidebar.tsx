@@ -120,8 +120,16 @@ const menuItems = [
   { icon: ShieldCheck, label: "RBAC", href: "/dashboard/rbac", active: false },
 ]
 
+interface MenuItem {
+  icon?: React.ComponentType<{ className?: string }>
+  label: string
+  href: string
+  active: boolean
+  children?: Omit<MenuItem, 'icon' | 'active'>[]
+}
+
 interface MenuItemProps {
-  item: any
+  item: MenuItem
   level: number
   isCollapsed: boolean
   pathname: string
@@ -154,7 +162,7 @@ function MenuItem({ item, level, isCollapsed, pathname }: MenuItemProps) {
           }`}
         >
           {/* Increase icon size in collapsed state */}
-          <item.icon className="w-5 h-5 relative z-10" />
+          {item.icon && <item.icon className="w-5 h-5 relative z-10" />}
         </div>
       </Link>
     )
@@ -174,7 +182,7 @@ function MenuItem({ item, level, isCollapsed, pathname }: MenuItemProps) {
               style={{ paddingLeft: `${12 + level * 16}px` }}
             >
               <div className="flex items-center space-x-3 relative z-10">
-                {level === 0 && <item.icon className="w-5 h-5" />}
+                {level === 0 && item.icon && <item.icon className="w-5 h-5" />}
                 <span className="text-sm font-medium">{item.label}</span>
               </div>
               <ChevronRight
@@ -184,8 +192,8 @@ function MenuItem({ item, level, isCollapsed, pathname }: MenuItemProps) {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="mt-1">
-              {item.children.map((child: any, index: number) => (
-                <MenuItem key={index} item={child} level={level + 1} isCollapsed={isCollapsed} pathname={pathname} />
+              {item.children?.map((child, index: number) => (
+                <MenuItem key={index} item={child as MenuItem} level={level + 1} isCollapsed={isCollapsed} pathname={pathname} />
               ))}
             </div>
           </CollapsibleContent>
@@ -200,7 +208,7 @@ function MenuItem({ item, level, isCollapsed, pathname }: MenuItemProps) {
             }`}
             style={{ paddingLeft: `${12 + level * 16}px` }}
           >
-            {level === 0 && <item.icon className="w-5 h-5 relative z-10" />}
+            {level === 0 && item.icon && <item.icon className="w-5 h-5 relative z-10" />}
             <span className="text-sm font-medium relative z-10">{item.label}</span>
           </div>
         </Link>

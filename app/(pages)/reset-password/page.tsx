@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import GradientButton from '@/app/utils/GradientButton';
 import Image from 'next/image';
 import icon from '../../../public/icon.jpg';
@@ -63,8 +63,9 @@ export default function ResetPassword() {
       setSuccess('Password reset successfully! You can now log in.');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred. Please try again.'; 
+      setError(errorMessage);
     }
   };
 

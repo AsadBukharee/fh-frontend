@@ -41,6 +41,7 @@ export default function ForgetPassword() {
         setToast({ message: data.message || 'Failed to send OTP', type: 'error' });
       }
     } catch (error) {
+      console.log(error)
       setToast({ message: 'Network error, please try again', type: 'error' });
     } finally {
       setIsLoading(false);
@@ -81,7 +82,6 @@ export default function ForgetPassword() {
             text={isLoading ? 'Sending...' : 'Send Email'}
             width="100%"
             Icon={SendHorizonal}
-            disabled={isLoading}
           />
 
           <button

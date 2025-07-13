@@ -139,7 +139,7 @@ export default function UsersPage() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
-                        ref={(el) => (buttonRefs.current[`action-${user.id}`] = el)}
+                        ref={(el) => { buttonRefs.current[`action-${user.id}`] = el }}
                         variant="ghost"
                         size="sm"
                         className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
@@ -208,7 +208,7 @@ export default function UsersPage() {
             <span className="relative z-10">2</span>
           </Button>
           <Button
-            ref={(el) => (buttonRefs.current["page3"] = el)}
+            ref={(el) => { buttonRefs.current["page3"] = el }}
             variant="ghost"
             size="sm"
             className="ripple cursor-glow"
@@ -218,7 +218,7 @@ export default function UsersPage() {
           </Button>
           <span className="text-gray-400">...</span>
           <Button
-            ref={(el) => (buttonRefs.current["page67"] = el)}
+            ref={(el) => { buttonRefs.current["page67"] = el }}
             variant="ghost"
             size="sm"
             className="ripple cursor-glow"
@@ -227,7 +227,7 @@ export default function UsersPage() {
             <span className="relative z-10">67</span>
           </Button>
           <Button
-            ref={(el) => (buttonRefs.current["page68"] = el)}
+            ref={(el) => { buttonRefs.current["page68"] = el }}
             variant="ghost"
             size="sm"
             className="ripple cursor-glow"
@@ -236,7 +236,7 @@ export default function UsersPage() {
             <span className="relative z-10">68</span>
           </Button>
           <Button
-            ref={(el) => (buttonRefs.current["next"] = el)}
+            ref={(el) => { buttonRefs.current["next"] = el }}
             variant="ghost"
             size="sm"
             className="ripple cursor-glow"
