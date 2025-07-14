@@ -105,6 +105,7 @@ export default function Register() {
         cookies.set('access_token', data.access, { path: '/' });
         cookies.set('refresh_token', data.refresh, { path: '/' });
         cookies.set('user_id', data?.user?.id)
+        cookies.set('role', data?.user?.role)
   
         showToast('User registered successfully!', 'success');
         // Redirect to a protected route (e.g., dashboard) after successful registration

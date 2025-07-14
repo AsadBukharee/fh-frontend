@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Search, Bell, MessageCircle, User, Settings, LogOut, Filter, Download, Plus, Send } from "lucide-react"
+import { useCookies } from "next-client-cookies"
+import { useRouter } from "next/navigation"
 
 interface HeaderProps {
   title: string
@@ -32,6 +34,8 @@ export function Header({ title, subtitle, showActions = false }: HeaderProps) {
   const [message, setMessage] = useState("")
   const [activeFilter, setActiveFilter] = useState("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const cookies = useCookies()
+  const router = useRouter()
 
   const buttonRefs = {
     bell: useRef<HTMLButtonElement>(null!),
@@ -49,6 +53,13 @@ export function Header({ title, subtitle, showActions = false }: HeaderProps) {
       ref.current.style.setProperty("--mouse-x", `${x}%`)
       ref.current.style.setProperty("--mouse-y", `${y}%`)
     }
+  }
+  const handlesignout = () => {
+    cookies.remove("user_id")
+    cookies.remove("access_token")
+    cookies.remove("role")
+    cookies.remove("refresh_token")
+    router.push("/login")
   }
 
   const notifications = [
@@ -278,15 +289,15 @@ export function Header({ title, subtitle, showActions = false }: HeaderProps) {
               </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-white">
-              <DropdownMenuItem>
+              <DropdownMenuItem className="hover:bg-gray-100">
                 <User className="w-4 h-4 mr-2" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem className="hover:bg-gray-100">
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handlesignout} className="hover:bg-gray-100">
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign out
               </DropdownMenuItem>

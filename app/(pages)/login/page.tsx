@@ -35,11 +35,14 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Added loading state
   const router = useRouter();
   const cookies = useCookies();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return; // Prevent multiple submissions
+    setIsLoading(true);
     setError('');
 
     try {
@@ -59,8 +62,8 @@ export default function Login() {
 
       // Store tokens in cookies using next-cookies-client
       cookies.set('access_token', data.access);
-      cookies.set('user_id', data?.user?.id)
-
+      cookies.set('user_id', data?.user?.id);
+      cookies.set('role', data?.user?.role);
       cookies.set('refresh_token', data.refresh);
 
       // Optionally store user data in localStorage if rememberMe is checked
@@ -68,11 +71,13 @@ export default function Login() {
         localStorage.setItem('user', JSON.stringify(data.user));
       }
 
-      // Redirect to dashboard or another page
+      // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred during login.';
       setError(errorMessage);
+    } finally {
+      setIsLoading(false); // Reset loading state
     }
   };
 
@@ -110,6 +115,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Enter your email"
+                disabled={isLoading} // Disable input during loading
               />
             </div>
 
@@ -123,11 +129,13 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full p-3 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Enter your password"
+                  disabled={isLoading} // Disable input during loading
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500"
+                  disabled={isLoading} // Disable button during loading
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -142,6 +150,7 @@ export default function Login() {
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="mr-2"
+                  disabled={isLoading} // Disable checkbox during loading
                 />
                 Remember me
               </label>
@@ -150,10 +159,11 @@ export default function Login() {
 
             {/* Sign In Button */}
             <GradientButton
-              text="Sign in"
+              text={isLoading ? 'Signing in...' : 'Sign in'}
               width="100%"
               Icon={LogIn}
-              onClick={() => handleSubmit(new Event('submit') as unknown as React.FormEvent)}
+              // type="submit" // Ensure button triggers form submission
+              // disabled={isLoading} // Disable button during loading
             />
           </form>
 
@@ -165,11 +175,17 @@ export default function Login() {
           </div>
 
           {/* Google and Facebook with Iconify Icons */}
-          <button className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 p-3 rounded-lg text-sm hover:bg-gray-100">
+          <button
+            className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 p-3 rounded-lg text-sm hover:bg-gray-100"
+            disabled={isLoading} // Disable button during loading
+          >
             <Icon icon="flat-color-icons:google" className="text-xl" />
             Sign in with Google
           </button>
-          <button className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 p-3 rounded-lg text-sm mt-3 hover:bg-gray-100">
+          <button
+            className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 p-3 rounded-lg text-sm mt-3 hover:bg-gray-100"
+            disabled={isLoading} // Disable button during loading
+          >
             <Icon icon="mdi:facebook" className="text-xl text-[#1877f2]" />
             Sign in with Facebook
           </button>

@@ -56,6 +56,7 @@ const userData: UserData[] = [
     permissions: {
       site: { view: true, edit: true, write: true, delete: true },
       dashboard: { view: true, edit: true, write: true, delete: true },
+      cars: { view: true, edit: true, write: true, delete: true },
     },
   },
   {
@@ -64,6 +65,8 @@ const userData: UserData[] = [
     permissions: {
       site: { view: true, edit: true, write: true, delete: false },
       dashboard: { view: true, edit: false, write: false, delete: false },
+      cars: { view: true, edit: false, write: false, delete: false },
+
     },
   },
   {

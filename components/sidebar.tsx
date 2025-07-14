@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
@@ -19,127 +17,137 @@ import {
   BookOpen,
   Bell,
   ShieldCheck,
+  ClipboardCheck,
+  Stethoscope,
+  LifeBuoy,
+  Fuel,
+  User,
+  UserPlus,
+  Building2,
+  BookUser,
+  CalendarCheck,
+  RefreshCw,
+  LogIn,
+  Activity,
+  UserCheck,
+  Book,
+  Wrench,
+  Database,
+  Route,
+  CalendarX,
+  MoreHorizontal,
+  SquareCheckBig,
+  CalendarClock,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import API_URL from "@/app/utils/ENV"
+import { useCookies } from "next-client-cookies"
+import { Dashboard_Loading } from "./Dashboard_Loading"
 
-interface SidebarProps {
-  isCollapsed: boolean
-  onToggle: () => void
+// Map API icon strings to Lucide icon components
+const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
+  Truck,
+  ClipboardCheck,
+  Fuel,
+  LifeBuoy,
+  Stethoscope,
+  ShieldCheck,
+  Car,
+  BarChart3,
+  Users,
+  FileText,
+  ClipboardList,
+  CheckSquare,
+  Clock,
+  Settings,
+  BookOpen,
+  Bell,
+  User,
+  UserPlus,
+  Building2,
+  BookUser,
+  CalendarCheck,
+  RefreshCw,
+  LogIn,
+  Activity,
+  UserCheck,
+  Book,
+  Wrench,
+  Database,
+  Route,
+  CalendarX,
+  MoreHorizontal,
+  SquareCheckBig,
+  CalendarClock,
 }
-
-const menuItems = [
-  { icon: BarChart3, label: "Dashboard", href: "/dashboard", active: false },
-  { icon: Users, label: "User Management", href: "/dashboard/users", active: false },
-  {
-    icon: Car,
-    label: "Vehicles",
-    href: "/dashboard/vehicles",
-    active: false,
-    children: [
-      {
-        label: "Walkaround Checks",
-        href: "/dashboard/vehicles/walkaround",
-        children: [
-          {
-            label: "Gate Keeper Checks",
-            href: "/dashboard/vehicles/walkaround/gatekeeper",
-            children: [
-              { label: "Walkaround 2 (Supervisor checks Driver)", href: "/dashboard/vehicles/walkaround/gatekeeper/supervisor" },
-              { label: "Walkaround 3 (Manager checks Supervisor)", href: "/dashboard/vehicles/walkaround/gatekeeper/manager" },
-            ],
-          },
-        ],
-      },
-      { label: "Fuel Checks", href: "/dashboard/vehicles/fuel" },
-      { label: "Tyre Checks", href: "/dashboard/vehicles/tyres" },
-      { label: "Equipment Checks", href: "/dashboard/vehicles/equipment" },
-      {
-        label: "Valet Checks",
-        href: "/dashboard/vehicles/valet",
-        children: [
-          {
-            label: "Gate Keeper Checks",
-            href: "/dashboard/vehicles/valet/gatekeeper",
-            children: [
-              { label: "Valet Check 2 (Supervisor checks Driver)", href: "/dashboard/vehicles/valet/gatekeeper/supervisor" },
-              { label: "Valet Check 3 (Manager checks Supervisor)", href: "/dashboard/vehicles/valet/gatekeeper/manager" },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    icon: Users,
-    label: "Staff",
-    href: "/dashboard/staff",
-    active: false,
-    children: [
-      { label: "Daily Duty Logs", href: "/dashboard/staff/duty-logs" },
-      { label: "WTD Logs", href: "/dashboard/staff/wtd-logs" },
-      { label: "Clocking In/Out Logs", href: "/dashboard/staff/clocking" },
-      { label: "Rotas", href: "/dashboard/staff/rotas" },
-      { label: "Contracts", href: "/dashboard/staff/contracts" },
-    ],
-  },
-  {
-    icon: CheckSquare,
-    label: "MOTs & Inspections",
-    href: "/dashboard/mots",
-    active: false,
-    children: [
-      { label: "Maintenance PMI Analysis", href: "/dashboard/mots/maintenance-pmi" },
-      { label: "Driver PMI Analysis", href: "/dashboard/mots/driver-pmi" },
-      { label: "Service History", href: "/dashboard/mots/service-history" },
-    ],
-  },
-  { icon: Settings, label: "Mechanic Jobs", href: "/dashboard/mechanic-jobs", active: false },
-  {
-    icon: Truck,
-    label: "SU Transport Data",
-    href: "/dashboard/su-transport",
-    active: false,
-    children: [{ label: "SU Numbers Screen", href: "/dashboard/su-transport/numbers" }],
-  },
-  {
-    icon: Clock,
-    label: "Audit Expiry Dates",
-    href: "/dashboard/audit-expiry",
-    active: false,
-    children: [
-      { label: "Vehicles", href: "/dashboard/audit-expiry/vehicles" },
-      { label: "Drivers", href: "/dashboard/audit-expiry/drivers" },
-      { label: "Others", href: "/dashboard/audit-expiry/others" },
-    ],
-  },
-  { icon: BookOpen, label: "Knowledge Library", href: "/dashboard/knowledge-library", active: false },
-  { icon: FileText, label: "Document List", href: "/dashboard/documents", active: false },
-  { icon: ClipboardList, label: "Outstanding Tasks", href: "/dashboard/tasks", active: false },
-  { icon: Bell, label: "Reminders", href: "/dashboard/reminders", active: false },
-  { icon: ShieldCheck, label: "RBAC", href: "/dashboard/rbac", active: false },
-]
 
 interface MenuItem {
   icon?: React.ComponentType<{ className?: string }>
   label: string
   href: string
   active: boolean
-  children?: Omit<MenuItem, 'icon' | 'active'>[]
+  children?: Omit<MenuItem, "icon" | "active">[]
 }
 
-interface MenuItemProps {
-  item: MenuItem
-  level: number
+interface ApiMenuItem {
+  nav: string
+  icon: string
+  name: string
+  tooltip: string
+  children: ApiMenuItem[] | null
+}
+
+interface SidebarProps {
   isCollapsed: boolean
-  pathname: string
+  onToggle: () => void
 }
 
-function MenuItem({ item, level, isCollapsed, pathname }: MenuItemProps) {
+function mapApiMenuToMenuItem(apiMenu: ApiMenuItem): MenuItem {
+  return {
+    icon: iconMap[apiMenu.icon] || undefined, // Map API icon string to Lucide component, fallback to undefined
+    label: apiMenu.name,
+    href: apiMenu.nav,
+    active: false,
+    children: apiMenu.children
+      ? apiMenu.children.map((child) => ({
+          label: child.name,
+          href: child.nav,
+          icon: iconMap[child.icon] || undefined, // Ensure child icons are mapped
+          children: child.children
+            ? child.children.map((grandchild) => ({
+                label: grandchild.name,
+                href: grandchild.nav,
+                icon: iconMap[grandchild.icon] || undefined, // Ensure grandchild icons are mapped
+                children: grandchild.children
+                  ? grandchild.children.map((greatGrandchild) => ({
+                      label: greatGrandchild.name,
+                      href: greatGrandchild.nav,
+                      icon: iconMap[greatGrandchild.icon] || undefined, // Ensure great-grandchild icons are mapped
+                    }))
+                  : undefined,
+              }))
+            : undefined,
+        }))
+      : undefined,
+  }
+}
+
+function MenuItem({ item, level, isCollapsed, pathname }: { item: MenuItem; level: number; isCollapsed: boolean; pathname: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const hasChildren = item.children && item.children.length > 0
   const isActive = pathname === item.href
   const buttonRef = useRef<HTMLDivElement>(null)
+
+  // Debugging: Log item to verify icon presence
+  useEffect(() => {
+    console.log(`MenuItem at level ${level}:`, {
+      label: item.label,
+      href: item.href,
+      hasIcon: !!item.icon,
+      iconName: item.icon ? item.icon.name : "No icon",
+    })
+  }, [item])
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (buttonRef.current) {
@@ -161,7 +169,6 @@ function MenuItem({ item, level, isCollapsed, pathname }: MenuItemProps) {
             isActive ? "bg-red-50 text-red-600" : "text-gray-600 hover:bg-gray-100"
           }`}
         >
-          {/* Increase icon size in collapsed state */}
           {item.icon && <item.icon className="w-5 h-5 relative z-10" />}
         </div>
       </Link>
@@ -182,7 +189,7 @@ function MenuItem({ item, level, isCollapsed, pathname }: MenuItemProps) {
               style={{ paddingLeft: `${12 + level * 16}px` }}
             >
               <div className="flex items-center space-x-3 relative z-10">
-                {level === 0 && item.icon && <item.icon className="w-5 h-5" />}
+                {item.icon && <item.icon className="w-5 h-5" />}
                 <span className="text-sm font-medium">{item.label}</span>
               </div>
               <ChevronRight
@@ -208,7 +215,7 @@ function MenuItem({ item, level, isCollapsed, pathname }: MenuItemProps) {
             }`}
             style={{ paddingLeft: `${12 + level * 16}px` }}
           >
-            {level === 0 && item.icon && <item.icon className="w-5 h-5 relative z-10" />}
+            {item.icon && <item.icon className="w-5 h-5 relative z-10" />}
             <span className="text-sm font-medium relative z-10">{item.label}</span>
           </div>
         </Link>
@@ -220,6 +227,48 @@ function MenuItem({ item, level, isCollapsed, pathname }: MenuItemProps) {
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
   const toggleRef = useRef<HTMLButtonElement>(null)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const cookies = useCookies()
+  const role = cookies.get("role")
+
+  // Fetch menu data from API
+  useEffect(() => {
+    async function fetchMenu() {
+      try {
+        setIsLoading(true)
+        setError(null)
+        if (!role) {
+          throw new Error("No role found in cookies")
+        }
+        const response = await fetch(`${API_URL}/access/roles/get-menu?role=${role}`)
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`)
+        }
+        const data = await response.json()
+        console.log("API Response:", data)
+        if (data.menu?.items) {
+          const mappedMenus = data.menu.items.map(mapApiMenuToMenuItem)
+          console.log("Mapped Menus:", mappedMenus)
+          setMenuItems(mappedMenus)
+        } else {
+          throw new Error("No menu items in response")
+        }
+      } catch (error) {
+        console.error("Error fetching menu:", error)
+        setError("Failed to load menu. Please try again.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchMenu()
+  }, [role])
+
+  // Debugging: Log menuItems after they are set
+  useEffect(() => {
+    console.log("Current menuItems:", menuItems)
+  }, [menuItems])
 
   const handleToggleMouseMove = (e: React.MouseEvent) => {
     if (toggleRef.current) {
@@ -239,20 +288,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         {!isCollapsed && (
           <div className="flex items-center space-x-2">
-            <img 
-              src="/logos/logo.png" 
-              alt="Foster Hartley Logo" 
-              className="w-8 h-8 object-contain"
-            />
+            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" />
           </div>
         )}
         {isCollapsed && (
           <div className="flex items-center justify-center w-full">
-            <img 
-              src="/logos/logo.png" 
-              alt="Foster Hartley Logo" 
-              className="w-8 h-8 object-contain"
-            />
+            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" />
           </div>
         )}
         <Button
@@ -260,17 +301,19 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           variant="ghost"
           size="sm"
           onClick={onToggle}
-          className="ripple cursor-glow relative bg-gray-100 hover:bg-gray-200"
+          className="ripple cursor-glow relative rounded-full h-8 w-8 left-8 bg-orange hover:bg-magenta"
           onMouseMove={handleToggleMouseMove}
         >
           <ChevronRight
-            className={`w-4 h-4 transition-transform duration-300 relative z-10 ${isCollapsed ? "" : "rotate-180"}`}
+            className={`w-6 h-6 transition-transform text-white duration-300 relative z-10 ${isCollapsed ? "" : "rotate-180"}`}
           />
         </Button>
       </div>
-
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {isLoading && <Dashboard_Loading />}
+        {error && <div className="text-red-600">{error}</div>}
+        {!isLoading && !error && menuItems.length === 0 && <div>No menu items available.</div>}
         {menuItems.map((item, index) => (
           <MenuItem key={index} item={item} level={0} isCollapsed={isCollapsed} pathname={pathname} />
         ))}
