@@ -228,7 +228,7 @@ export default function Register() {
               onClick={() => {}} // onClick is not needed since form submission triggers handleSubmit
             />
           </form>
-w
+
           {/* OR Divider */}
           <div className="flex items-center my-4">
             <div className="grow h-px bg-gray-300" />

@@ -11,15 +11,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Search, Bell, MessageCircle, User, Settings, LogOut, Filter, Download, Plus, Send } from "lucide-react"
+import { Search, Bell, MessageCircle, User, Settings, LogOut, Send } from "lucide-react"
 import { useCookies } from "next-client-cookies"
 import { useRouter } from "next/navigation"
 
-interface HeaderProps {
-  title: string
-  subtitle?: string
-  showActions?: boolean
-}
 
 const users = [
   { id: 1, name: "Jenny Wilson", role: "Driver", avatar: "JW" },
@@ -28,7 +23,7 @@ const users = [
   { id: 4, name: "Mike Brown", role: "Admin", avatar: "MB" },
 ]
 
-export function Header({ title, subtitle, showActions = false }: HeaderProps) {
+export function Header() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedUser, setSelectedUser] = useState("")
   const [message, setMessage] = useState("")
@@ -307,7 +302,7 @@ export function Header({ title, subtitle, showActions = false }: HeaderProps) {
       </div>
 
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      {/* <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           {subtitle && <p className="text-gray-600 mt-1">{subtitle}</p>}
@@ -345,7 +340,7 @@ export function Header({ title, subtitle, showActions = false }: HeaderProps) {
             </Button>
           </div>
         )}
-      </div>
+      </div> */}
     </header>
   )
 }

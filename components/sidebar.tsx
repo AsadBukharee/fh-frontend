@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   Stethoscope,
   LifeBuoy,
+  File,
   Fuel,
   User,
   UserPlus,
@@ -57,6 +58,7 @@ const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = 
   BarChart3,
   Users,
   FileText,
+  File,
   ClipboardList,
   CheckSquare,
   Clock,
@@ -95,7 +97,7 @@ interface ApiMenuItem {
   icon: string
   name: string
   tooltip: string
-  children: ApiMenuItem[] | null
+  children: ApiMenuItem[] | null | undefined // Allow undefined for robustness
 }
 
 interface SidebarProps {
@@ -105,25 +107,25 @@ interface SidebarProps {
 
 function mapApiMenuToMenuItem(apiMenu: ApiMenuItem): MenuItem {
   return {
-    icon: iconMap[apiMenu.icon] || undefined, // Map API icon string to Lucide component, fallback to undefined
+    icon: iconMap[apiMenu.icon] || undefined,
     label: apiMenu.name,
     href: apiMenu.nav,
     active: false,
-    children: apiMenu.children
+    children: Array.isArray(apiMenu.children)
       ? apiMenu.children.map((child) => ({
           label: child.name,
           href: child.nav,
-          icon: iconMap[child.icon] || undefined, // Ensure child icons are mapped
-          children: child.children
+          icon: iconMap[child.icon] || undefined,
+          children: Array.isArray(child.children)
             ? child.children.map((grandchild) => ({
                 label: grandchild.name,
                 href: grandchild.nav,
-                icon: iconMap[grandchild.icon] || undefined, // Ensure grandchild icons are mapped
-                children: grandchild.children
+                icon: iconMap[grandchild.icon] || undefined,
+                children: Array.isArray(grandchild.children)
                   ? grandchild.children.map((greatGrandchild) => ({
                       label: greatGrandchild.name,
                       href: greatGrandchild.nav,
-                      icon: iconMap[greatGrandchild.icon] || undefined, // Ensure great-grandchild icons are mapped
+                      icon: iconMap[greatGrandchild.icon] || undefined,
                     }))
                   : undefined,
               }))
@@ -136,18 +138,10 @@ function mapApiMenuToMenuItem(apiMenu: ApiMenuItem): MenuItem {
 function MenuItem({ item, level, isCollapsed, pathname }: { item: MenuItem; level: number; isCollapsed: boolean; pathname: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const hasChildren = item.children && item.children.length > 0
-  const isActive = pathname === item.href
+  const isActive = pathname === `/dashboard${item.href}`
   const buttonRef = useRef<HTMLDivElement>(null)
 
-  // Debugging: Log item to verify icon presence
-  useEffect(() => {
-    console.log(`MenuItem at level ${level}:`, {
-      label: item.label,
-      href: item.href,
-      hasIcon: !!item.icon,
-      iconName: item.icon ? item.icon.name : "No icon",
-    })
-  }, [item])
+ 
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (buttonRef.current) {
@@ -161,7 +155,7 @@ function MenuItem({ item, level, isCollapsed, pathname }: { item: MenuItem; leve
 
   if (isCollapsed && level === 0) {
     return (
-      <Link href={item.href}>
+      <Link href={`/dashboard${item.href}`}>
         <div
           ref={buttonRef}
           onMouseMove={handleMouseMove}
@@ -206,7 +200,7 @@ function MenuItem({ item, level, isCollapsed, pathname }: { item: MenuItem; leve
           </CollapsibleContent>
         </Collapsible>
       ) : (
-        <Link href={item.href}>
+        <Link href={`/dashboard${item.href}`}>
           <div
             ref={buttonRef}
             onMouseMove={handleMouseMove}
@@ -247,14 +241,13 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           throw new Error(`HTTP error! Status: ${response.status}`)
         }
         const data = await response.json()
-        console.log("API Response:", data)
-        if (data.menu?.items) {
-          const mappedMenus = data.menu.items.map(mapApiMenuToMenuItem)
-          console.log("Mapped Menus:", mappedMenus)
-          setMenuItems(mappedMenus)
-        } else {
-          throw new Error("No menu items in response")
+        
+        if (!data.menu?.items || !Array.isArray(data.menu.items)) {
+          throw new Error("Invalid menu items in response")
         }
+        const mappedMenus = data.menu.items.map(mapApiMenuToMenuItem)
+       
+        setMenuItems(mappedMenus)
       } catch (error) {
         console.error("Error fetching menu:", error)
         setError("Failed to load menu. Please try again.")
@@ -265,10 +258,6 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     fetchMenu()
   }, [role])
 
-  // Debugging: Log menuItems after they are set
-  useEffect(() => {
-    console.log("Current menuItems:", menuItems)
-  }, [menuItems])
 
   const handleToggleMouseMove = (e: React.MouseEvent) => {
     if (toggleRef.current) {

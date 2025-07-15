@@ -7,8 +7,10 @@ import icon from '../../../public/icon.jpg';
 import { useSearchParams } from 'next/navigation';
 import API_URL from '@/app/utils/ENV';
 import { Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function ResetPassword() {
+  const router = useRouter();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,6 +18,7 @@ export default function ResetPassword() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const searchParams = useSearchParams();
+  
 
   // Extract uid and token from URL query parameters
   const uid = searchParams.get('uid');
@@ -61,6 +64,7 @@ export default function ResetPassword() {
       }
 
       setSuccess('Password reset successfully! You can now log in.');
+      router.push('/login');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: unknown) {
