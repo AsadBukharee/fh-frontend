@@ -38,7 +38,7 @@ export default function Register() {
   const { showToast } = useToast();
   const cookies = useCookies();
   const router = useRouter();
-
+  const [isLoading, setIsLoading] = useState(false);
   useEffect(() => {
     const fetchRoles = async () => {
       try {
@@ -56,7 +56,8 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+    if (isLoading) return;
+    setIsLoading(true);
     // Password length validation
     if (password.length < 8) {
       showToast('Password must be at least 8 characters long.', 'error');
@@ -116,6 +117,8 @@ export default function Register() {
     } catch (error) {
       console.error('Error during registration:', error);
       showToast('An error occurred during registration', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -223,7 +226,7 @@ export default function Register() {
 
             {/* Sign Up */}
             <GradientButton
-              text="Sign up"
+               text={isLoading ? 'Signing up...' : 'Sign up'}
               width="100%"
               onClick={() => {}} // onClick is not needed since form submission triggers handleSubmit
             />

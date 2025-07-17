@@ -17,7 +17,7 @@ export default function AddDriver() {
   const [documentsData, setDocumentsData] = useState<any>(null)
 
   return (
-    <div className="flex items-center justify-center bg-background p-4">
+    <div className="flex items-center justify-center bg-background ">
       <div className="w-full max-w-4xl">
         <Stepper totalSteps={stepLabels.length} initialStep={0}>
           <StepperTabs labels={stepLabels} />

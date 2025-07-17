@@ -143,16 +143,18 @@ export function Header() {
         <div className="flex items-center space-x-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                ref={buttonRefs.bell}
-                variant="ghost"
-                size="sm"
-                className="relative ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-                onMouseMove={handleMouseMove(buttonRefs.bell)}
-              >
-                <Bell className="w-5 h-5 relative z-10" />
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </Button>
+            <Button
+  ref={buttonRefs.bell}
+  variant="ghost"
+  size="sm"
+  className="relative cursor-pointer bg-gray-100 hover:bg-gray-200 w-10 h-10 rounded-full flex items-center justify-center"
+  onMouseMove={handleMouseMove(buttonRefs.bell)}
+>
+  <Bell className="w-5 h-5 text-gray-700" />
+  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 opacity-50 hover:opacity-100 text-white text-xs font-semibold rounded-full flex items-center justify-center">
+    2
+  </span>
+</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-96 bg-white">
               <div className="p-4 border-b">
@@ -217,16 +219,18 @@ export function Header() {
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button
-                ref={buttonRefs.chat}
-                variant="ghost"
-                size="sm"
-                className="relative ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-                onMouseMove={handleMouseMove(buttonRefs.chat)}
-              >
-                <MessageCircle className="w-5 h-5 relative z-10" />
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </Button>
+            <Button
+  ref={buttonRefs.chat}
+  variant="ghost"
+  size="sm"
+  className="relative cursor-pointer bg-gray-100 hover:bg-gray-200 w-10 h-10 rounded-full flex items-center justify-center"
+  onMouseMove={handleMouseMove(buttonRefs.chat)}
+>
+  <MessageCircle className="w-5 h-5 text-gray-700" />
+  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 opacity-50 hover:opacity-100 text-white text-xs font-semibold rounded-full flex items-center justify-center">
+    2
+  </span>
+</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md bg-white">
               <DialogHeader>

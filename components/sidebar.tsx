@@ -238,7 +238,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         if (!role) {
           throw new Error("No role found in cookies")
         }
-        const response = await fetch(`${API_URL}/access/roles/get-menu?role=${role}`)
+        const response = await fetch(`${API_URL}/access/roles/get-menu`)
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`)
         }
@@ -282,23 +282,31 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" />
           </div>
         )}
-        {isCollapsed && (
-          <div className="flex items-center justify-center w-full">
-            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" />
-          </div>
-        )}
-        <Button
-          ref={toggleRef}
-          variant="ghost"
-          size="sm"
-          onClick={onToggle}
-          className="ripple cursor-glow relative rounded-full h-8 w-8 left-8 bg-orange hover:bg-magenta"
-          onMouseMove={handleToggleMouseMove}
-        >
-          <ChevronRight
-            className={`w-6 h-6 transition-transform text-white duration-300 relative z-10 ${isCollapsed ? "" : "rotate-180"}`}
-          />
-        </Button>
+    {isCollapsed && (
+  <div className="flex items-center justify-center w-full">
+    <img
+      src="/logos/logo.png"
+      alt="Foster Hartley Logo"
+      className="w-8 h-8 object-contain"
+    />
+  </div>
+)}
+
+<Button
+  ref={toggleRef}
+  variant="ghost"
+  size="sm"
+  onClick={onToggle}
+  onMouseMove={handleToggleMouseMove}
+  className="ripple cursor-glow relative rounded-full h-8 w-8 left-8 bg-orange hover:bg-magenta"
+>
+  <ChevronRight
+    className={`w-6 h-6 text-white transition-transform duration-300 relative z-10 ${
+      isCollapsed ? "" : "rotate-180"
+    }`}
+  />
+</Button>
+
       </div>
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">

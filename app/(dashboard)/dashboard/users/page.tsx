@@ -130,11 +130,18 @@ export default function UsersPage() {
                 </Button>
                 {/* <GradientButton text="Add User" Icon={UserPlus} /> */}
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-white">
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-100" onClick={() => handleAddUserClick("User")}>User</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-100" onClick={() => handleAddUserClick("Admin")}>Admin</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-100" onClick={() => handleAddUserClick("Driver")}>Driver</DropdownMenuItem>
-              </DropdownMenuContent>
+              <DropdownMenuContent align="end" className="relative border-0 bg-white">
+  <div className="absolute inset-[-2px] border-4 border-transparent [border-image:linear-gradient(to_right,_#f85032_0%,_#e73827_20%,_#662D8C_100%)_1] z-[-1] rounded-md"></div>
+  <DropdownMenuItem className="cursor-pointer hover:bg-gray-100" onClick={() => handleAddUserClick("User")}>
+    User
+  </DropdownMenuItem>
+  <DropdownMenuItem className="cursor-pointer hover:bg-gray-100" onClick={() => handleAddUserClick("Admin")}>
+    Admin
+  </DropdownMenuItem>
+  <DropdownMenuItem className="cursor-pointer hover:bg-gray-100" onClick={() => handleAddUserClick("Driver")}>
+    Driver
+  </DropdownMenuItem>
+</DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
