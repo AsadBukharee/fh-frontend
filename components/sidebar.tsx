@@ -73,6 +73,7 @@ const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = 
   Building2,
   BookUser,
   CalendarCheck,
+  Headset,
   RefreshCw,
   LogIn,
   Activity,
