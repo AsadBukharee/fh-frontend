@@ -46,7 +46,7 @@ export default function Login() {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/login/`, {
+      const response = await fetch(`${API_URL}/auth/login/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,7 +63,7 @@ export default function Login() {
       // Store tokens in cookies using next-cookies-client
       cookies.set('access_token', data.access);
       cookies.set('user_id', data?.user?.id);
-      cookies.set('role', data?.user?.role);
+      cookies.set('role', data?.role);
       cookies.set('refresh_token', data.refresh);
 
       // Optionally store user data in localStorage if rememberMe is checked

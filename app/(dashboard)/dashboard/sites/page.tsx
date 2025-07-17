@@ -1,79 +1,135 @@
 "use client";
 
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import GradientButton from "@/app/utils/GradientButton";
-import {  MoveUpRight, Plus } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import {  Plus, MapPin, Truck, Users } from "lucide-react";
 
-const shifts = ["Early", "Middle", "Night"];
+import GradientButton from "@/app/utils/GradientButton";
+import Link from "next/link";
+import { sitesData } from "@/app/data/sites";
+
+
 
 export default function SiteGrid() {
-  const sites = Array.from({ length: 4 }, (_, i) => ({
-    id: i,
-    name: "Loreum ipsum dummy",
-    image: "/5aa1c19d-292a-4f38-9b53-2de4ce0c9bbd.png",
-    description: "Loreum ipsum dummy Loreum ipsum dummy Loreum ipsum dummy...",
-    badgeCount: 5,
-  }));
-
   return (
-    <section className="p-8 h-screen bg-white">
-     <div className=" flex justify-between items-center mb-5">
-     <div className="">
-        <h1 className="text-2xl font-bold">Sites</h1>
-        <p className="text-sm text-muted-foreground mb-6">See sites list</p>
+    <section className="p-8 bg-white min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Sites</h1>
+          <p className="text-sm text-gray-500">See sites list</p>
+        </div>
+        <GradientButton text="Add Site" Icon={Plus} />
       </div>
-      <div className="flex justify-end">
-        <GradientButton
-        text="Add Site"
-        Icon={Plus}
-        />
-      </div>
-     </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {sites.map((site) => (
-          <Card key={site.id} className="flex flex-col shadow-md justify-between h-full">
-            <div className="relative w-full h-36 rounded-t-lg overflow-hidden">
-              <Image src={site.image} alt="Bus" fill className="object-cover" />
-              <div className="absolute top-2 right-2 bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                {site.badgeCount}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        {sitesData.map((site, index) => (
+          <Card
+            key={index}
+            className="rounded-xl shadow-sm border border-gray-200 overflow-hidden p-0"
+          >
+            <div className="p-4 pb-0">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="font-semibold text-sm text-gray-800">{site.name}</h2>
+                </div>
+                <div className="flex gap-1">
+                  <Badge
+                    className={`text-xs font-medium ${
+                      site.status === "Active"
+                        ? "bg-green-100 text-green-700"
+                        : site.status === "On Hold"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {site.status}
+                  </Badge>
+                  <div className="flex items-center bg-rose w-6 justify-center rounded-full h-6 gap-1">
+                    <span className="text-white text-xs font-medium">{site.alerts}</span>
+                  </div>
+                </div>
               </div>
             </div>
-
-            <CardContent className="space-y-2 p-4 flex flex-col flex-grow">
-              <h2 className="text-sm font-semibold">{site.name}</h2>
-
-              <div className="flex flex-wrap gap-2 text-xs">
-                {shifts.map((shift) => (
-                  <Badge
-                    key={shift}
-                    className={
-                      shift === "Early"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : shift === "Middle"
-                        ? "bg-orange-100 text-orange-800"
-                        : "bg-purple-100 text-purple-800"
-                    }
+            <div className="flex justify-between px-2 items-center min-w-full text-gray-500 mt-1">
+              <div className="flex items-center w-fit">
+                <MapPin className="w-4 h-4 text-rose" />
+                {site.location.city}
+              </div>
+              <div className="flex items-center w-fit">
+                <p className="text-xs w-fit text-gray-400">ZipCode: {site.location.zipCode}</p>
+              </div>
+            </div>
+            <div className="px-4 mt-3 flex gap-2 flex-wrap">
+              {site.shifts.map((shift, idx) => (
+                <span
+                  key={idx}
+                  className={`text-[10px] px-2 py-1 rounded-full font-medium ${
+                    shift.active
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  {shift.name}
+                </span>
+              ))}
+            </div>
+            <div className="bg-[#FFF0EB] mt-3 mx-4 rounded-lg px-4 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-[#F97316] font-semibold">
+                <Truck className="w-4 h-4" />
+                Authorized Vehicle
+              </div>
+              <div className="text-[#F97316] font-bold text-sm">{site.authorizedVehicles}</div>
+            </div>
+            <div className="bg-gray-100 mt-3 mx-4 rounded-lg px-4 py-3">
+              <div className="flex justify-between items-center text-sm font-semibold text-[#B91C1C]">
+                <div className="flex items-center gap-2">
+                  <Users className="w-6 h-6 text-orange" />
+                  <span className="text-black text-lg font-bold">Staff on Site</span>
+                </div>
+                <span>{`${site.staff.current}/${site.staff.capacity}`}</span>
+              </div>
+              <div className="flex gap-2 mt-2 text-xs justify-evenly items-center">
+                {site.staff.breakdown.slice(0, 3).map((role, idx) => (
+                  <div
+                    key={idx}
+                    className="text-white flex flex-col justify-center items-center px-2 py-1 rounded-full"
                   >
-                    {shift}
-                  </Badge>
+                    <span className="text-black text-lg text-bold font-medium">{role.count}</span>
+                    <span className="text-xs w-fit text-gray-800">{role.role}</span>
+                  </div>
                 ))}
               </div>
-
-              <p className="text-xs text-muted-foreground line-clamp-3">
-                {site.description} <span className="text-red-500 font-semibold cursor-pointer">See More</span>
+              <div className="mt-3">
+                <div className="text-xs font-medium text-[#B91C1C] mb-1">Utilizations</div>
+                <div className="relative h-2 bg-[#FCA5A5] rounded-full overflow-hidden">
+                  <div
+                    className="absolute left-0 top-0 h-full bg-[#B91C1C]"
+                    style={{ width: site.staff.utilization }}
+                  ></div>
+                </div>
+                <div className="text-right text-xs font-semibold text-[#B91C1C] mt-1">
+                  {site.staff.utilization}
+                </div>
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-4 px-4">
+              <p>Geofencing: {`${site.location.geofencing.latitude}, ${site.location.geofencing.longitude}`}</p>
+              <p className="mt-1">
+                Last Updated: {new Date(site.lastUpdated).toLocaleString("en-US", {
+                  month: "numeric",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                })}
               </p>
-            </CardContent>
-
-            <CardFooter className="p-4 pt-0">
-             <GradientButton
-             text="More Details"
-             Icon={MoveUpRight}
-             width="100%"
-             />
-            </CardFooter>
+            </div>
+            <div className="px-4 mt-3 flex justify-end pb-4">
+              <Link href={`/dashboard/sites/${index}`} className="text-md  underline hover:text-magenta cursor-pointer text-bold text-right w-fit  text-orange">
+                see more...
+              </Link>
+            </div>
           </Card>
         ))}
       </div>

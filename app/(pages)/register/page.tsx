@@ -91,7 +91,7 @@ export default function Register() {
     };
   
     try {
-      const response = await fetch(`${API_URL}/api/auth/register/`, {
+      const response = await fetch(`${API_URL}/auth/register/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ export default function Register() {
         cookies.set('access_token', data.access, { path: '/' });
         cookies.set('refresh_token', data.refresh, { path: '/' });
         cookies.set('user_id', data?.user?.id)
-        cookies.set('role', data?.user?.role)
+        cookies.set('role', data.role)
   
         showToast('User registered successfully!', 'success');
         // Redirect to a protected route (e.g., dashboard) after successful registration
