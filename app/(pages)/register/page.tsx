@@ -42,7 +42,7 @@ export default function Register() {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const res = await fetch(`${API_URL}/access/roles/`);
+        const res = await fetch(`${API_URL}/roles/`);
         const data = await res.json();
         const roleNames = data.results?.map((role: { name: string }) => role.name) || [];
         setRoles(roleNames);

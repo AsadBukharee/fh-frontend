@@ -12,7 +12,7 @@ const GradientButton: React.FC<GradientButtonProps> = ({ text, Icon = LogIn, onC
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
+      className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
       style={{
         background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
         width: width || 'auto',
