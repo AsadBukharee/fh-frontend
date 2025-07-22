@@ -58,12 +58,12 @@ export default function Login() {
         throw new Error('Login failed. Please check your credentials.');
       }
 
-      const data = await response.json();
-
+      const {data} = await response.json();
+console.log(data)
       // Store tokens in cookies using next-cookies-client
       cookies.set('access_token', data.access);
       cookies.set('user_id', data?.user?.id);
-      cookies.set('role', data?.role);
+      cookies.set('role', data?.role.name);
       cookies.set('refresh_token', data.refresh);
 
       // Optionally store user data in localStorage if rememberMe is checked
