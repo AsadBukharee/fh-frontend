@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Import Tooltip components
-import { Plus, MapPin, Truck, Users, MoveUpRight } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Plus, MapPin, Truck, Users, MoveUpRight, RefreshCcw } from "lucide-react";
 import GradientButton from "@/app/utils/GradientButton";
 import Link from "next/link";
 import AddSiteForm from "@/components/add-site";
@@ -70,30 +70,42 @@ export default function SiteGrid() {
   const [open, setOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const cookies=useCookies()
-  const token=cookies.get('access_token')
+  const cookies = useCookies();
+  const token = cookies.get('access_token');
+
   // Fetch sites data from API
+  const fetchSites = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/sites/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error("Failed to fetch sites");
+      const data: Site[] = await response.json();
+      setSites(data);
+      setLoading(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchSites = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/sites/`,{
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (!response.ok) throw new Error("Failed to fetch sites");
-        const data: Site[] = await response.json();
-        setSites(data);
-        setLoading(false);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-        setLoading(false);
-      }
-    };
     fetchSites();
   }, []);
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-orange border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600 text-lg">Loading Sites...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (error) return <div className="p-8 text-red-600">Error: {error}</div>;
 
   return (
@@ -104,24 +116,31 @@ export default function SiteGrid() {
             <h1 className="text-2xl font-bold">Sites</h1>
             <p className="text-sm text-gray-500">Browse all available sites</p>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <GradientButton text="Add Site" Icon={Plus} />
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[500px] overflow-y-auto p-6 bg-white rounded-lg">
-              <DialogHeader>
-                <DialogTitle className="text-lg font-semibold">Add New Site</DialogTitle>
-              </DialogHeader>
-              <AddSiteForm />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-4 items-center">
+            <div className="cursor-pointer" onClick={() => {
+              fetchSites();
+            }}>
+              <RefreshCcw className="w-4 h-4 text-gray-500" />
+            </div>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <GradientButton text="Add Site" Icon={Plus} />
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[500px] overflow-y-auto p-6 bg-white rounded-lg">
+                <DialogHeader>
+                  <DialogTitle className="text-lg font-semibold">Add New Site</DialogTitle>
+                </DialogHeader>
+                <AddSiteForm />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="flex justify-evenly items-center flex-wrap gap-6">
           {sites.map((site) => (
             <Card
               key={site.id}
-              className="rounded-xl shadow-sm border bg-white border-gray-200 overflow-hidden p-0"
+              className="rounded-xl shadow-sm border w-[320px] h-[420px] bg-white border-gray-200 overflow-hidden p-2"
             >
               <div className="p-4 pb-0">
                 <div className="flex justify-between items-start">
@@ -139,18 +158,18 @@ export default function SiteGrid() {
                       {site.notes?.includes("Temporarily reduced") ? "On Hold" : "Active"}
                     </Badge>
                     <div className="flex items-center cursor-pointer bg-rose w-6 justify-center rounded-full h-6 gap-1">
-                    <Tooltip>
-  <TooltipTrigger asChild>
-    <span className="text-white text-xs font-medium">{site.warnings.length}</span>
-  </TooltipTrigger>
-  <TooltipContent className="bg-white border-0 text-black">
-    <ul className="list-disc border-0 pl-4">
-      {site.warnings.map((warning, index) => (
-        <li key={index}>{warning}</li>
-      ))}
-    </ul>
-  </TooltipContent>
-</Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-white text-xs font-medium">{site.warnings.length}</span>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-white border-0 text-black">
+                          <ul className="list-disc border-0 pl-4">
+                            {site.warnings.map((warning, index) => (
+                              <li key={index}>{warning}</li>
+                            ))}
+                          </ul>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </div>
@@ -171,8 +190,7 @@ export default function SiteGrid() {
                   <Tooltip key={idx}>
                     <TooltipTrigger asChild>
                       <Badge
-                        // variant="outline"
-                        className={`text-[12px] cursor-pointer   h-[20px] px-2 py-0 font-medium ${
+                        className={`text-[12px] cursor-pointer h-[20px] px-2 py-0 font-medium ${
                           person ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                         }`}
                       >
@@ -242,7 +260,7 @@ export default function SiteGrid() {
               <div className="px-4 mt-3 flex justify-end pb-4">
                 <Link
                   href={`/dashboard/sites/${site.id}`}
-                  className="text-md  w-full cursor-pointer py-2 rounded-sm  text-orange   bg-orange-50 flex items-center justify-center gap-2"
+                  className="text-md w-full cursor-pointer py-2 rounded-sm text-orange bg-gray-100 flex items-center justify-center gap-2"
                 >
                   More Details <MoveUpRight size={16} />
                 </Link>

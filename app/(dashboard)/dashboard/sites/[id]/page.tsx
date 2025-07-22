@@ -10,6 +10,7 @@ import { Truck, Users, MapPin, TriangleAlert, Clock, Save, Edit, X } from "lucid
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { format, parse } from "date-fns";
+import Link from "next/link";
 
 // Define the API response interface for operation hours
 interface OperationHour {
@@ -163,33 +164,6 @@ export default function SiteDetails() {
   // Handle input changes for site fields
   const handleInputChange = (field: keyof Site, value: any) => {
     setEditSite((prev) => (prev ? { ...prev, [field]: value } : prev));
-  };
-
-  // Handle staff input changes
-  // const handleStaffChange = (field: keyof Staff, value: string) => {
-  //   const numValue = parseInt(value) || 0;
-  //   setEditSite((prev) =>
-  //     prev
-  //       ? {
-  //           ...prev,
-  //           staff: {
-  //             ...prev.staff,
-  //             [field]: numValue,
-  //             total:
-  //               (field === "driver" ? numValue : prev.staff.driver) +
-  //               (field === "admin" ? numValue : prev.staff.admin) +
-  //               (field === "mechanic" ? numValue : prev.staff.mechanic),
-  //           },
-  //         }
-  //       : prev
-  //   );
-  // };
-
-  // Handle presence input changes
-  const handlePresenceChange = (field: keyof Presence, value: string) => {
-    setEditSite((prev) =>
-      prev ? { ...prev, presence: { ...prev.presence, [field]: value } } : prev
-    );
   };
 
   // Handle operation hours changes
@@ -379,7 +353,7 @@ export default function SiteDetails() {
   return (
     <div className="p-6 bg-white min-h-screen">
       <div className="text-sm text-gray-500 mb-2">
-        Dashboard / Sites / <span className="text-orange-600">Sites Details</span>
+        <Link className=" hover:underline hover:text-orange-600" href={'/dashboard'}>Dashboard </Link>/<Link className=" hover:underline hover:text-orange-600" href='/dashboard/sites'> Sites </Link>/ <span className="text-orange-600">Sites Details</span>
       </div>
       <h1 className="text-2xl font-bold text-gray-800">Sites Details</h1>
       <p className="text-sm text-gray-500 mb-6">See and edit site details</p>
@@ -406,7 +380,7 @@ export default function SiteDetails() {
         ) : (
           <button
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md"
+            className="flex items-center gap-2 bg-rose text-white px-4 py-2 rounded-md"
           >
             <Edit className="w-4 h-4" /> Edit
           </button>
@@ -629,9 +603,17 @@ export default function SiteDetails() {
 
           {/* Right Column */}
           <div className="lg:col-span-1 space-y-6">
+          <div className=" w-full h-[200px] rounded-md shadow-md  hover:shadow-lg transition-all duration-300 flex justify-center items-center">
+                  <img
+                  src={site.image || ""}
+                  className="w-full h-full rounded-md "
+                  />
+                </div>
             {/* Site Alerts */}
             <Card className="p-4 border border-red-200 rounded-lg bg-red-50">
+       
               <div className="flex justify-between items-center mb-2">
+              
                 <div className="flex items-center gap-2">
                   <TriangleAlert className="w-5 h-5 text-yellow-600" />
                   <span className="text-yellow-600 font-bold">Site Alerts</span>
@@ -800,42 +782,21 @@ export default function SiteDetails() {
               <div className="space-y-2 text-sm text-gray-700">
                 <div className="flex justify-between">
                   <span>Early Shift</span>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editSite.presence.early}
-                      onChange={(e) => handlePresenceChange("early", e.target.value)}
-                      className="w-1/2"
-                    />
-                  ) : (
+                 
                     <span>{site.presence.early}</span>
-                  )}
+                  
                 </div>
                 <div className="flex justify-between">
                   <span>Middle Shift</span>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editSite.presence.middle}
-                      onChange={(e) => handlePresenceChange("middle", e.target.value)}
-                      className="w-1/2"
-                    />
-                  ) : (
+               
                     <span>{site.presence.middle}</span>
-                  )}
+                  
                 </div>
                 <div className="flex justify-between">
                   <span>Night Shift</span>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editSite.presence.night}
-                      onChange={(e) => handlePresenceChange("night", e.target.value)}
-                      className="w-1/2"
-                    />
-                  ) : (
+              
                     <span>{site.presence.night}</span>
-                  )}
+                  
                 </div>
               </div>
             </Card>

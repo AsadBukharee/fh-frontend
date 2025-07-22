@@ -240,7 +240,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         if (!role) {
           throw new Error("No role found in cookies")
         }
-        const response = await fetch(`${API_URL}/roles/get-menu?role=${role.toLocaleLowerCase()}`)
+        const response = await fetch(`${API_URL}/roles/get-menu?slug=${role.toLocaleLowerCase()}`,{
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${cookies.get("access_token")}`
+          }
+        })
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`)
         }
