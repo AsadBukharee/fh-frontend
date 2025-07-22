@@ -1,43 +1,33 @@
-# ---------------------
-# 1. Base dependencies
-# ---------------------
-FROM node:20-alpine AS base
+# Use latest Node.js 24 image
+FROM node:24-slim AS build
+
+# Set working directory
 WORKDIR /app
-ENV NODE_ENV=production
+
+# Install dependencies
 COPY package*.json ./
+RUN npm install --frozen-lockfile
 
-# ---------------------
-# 2. Install dependencies
-# ---------------------
-FROM base AS deps
-RUN npm ci --omit=dev
-
-# ---------------------
-# 3. Build stage
-# ---------------------
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
+# Copy the rest of the project files
 COPY . .
+
+# Build the frontend (adjust the script if needed, e.g., npm run build)
 RUN npm run build
 
-# ---------------------
-# 4. Runtime image
-# ---------------------
-FROM node:20-alpine AS runner
-WORKDIR /app
+# ----------- Production Stage -----------
+FROM nginx:stable-alpine
 
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV NEXT_TELEMETRY_DISABLED=1
+# Remove default NGINX website
+RUN rm -rf /usr/share/nginx/html/*
 
-# Copy only the build artifacts
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/next.config.* ./   # next.config.js/ts
-COPY --from=builder /app/tailwind.config.* ./  # if needed
-COPY --from=builder /app/postcss.config.* ./   # if needed
+# Copy built files from build stage
+COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 3000
-CMD ["npm", "run", "start"]
+# Copy custom NGINX config (optional)
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port
+EXPOSE 80
+
+# Start NGINX
+CMD ["nginx", "-g", "daemon off;"]
