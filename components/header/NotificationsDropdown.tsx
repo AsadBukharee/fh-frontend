@@ -43,6 +43,7 @@ export function NotificationsDropdown({ notifications }: NotificationsDropdownPr
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
+        
         <Button
           ref={buttonRef}
           variant="ghost"
