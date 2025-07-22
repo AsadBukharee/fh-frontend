@@ -581,10 +581,12 @@ export default function UsersPage() {
   const [isSaving, setIsSaving] = useState<{ [key: number]: boolean }>({});
   const [resources, setResources] = useState<Resource[]>([]);
   const [selectedResources, setSelectedResources] = useState<string[]>([]);
+  const [tempSelectedResources, setTempSelectedResources] = useState<string[]>([]);
   const [resourceSearch, setResourceSearch] = useState('');
   const { showToast } = useToast();
   const cookies = useCookies();
   const token = cookies.get('access_token');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const debouncedSetSearchTerm = useCallback(
     debounce((value: string) => setSearchTerm(value), 300),
@@ -613,7 +615,8 @@ export default function UsersPage() {
 
       const { resources, roles } = apiResponse.data;
       setResources(resources || []);
-      setSelectedResources(resources.map(r => r.name.toLowerCase())); // Initialize with all resources selected
+      setSelectedResources(resources.map((r) => r.name.toLowerCase()));
+      setTempSelectedResources(resources.map((r) => r.name.toLowerCase()));
 console.log(originalPermissions)
       const mappedData: UserData[] = roles.map((role) => ({
         id: role.id,
@@ -896,13 +899,17 @@ console.log(originalPermissions)
     [],
   );
 
-  const toggleResource = useCallback((resource: string) => {
-    setSelectedResources((prev) =>
-      prev.includes(resource)
-        ? prev.filter((r) => r !== resource)
-        : [...prev, resource],
-    );
+  const handleCheckAll = useCallback(() => {
+    setTempSelectedResources(resources.map((r) => r.name.toLowerCase()));
+  }, [resources]);
+
+  const handleUncheckAll = useCallback(() => {
+    setTempSelectedResources([]);
   }, []);
+
+  const handleApplyFilter = useCallback(() => {
+    setSelectedResources(tempSelectedResources);
+  }, [tempSelectedResources]);
 
   const filteredResources = resources.filter((resource) =>
     resource.name.toLowerCase().includes(resourceSearch.toLowerCase()),
@@ -1210,7 +1217,7 @@ console.log(originalPermissions)
                     className="pl-10 bg-white border border-gray-300 text-gray-800 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
-                <DropdownMenu>
+                <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
@@ -1230,17 +1237,42 @@ console.log(originalPermissions)
                         className="w-full"
                       />
                     </div>
+                    <div className="flex gap-2 mb-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleCheckAll}
+                        className="flex-1"
+                        aria-label="Check all resources"
+                      >
+                        Check All
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleUncheckAll}
+                        className="flex-1"
+                        aria-label="Uncheck all resources"
+                      >
+                        Uncheck All
+                      </Button>
+                    </div>
                     <div className="max-h-60 overflow-y-auto">
                       {filteredResources.map((resource) => (
                         <DropdownMenuItem
                           key={resource.id}
                           asChild
                           className="cursor-pointer"
+                          onSelect={e => e.preventDefault()}
                         >
                           <div className="flex items-center gap-2">
                             <Checkbox
-                              checked={selectedResources.includes(resource.name.toLowerCase())}
-                              onCheckedChange={() => toggleResource(resource.name.toLowerCase())}
+                              checked={tempSelectedResources.includes(resource.name.toLowerCase())}
+                              onCheckedChange={() => {
+                                setTempSelectedResources((prev) =>
+                                  prev.includes(resource.name.toLowerCase())
+                                    ? prev.filter((r) => r !== resource.name.toLowerCase())
+                                    : [...prev, resource.name.toLowerCase()]
+                                )
+                              }}
                               id={`resource-${resource.id}`}
                             />
                             <label
@@ -1252,6 +1284,18 @@ console.log(originalPermissions)
                           </div>
                         </DropdownMenuItem>
                       ))}
+                    </div>
+                    <div className="mt-2">
+                      <Button
+                        onClick={() => {
+                          handleApplyFilter();
+                          setIsDropdownOpen(false);
+                        }}
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                        aria-label="Apply resource filter"
+                      >
+                        Apply
+                      </Button>
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1292,7 +1336,7 @@ console.log(originalPermissions)
                       >
                         <TableCell className="font-medium">{user.id}</TableCell>
                         <TableCell>
-                          <Badge className="px-3 py-1 text-sm font-medium text-gray-700">
+                          <Badge className="px-3 py-1 text-sm bg-transparent hover:bg-transparent font-medium text-gray-700">
                             {user.type}
                           </Badge>
                         </TableCell>
@@ -1320,7 +1364,7 @@ console.log(originalPermissions)
                               aria-label="Save permissions"
                             >
                               {isSaving[user.id] ? (
-                                <AnimatedLogo  />
+                                <AnimatedLogo />
                               ) : (
                                 <Save className="h-4 w-4" />
                               )}
