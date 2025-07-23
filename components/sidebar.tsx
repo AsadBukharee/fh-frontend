@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import type React from "react"
+
+import { useState, useEffect, useCallback, useMemo, memo } from "react"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
@@ -48,8 +50,8 @@ import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { Dashboard_Loading } from "./Dashboard_Loading"
 
-// Map API icon strings to Lucide icon components
-const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
+// Move iconMap outside component to prevent recreation on every render
+const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } = {
   Truck,
   ClipboardCheck,
   Fuel,
@@ -101,7 +103,7 @@ interface ApiMenuItem {
   icon: string
   name: string
   tooltip: string
-  children: ApiMenuItem[] | null | undefined // Allow undefined for robustness
+  children: ApiMenuItem[] | null | undefined
 }
 
 interface SidebarProps {
@@ -109,219 +111,220 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-function mapApiMenuToMenuItem(apiMenu: ApiMenuItem): MenuItem {
-  return {
-    icon: iconMap[apiMenu.icon] || undefined,
-    label: apiMenu.name,
-    href: apiMenu.nav,
-    active: false,
-    children: Array.isArray(apiMenu.children)
-      ? apiMenu.children.map((child) => ({
-          label: child.name,
-          href: child.nav,
-          icon: iconMap[child.icon] || undefined,
-          children: Array.isArray(child.children)
-            ? child.children.map((grandchild) => ({
-                label: grandchild.name,
-                href: grandchild.nav,
-                icon: iconMap[grandchild.icon] || undefined,
-                children: Array.isArray(grandchild.children)
-                  ? grandchild.children.map((greatGrandchild) => ({
-                      label: greatGrandchild.name,
-                      href: greatGrandchild.nav,
-                      icon: iconMap[greatGrandchild.icon] || undefined,
-                    }))
-                  : undefined,
-              }))
-            : undefined,
-        }))
-      : undefined,
-  }
-}
+// Memoized function to map API menu to MenuItem
+const mapApiMenuToMenuItem = (apiMenu: ApiMenuItem): MenuItem => ({
+  icon: ICON_MAP[apiMenu.icon],
+  label: apiMenu.name,
+  href: apiMenu.nav,
+  active: false,
+  children: Array.isArray(apiMenu.children)
+    ? apiMenu.children.map((child) => ({
+        label: child.name,
+        href: child.nav,
+        icon: ICON_MAP[child.icon],
+        children: Array.isArray(child.children)
+          ? child.children.map((grandchild) => ({
+              label: grandchild.name,
+              href: grandchild.nav,
+              icon: ICON_MAP[grandchild.icon],
+              children: Array.isArray(grandchild.children)
+                ? grandchild.children.map((greatGrandchild) => ({
+                    label: greatGrandchild.name,
+                    href: greatGrandchild.nav,
+                    icon: ICON_MAP[greatGrandchild.icon],
+                  }))
+                : undefined,
+            }))
+          : undefined,
+      }))
+    : undefined,
+})
 
-function MenuItem({ item, level, isCollapsed, pathname }: { item: MenuItem; level: number; isCollapsed: boolean; pathname: string }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const hasChildren = item.children && item.children.length > 0
-  const isActive = pathname === `/dashboard${item.href}`
-  const buttonRef = useRef<HTMLDivElement>(null)
+// Memoized MenuItem component to prevent unnecessary re-renders
+const MenuItem = memo(
+  ({
+    item,
+    level,
+    isCollapsed,
+    pathname,
+  }: {
+    item: MenuItem
+    level: number
+    isCollapsed: boolean
+    pathname: string
+  }) => {
+    const [isOpen, setIsOpen] = useState(false)
+    const hasChildren = item.children && item.children.length > 0
+    const isActive = pathname === `/dashboard${item.href}`
 
- 
+    // Memoize the toggle handler
+    // const handleToggle = useCallback(() => {
+    //   setIsOpen((prev) => !prev)
+    // }, [])
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      const x = ((e.clientX - rect.left) / rect.width) * 100
-      const y = ((e.clientY - rect.top) / rect.height) * 100
-      buttonRef.current.style.setProperty("--mouse-x", `${x}%`)
-      buttonRef.current.style.setProperty("--mouse-y", `${y}%`)
-    }
-  }
-
-  if (isCollapsed && level === 0) {
-    return (
-      <Link href={`/dashboard${item.href}`}>
-        <div
-          ref={buttonRef}
-          onMouseMove={handleMouseMove}
-          className={`flex items-center justify-center p-3 rounded-lg cursor-pointer transition-all duration-300 ripple cursor-glow ${
-            isActive ? "bg-red-50 text-red-600" : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          {item.icon && <item.icon className="w-5 h-5 relative z-10" />}
-        </div>
-      </Link>
+    // Memoized styles
+    const buttonStyles = useMemo(
+      () => ({
+        paddingLeft: `${12 + level * 16}px`,
+      }),
+      [level],
     )
-  }
 
-  return (
-    <div>
-      {hasChildren ? (
+    const baseClasses = useMemo(
+      () =>
+        `flex items-center rounded-lg cursor-pointer transition-colors duration-200 ${
+          isActive ? "bg-red-50 text-red-600" : "text-gray-600 hover:bg-gray-100"
+        }`,
+      [isActive],
+    )
+
+    if (isCollapsed && level === 0) {
+      return (
+        <Link href={`/dashboard${item.href}`} className="block">
+          <div className={`${baseClasses} justify-center p-3`}>{item.icon && <item.icon className="w-5 h-5" />}</div>
+        </Link>
+      )
+    }
+
+    if (hasChildren) {
+      return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
-            <div
-              ref={buttonRef}
-              onMouseMove={handleMouseMove}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-all duration-300 ripple cursor-glow ${
-                isActive ? "bg-red-50 text-red-600" : "text-gray-600 hover:bg-gray-100"
-              }`}
-              style={{ paddingLeft: `${12 + level * 16}px` }}
-            >
-              <div className="flex items-center space-x-3 relative z-10">
+            <div className={`${baseClasses} justify-between px-3 py-2`} style={buttonStyles}>
+              <div className="flex items-center space-x-3">
                 {item.icon && <item.icon className="w-5 h-5" />}
                 <span className="text-sm font-medium">{item.label}</span>
               </div>
-              <ChevronRight
-                className={`w-4 h-4 transition-transform duration-300 relative z-10 ${isOpen ? "rotate-90" : ""}`}
-              />
+              <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`} />
             </div>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="mt-1">
-              {item.children?.map((child, index: number) => (
-                <MenuItem key={index} item={child as MenuItem} level={level + 1} isCollapsed={isCollapsed} pathname={pathname} />
+              {item.children?.map((child, index) => (
+                <MenuItem
+                  key={`${child.href}-${index}`}
+                  item={child as MenuItem}
+                  level={level + 1}
+                  isCollapsed={isCollapsed}
+                  pathname={pathname}
+                />
               ))}
             </div>
           </CollapsibleContent>
         </Collapsible>
-      ) : (
-        <Link href={`/dashboard${item.href}`}>
-          <div
-            ref={buttonRef}
-            onMouseMove={handleMouseMove}
-            className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-all duration-300 ripple cursor-glow ${
-              isActive ? "bg-red-50 text-red-600" : "text-gray-600 hover:bg-gray-100"
-            }`}
-            style={{ paddingLeft: `${12 + level * 16}px` }}
-          >
-            {item.icon && <item.icon className="w-5 h-5 relative z-10" />}
-            <span className="text-sm font-medium relative z-10">{item.label}</span>
-          </div>
-        </Link>
-      )}
-    </div>
-  )
-}
+      )
+    }
+
+    return (
+      <Link href={`/dashboard${item.href}`} className="block">
+        <div className={`${baseClasses} space-x-3 px-3 py-2`} style={buttonStyles}>
+          {item.icon && <item.icon className="w-5 h-5" />}
+          <span className="text-sm font-medium">{item.label}</span>
+        </div>
+      </Link>
+    )
+  },
+)
+
+MenuItem.displayName = "MenuItem"
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
-  const toggleRef = useRef<HTMLButtonElement>(null)
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const cookies = useCookies()
   const role = cookies.get("role")
 
-  // Fetch menu data from API
-  useEffect(() => {
-    async function fetchMenu() {
-      try {
-        setIsLoading(true)
-        setError(null)
-        if (!role) {
-          throw new Error("No role found in cookies")
-        }
-        const response = await fetch(`${API_URL}/roles/get-menu?slug=${role.toLocaleLowerCase()}`,{
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${cookies.get("access_token")}`
-          }
-        })
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`)
-        }
-        const data = await response.json()
-        
-        if (!data.menu?.items || !Array.isArray(data.menu.items)) {
-          throw new Error("Invalid menu items in response")
-        }
-        const mappedMenus = data.menu.items.map(mapApiMenuToMenuItem)
-       
-        setMenuItems(mappedMenus)
-      } catch (error) {
-        console.error("Error fetching menu:", error)
-        setError("Failed to load menu. Please try again.")
-      } finally {
-        setIsLoading(false)
+  // Memoize the fetch function to prevent unnecessary re-creation
+  const fetchMenu = useCallback(async () => {
+    if (!role) {
+      setError("No role found in cookies")
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const response = await fetch(`${API_URL}/roles/get-menu?slug=${role.toLowerCase()}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`)
       }
+
+      const data = await response.json()
+
+      if (!data.menu?.items || !Array.isArray(data.menu.items)) {
+        throw new Error("Invalid menu items in response")
+      }
+
+      // Use map instead of forEach for better performance
+      const mappedMenus = data.menu.items.map(mapApiMenuToMenuItem)
+      setMenuItems(mappedMenus)
+    } catch (error) {
+      console.error("Error fetching menu:", error)
+      setError("Failed to load menu. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
+  }, [role, cookies])
+
+  // Fetch menu data only when role changes
+  useEffect(() => {
     fetchMenu()
-  }, [role])
+  }, [fetchMenu])
 
+  // Memoize the toggle button classes
+  const toggleButtonClasses = useMemo(
+    () => "relative rounded-full h-8 w-8 left-8 bg-orange hover:bg-magenta transition-colors duration-200",
+    [],
+  )
 
-  const handleToggleMouseMove = (e: React.MouseEvent) => {
-    if (toggleRef.current) {
-      const rect = toggleRef.current.getBoundingClientRect()
-      const x = ((e.clientX - rect.left) / rect.width) * 100
-      const y = ((e.clientY - rect.top) / rect.height) * 100
-      toggleRef.current.style.setProperty("--mouse-x", `${x}%`)
-      toggleRef.current.style.setProperty("--mouse-y", `${y}%`)
-    }
-  }
+  // Memoize the chevron rotation class
+  const chevronClasses = useMemo(
+    () => `w-6 h-6 text-white transition-transform duration-200 ${isCollapsed ? "" : "rotate-180"}`,
+    [isCollapsed],
+  )
 
   return (
     <div
-      className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${isCollapsed ? "w-24" : "w-64"}`}
+      className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
+        isCollapsed ? "w-24" : "w-64"
+      }`}
     >
       {/* Logo */}
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         {!isCollapsed && (
           <div className="flex items-center space-x-2">
-            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" />
+            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" loading="lazy" />
           </div>
         )}
-    {isCollapsed && (
-  <div className="flex items-center justify-center w-full">
-    <img
-      src="/logos/logo.png"
-      alt="Foster Hartley Logo"
-      className="w-8 h-8 object-contain"
-    />
-  </div>
-)}
-
-<Button
-  ref={toggleRef}
-  variant="ghost"
-  size="sm"
-  onClick={onToggle}
-  onMouseMove={handleToggleMouseMove}
-  className="ripple cursor-glow relative rounded-full h-8 w-8 left-8 bg-orange hover:bg-magenta"
->
-  <ChevronRight
-    className={`w-6 h-6 text-white transition-transform duration-300 relative z-10 ${
-      isCollapsed ? "" : "rotate-180"
-    }`}
-  />
-</Button>
-
+        {isCollapsed && (
+          <div className="flex items-center justify-center w-full">
+            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" loading="lazy" />
+          </div>
+        )}
+        <Button variant="ghost" size="sm" onClick={onToggle} className={toggleButtonClasses}>
+          <ChevronRight className={chevronClasses} />
+        </Button>
       </div>
+
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {isLoading && <Dashboard_Loading />}
-        {error && <div className="text-red-600">{error}</div>}
-        {!isLoading && !error && menuItems.length === 0 && <div>No menu items available.</div>}
+        {error && <div className="text-red-600 text-sm p-2 bg-red-50 rounded-lg">{error}</div>}
+        {!isLoading && !error && menuItems.length === 0 && (
+          <div className="text-gray-500 text-sm p-2">No menu items available.</div>
+        )}
         {menuItems.map((item, index) => (
-          <MenuItem key={index} item={item} level={0} isCollapsed={isCollapsed} pathname={pathname} />
+          <MenuItem key={`${item.href}-${index}`} item={item} level={0} isCollapsed={isCollapsed} pathname={pathname} />
         ))}
       </nav>
     </div>
