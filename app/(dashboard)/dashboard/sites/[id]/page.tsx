@@ -10,7 +10,7 @@ import { Truck, Users, MapPin, TriangleAlert, Clock, Save, Edit, X } from "lucid
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { format, parse } from "date-fns";
-import Link from "next/link";
+
 
 // Define the API response interface for operation hours
 interface OperationHour {
@@ -352,9 +352,7 @@ export default function SiteDetails() {
 
   return (
     <div className="p-6 bg-white min-h-screen">
-      <div className="text-sm text-gray-500 mb-2">
-        <Link className=" hover:underline hover:text-orange-600" href={'/dashboard'}>Dashboard </Link>/<Link className=" hover:underline hover:text-orange-600" href='/dashboard/sites'> Sites </Link>/ <span className="text-orange-600">Sites Details</span>
-      </div>
+      
       <h1 className="text-2xl font-bold text-gray-800">Sites Details</h1>
       <p className="text-sm text-gray-500 mb-6">See and edit site details</p>
 
@@ -538,7 +536,7 @@ export default function SiteDetails() {
 
             {/* Vehicle Information & Max Staff Allow */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="p-4 rounded-lg bg-orange-600 text-white flex flex-col justify-between">
+              <Card className="p-4 rounded-lg text-orange-600 bg-orange-100 flex flex-col justify-between">
                 <div className="flex items-center gap-2 font-semibold mb-2">
                   <Truck className="w-5 h-5" />
                   <span>Pragmatic Play Authorized Vehicles</span>
@@ -548,7 +546,7 @@ export default function SiteDetails() {
                   <Truck className="w-12 h-12 opacity-50" />
                 </div>
               </Card>
-              <Card className="p-4 rounded-lg bg-red-600 text-white flex flex-col justify-between">
+              <Card className="p-4 rounded-lg text-red-600 bg-red-100 flex flex-col justify-between">
                 <div className="flex items-center gap-2 font-semibold mb-2">
                   <Users className="w-5 h-5" />
                   <span>Max Staff Allow</span>

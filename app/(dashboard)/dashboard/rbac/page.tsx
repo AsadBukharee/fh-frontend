@@ -581,7 +581,7 @@ console.log(editingRoleId,originalPermissions)
         })
 
         const response = await fetch(`${API_URL}/permissions/bulk/`, {
-          method: "PUT",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,

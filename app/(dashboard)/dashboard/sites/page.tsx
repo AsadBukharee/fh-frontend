@@ -54,6 +54,7 @@ interface Site {
   contact_email: string | null;
   radius_m: number;
   latitude: number;
+  contact_position: string | null;
   longitude: number;
   number_of_allocated_vehicles: number;
   created_by: string;
@@ -241,7 +242,7 @@ export default function SiteGrid() {
 
               <div className="text-xs text-gray-500 mt-4 px-4">
                 <p className="text-black text-[13px] font-semibold">
-                  Position: {site.position || "N/A"}
+                  Position: {site.contact_position || "N/A"}
                 </p>
                 <p className="mt-1">Created By: {site.created_by}</p>
                 <p className="mt-1">

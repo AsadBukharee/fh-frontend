@@ -1,23 +1,31 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import GradientButton from "@/app/utils/GradientButton";
-import {  Save } from "lucide-react";
-import { useToast } from "@/app/Context/ToastContext";
-import API_URL from "@/app/utils/ENV";
-import { useCookies } from "next-client-cookies";
+import type React from "react"
+
+import { useState } from "react"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Save, MapPin, User, Building2, Car, Loader2, ImageIcon } from "lucide-react"
+import { useToast } from "@/app/Context/ToastContext"
+import API_URL from "@/app/utils/ENV"
+import { useCookies } from "next-client-cookies"
 
 export default function AddSiteForm() {
+  // Add your actual API configuration
+  const { showToast } = useToast()
+  const cookies = useCookies()
+  const token = cookies.get("access_token")
+
   const [form, setForm] = useState({
     name: "",
     image: "",
     notes: "",
     postcode: "",
     address: "",
+    contact_name: "",
     contact_position: "",
     contact_phone: "",
     contact_email: "",
@@ -25,54 +33,60 @@ export default function AddSiteForm() {
     latitude: "",
     longitude: "",
     number_of_allocated_vehicles: 0,
-  });
-  const { showToast } = useToast();
-  const cookies=useCookies()
-  const token=cookies.get('access_token')
+  })
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
-  };
+    const { name, value } = e.target
+    setForm({ ...form, [name]: value })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
+    setIsSubmitting(true)
 
     // Prepare the payload for the API
     const payload = {
       name: form.name,
       postcode: form.postcode,
       address: form.address,
-      latitude: parseFloat(form.latitude) || undefined, // Convert to number or undefined if empty
-      longitude: parseFloat(form.longitude) || undefined, // Convert to number or undefined if empty
-      radius_m: parseInt(form.radius_m.toString(), 10), // Ensure integer
-      number_of_allocated_vehicles: parseInt(form.number_of_allocated_vehicles.toString(), 10), // Ensure integer
-    };
+      latitude: Number.parseFloat(form.latitude) || undefined,
+      longitude: Number.parseFloat(form.longitude) || undefined,
+      radius_m: Number.parseInt(form.radius_m.toString(), 10),
+      contact_name: form.contact_name,
+      contact_position: form.contact_position,
+      contact_phone: form.contact_phone,
+      contact_email: form.contact_email,
+      number_of_allocated_vehicles: Number.parseInt(form.number_of_allocated_vehicles.toString(), 10),
+    }
 
     try {
       const response = await fetch(`${API_URL}/api/sites/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error("Failed to submit the form");
+        throw new Error("Failed to submit the form")
       }
 
-      const result = await response.json();
-      showToast("Site added successfully!", "success");
-      console.log("API response:", result);
+      const result = await response.json()
+      showToast("Site added successfully!", "success")
+      console.log("API response:", result)
 
-      // Optionally reset the form after successful submission
+      // Reset form after successful submission
       setForm({
         name: "",
         image: "",
         notes: "",
         postcode: "",
         address: "",
+        contact_name: "",
         contact_position: "",
         contact_phone: "",
         contact_email: "",
@@ -80,73 +94,242 @@ export default function AddSiteForm() {
         latitude: "",
         longitude: "",
         number_of_allocated_vehicles: 0,
-      });
+      })
     } catch (error) {
-      showToast("Failed to add site. Please try again.", "error");
-      console.error("Error submitting form:", error);
+      showToast("Failed to add site. Please try again.", "error")
+      console.error("Error submitting form:", error)
+    } finally {
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
-    <Card className="flex flex-col gap-4">
-      <CardContent>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <Label>Name</Label>
-            <Input name="name" value={form.name} onChange={handleChange} required />
-          </div>
-          <div>
-            <Label>Image URL</Label>
-            <Input name="image" value={form.image} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Notes</Label>
-            <Textarea name="notes" value={form.notes} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Postcode</Label>
-            <Input name="postcode" value={form.postcode} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Address</Label>
-            <Textarea name="address" value={form.address} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Position</Label>
-            <Input name="contact_position" value={form.contact_position} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Contact Phone</Label>
-            <Input name="contact_phone" value={form.contact_phone} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Contact Email</Label>
-            <Input name="contact_email" type="email" value={form.contact_email} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Radius (meters)</Label>
-            <Input type="number" name="radius_m" value={form.radius_m} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Latitude</Label>
-            <Input name="latitude" value={form.latitude} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Longitude</Label>
-            <Input name="longitude" value={form.longitude} onChange={handleChange} />
-          </div>
-          <div>
-            <Label>Number of Allocated Vehicles</Label>
-            <Input
-              type="number"
-              name="number_of_allocated_vehicles"
-              value={form.number_of_allocated_vehicles}
-              onChange={handleChange}
-            />
-          </div>
-          <GradientButton text="Submit" Icon={Save} width="150px" />
-        </form>
-      </CardContent>
-    </Card>
-  );
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold">Add New Site</h1>
+        <p className="text-muted-foreground">Fill in the details below to add a new site to your system</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Basic Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Site Name *</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Enter site name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="image">Image URL</Label>
+                <div className="relative">
+                  <ImageIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="image"
+                    name="image"
+                    value={form.image}
+                    onChange={handleChange}
+                    placeholder="https://example.com/image.jpg"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                name="notes"
+                value={form.notes}
+                onChange={handleChange}
+                placeholder="Additional notes about this site..."
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Location Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Location Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="postcode">Postcode</Label>
+                <Input
+                  id="postcode"
+                  name="postcode"
+                  value={form.postcode}
+                  onChange={handleChange}
+                  placeholder="CM7 4AZ"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="radius_m">Radius (meters)</Label>
+                <Input
+                  id="radius_m"
+                  name="radius_m"
+                  type="number"
+                  value={form.radius_m}
+                  onChange={handleChange}
+                  min="1"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Full Address</Label>
+              <Textarea
+                id="address"
+                name="address"
+                value={form.address}
+                onChange={handleChange}
+                placeholder="Enter the complete address..."
+                rows={2}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="latitude">Latitude</Label>
+                <Input
+                  id="latitude"
+                  name="latitude"
+                  value={form.latitude}
+                  onChange={handleChange}
+                  placeholder="51.9731"
+                  step="any"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="longitude">Longitude</Label>
+                <Input
+                  id="longitude"
+                  name="longitude"
+                  value={form.longitude}
+                  onChange={handleChange}
+                  placeholder="0.4831"
+                  step="any"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Contact Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Contact Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contact_name">Contact Name</Label>
+                <Input
+                  id="contact_name"
+                  name="contact_name"
+                  value={form.contact_name}
+                  onChange={handleChange}
+                  placeholder="Imran Ali"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_position">Position</Label>
+                <Input
+                  id="contact_position"
+                  name="contact_position"
+                  value={form.contact_position}
+                  onChange={handleChange}
+                  placeholder="Contact Position"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contact_phone">Phone Number</Label>
+                <Input
+                  id="contact_phone"
+                  name="contact_phone"
+                  type="tel"
+                  value={form.contact_phone}
+                  onChange={handleChange}
+                  placeholder="+44 938747 8383"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_email">Email Address</Label>
+                <Input
+                  id="contact_email"
+                  name="contact_email"
+                  type="email"
+                  value={form.contact_email}
+                  onChange={handleChange}
+                  placeholder="person@gmail.com"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Vehicle Allocation */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5" />
+              Vehicle Allocation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="number_of_allocated_vehicles">Number of Allocated Vehicles</Label>
+              <Input
+                id="number_of_allocated_vehicles"
+                name="number_of_allocated_vehicles"
+                type="number"
+                value={form.number_of_allocated_vehicles}
+                onChange={handleChange}
+                min="0"
+                className="max-w-xs"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Submit Button */}
+        <div className="flex justify-end pt-6">
+          <Button type="submit" disabled={isSubmitting || !form.name} className="min-w-[150px]">
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding Site...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Add Site
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
 }

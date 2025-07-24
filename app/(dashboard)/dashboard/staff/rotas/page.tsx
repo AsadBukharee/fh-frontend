@@ -1,10 +1,12 @@
 "use client"
 
-import ChildTab from "@/components/Rota/ChildTab"
+import  { ShiftTable } from "@/components/Rota/ChildTab"
 import ParentTab from "@/components/Rota/ParentTab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 export default function Rota() {
+  const currentYear = 2025
+  const currentMonth = 7 
   return (
     <div className="p-6 space-y-4 bg-white">
       {/* Title */}
@@ -35,7 +37,8 @@ export default function Rota() {
           <ParentTab/>
         </TabsContent>
         <TabsContent value="child">
-<ChildTab/>
+        <ShiftTable year={currentYear} month={currentMonth} />
+
         </TabsContent>
       </Tabs>
     </div>

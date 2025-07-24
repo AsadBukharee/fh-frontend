@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useRef, useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,7 +29,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
 import {
   Search,
   MoreHorizontal,
@@ -63,13 +61,45 @@ interface User {
   child_rota_completed: boolean
   is_active: boolean
   contract: { id: number; name: string; description: string } | null
-  role: { id: number; slug: string; name: string; menu: { items: any[] } } | null
+  role: string
+  site: null
+  shifts?: Array<{
+    id: number
+    name: string
+    template: boolean
+    hours_from: string
+    hours_to: string
+    total_hours: string
+    shift_note: string
+    rate_per_hours: number
+    colors: string
+    contract: number
+    created_at: string
+    updated_at: string
+  }>
+  avatar?: string
 }
 
 interface Contract {
   id: number
   name: string
   description: string
+}
+
+interface Role {
+  id: number
+  slug: string
+  name: string
+  menu: {
+    items: Array<{
+      nav: string
+      icon: string
+      name: string
+      tooltip: string
+      children: Array<any>
+      isSelected: boolean
+    }>
+  }
 }
 
 interface EditUserForm {
@@ -80,13 +110,6 @@ interface EditUserForm {
   is_active: boolean
 }
 
-const ROLES = [
-  { value: "supervisor", label: "Supervisor" },
-  { value: "manager", label: "Manager" },
-  { value: "superadmin", label: "Superadmin" },
-  { value: "shahwar", label: "Shahwar" },
-]
-
 export default function UsersPage() {
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -95,12 +118,18 @@ export default function UsersPage() {
   const [selectedUserType, setSelectedUserType] = useState<string | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [editLoading, setEditLoading] = useState(false)
   const [contractsLoading, setContractsLoading] = useState(false)
+  const [rolesLoading, setRolesLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [userToDelete, setUserToDelete] = useState<User | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [searchQuery, setSearchQuery] = useState("")
+  const perPage = 10
   const { showToast } = useToast()
   const [formData, setFormData] = useState<EditUserForm>({
     email: "",
@@ -113,42 +142,80 @@ export default function UsersPage() {
 
   const cookies = useCookies()
 
-
-  // Add this function after the state declarations
   const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/users/`, {
+      const url = `${API_URL}/users/?page=${currentPage}&per_page=${perPage}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`
+      const response = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
       })
+      if (response.status === 401) {
+        showToast("Session expired. Please log in again.", "error")
+        return
+      }
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`)
+      }
       const data = await response.json()
       if (data.success) {
         setUsers(data.data)
+        setTotalPages(data.total_pages || 1)
         setError(null)
       } else {
         setError(data.message || "Failed to fetch users")
         showToast(data.message || "Failed to fetch users", "error")
       }
-    } catch {
-      const errorMessage = "An error occurred while fetching users"
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching users"
       setError(errorMessage)
       showToast(errorMessage, "error")
     } finally {
       setLoading(false)
     }
+  }, [cookies, showToast, currentPage, searchQuery])
+
+  const fetchRoles = useCallback(async () => {
+    setRolesLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/roles/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      })
+      if (response.status === 401) {
+        showToast("Session expired. Please log in again.", "error")
+        return
+      }
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`)
+      }
+      const data = await response.json()
+      if (data.success) {
+        setRoles(data.data)
+      } else {
+        showToast(data.message || "Failed to fetch roles", "error")
+        setRoles([])
+      }
+    } catch (error) {
+      console.log(error)
+      showToast("Failed to fetch roles", "error")
+      setRoles([])
+    } finally {
+      setRolesLoading(false)
+    }
   }, [cookies, showToast])
 
-  // Fetch users from API
   useEffect(() => {
     fetchUsers()
-  }, [fetchUsers])
+    fetchRoles()
+  }, [fetchUsers, fetchRoles])
 
-  // Fetch contracts when Edit User Dialog opens
   useEffect(() => {
-    if (isEditModalOpen) {
+    if (isEditModalOpen || isModalOpen) {
       const fetchContracts = async () => {
         setContractsLoading(true)
         try {
@@ -158,6 +225,13 @@ export default function UsersPage() {
               Authorization: `Bearer ${cookies.get("access_token")}`,
             },
           })
+          if (response.status === 401) {
+            showToast("Session expired. Please log in again.", "error")
+            return
+          }
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`)
+          }
           const data = await response.json()
           setContracts(data)
         } catch {
@@ -168,7 +242,7 @@ export default function UsersPage() {
       }
       fetchContracts()
     }
-  }, [isEditModalOpen, cookies, showToast])
+  }, [isEditModalOpen, isModalOpen, cookies, showToast])
 
   const handleMouseMove = (key: string) => (e: React.MouseEvent) => {
     const button = buttonRefs.current[key]
@@ -183,14 +257,26 @@ export default function UsersPage() {
 
   const getTypeColor = (roleName: string | undefined) => {
     switch (roleName?.toLowerCase()) {
-      case "supervisor":
-        return "bg-orange-100 text-orange-700 hover:bg-orange-100"
+      case "admin":
+        return "bg-blue-100 text-blue-700 hover:bg-blue-100"
       case "manager":
         return "bg-red-100 text-red-700 hover:bg-red-100"
+      case "supervisor":
+        return "bg-orange-100 text-orange-700 hover:bg-orange-100"
       case "superadmin":
         return "bg-purple-100 text-purple-700 hover:bg-purple-100"
       case "shahwar":
-        return "bg-blue-100 text-blue-700 hover:bg-blue-100"
+        return "bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
+      case "accounts":
+        return "bg-green-100 text-green-700 hover:bg-green-100"
+      case "crh":
+        return "bg-teal-100 text-teal-700 hover:bg-teal-100"
+      case "dvsa":
+        return "bg-cyan-100 text-cyan-700 hover:bg-cyan-100"
+      case "mechanic":
+        return "bg-gray-100 text-gray-700 hover:bg-gray-100"
+      case "driver":
+        return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
       default:
         return "bg-gray-100 text-gray-700 hover:bg-gray-100"
     }
@@ -210,7 +296,7 @@ export default function UsersPage() {
     setFormData({
       email: user.email,
       full_name: user.full_name,
-      role: user.role?.slug || "",
+      role: user.role,
       contractId: user.contract?.id.toString() || "none",
       is_active: user.is_active,
     })
@@ -248,7 +334,6 @@ export default function UsersPage() {
 
   const handleFormChange = (field: keyof EditUserForm, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    // Clear error for this field when user starts typing
     if (formErrors[field]) {
       setFormErrors((prev) => ({ ...prev, [field]: undefined }))
     }
@@ -265,7 +350,6 @@ export default function UsersPage() {
       contract: formData.get("contract") as string,
     }
 
-    // Basic validation
     if (!newUser.email || !newUser.full_name || !newUser.role) {
       showToast("Please fill in all required fields", "error")
       return
@@ -283,12 +367,16 @@ export default function UsersPage() {
         body: JSON.stringify(newUser),
       })
 
+      if (response.status === 401) {
+        showToast("Session expired. Please log in again.", "error")
+        return
+      }
+
       const data = await response.json()
 
       if (data.success) {
         showToast(data.message || "User created successfully", "success")
         setIsModalOpen(false)
-        // Refetch users data
         await fetchUsers()
       } else {
         showToast(data.message || "Failed to create user", "error")
@@ -308,7 +396,6 @@ export default function UsersPage() {
     setEditLoading(true)
 
     try {
-      // Update user details
       const userResponse = await fetch(`${API_URL}/users/${selectedUser.id}/`, {
         method: "PUT",
         headers: {
@@ -323,16 +410,19 @@ export default function UsersPage() {
         }),
       })
 
-      const userData = await userResponse.json()
-      if (!userData.success) {
-          showToast(userData.message || "Failed to update user details", "error")
+      if (userResponse.status === 401) {
+        showToast("Session expired. Please log in again.", "error")
         return
       }
 
-      // Show success for user update
+      const userData = await userResponse.json()
+      if (!userData.success) {
+        showToast(userData.message || "Failed to update user details", "error")
+        return
+      }
+
       showToast(userData.message || "User details updated successfully", "success")
 
-      // Assign contract if selected and not "none"
       if (formData.contractId && formData.contractId !== "none") {
         const contractResponse = await fetch(`${API_URL}/users/${selectedUser.id}/assign-contract/`, {
           method: "POST",
@@ -342,15 +432,16 @@ export default function UsersPage() {
           },
           body: JSON.stringify({ contract: Number.parseInt(formData.contractId) }),
         })
+        if (contractResponse.status === 401) {
+          showToast("Session expired. Please log in again.", "error")
+          return
+        }
         await contractResponse.json()
       }
 
       showToast("User updated successfully", "success")
-
       setIsEditModalOpen(false)
       setSelectedUser(null)
-
-      // Refetch users data
       await fetchUsers()
     } catch (error) {
       showToast(error instanceof Error ? error.message : "An error occurred while updating the user", "error")
@@ -371,12 +462,15 @@ export default function UsersPage() {
         },
       })
 
+      if (response.status === 401) {
+        showToast("Session expired. Please log in again.", "error")
+        return
+      }
+
       const data = await response.json()
 
       if (response.ok && data.success) {
         showToast(data.message || `${userToDelete.full_name} has been deleted successfully`, "success")
-
-        // Refetch users data
         await fetchUsers()
       } else {
         showToast(data.message || "Failed to delete user", "error")
@@ -387,6 +481,14 @@ export default function UsersPage() {
       setIsDeleteDialogOpen(false)
       setUserToDelete(null)
     }
+  }
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1)
+  }
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1)
   }
 
   return (
@@ -432,24 +534,24 @@ export default function UsersPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="relative border-0 bg-white">
                 <div className="absolute inset-[-2px] border-4 border-transparent [border-image:linear-gradient(to_right,_#f85032_0%,_#e73827_20%,_#662D8C_100%)_1] z-[-1] rounded-md"></div>
-                <DropdownMenuItem
-                  className="cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleAddUserClick("Supervisor")}
-                >
-                  Supervisor
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleAddUserClick("Manager")}
-                >
-                  Manager
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleAddUserClick("Superadmin")}
-                >
-                  Superadmin
-                </DropdownMenuItem>
+                {rolesLoading ? (
+                  <DropdownMenuItem disabled>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Loading roles...
+                  </DropdownMenuItem>
+                ) : roles.length === 0 ? (
+                  <DropdownMenuItem disabled>No roles available</DropdownMenuItem>
+                ) : (
+                  roles.map((role) => (
+                    <DropdownMenuItem
+                      key={role.id}
+                      className="cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleAddUserClick(role.name)}
+                    >
+                      {role.name}
+                    </DropdownMenuItem>
+                  ))
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -471,6 +573,8 @@ export default function UsersPage() {
           <Input
             placeholder="Search users"
             className="pl-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
@@ -495,6 +599,7 @@ export default function UsersPage() {
                 <TableHead className="text-gray-600 font-medium">Email</TableHead>
                 <TableHead className="text-gray-600 font-medium">Role</TableHead>
                 <TableHead className="text-gray-600 font-medium">Contract</TableHead>
+                <TableHead className="text-gray-600 font-medium">Shifts</TableHead>
                 <TableHead className="text-gray-600 font-medium">Status</TableHead>
                 <TableHead className="text-gray-600 font-medium">Action</TableHead>
               </TableRow>
@@ -506,16 +611,21 @@ export default function UsersPage() {
                   <TableCell className="font-medium">{user.display_name}</TableCell>
                   <TableCell className="text-blue-600">{user.email}</TableCell>
                   <TableCell>
-                    <Badge className={getTypeColor(user.role?.name)}>{user.role?.name || "None"}</Badge>
+                    <Badge className={getTypeColor(user.role)}>
+                      {roles.find((role) => role.slug === user.role)?.name || user.role || "None"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <span>
                       {user.contract ? (
                         <Badge className="bg-green-100 text-green-500">{user.contract.name}</Badge>
                       ) : (
-                        <Badge className=" bg-red-100 text-red-600">No Contract</Badge>
+                        <Badge className="bg-red-100 text-red-600">No Contract</Badge>
                       )}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{user.shifts?.length || 0} shifts</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(user.is_active)}>{user.is_active ? "Active" : "In-Active"}</Badge>
@@ -560,11 +670,11 @@ export default function UsersPage() {
 
       <div className="flex items-center justify-between mt-6">
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">Row Page</span>
+          <span className="text-sm text-gray-600">Page</span>
           <Badge variant="outline" className="bg-gray-100">
-            01
+            {currentPage}
           </Badge>
-          <ChevronRight className="w-4 h-4 text-gray-400" />
+          <span className="text-sm text-gray-600">of {totalPages}</span>
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -575,6 +685,8 @@ export default function UsersPage() {
             size="sm"
             className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
             onMouseMove={handleMouseMove("prev")}
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1 || loading}
           >
             <ChevronLeft className="w-4 h-4 mr-1 relative z-10" />
             <span className="relative z-10">Previous</span>
@@ -587,7 +699,7 @@ export default function UsersPage() {
             className="bg-red-600 hover:bg-red-700 text-white ripple cursor-glow"
             onMouseMove={handleMouseMove("page1")}
           >
-            <span className="relative z-10">1</span>
+            <span className="relative z-10">{currentPage}</span>
           </Button>
           <Button
             ref={(el: HTMLButtonElement | null) => {
@@ -597,6 +709,8 @@ export default function UsersPage() {
             size="sm"
             className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
             onMouseMove={handleMouseMove("next")}
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages || loading}
           >
             <span className="relative z-10">Next</span>
             <ChevronRight className="w-4 h-4 ml-1 relative z-10" />
@@ -639,18 +753,31 @@ export default function UsersPage() {
               <Label htmlFor="add-role" className="text-right">
                 Role *
               </Label>
-              <Select name="role" required>
+              <Select name="role" required defaultValue={roles.find((role) => role.name === selectedUserType)?.slug || ""}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder={`Select role (default: ${selectedUserType})`} />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
-                      <Badge className={getTypeColor(role.label)} variant="secondary">
-                        {role.label}
-                      </Badge>
+                  {rolesLoading ? (
+                    <SelectItem value="loading" disabled>
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading roles...
+                      </div>
                     </SelectItem>
-                  ))}
+                  ) : roles.length === 0 ? (
+                    <SelectItem value="none" disabled>
+                      No roles available
+                    </SelectItem>
+                  ) : (
+                    roles.map((role) => (
+                      <SelectItem key={role.id} value={role.slug}>
+                        <Badge className={getTypeColor(role.slug)} variant="secondary">
+                          {role.name}
+                        </Badge>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
 
@@ -663,11 +790,20 @@ export default function UsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Contract</SelectItem>
-                  {contracts.map((contract) => (
-                    <SelectItem key={contract.id} value={contract.id.toString()}>
-                      {contract.name}
+                  {contractsLoading ? (
+                    <SelectItem value="loading" disabled>
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading contracts...
+                      </div>
                     </SelectItem>
-                  ))}
+                  ) : (
+                    contracts.map((contract) => (
+                      <SelectItem key={contract.id} value={contract.id.toString()}>
+                        {contract.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -678,7 +814,7 @@ export default function UsersPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={editLoading}
+                disabled={editLoading || rolesLoading}
                 className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
               >
                 {editLoading ? (
@@ -712,7 +848,6 @@ export default function UsersPage() {
           </DialogHeader>
 
           <form onSubmit={handleEditUserSubmit} className="space-y-6">
-            {/* Personal Information Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-medium text-gray-700">Personal Information</div>
               <Separator />
@@ -758,7 +893,6 @@ export default function UsersPage() {
               </div>
             </div>
 
-            {/* Role & Permissions Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-medium text-gray-700">Role & Permissions</div>
               <Separator />
@@ -771,15 +905,28 @@ export default function UsersPage() {
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {ROLES.map((role) => (
-                        <SelectItem key={role.value} value={role.value}>
+                      {rolesLoading ? (
+                        <SelectItem value="loading" disabled>
                           <div className="flex items-center gap-2">
-                            <Badge className={getTypeColor(role.label)} variant="secondary">
-                              {role.label}
-                            </Badge>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading roles...
                           </div>
                         </SelectItem>
-                      ))}
+                      ) : roles.length === 0 ? (
+                        <SelectItem value="none" disabled>
+                          No roles available
+                        </SelectItem>
+                      ) : (
+                        roles.map((role) => (
+                          <SelectItem key={role.id} value={role.slug}>
+                            <div className="flex items-center gap-2">
+                              <Badge className={getTypeColor(role.slug)} variant="secondary">
+                                {role.name}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   {formErrors.role && (
@@ -808,7 +955,6 @@ export default function UsersPage() {
               </div>
             </div>
 
-            {/* Contract Assignment Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-medium text-gray-700">Contract Assignment</div>
               <Separator />
@@ -861,7 +1007,7 @@ export default function UsersPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={editLoading}
+                disabled={editLoading || rolesLoading}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
                 {editLoading ? (
@@ -881,7 +1027,6 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
