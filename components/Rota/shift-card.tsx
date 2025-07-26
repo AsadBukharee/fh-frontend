@@ -3,14 +3,14 @@
 import { cn } from "@/lib/utils"
 import { PencilLine } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-    import { shiftTypes } from "../../lib/data" // Assuming shiftTypes is exported from lib/data.ts
+import { shiftTypes } from "../../lib/data" // Assuming shiftTypes is exported from lib/data.ts
 
 interface ShiftCardProps {
   shiftType: string
   code: number
   hoursInfo: string
   color: "purple" | "green" | "orange" | "red" | "cyan"
-  onShiftTypeChange?: (newType: string) => void // Add this line
+  onShiftTypeChange?: (newType: string) => void
 }
 
 const colorMap = {
@@ -27,7 +27,7 @@ export function ShiftCard({ shiftType, code, hoursInfo, color, onShiftTypeChange
   return (
     <div
       className={cn(
-        "relative flex flex-col items-start gap-1 rounded-md border-l-4 p-2 text-sm",
+        "relative flex flex-col w-[200px] items-start gap-1 rounded-md border-l-4 p-2 text-sm",
         colors.border,
         colors.bg,
       )}
