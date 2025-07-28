@@ -12,17 +12,16 @@ interface AuditItem {
   status: "after" | "before"
 }
 
-export default function Drivers() {
+export default function Others() {
   const [auditItems, setAuditItems] = useState<AuditItem[]>([
-    { id: "license-expiry", title: "License Expiry", subtitle: "Alert Before Drivers License Expiry", days: 35, status: "after" },
-    { id: "d-category-expiry", title: "D Category Expiry", subtitle: "Alert Before D Category Expiry", days: 35, status: "after" },
-    { id: "last-code-expiry", title: "Last Code Expiry", subtitle: "Alert After Last Code Expiry", days: 45, status: "before" },
-    { id: "last-code-check", title: "Last Code Check", subtitle: "Alert Before Last Code Check", days: 35, status :"after" },
-    { id: "tacho-expiry", title: "Tacho Expiry", subtitle: "Alert After Tacho Expiry", days: 35, status: "after" },
-    { id: "last-tacho-download", title: "Last Tacho Download", subtitle: "Alert Before Last Tacho Download", days: 45, status: "before" },
-    { id: "cpc-expiry", title: "CPC Expiry", subtitle: "Alert Before CPC Expiry", days: 35, status: "after" },
-    { id: "dbs-expiry", title: "DBS Expiry", subtitle: "Alert After DBS Expiry", days: 45, status: "before" },
-    { id: "night-worker-assessment", title: "Night Worker Assessment", subtitle: "Alert Before Night Worker Assessment", days: 45, status: "before" },
+    { id: "compliance-risk-score", title: "Operator Compliance Score", subtitle: "Alert Before Operator Compliance Score", days: 35, status: "after" },
+    { id: "test-report-history", title: "Test Report History", subtitle: "Alert After Test Report History", days: 45, status: "before" },
+    { id: "vehicle-encounter-report", title: "Vehicle Encounter Report", subtitle: "Alert Before Vehicle Encounter Report", days: 35, status: "after" },
+    { id: "yearly-maintenance-provider-audit", title: "Yearly Maintenance Provider Audit", subtitle: "Alert After Yearly Maintenance Provider Audit", days: 35, status: "after" },
+    { id: "yearly-garage-equipment-audit", title: "Yearly Garage Equipment Audit", subtitle: "Alert Before Yearly Garage Equipment Audit", days: 45, status: "before" },
+    { id: "vol-review", title: "VOL Review", subtitle: "Alert Before VOL Review", days: 35, status: "after" },
+    { id: "transport-manager-refresher-check", title: "Transport Manager Refresher Check", subtitle: "Alert After Transport Manager Refresher Check", days: 45, status: "before" },
+    { id: "transport-manager-cpc-card-check", title: "Transport Manager CPC Card Check", subtitle: "Alert After Transport Manager CPC Card Check", days: 45, status: "before" },
   ])
 
   const updateDays = (id: string, newDays: number) => {
@@ -42,20 +41,20 @@ export default function Drivers() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen w-full ">
       <div className=" mx-auto bg-white">
         <div className="bg-green-200 px-6 py-4">
-          <h1 className="text-lg font-semibold text-gray-800">Drivers</h1>
+          <h1 className="text-lg font-semibold text-gray-800">Others</h1>
           <p className="text-sm text-gray-600 mt-1">Enter number of days for each audit Other</p>
         </div>
 
-        <div className="py-2">
-          <div className="grid px-2 py-2 grid-cols-12 gap-4 pb-4 border-b bg-gray-100 border-gray-200">
+        <div className="">
+          <div className="grid px-3 py-4 grid-cols-12 gap-4 pb-4 border-b bg-gray-100 border-gray-200">
             <div className="col-span-7 text-sm font-medium text-gray-500 uppercase tracking-wide">AUDIT ITEM</div>
             <div className="col-span-2 text-sm font-medium text-gray-500 uppercase tracking-wide text-center">DAYS</div>
           </div>
 
-          <div className="space-y-0 px-2">
+          <div className="space-y-0 px-3">
             {auditItems.map((item) => (
               <div key={item.id} className="grid grid-cols-12 gap-4 py-4 border-b border-gray-100 last:border-b-0">
                 <div className="col-span-7">
@@ -73,6 +72,7 @@ export default function Drivers() {
                   />
                 </div>
 
+                
                 <div className="col-span-3 flex items-center justify-center">
   <label className="flex items-center cursor-pointer space-x-2">
     <input
@@ -102,7 +102,7 @@ export default function Drivers() {
             ))}
           </div>
 
-          <div className="mt-8 pt-6 w-full border-t border-gray-200">
+          <div className="my-8 w-full pt-6 border-t border-gray-200">
             <Button onClick={handleSave} className="bg-pink-500 w-full opacity-60 hover:bg-pink-600 text-white px-8 py-2">
               Save
             </Button>
