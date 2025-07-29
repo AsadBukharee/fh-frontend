@@ -1,33 +1,39 @@
-# Use latest Node.js 24 image
-FROM node:24-slim AS build
-
-# Set working directory
+# Install dependencies only when needed
+FROM node:18-alpine AS deps
 WORKDIR /app
 
-# Install dependencies
-COPY package*.json ./
-RUN npm install --frozen-lockfile
+# Install openssl if you have Prisma or similar requirements
+RUN apk add --no-cache openssl
 
-# Copy the rest of the project files
+COPY package.json package-lock.json* pnpm-lock.yaml* bun.lockb* ./
+
+# Install dependencies
+RUN npm install
+
+# Rebuild the source code only when needed
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the frontend (adjust the script if needed, e.g., npm run build)
+# Build the Next.js app
 RUN npm run build
 
-# ----------- Production Stage -----------
-FROM nginx:stable-alpine
+# Production image, copy only necessary files
+FROM node:18-alpine AS runner
+WORKDIR /app
 
-# Remove default NGINX website
-RUN rm -rf /usr/share/nginx/html/*
+ENV NODE_ENV production
 
-# Copy built files from build stage
-COPY --from=build /app/dist /usr/share/nginx/html
+# Optional — if using next/image with static exports
+ENV NEXT_TELEMETRY_DISABLED 1
 
-# Copy custom NGINX config (optional)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy only the built output and package.json
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
-# Expose port
-EXPOSE 80
+EXPOSE 3000
 
-# Start NGINX
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["npm", "start"]
