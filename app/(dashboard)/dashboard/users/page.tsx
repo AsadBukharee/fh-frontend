@@ -32,7 +32,7 @@ import {
 import {
   Search,
   MoreHorizontal,
-  Eye,
+  
   Edit,
   Trash2,
   ChevronLeft,
@@ -430,7 +430,7 @@ export default function UsersPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
-          body: JSON.stringify({ contract: Number.parseInt(formData.contractId) }),
+          body: JSON.stringify({ contract_id: Number.parseInt(formData.contractId) }),
         })
         if (contractResponse.status === 401) {
           showToast("Session expired. Please log in again.", "error")
@@ -625,7 +625,7 @@ export default function UsersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{user.shifts?.length || 0} shifts</Badge>
+                    <Badge  className=" bg-orange-100 text-orange-600 border border-orange-600">{user.shifts?.length || 0} shifts</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(user.is_active)}>{user.is_active ? "Active" : "In-Active"}</Badge>
@@ -646,10 +646,7 @@ export default function UsersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-white">
-                        <DropdownMenuItem>
-                          <Eye className="w-4 h-4 mr-2" />
-                          View
-                        </DropdownMenuItem>
+                        
                         <DropdownMenuItem onClick={() => handleEditUserClick(user)}>
                           <Edit className="w-4 h-4 mr-2" />
                           Edit
@@ -1008,7 +1005,7 @@ export default function UsersPage() {
               <Button
                 type="submit"
                 disabled={editLoading || rolesLoading}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                className="bg-gradient-to-r from-orange-500 to-magenta hover:from-orange-700 hover:to-purple-700"
               >
                 {editLoading ? (
                   <>

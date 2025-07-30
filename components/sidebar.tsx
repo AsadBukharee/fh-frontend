@@ -248,7 +248,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch(`${API_URL}/roles/get-menu?slug=${role.toLowerCase()}`, {
+      const response = await fetch(`${API_URL}/roles/get-menu?role=${role}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,

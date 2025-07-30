@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from "../ui/alert"
 import React from "react"
 import { ShiftCard } from "./shift-card"
 import {  ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from "recharts"
+// import ShiftCard from "./shift-card"
 
 interface User {
   id: number
@@ -659,12 +660,15 @@ console.log(setSearchTerm,stats)
                                   {userShift ? (
                                     <ShiftCard
                                       shiftType={userShift.shift_detail.name}
-                                      code={userShift.shift_detail.id}
-                                      hoursInfo={`${userShift.shift_detail.hours_from} - ${userShift.shift_detail.hours_to}`}
+                                      shift_cell_id={userShift.id}
+                                      user_id={user.id}
+                                      shift_id={userShift.shift_detail.id}
                                       color={hexToColorName(userShift.shift_detail.colors)}
                                       onShiftTypeChange={(newType) => {
                                         console.log(`Change shift ${userShift.id} to ${newType}`)
-                                      }}
+                                      } }
+                                      rate={userShift.shift_detail.rate_per_hours}
+                                      total_hours={userShift.shift_detail.total_hours}
                                     />
                                   ) : (
                                     <div className="h-16 w-[200px] rounded-md bg-gray-100/50 border-2 border-dashed border-gray-200 flex items-center justify-center">

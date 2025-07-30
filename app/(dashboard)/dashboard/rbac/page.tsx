@@ -60,7 +60,7 @@ import AnimatedLogo from "@/components/LogoLoading"
 import React from "react"
 import API_URL from "@/app/utils/ENV"
 
-// ============= STATIC CONSTANTS (moved outside component) =============
+// ============= STATIC CONSTANTS =============
 const PERMISSION_ICONS = {
   view: Eye,
   create: Plus,
@@ -180,7 +180,6 @@ const INITIAL_MENU_ITEMS = [
       },
     ],
   },
-  // ... truncated for brevity, but include all menu items
 ]
 
 // ============= TYPES =============
@@ -261,6 +260,8 @@ const MenuItemComponent = memo(
   }) => {
     const [isEditing, setIsEditing] = useState(false)
     const containerRef = useRef<HTMLDivElement | null>(null)
+    const [tempNav, setTempNav] = useState(item.nav)
+    const [tempName, setTempName] = useState(item.name)
 
     const [, drop] = useDrop({
       accept: "MENU_ITEM",
@@ -280,12 +281,33 @@ const MenuItemComponent = memo(
 
     const IconComponent = LUCIDE_ICON_MAP[item.icon] || File
 
-    const handleDoubleClick = useCallback(() => setIsEditing(true), [])
-    const handleBlur = useCallback((event: React.FocusEvent) => {
-      const relatedTarget = event.relatedTarget as Node | null
-      if (containerRef.current && relatedTarget && containerRef.current.contains(relatedTarget)) return
+    const handleDoubleClick = useCallback(() => {
+      setIsEditing(true)
+      setTempNav(item.nav)
+      setTempName(item.name)
+    }, [item.nav, item.name])
+
+    const handleSave = useCallback(() => {
+      updateMenuItem(index, parentIndex, { name: tempName, nav: tempNav, tooltip: tempName })
       setIsEditing(false)
-    }, [])
+    }, [index, parentIndex, tempName, tempNav, updateMenuItem])
+
+    const handleCancel = useCallback(() => {
+      setIsEditing(false)
+      setTempNav(item.nav)
+      setTempName(item.name)
+    }, [item.nav, item.name])
+
+    const handleKeyDown = useCallback(
+      (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+          handleSave()
+        } else if (e.key === "Escape") {
+          handleCancel()
+        }
+      },
+      [handleSave, handleCancel],
+    )
 
     const handleIconChange = useCallback(
       (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -309,9 +331,18 @@ const MenuItemComponent = memo(
 
     const handleNameChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
-        updateMenuItem(index, parentIndex, { name: e.target.value, tooltip: e.target.value })
+        setTempName(e.target.value)
       },
-      [index, parentIndex, updateMenuItem],
+      [],
+    )
+
+    const handleNavChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value
+        const sanitizedNav = value.startsWith("/") ? value : `/${value}`
+        setTempNav(sanitizedNav)
+      },
+      [],
     )
 
     const ref = useCallback(
@@ -325,7 +356,7 @@ const MenuItemComponent = memo(
     return (
       <div
         ref={ref}
-        className={`relative flex items-center w-[500px] h-[50px] gap-2 p-2 my-1 rounded-md border border-gray-200 bg-white shadow-sm transition-all duration-200 ${
+        className={`relative flex flex-col items-start w-[500px] min-h-[50px] gap-2 p-2 my-1 rounded-md border border-gray-200 bg-white shadow-sm transition-all duration-200 ${
           isDragging ? "opacity-50 border-blue-400 shadow-lg" : "hover:border-blue-300 hover:shadow-md"
         }`}
         onDoubleClick={handleDoubleClick}
@@ -333,40 +364,77 @@ const MenuItemComponent = memo(
         role="listitem"
         aria-label={`Menu item: ${item.name}`}
       >
-        <GripVertical className="h-4 w-4 text-gray-400 cursor-grab shrink-0" />
-        <Checkbox checked={item.isSelected} onCheckedChange={handleToggle} className="mr-2" />
-
-        {isEditing ? (
-          <>
-            <select
-              value={LUCIDE_ICON_MAP[item.icon] ? item.icon : "File"}
-              onChange={handleIconChange}
-              className="w-[120px] h-8 border border-gray-300 rounded-md px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {AVAILABLE_ICONS.map((icon) => (
-                <option key={icon} value={icon}>
-                  {icon}
-                </option>
-              ))}
-            </select>
-            <Input value={item.name} onChange={handleNameChange} onBlur={handleBlur} className="flex-1" autoFocus />
-          </>
-        ) : (
-          <>
-            <IconComponent className="h-4 w-4 text-gray-600 shrink-0" />
-            <span className="flex-1 truncate text-sm font-medium">{item.name}</span>
-          </>
+        <div className="flex items-center w-full gap-2">
+          <GripVertical className="h-4 w-4 text-gray-400 cursor-grab shrink-0" />
+          <Checkbox checked={item.isSelected} onCheckedChange={handleToggle} className="mr-2" />
+          {isEditing ? (
+            <>
+              <select
+                value={LUCIDE_ICON_MAP[item.icon] ? item.icon : "File"}
+                onChange={handleIconChange}
+                className="w-[120px] h-8 border border-gray-300 rounded-md px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {AVAILABLE_ICONS.map((icon) => (
+                  <option key={icon} value={icon}>
+                    {icon}
+                  </option>
+                ))}
+              </select>
+              <Input
+                value={tempName}
+                onChange={handleNameChange}
+                onKeyDown={handleKeyDown}
+                placeholder="Menu Item Name"
+                className="flex-1"
+                autoFocus
+              />
+            </>
+          ) : (
+            <>
+              <IconComponent className="h-4 w-4 text-gray-600 shrink-0" />
+              <span className="flex-1 truncate text-sm font-medium">{item.name}</span>
+              <span className="text-xs text-gray-500 truncate" title={item.nav}>
+                {item.nav}
+              </span>
+            </>
+          )}
+          <button onClick={handleAddChild} className="p-1 rounded-full hover:bg-gray-100" title="Add child item">
+            <Plus className="h-4 w-4 text-gray-500" />
+          </button>
+          <button onClick={handleRemove} className="p-1 rounded-full hover:bg-red-100" title="Remove item">
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </button>
+        </div>
+        {isEditing && (
+          <div className="w-full flex flex-col gap-2">
+            <Input
+              value={tempNav}
+              onChange={handleNavChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Navigation Path (e.g., /custom-path)"
+              className="w-full"
+            />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSave}
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+                size="sm"
+              >
+                Save
+              </Button>
+              <Button
+                onClick={handleCancel}
+                variant="outline"
+                className="bg-transparent"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         )}
-
-        <button onClick={handleAddChild} className="p-1 rounded-full hover:bg-gray-100" title="Add child item">
-          <Plus className="h-4 w-4 text-gray-500" />
-        </button>
-        <button onClick={handleRemove} className="p-1 rounded-full hover:bg-red-100" title="Remove item">
-          <Trash2 className="h-4 w-4 text-red-500" />
-        </button>
-
         {item.children && item.children.length > 0 && (
-          <div className="absolute right-18 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">
             ({item.children.length} sub-items)
           </div>
         )}
@@ -375,7 +443,6 @@ const MenuItemComponent = memo(
   },
 )
 MenuItemComponent.displayName = "MenuItemComponent"
-
 // ============= MAIN COMPONENT WITH OPTIMIZATIONS =============
 export default function UsersPageOptimized() {
   // ============= STATE =============
@@ -397,7 +464,8 @@ export default function UsersPageOptimized() {
   const [tempSelectedResources, setTempSelectedResources] = useState<string[]>([])
   const [resourceSearch, setResourceSearch] = useState("")
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-console.log(editingRoleId,originalPermissions)
+  console.log(originalPermissions)
+
   const { showToast } = useToast()
   const cookies = useCookies()
   const token = cookies.get("access_token")
@@ -421,13 +489,12 @@ console.log(editingRoleId,originalPermissions)
 
     const searchLower = searchTerm.toLowerCase()
     return data.filter((user) => {
-      // Fast string matching
       if (user.type.toLowerCase().includes(searchLower)) return true
 
-      // Deep search in menu items (optimized)
       const searchInItems = (items: MenuItem[]): boolean => {
         for (const item of items) {
-          if (item.name.toLowerCase().includes(searchLower)) return true
+          if (item.name.toLowerCase().includes(searchLower) || item.nav.toLowerCase().includes(searchLower))
+            return true
           if (item.children.length > 0 && searchInItems(item.children)) return true
         }
         return false
@@ -474,7 +541,6 @@ console.log(editingRoleId,originalPermissions)
       setSelectedResources(resourceNames)
       setTempSelectedResources(resourceNames)
 
-      // Batch state updates
       const mappedData: UserData[] = roles.map((role) => ({
         id: role.id,
         type: role.name,
@@ -506,7 +572,6 @@ console.log(editingRoleId,originalPermissions)
         {} as { [key: number]: UserPermissions },
       )
 
-      // Batch all state updates
       setOriginalPermissions(initialPermissions)
       setData(mappedData)
     } catch (error) {
@@ -519,7 +584,6 @@ console.log(editingRoleId,originalPermissions)
   // ============= OPTIMIZED EVENT HANDLERS =============
   const togglePermission = useCallback(
     (id: number, resource: string, permission: string) => {
-      // Optimized state update using functional update
       setData((prev) =>
         prev.map((user) => {
           if (user.id !== id) return user
@@ -538,7 +602,6 @@ console.log(editingRoleId,originalPermissions)
         }),
       )
 
-      // Update modified permissions
       setModifiedPermissions((prev) => {
         const user = data.find((u) => u.id === id)
         if (!user) return prev
@@ -594,7 +657,6 @@ console.log(editingRoleId,originalPermissions)
           throw new Error(errorData.detail || errorData.message || "Failed to update permissions")
         }
 
-        // Batch state updates
         setOriginalPermissions((prev) => ({ ...prev, [roleId]: modified }))
         setModifiedPermissions((prev) => {
           const newModified = { ...prev }
@@ -612,7 +674,7 @@ console.log(editingRoleId,originalPermissions)
     [modifiedPermissions, resourceMap, token, showToast],
   )
 
-  // ============= MENU ITEM HANDLERS (OPTIMIZED) =============
+  // ============= MENU ITEM HANDLERS =============
   const toggleMenuItem = useCallback((index: number, parentIndex: number | null) => {
     setMenuItems((prevItems) => {
       const newItems = [...prevItems]
@@ -651,11 +713,38 @@ console.log(editingRoleId,originalPermissions)
   }, [])
 
   const addChildItem = useCallback((parentIndex: number | null, index: number) => {
+    const generateSlug = (name: string) => {
+      return (
+        "/" +
+        name
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]/g, "")
+      )
+    }
+
+    const defaultName = "New Item"
+    let newNav = generateSlug(defaultName)
+    let counter = 1
+
+    const existingNavs = new Set(
+      menuItems.flatMap((item) => [
+        item.nav,
+        ...item.children.map((child) => child.nav),
+        ...item.children.flatMap((child) => child.children.map((subChild) => subChild.nav)),
+      ]),
+    )
+
+    while (existingNavs.has(newNav)) {
+      newNav = `${generateSlug(defaultName)}-${counter}`
+      counter++
+    }
+
     const newChild: MenuItem = {
-      nav: `/new-item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      nav: newNav,
       icon: "File",
-      name: "New Item",
-      tooltip: "New menu item",
+      name: defaultName,
+      tooltip: defaultName,
       children: [],
       isSelected: true,
     }
@@ -677,17 +766,71 @@ console.log(editingRoleId,originalPermissions)
       }
       return newItems
     })
-  }, [])
+  }, [menuItems])
 
   const updateMenuItem = useCallback((index: number, parentIndex: number | null, updates: Partial<MenuItem>) => {
+    const generateSlug = (name: string) => {
+      return (
+        "/" +
+        name
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]/g, "")
+      )
+    }
+
     setMenuItems((prevItems) => {
       const newItems = [...prevItems]
+      const existingNavs = new Set(
+        prevItems.flatMap((item, i) => {
+          if (parentIndex === null && i === index) return []
+          return [
+            item.nav,
+            ...item.children.map((child, childIndex) => {
+              if (parentIndex === i && childIndex === index) return []
+              return child.nav
+            }),
+            ...item.children.flatMap((child) => child.children.map((subChild) => subChild.nav)),
+          ]
+        }).flat(),
+      )
+
+      let newNav = updates.nav
+      if (updates.name && !updates.nav) {
+        newNav = generateSlug(updates.name)
+        let counter = 1
+        while (existingNavs.has(newNav)) {
+          newNav = `${generateSlug(updates.name)}-${counter}`
+          counter++
+        }
+      } else if (updates.nav) {
+        newNav = updates.nav.startsWith("/") ? updates.nav : `/${updates.nav}`
+        newNav = newNav
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-/]/g, "")
+        let counter = 1
+        const baseNav = newNav
+        while (existingNavs.has(newNav)) {
+          newNav = `${baseNav}-${counter}`
+          counter++
+        }
+      }
+
+      const finalUpdates = {
+        ...updates,
+        nav: typeof newNav === "string" ? newNav : "",
+        tooltip: updates.name ?? updates.tooltip ?? "",
+      }
+
       if (parentIndex === null) {
-        newItems[index] = { ...newItems[index], ...updates }
+        newItems[index] = { ...newItems[index], ...finalUpdates }
       } else {
         newItems[parentIndex] = {
           ...newItems[parentIndex],
-          children: newItems[parentIndex].children.map((child, i) => (i === index ? { ...child, ...updates } : child)),
+          children: newItems[parentIndex].children.map((child, i) =>
+            i === index ? { ...child, ...finalUpdates } : child,
+          ),
         }
       }
       return newItems
@@ -770,6 +913,7 @@ console.log(editingRoleId,originalPermissions)
 
     const payload = {
       name: newRoleName,
+      slug: newRoleName.toLowerCase().replace(/\s+/g, "-"),
       menu: { items: selectedMenuItems },
       permissions: { site: { view: false, create: false, update: false, delete: false } },
     }
@@ -799,6 +943,52 @@ console.log(editingRoleId,originalPermissions)
     }
   }, [newRoleName, menuItems, showToast, token, fetchRoles])
 
+  const handleUpdateUser = useCallback(async () => {
+    if (newRoleName.trim() === "") {
+      showToast("Please enter a role name!", "error")
+      return
+    }
+
+    const selectedMenuItems = menuItems
+      .filter((item) => item.isSelected)
+      .map((item) => ({
+        ...item,
+        children: item.children.filter((child) => child.isSelected),
+      }))
+
+    const payload = {
+      name: newRoleName,
+      slug: newRoleName.toLowerCase().replace(/\s+/g, "-"),
+      menu: { items: selectedMenuItems },
+      permissions: { site: { view: false, create: false, update: false, delete: false } },
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/roles/${editingRoleId}/`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || "Failed to update role")
+      }
+
+      await fetchRoles()
+      setNewRoleName("")
+      setIsDialogOpen(false)
+      setDialogMode("add")
+      setEditingRoleId(null)
+      showToast("Role updated successfully!", "success")
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "An error occurred while updating the role", "error")
+    }
+  }, [newRoleName, menuItems, showToast, token, fetchRoles, editingRoleId])
+
   const handleEditRole = useCallback((role: UserData) => {
     setDialogMode("edit")
     setEditingRoleId(role.id)
@@ -823,7 +1013,6 @@ console.log(editingRoleId,originalPermissions)
           throw new Error(errorData.detail || errorData.message || "Failed to delete role")
         }
 
-        // Batch state updates
         setData((prev) => prev.filter((user) => user.id !== id))
         setOriginalPermissions((prev) => {
           const newPermissions = { ...prev }
@@ -888,7 +1077,6 @@ console.log(editingRoleId,originalPermissions)
     fetchRoles()
   }, [fetchRoles])
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
@@ -917,7 +1105,6 @@ console.log(editingRoleId,originalPermissions)
                   />
                 </div>
 
-                {/* Resource Filter Dropdown */}
                 <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="flex items-center gap-2 bg-transparent">
@@ -1118,7 +1305,7 @@ console.log(editingRoleId,originalPermissions)
                     Cancel
                   </Button>
                   <Button
-                    onClick={dialogMode === "add" ? handleAddUser : handleAddUser}
+                    onClick={dialogMode === "add" ? handleAddUser : handleUpdateUser}
                     className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white"
                   >
                     {dialogMode === "add" ? "Add Role" : "Update Role"}

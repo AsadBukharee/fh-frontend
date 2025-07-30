@@ -13,9 +13,7 @@ import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import StartRota from "./StartRota";
 
-// RotaScheduler import removed because file does not exist
-
-// TypeScript Interfaces (unchanged, copied here for context, but should ideally be in a shared types file)
+// TypeScript Interfaces
 interface ShiftDetail {
   name: string;
   hours_from: string;
@@ -153,10 +151,66 @@ const hasShiftChanges = (
   return false;
 }
 
-// Memoized ShiftCell component (unchanged)
+// Function to validate if Save Rota button should be enabled
+const isRotaButtonEnabled = (
+  employee: Employee,
+  tempShiftSelections: TempShiftSelection,
+): boolean => {
+  const employeeSelections = tempShiftSelections[employee.id] || {
+    week1: [],
+    week2: [],
+    week3: [],
+    week4: [],
+  };
+
+  const weeks = ["week1", "week2", "week3", "week4"] as const;
+  let hasOneWeekWithSevenShifts = false;
+  let week4ShiftCount = 0;
+  let filledWeeks = 0;
+
+  for (const week of weeks) {
+    const weekShifts = employeeSelections[week]?.length
+      ? employeeSelections[week]
+      : employee.allWeeksShifts[week];
+    
+    // Count non-null and non-dropdown shifts in the week
+    const shiftCount = weekShifts.filter(
+      (shift) => shift && shift !== "dropdown" && shift !== null
+    ).length;
+
+    // Check if this week has 7 shifts
+    if (shiftCount === 7) {
+      hasOneWeekWithSevenShifts = true;
+    }
+
+    // Track week4 shift count
+    if (week === "week4") {
+      week4ShiftCount = shiftCount;
+    }
+
+    // Count weeks with 7 shifts
+    if (shiftCount === 7) {
+      filledWeeks++;
+    }
+  }
+
+  // Condition 1: At least one week must have 7 shifts
+  if (!hasOneWeekWithSevenShifts) {
+    return false;
+  }
+
+  // Condition 2: If all 4 weeks are not filled (7 shifts each), and week4 has exactly 5 shifts, disable until 7 shifts
+  if (filledWeeks < 4 && week4ShiftCount === 5) {
+    return false;
+  }
+
+  // If all conditions are met or all weeks are filled, enable the button
+  return true;
+};
+
+// Memoized ShiftCell component
 const ShiftCell = memo(({
   shift,
- 
   isOpen,
   onToggle,
   onSelect,
@@ -165,7 +219,6 @@ const ShiftCell = memo(({
   availableShifts,
 }: {
   shift: EmployeeShift | "dropdown" | null;
- 
   isOpen: boolean;
   onToggle: () => void;
   onSelect: (shift: EmployeeShift) => void;
@@ -173,119 +226,115 @@ const ShiftCell = memo(({
   onEdit: (shift: EmployeeShift) => void;
   availableShifts: EmployeeShift[];
 }) => {
-    return (
-      <div className="min-h-[50px] flex items-center justify-center">
-        <Popover open={isOpen} onOpenChange={onToggle}>
-          <PopoverTrigger asChild>
-            {shift === "dropdown" || shift === null ? (
-              <Badge
-                variant="outline"
-                className={`w-full max-w-[110px] h-12 text-xs flex items-center justify-center cursor-pointer ${
-                  shift === "dropdown"
-                    ? "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-                    : "border-dashed border-gray-300 text-gray-400 hover:border-gray-400"
-                }`}
-              >
-                {shift === "dropdown" ? (
-                  <span>RD</span>
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <Edit className="w-3 h-3 mb-1" />
-                    <span className="text-xs">Assign</span>
-                  </div>
-                )}
-              </Badge>
-            ) : (
-              <div
-                className="border-dotted rounded-lg flex flex-col justify-center items-center px-2 py-2 text-center w-full max-w-[120px] h-[60px] cursor-pointer hover:opacity-80 transition-opacity relative group text-xs"
-                style={{
-                  backgroundColor: shift.bgColor,
-                  color: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#000000" : "#000000",
-                  borderColor: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#e5e7eb" : shift.bgColor,
-                }}
-              >
-                <div className="font-semibold flex items-center text-xs leading-tight mb-1" title={shift.type}>
-                  {shift.type.length > 8 ? shift.type.substring(0, 8) + "..." : shift.type}
-                  <ChevronDown className="w-4 h-4 ml-1" />
-                </div>
-                <div className="text-xs leading-tight" title={shift.time}>
-                  {shift.time}
-                </div>
-                <Edit className="w-3 h-3 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            )}
-          </PopoverTrigger>
-          <PopoverContent className="w-80 p-2">
-            <div className="space-y-1">
-              <div className="flex items-center justify-between mb-2 px-2">
-                <div className="text-xs font-medium text-gray-700">Available Shifts ({availableShifts.length})</div>
-                {shift &&
-                  shift !== "dropdown" &&
-                  shift !== null &&
-                  (
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(shift)}
-                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 h-auto text-xs"
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onClear}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 h-auto text-xs"
-                      >
-                        <X className="w-3 h-3 mr-1" />
-                        Clear
-                      </Button>
-                    </div>
-                  )}
-              </div>
-              {availableShifts.length > 0 ? (
-                availableShifts.map((option, optionIndex) => (
-                  <Button
-                    key={optionIndex}
-                    variant="ghost"
-                    className={`w-full text-left text-xs px-2 py-2 hover:bg-gray-100 h-auto ${
-                      shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId
-                        ? "bg-blue-50 border border-blue-200"
-                        : ""
-                    }`}
-                    onClick={() => onSelect(option)}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium truncate">{option.type}</div>
-                        <div className="text-gray-500 truncate">
-                          {option.time} • {option.hours}
-                        </div>
-                        <div className="text-gray-400 text-xs">£{option.rate_per_hours}/hr</div>
-                      </div>
-                      <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
-                        <div className="w-4 h-4 rounded border" style={{ backgroundColor: option.bgColor }} />
-                        {shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId && (
-                          <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center">
-                            <div className="w-2 h-2 bg-white rounded-full" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Button>
-                ))
+  return (
+    <div className="min-h-[50px] flex items-center justify-center">
+      <Popover open={isOpen} onOpenChange={onToggle}>
+        <PopoverTrigger asChild>
+          {shift === "dropdown" || shift === null ? (
+            <Badge
+              variant="outline"
+              className={`w-full max-w-[110px] h-12 text-xs flex items-center justify-center cursor-pointer ${
+                shift === "dropdown"
+                  ? "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+                  : "border-dashed border-gray-300 text-gray-400 hover:border-gray-400"
+              }`}
+            >
+              {shift === "dropdown" ? (
+                <span>RD</span>
               ) : (
-                <div className="px-2 py-1.5 text-xs text-gray-500">No shift options available</div>
+                <div className="flex flex-col items-center">
+                  <Edit className="w-3 h-3 mb-1" />
+                  <span className="text-xs">Assign</span>
+                </div>
+              )}
+            </Badge>
+          ) : (
+            <div
+              className="border-dotted rounded-lg flex flex-col justify-center items-center px-2 py-2 text-center w-full max-w-[120px] h-[60px] cursor-pointer hover:opacity-80 transition-opacity relative group text-xs"
+              style={{
+                backgroundColor: shift.bgColor,
+                color: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#000000" : "#000000",
+                borderColor: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#e5e7eb" : shift.bgColor,
+              }}
+            >
+              <div className="font-semibold flex items-center text-xs leading-tight mb-1" title={shift.type}>
+                {shift.type.length > 8 ? shift.type.substring(0, 8) + "..." : shift.type}
+                <ChevronDown className="w-4 h-4 ml-1" />
+              </div>
+              <div className="text-xs leading-tight" title={shift.time}>
+                {shift.time}
+              </div>
+              <Edit className="w-3 h-3 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          )}
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-2">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between mb-2 px-2">
+              <div className="text-xs font-medium text-gray-700">Available Shifts ({availableShifts.length})</div>
+              {shift && shift !== "dropdown" && shift !== null && (
+                <div className="flex space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEdit(shift)}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 h-auto text-xs"
+                  >
+                    <Edit className="w-3 h-3 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onClear}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 h-auto text-xs"
+                  >
+                    <X className="w-3 h-3 mr-1" />
+                    Clear
+                  </Button>
+                </div>
               )}
             </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-    );
-  },
-);
+            {availableShifts.length > 0 ? (
+              availableShifts.map((option, optionIndex) => (
+                <Button
+                  key={optionIndex}
+                  variant="ghost"
+                  className={`w-full text-left text-xs px-2 py-2 hover:bg-gray-100 h-auto ${
+                    shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId
+                      ? "bg-blue-50 border border-blue-200"
+                      : ""
+                  }`}
+                  onClick={() => onSelect(option)}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{option.type}</div>
+                      <div className="text-gray-500 truncate">
+                        {option.time} • {option.hours}
+                      </div>
+                      <div className="text-gray-400 text-xs">£{option.rate_per_hours}/hr</div>
+                    </div>
+                    <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                      <div className="w-4 h-4 rounded border" style={{ backgroundColor: option.bgColor }} />
+                      {shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId && (
+                        <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center">
+                          <div className="w-2 h-2 bg-white rounded-full" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Button>
+              ))
+            ) : (
+              <div className="px-2 py-1.5 text-xs text-gray-500">No shift options available</div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+});
 ShiftCell.displayName = "ShiftCell";
 
 // Modified EmployeeRow component
@@ -293,7 +342,6 @@ const EmployeeRow = memo(
   ({
     employee,
     userIndex,
-  
     openShiftIndex,
     onToggleShift,
     onSelectShift,
@@ -302,12 +350,10 @@ const EmployeeRow = memo(
     onStartRota,
     generatingRota,
     rotaGenerated,
-  
-    tempShiftSelections, // Added prop
+    tempShiftSelections,
   }: {
     employee: Employee;
     userIndex: number;
-   
     openShiftIndex: string | null;
     onToggleShift: (key: string) => void;
     onSelectShift: (userIndex: number, shiftIndex: number, shift: EmployeeShift) => void;
@@ -316,7 +362,6 @@ const EmployeeRow = memo(
     onStartRota: (employeeId: number) => void;
     generatingRota: boolean;
     rotaGenerated: { [key: number]: boolean };
-   
     tempShiftSelections: TempShiftSelection;
   }) => {
     const handleSelectShift = useCallback(
@@ -337,6 +382,9 @@ const EmployeeRow = memo(
 
     // Check if there are shift changes for this employee
     const hasChanges = hasShiftChanges(employee, tempShiftSelections);
+
+    // Check if the Save Rota button should be enabled
+    const isButtonEnabled = isRotaButtonEnabled(employee, tempShiftSelections);
 
     return (
       <TableRow key={employee.id}>
@@ -367,8 +415,6 @@ const EmployeeRow = memo(
           <TableCell key={shiftIndex} className="w-[130px] min-w-[130px] p-2">
             <ShiftCell
               shift={shift}
-             
-             
               isOpen={openShiftIndex === `${userIndex}-${shiftIndex}`}
               onToggle={() => onToggleShift(`${userIndex}-${shiftIndex}`)}
               onSelect={(shift) => handleSelectShift(shiftIndex, shift)}
@@ -382,13 +428,13 @@ const EmployeeRow = memo(
           <Button
             size="sm"
             onClick={handleStartRota}
-            disabled={generatingRota || rotaGenerated[employee.id] || !hasChanges}
+            disabled={generatingRota || rotaGenerated[employee.id] || !hasChanges || !isButtonEnabled}
             style={{
               background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
-              width:'auto',
+              width: 'auto',
               height: 'auto',
             }}
-            className=" px-3 cursor-pointer py-2"
+            className="px-3 cursor-pointer py-2"
           >
             Save Rota
           </Button>
@@ -399,7 +445,7 @@ const EmployeeRow = memo(
 );
 EmployeeRow.displayName = "EmployeeRow";
 
-// Debounce hook (unchanged)
+// Debounce hook
 const useDebounce = (value: string, delay: number): string => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -427,6 +473,7 @@ const ParentTab: React.FC = () => {
   const [applyToAll, setApplyToAll] = useState<boolean>(false);
   const [generatingRota, setGeneratingRota] = useState<boolean>(false);
   const [rotaGenerated, setRotaGenerated] = useState<{ [key: number]: boolean }>({});
+  console.log(setRotaGenerated)
   // State for edit shift modal
   const [showEditShiftModal, setShowEditShiftModal] = useState<boolean>(false);
   const [selectedShift, setSelectedShift] = useState<EmployeeShift | null>(null);
@@ -445,7 +492,7 @@ const ParentTab: React.FC = () => {
   const token = cookies.get("access_token");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // Memoized date calculations (unchanged)
+  // Memoized date calculations
   const getWeekDates = useCallback((week: string): Day[] => {
     const baseDate = new Date(2025, 6, 21);
     const weekOffset = Number.parseInt(week.slice(-1)) - 1;
@@ -679,7 +726,7 @@ const ParentTab: React.FC = () => {
         }
         const result = await response.json();
         console.log(result);
-        setRotaGenerated((prev) => ({ ...prev, [employee.id]: true }));
+        
         await fetchRota();
       } catch (error) {
         console.error("Error generating rota:", error);
@@ -895,28 +942,7 @@ const ParentTab: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center justify-between space-x-1">
-          {/* <div className="relative">
-            <Input
-              type="text"
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 text-sm pr-10"
-              aria-label="Search users by name"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1"
-                onClick={clearSearch}
-                aria-label="Clear search"
-              >
-                <X className="w-4 h-4 text-gray-500" />
-              </Button>
-            )}
-          </div> */}
-      <StartRota users={uniqueUsers}/>
-
+          <StartRota users={uniqueUsers}/>
         </div>
       </div>
       {/* Pattern Header */}
@@ -925,7 +951,6 @@ const ParentTab: React.FC = () => {
           <h2 className="text-lg font-medium text-gray-900 mb-1">Pattern 1 - Weekly Schedule</h2>
           <p className="text-sm text-gray-500">User-specific shifts only</p>
         </div>
-
         <div className="flex space-x-2">
           {["week1", "week2", "week3", "week4"].map((week) => (
             <Badge
@@ -935,7 +960,7 @@ const ParentTab: React.FC = () => {
                 selectedWeek === week
                   ? "bg-rose-700 border text-white"
                   : week === currentWeek
-                  ? "bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+                  ? "bg-green-100 text-green-700  hover:bg-green-200"
                   : "bg-white text-gray-500 hover:bg-gray-100"
               }`}
               onClick={() => setSelectedWeek(week)}
@@ -972,7 +997,6 @@ const ParentTab: React.FC = () => {
                     key={employee.id}
                     employee={employee}
                     userIndex={userIndex}
-             
                     openShiftIndex={openShiftIndex}
                     onToggleShift={toggleShiftSelection}
                     onSelectShift={selectShift}
@@ -981,8 +1005,7 @@ const ParentTab: React.FC = () => {
                     onStartRota={handleStartRota}
                     generatingRota={generatingRota}
                     rotaGenerated={rotaGenerated}
-                  
-                    tempShiftSelections={tempShiftSelections} // Pass tempShiftSelections
+                    tempShiftSelections={tempShiftSelections}
                   />
                 ))
               ) : (
@@ -1019,7 +1042,7 @@ const ParentTab: React.FC = () => {
                     variant={selectedWeekForApply === week ? "default" : "outline"}
                     className={`cursor-pointer px-3 py-1 text-sm ${
                       selectedWeekForApply === week
-                        ? "bg-blue-100 border-blue-700 border text-blue-700"
+                        ? "bg-orange-100 border-orange border text-orange"
                         : "bg-white text-gray-500 hover:bg-gray-100"
                     }`}
                     onClick={() => setSelectedWeekForApply(week)}
@@ -1044,7 +1067,14 @@ const ParentTab: React.FC = () => {
             <Button variant="outline" onClick={() => setShowRotaModal(false)}>
               Cancel
             </Button>
-            <Button onClick={applyWeekToAll} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={applyWeekToAll}
+             style={{
+              background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
+              width: 'auto',
+              height: 'auto',
+            }}
+            className="px-3 cursor-pointer py-2"
+            >
               Apply Pattern
             </Button>
           </DialogFooter>
