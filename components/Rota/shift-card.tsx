@@ -79,7 +79,7 @@ export function ShiftCard({ shiftType, shift_cell_id, shift_id, color, user_id, 
     setIsLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_URL}/api/rota/child-rota/start-rota/${shift_cell_id}/`, {
+      const response = await fetch(`${API_URL}/api/rota/child-rota/start-rota/${shift_cell_id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

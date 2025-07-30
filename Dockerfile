@@ -1,34 +1,37 @@
-# Install dependencies only when needed
+# 1. Use the official Node.js LTS image
 FROM node:18-alpine AS deps
+
+# Set working directory
 WORKDIR /app
 
-# Install openssl if you have Prisma or similar requirements
-RUN apk add --no-cache openssl
+# Install dependencies based on lock file
+COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
+RUN \
+  if [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm install; \
+  elif [ -f yarn.lock ]; then yarn install; \
+  else echo "No lockfile found." && exit 1; \
+  fi
 
-COPY package.json package-lock.json* pnpm-lock.yaml* bun.lockb* ./
-
-# Install dependencies
-RUN npm install
-
-# Rebuild the source code only when needed
+# 2. Copy all files and build the app
 FROM node:18-alpine AS builder
+
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the Next.js app
+# Ensure Prisma (if used) is generated before building
 RUN npm run build
 
-# Production image, copy only necessary files
+# 3. Production image
 FROM node:18-alpine AS runner
+
 WORKDIR /app
 
 ENV NODE_ENV production
-
-# Optional — if using next/image with static exports
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Copy only the built output and package.json
+# Only copy necessary files
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules

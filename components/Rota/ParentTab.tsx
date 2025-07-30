@@ -473,6 +473,7 @@ const ParentTab: React.FC = () => {
   const [applyToAll, setApplyToAll] = useState<boolean>(false);
   const [generatingRota, setGeneratingRota] = useState<boolean>(false);
   const [rotaGenerated, setRotaGenerated] = useState<{ [key: number]: boolean }>({});
+  console.log(setRotaGenerated)
   // State for edit shift modal
   const [showEditShiftModal, setShowEditShiftModal] = useState<boolean>(false);
   const [selectedShift, setSelectedShift] = useState<EmployeeShift | null>(null);
@@ -725,7 +726,7 @@ const ParentTab: React.FC = () => {
         }
         const result = await response.json();
         console.log(result);
-        setRotaGenerated((prev) => ({ ...prev, [employee.id]: true }));
+        
         await fetchRota();
       } catch (error) {
         console.error("Error generating rota:", error);
@@ -959,7 +960,7 @@ const ParentTab: React.FC = () => {
                 selectedWeek === week
                   ? "bg-rose-700 border text-white"
                   : week === currentWeek
-                  ? "bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+                  ? "bg-green-100 text-green-700  hover:bg-green-200"
                   : "bg-white text-gray-500 hover:bg-gray-100"
               }`}
               onClick={() => setSelectedWeek(week)}
@@ -1041,7 +1042,7 @@ const ParentTab: React.FC = () => {
                     variant={selectedWeekForApply === week ? "default" : "outline"}
                     className={`cursor-pointer px-3 py-1 text-sm ${
                       selectedWeekForApply === week
-                        ? "bg-blue-100 border-blue-700 border text-blue-700"
+                        ? "bg-orange-100 border-orange border text-orange"
                         : "bg-white text-gray-500 hover:bg-gray-100"
                     }`}
                     onClick={() => setSelectedWeekForApply(week)}
@@ -1066,7 +1067,14 @@ const ParentTab: React.FC = () => {
             <Button variant="outline" onClick={() => setShowRotaModal(false)}>
               Cancel
             </Button>
-            <Button onClick={applyWeekToAll} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={applyWeekToAll}
+             style={{
+              background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
+              width: 'auto',
+              height: 'auto',
+            }}
+            className="px-3 cursor-pointer py-2"
+            >
               Apply Pattern
             </Button>
           </DialogFooter>
