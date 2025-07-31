@@ -1,42 +1,46 @@
-# 1. Use the official Node.js LTS image
-FROM node:18-alpine AS deps
+# Step 1: Use a specific node image with required version
+FROM node:22.16.0-alpine AS base
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Set working directory
 WORKDIR /app
 
-# Install dependencies based on lock file
-COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
-RUN \
-  if [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm install; \
-  elif [ -f yarn.lock ]; then yarn install; \
-  else echo "No lockfile found." && exit 1; \
-  fi
+# Install dependencies in separate step
+COPY package*.json ./
+COPY .npmrc .npmrc
 
-# 2. Copy all files and build the app
-FROM node:18-alpine AS builder
+# Install npm version 11.4.2 specifically
+RUN npm install -g npm@11.4.2
 
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Install dependencies
+RUN npm ci
+
+# Copy rest of the application
 COPY . .
 
-# Ensure Prisma (if used) is generated before building
+# Build the app (production build)
 RUN npm run build
 
-# 3. Production image
-FROM node:18-alpine AS runner
+# Step 2: Use a smaller image for serving the app
+FROM node:22.16.0-alpine AS runner
 
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Create app directory
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+# Copy only necessary files from the build step
+COPY --from=base /app/public ./public
+COPY --from=base /app/.next ./.next
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app/package.json ./package.json
 
-# Only copy necessary files
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-
+# Expose the port used by the app
 EXPOSE 3000
 
+# Start the app
 CMD ["npm", "start"]
