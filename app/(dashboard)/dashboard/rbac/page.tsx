@@ -106,82 +106,285 @@ const LUCIDE_ICON_MAP: { [key: string]: LucideIcon } = {
 const AVAILABLE_ICONS = Object.keys(LUCIDE_ICON_MAP)
 
 const INITIAL_MENU_ITEMS = [
-  {
-    nav: "/users",
-    icon: "UserPlus",
-    name: "User Management",
-    tooltip: "Manage users and permissions",
-    children: [],
-    isSelected: true,
-  },
-  {
-    nav: "/sites",
-    icon: "Building2",
-    name: "Sites",
-    tooltip: "Manage operational sites",
-    children: [],
-    isSelected: true,
-  },
-  {
-    nav: "/vehicles",
-    icon: "Truck",
-    name: "Vehicles",
-    tooltip: "Vehicle dashboard and tools",
-    isSelected: true,
-    children: [
-      {
-        nav: "/vehicles/walkaround",
-        icon: "ClipboardCheck",
-        name: "Walkaround",
-        tooltip: "Walkaround inspection checks",
-        children: [],
-        isSelected: true,
-      },
-      {
-        nav: "/vehicles/fuel-checks",
-        icon: "Fuel",
-        name: "Fuel Checks",
-        tooltip: "Vehicle fuel checks and logs",
-        children: [],
-        isSelected: true,
-      },
-      {
-        nav: "/vehicles/tyre-checks",
-        icon: "LifeBuoy",
-        name: "Tyre Checks",
-        tooltip: "Tyre condition and tread inspections",
-        children: [],
-        isSelected: true,
-      },
-      {
-        nav: "/vehicles/equipment-checks",
-        icon: "Stethoscope",
-        name: "Equipment Checks",
-        tooltip: "Onboard equipment inspections",
-        children: [],
-        isSelected: true,
-      },
-      {
-        nav: "/vehicles/valet-checks",
-        icon: "Car",
-        name: "Valet Checks",
-        tooltip: "Vehicle cleanliness & valet review",
-        isSelected: true,
-        children: [
-          {
-            nav: "/vehicles/valet-checks/gatekeeper",
-            icon: "ShieldCheck",
-            name: "Gate Keeper Checks",
-            tooltip: "Final checks at site gate",
-            children: [],
-            isSelected: true,
-          },
-        ],
-      },
-    ],
-  },
-]
-
+        {
+            "nav": "/",
+            "icon": "BarChart3",
+            "name": "Dashboard",
+            "tooltip": "Overview of key metrics",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/users",
+            "icon": "UserPlus",
+            "name": "User Management",
+            "tooltip": "Manage users and permissions",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/rbac",
+            "icon": "TowerControl",
+            "name": "RBAC",
+            "tooltip": "Manage roles and permissions",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/sites",
+            "icon": "Building2",
+            "name": "Sites",
+            "tooltip": "Manage operational sites",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/vehicles",
+            "icon": "Truck",
+            "name": "Vehicles",
+            "tooltip": "Vehicle dashboard and tools",
+            "children": [
+                {
+                    "nav": "/vehicles/walkaround",
+                    "icon": "ClipboardCheck",
+                    "name": "Walkaround",
+                    "tooltip": "Walkaround inspection checks",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/vehicles/fuel-checks",
+                    "icon": "Fuel",
+                    "name": "Fuel Checks",
+                    "tooltip": "Vehicle fuel checks and logs",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/vehicles/tyre-checks",
+                    "icon": "LifeBuoy",
+                    "name": "Tyre Checks",
+                    "tooltip": "Tyre condition and tread inspections",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/vehicles/equipment-checks",
+                    "icon": "Stethoscope",
+                    "name": "Equipment Checks",
+                    "tooltip": "Onboard equipment inspections",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/vehicles/valet-checks",
+                    "icon": "Car",
+                    "name": "Valet Checks",
+                    "tooltip": "Vehicle cleanliness & valet review",
+                    "children": [
+                        {
+                            "nav": "/vehicles/valet-checks/gatekeeper",
+                            "icon": "ShieldCheck",
+                            "name": "Gate Keeper Checks",
+                            "tooltip": "Final checks at site gate",
+                            "children": [],
+                            "isSelected": true
+                        }
+                    ],
+                    "isSelected": true
+                }
+            ],
+            "isSelected": true
+        },
+        {
+            "nav": "/staff",
+            "icon": "BookUser",
+            "name": "Staff",
+            "tooltip": "Staff records and schedules",
+            "children": [
+                {
+                    "nav": "/staff/duty-logs",
+                    "icon": "CalendarCheck",
+                    "name": "Daily Duty Logs",
+                    "tooltip": "Daily staff duty logs",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/staff/wtd-logs",
+                    "icon": "Clock",
+                    "name": "WTD Logs",
+                    "tooltip": "Working Time Directive logs",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/staff/clocking",
+                    "icon": "LogIn",
+                    "name": "Clocking Logs",
+                    "tooltip": "Clock-in / Clock-out entries",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/staff/rotas",
+                    "icon": "RefreshCw",
+                    "name": "Rotas",
+                    "tooltip": "Weekly rota planning",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/staff/contracts",
+                    "icon": "FileText",
+                    "name": "Contracts",
+                    "tooltip": "Staff contract records",
+                    "children": [],
+                    "isSelected": true
+                }
+            ],
+            "isSelected": true
+        },
+        {
+            "nav": "/inspections",
+            "icon": "ClipboardList",
+            "name": "MOTs & Insp.",
+            "tooltip": "MOTs & Inspections",
+            "children": [
+                {
+                    "nav": "/inspections/maintenance-pmi",
+                    "icon": "Activity",
+                    "name": "Maintenance PMI",
+                    "tooltip": "Maintenance PMI Analysis",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/inspections/driver-pmi",
+                    "icon": "UserCheck",
+                    "name": "Driver PMI",
+                    "tooltip": "Driver PMI Analysis",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/inspections/service-history",
+                    "icon": "Book",
+                    "name": "Service History",
+                    "tooltip": "Service and inspection history",
+                    "children": [],
+                    "isSelected": true
+                }
+            ],
+            "isSelected": true
+        },
+        {
+            "nav": "/mechanic-jobs",
+            "icon": "Wrench",
+            "name": "Mechanic",
+            "tooltip": "Mechanic Jobs",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/su-transport",
+            "icon": "Database",
+            "name": "SU Transport Data",
+            "tooltip": "Special unit transport logs",
+            "children": [
+                {
+                    "nav": "/su-transport/numbers",
+                    "icon": "ListNumbers",
+                    "name": "SU Numbers Screen",
+                    "tooltip": "Show SU Numbers",
+                    "children": [],
+                    "isSelected": true
+                }
+            ],
+            "isSelected": true
+        },
+        {
+            "nav": "/audit-expiry",
+            "icon": "CalendarX",
+            "name": "Audit Expiry",
+            "tooltip": "Audit Expiry Dates",
+            "children": [
+                {
+                    "nav": "/audit-expiry/vehicles",
+                    "icon": "Truck",
+                    "name": "Vehicles",
+                    "tooltip": "Audit Expiry Dates for Vehicles",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/audit-expiry/drivers",
+                    "icon": "User",
+                    "name": "Drivers",
+                    "tooltip": "Audit Expiry Dates for Drivers",
+                    "children": [],
+                    "isSelected": true
+                },
+                {
+                    "nav": "/audit-expiry/others",
+                    "icon": "MoreHorizontal",
+                    "name": "Others",
+                    "tooltip": "Audit Expiry Dates for Others",
+                    "children": [],
+                    "isSelected": true
+                }
+            ],
+            "isSelected": true
+        },
+        {
+            "nav": "/knowledge",
+            "icon": "BookOpen",
+            "name": "Knowledge",
+            "tooltip": "Knowledge Library",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/documents",
+            "icon": "File",
+            "name": "Documents",
+            "tooltip": "Document Lists",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/tasks",
+            "icon": "SquareCheckBig",
+            "name": "Outstanding Tasks",
+            "tooltip": "Outstanding Tasks",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/reminders",
+            "icon": "CalendarClock",
+            "name": "Reminders",
+            "tooltip": "Reminders",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/notifications",
+            "icon": "Bell",
+            "name": "Notifications",
+            "tooltip": "All notifications",
+            "children": [],
+            "isSelected": true
+        },
+        {
+            "nav": "/help",
+            "icon": "Headset",
+            "name": "Help",
+            "tooltip": "Help and documentation",
+            "children": [],
+            "isSelected": true
+        }
+    ]
 // ============= TYPES =============
 type Permission = { view: boolean; create: boolean; update: boolean; delete: boolean }
 type Resource = { id: number; name: string }
@@ -443,6 +646,7 @@ const MenuItemComponent = memo(
   },
 )
 MenuItemComponent.displayName = "MenuItemComponent"
+
 // ============= MAIN COMPONENT WITH OPTIMIZATIONS =============
 export default function UsersPageOptimized() {
   // ============= STATE =============
@@ -459,12 +663,12 @@ export default function UsersPageOptimized() {
   const [modifiedPermissions, setModifiedPermissions] = useState<{ [key: number]: UserPermissions }>({})
   const [originalPermissions, setOriginalPermissions] = useState<{ [key: number]: UserPermissions }>({})
   const [isSaving, setIsSaving] = useState<{ [key: number]: boolean }>({})
+  console.log(originalPermissions)
   const [resources, setResources] = useState<Resource[]>([])
   const [selectedResources, setSelectedResources] = useState<string[]>([])
   const [tempSelectedResources, setTempSelectedResources] = useState<string[]>([])
   const [resourceSearch, setResourceSearch] = useState("")
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  console.log(originalPermissions)
 
   const { showToast } = useToast()
   const cookies = useCookies()
@@ -993,7 +1197,21 @@ export default function UsersPageOptimized() {
     setDialogMode("edit")
     setEditingRoleId(role.id)
     setNewRoleName(role.type)
-    setMenuItems(role.menu.items.length > 0 ? role.menu.items : INITIAL_MENU_ITEMS)
+
+    // Merge INITIAL_MENU_ITEMS with role.menu.items
+    const mergeMenuItems = (initial: MenuItem[], saved: MenuItem[]): MenuItem[] => {
+      return initial.map((initialItem) => {
+        const savedItem = saved.find((item) => item.nav === initialItem.nav)
+        return {
+          ...initialItem,
+          isSelected: savedItem ? savedItem.isSelected : false,
+          children: mergeMenuItems(initialItem.children, savedItem?.children || []),
+        }
+      })
+    }
+
+    const mergedMenuItems = mergeMenuItems(INITIAL_MENU_ITEMS, role.menu.items || [])
+    setMenuItems(mergedMenuItems)
     setIsDialogOpen(true)
   }, [])
 

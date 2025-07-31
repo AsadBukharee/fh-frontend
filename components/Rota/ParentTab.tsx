@@ -1,3 +1,4 @@
+
 "use client"
 import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -120,93 +121,8 @@ interface TempShiftSelection {
   };
 }
 
-// Helper function to check for shift changes
-const hasShiftChanges = (
-  employee: Employee,
-  tempSelections: TempShiftSelection,
-): boolean => {
-  const employeeSelections = tempSelections[employee.id] || {
-    week1: [],
-    week2: [],
-    week3: [],
-    week4: [],
-  };
-  const weeks = ["week1", "week2", "week3", "week4"] as const;
-  for (const week of weeks) {
-    const tempShifts = employeeSelections[week] || employee.allWeeksShifts[week];
-    const originalShifts = employee.allWeeksShifts[week];
-    if (tempShifts.length !== originalShifts.length) return true;
-    for (let i = 0; i < tempShifts.length; i++) {
-      const tempShift = tempShifts[i];
-      const originalShift = originalShifts[i];
-      if (tempShift === null && originalShift === null) continue;
-      if (tempShift === "dropdown" && originalShift === "dropdown") continue;
-      if (tempShift && originalShift && tempShift !== "dropdown" && originalShift !== "dropdown") {
-        if (tempShift.shiftId !== originalShift.shiftId) return true;
-      } else if (tempShift !== originalShift) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
 
-// Function to validate if Save Rota button should be enabled
-const isRotaButtonEnabled = (
-  employee: Employee,
-  tempShiftSelections: TempShiftSelection,
-): boolean => {
-  const employeeSelections = tempShiftSelections[employee.id] || {
-    week1: [],
-    week2: [],
-    week3: [],
-    week4: [],
-  };
 
-  const weeks = ["week1", "week2", "week3", "week4"] as const;
-  let hasOneWeekWithSevenShifts = false;
-  let week4ShiftCount = 0;
-  let filledWeeks = 0;
-
-  for (const week of weeks) {
-    const weekShifts = employeeSelections[week]?.length
-      ? employeeSelections[week]
-      : employee.allWeeksShifts[week];
-    
-    // Count non-null and non-dropdown shifts in the week
-    const shiftCount = weekShifts.filter(
-      (shift) => shift && shift !== "dropdown" && shift !== null
-    ).length;
-
-    // Check if this week has 7 shifts
-    if (shiftCount === 7) {
-      hasOneWeekWithSevenShifts = true;
-    }
-
-    // Track week4 shift count
-    if (week === "week4") {
-      week4ShiftCount = shiftCount;
-    }
-
-    // Count weeks with 7 shifts
-    if (shiftCount === 7) {
-      filledWeeks++;
-    }
-  }
-
-  // Condition 1: At least one week must have 7 shifts
-  if (!hasOneWeekWithSevenShifts) {
-    return false;
-  }
-
-  // Condition 2: If all 4 weeks are not filled (7 shifts each), and week4 has exactly 5 shifts, disable until 7 shifts
-  if (filledWeeks < 4 && week4ShiftCount === 5) {
-    return false;
-  }
-
-  // If all conditions are met or all weeks are filled, enable the button
-  return true;
-};
 
 // Memoized ShiftCell component
 const ShiftCell = memo(({
@@ -348,9 +264,7 @@ const EmployeeRow = memo(
     onClearShift,
     onEditShift,
     onStartRota,
-    generatingRota,
-    rotaGenerated,
-    tempShiftSelections,
+
   }: {
     employee: Employee;
     userIndex: number;
@@ -360,9 +274,7 @@ const EmployeeRow = memo(
     onClearShift: (userIndex: number, shiftIndex: number) => void;
     onEditShift: (shift: EmployeeShift) => void;
     onStartRota: (employeeId: number) => void;
-    generatingRota: boolean;
-    rotaGenerated: { [key: number]: boolean };
-    tempShiftSelections: TempShiftSelection;
+
   }) => {
     const handleSelectShift = useCallback(
       (shiftIndex: number, shift: EmployeeShift) => {
@@ -380,12 +292,7 @@ const EmployeeRow = memo(
       onStartRota(employee.id);
     }, [employee.id, onStartRota]);
 
-    // Check if there are shift changes for this employee
-    const hasChanges = hasShiftChanges(employee, tempShiftSelections);
-
-    // Check if the Save Rota button should be enabled
-    const isButtonEnabled = isRotaButtonEnabled(employee, tempShiftSelections);
-
+ 
     return (
       <TableRow key={employee.id}>
         <TableCell className="w-[200px] min-w-[200px]">
@@ -428,7 +335,7 @@ const EmployeeRow = memo(
           <Button
             size="sm"
             onClick={handleStartRota}
-            disabled={generatingRota || rotaGenerated[employee.id] || !hasChanges || !isButtonEnabled}
+            // disabled={ !hasChanges }
             style={{
               background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
               width: 'auto',
@@ -460,7 +367,7 @@ const useDebounce = (value: string, delay: number): string => {
 };
 
 const ParentTab: React.FC = () => {
-  const [selectedWeek, setSelectedWeek] = useState<string>("week2");
+  const [selectedWeek, setSelectedWeek] = useState<string>("week1");
   const [cachedApiData, setCachedApiData] = useState<UserRota[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
@@ -473,8 +380,7 @@ const ParentTab: React.FC = () => {
   const [applyToAll, setApplyToAll] = useState<boolean>(false);
   const [generatingRota, setGeneratingRota] = useState<boolean>(false);
   const [rotaGenerated, setRotaGenerated] = useState<{ [key: number]: boolean }>({});
-  console.log(setRotaGenerated)
-  // State for edit shift modal
+  console.log(generatingRota, rotaGenerated);
   const [showEditShiftModal, setShowEditShiftModal] = useState<boolean>(false);
   const [selectedShift, setSelectedShift] = useState<EmployeeShift | null>(null);
   const [editShiftForm, setEditShiftForm] = useState({
@@ -492,7 +398,6 @@ const ParentTab: React.FC = () => {
   const token = cookies.get("access_token");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // Memoized date calculations
   const getWeekDates = useCallback((week: string): Day[] => {
     const baseDate = new Date(2025, 6, 21);
     const weekOffset = Number.parseInt(week.slice(-1)) - 1;
@@ -635,11 +540,12 @@ const ParentTab: React.FC = () => {
   const currentWeek = useMemo(() => getCurrentWeek(), [getCurrentWeek]);
 
   const hasAll28DaysShifts = useCallback((employee: Employee): boolean => {
+    const employeeSelections = tempShiftSelections[employee.id] || employee.allWeeksShifts;
     const allWeeks = [
-      employee.allWeeksShifts.week1,
-      employee.allWeeksShifts.week2,
-      employee.allWeeksShifts.week3,
-      employee.allWeeksShifts.week4,
+      employeeSelections.week1 || employee.allWeeksShifts.week1,
+      employeeSelections.week2 || employee.allWeeksShifts.week2,
+      employeeSelections.week3 || employee.allWeeksShifts.week3,
+      employeeSelections.week4 || employee.allWeeksShifts.week4,
     ];
     let totalShifts = 0;
     allWeeks.forEach((week) => {
@@ -650,7 +556,7 @@ const ParentTab: React.FC = () => {
       });
     });
     return totalShifts === 28;
-  }, []);
+  }, [tempShiftSelections]);
 
   const fetchRota = useCallback(async () => {
     try {
@@ -671,6 +577,7 @@ const ParentTab: React.FC = () => {
         throw new Error("No users found in the response");
       }
       setCachedApiData(data.users);
+      setRotaGenerated({});
     } catch (error) {
       console.error("Error fetching rota:", error);
       setError("Failed to load schedule. Please try again.");
@@ -683,6 +590,7 @@ const ParentTab: React.FC = () => {
     async (employee: Employee) => {
       try {
         setGeneratingRota(true);
+        const employeeSelections = tempShiftSelections[employee.id] || employee.allWeeksShifts;
         const rotation = {
           week1: {} as { [key: string]: number },
           week2: {} as { [key: string]: number },
@@ -698,8 +606,8 @@ const ParentTab: React.FC = () => {
           Saturday: "saturday",
           Sunday: "sunday",
         };
-        Object.keys(rotation).forEach((weekKey) => {
-          const weekShifts = employee.allWeeksShifts[weekKey as keyof typeof employee.allWeeksShifts];
+        ["week1", "week2", "week3", "week4"].forEach((weekKey) => {
+          const weekShifts = employeeSelections[weekKey] || employee.allWeeksShifts[weekKey as keyof typeof employee.allWeeksShifts];
           weekShifts.forEach((shift, dayIndex) => {
             const dayName = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][dayIndex];
             const apiDayName = dayMapping[dayName as keyof typeof dayMapping];
@@ -711,8 +619,9 @@ const ParentTab: React.FC = () => {
         const payload = {
           userid: employee.id,
           apply_to_all: true,
-          rotation: rotation,
+          rotation,
         };
+        console.log("Generating rota with payload:", payload);
         const response = await fetch(`${API_URL}/api/rota/parent-rota/generate/`, {
           method: "POST",
           headers: {
@@ -725,8 +634,8 @@ const ParentTab: React.FC = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const result = await response.json();
-        console.log(result);
-        
+        console.log("Rota generation result:", result);
+        setRotaGenerated((prev) => ({ ...prev, [employee.id]: true }));
         await fetchRota();
       } catch (error) {
         console.error("Error generating rota:", error);
@@ -735,7 +644,7 @@ const ParentTab: React.FC = () => {
         setGeneratingRota(false);
       }
     },
-    [token, fetchRota],
+    [token, fetchRota, tempShiftSelections],
   );
 
   const handleStartRota = useCallback(
@@ -756,7 +665,12 @@ const ParentTab: React.FC = () => {
     (userIndex: number, shiftIndex: number, shift: EmployeeShift) => {
       const employeeId = employees[userIndex].id;
       setTempShiftSelections((prev) => {
-        const employeeSelections = prev[employeeId] || { week1: [], week2: [], week3: [], week4: [] };
+        const employeeSelections = prev[employeeId] || {
+          week1: employees[userIndex].allWeeksShifts.week1,
+          week2: employees[userIndex].allWeeksShifts.week2,
+          week3: employees[userIndex].allWeeksShifts.week3,
+          week4: employees[userIndex].allWeeksShifts.week4,
+        };
         const weekSelections = [...(employeeSelections[selectedWeek] || employees[userIndex].shifts)];
         weekSelections[shiftIndex] = shift;
         return {
@@ -776,7 +690,12 @@ const ParentTab: React.FC = () => {
     (userIndex: number, shiftIndex: number) => {
       const employeeId = employees[userIndex].id;
       setTempShiftSelections((prev) => {
-        const employeeSelections = prev[employeeId] || { week1: [], week2: [], week3: [], week4: [] };
+        const employeeSelections = prev[employeeId] || {
+          week1: employees[userIndex].allWeeksShifts.week1,
+          week2: employees[userIndex].allWeeksShifts.week2,
+          week3: employees[userIndex].allWeeksShifts.week3,
+          week4: employees[userIndex].allWeeksShifts.week4,
+        };
         const weekSelections = [...(employeeSelections[selectedWeek] || employees[userIndex].shifts)];
         weekSelections[shiftIndex] = null;
         return {
@@ -859,48 +778,65 @@ const ParentTab: React.FC = () => {
     if (!selectedEmployeeId) return;
     const employee = employees.find((emp) => emp.id === selectedEmployeeId);
     if (!employee) return;
+
     const sourceWeekShifts =
       tempShiftSelections[selectedEmployeeId]?.[selectedWeekForApply] ||
       employee.allWeeksShifts[selectedWeekForApply as keyof typeof employee.allWeeksShifts];
+
+    console.log("Applying week pattern:", {
+      employeeId: selectedEmployeeId,
+      sourceWeek: selectedWeekForApply,
+      sourceShifts: sourceWeekShifts,
+      applyToAll,
+    });
+
     setTempShiftSelections((prev) => {
-      const employeeSelections = prev[selectedEmployeeId] || { week1: [], week2: [], week3: [], week4: [] };
-      if (applyToAll) {
-        return {
-          ...prev,
-          [selectedEmployeeId]: {
+      const employeeSelections = prev[selectedEmployeeId] || {
+        week1: employee.allWeeksShifts.week1,
+        week2: employee.allWeeksShifts.week2,
+        week3: employee.allWeeksShifts.week3,
+        week4: employee.allWeeksShifts.week4,
+      };
+      const updatedSelections = applyToAll
+        ? {
             week1: [...sourceWeekShifts],
             week2: [...sourceWeekShifts],
             week3: [...sourceWeekShifts],
             week4: [...sourceWeekShifts],
-          },
-        };
-      } else {
-        return {
-          ...prev,
-          [selectedEmployeeId]: {
+          }
+        : {
             ...employeeSelections,
             [selectedWeekForApply]: [...sourceWeekShifts],
-          },
-        };
-      }
+          };
+      return {
+        ...prev,
+        [selectedEmployeeId]: updatedSelections,
+      };
     });
+
     setShowRotaModal(false);
     setSelectedEmployeeId(null);
     setApplyToAll(false);
-    const updatedEmployee = employees.find((emp) => emp.id === selectedEmployeeId);
-    if (updatedEmployee) {
-      const employeeWithUpdatedShifts = {
-        ...updatedEmployee,
-        allWeeksShifts: {
-          week1: applyToAll ? [...sourceWeekShifts] : updatedEmployee.allWeeksShifts.week1,
-          week2: applyToAll ? [...sourceWeekShifts] : updatedEmployee.allWeeksShifts.week2,
-          week3: applyToAll ? [...sourceWeekShifts] : updatedEmployee.allWeeksShifts.week3,
-          week4: applyToAll ? [...sourceWeekShifts] : updatedEmployee.allWeeksShifts.week4,
-        },
-      };
-      await generateRota(employeeWithUpdatedShifts);
+
+    const updatedEmployee = {
+      ...employee,
+      allWeeksShifts: applyToAll
+        ? {
+            week1: [...sourceWeekShifts],
+            week2: [...sourceWeekShifts],
+            week3: [...sourceWeekShifts],
+            week4: [...sourceWeekShifts],
+          }
+        : {
+            ...employee.allWeeksShifts,
+            [selectedWeekForApply]: [...sourceWeekShifts],
+          },
+    };
+
+    if (hasAll28DaysShifts(updatedEmployee)) {
+      await generateRota(updatedEmployee);
     }
-  }, [selectedEmployeeId, employees, tempShiftSelections, selectedWeekForApply, applyToAll, generateRota]);
+  }, [selectedEmployeeId, employees, tempShiftSelections, selectedWeekForApply, applyToAll, generateRota, hasAll28DaysShifts]);
 
   useEffect(() => {
     if (token) {
@@ -911,7 +847,6 @@ const ParentTab: React.FC = () => {
     }
   }, [token, fetchRota]);
 
-  // Extract unique users for the RotaScheduler dropdown
   const uniqueUsers = useMemo(() => {
     const userMap = new Map<number, User>();
     cachedApiData.forEach((userRota: UserRota) => {
@@ -939,13 +874,11 @@ const ParentTab: React.FC = () => {
 
   return (
     <div className="p-4 bg-white min-h-screen font-sans">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center justify-between space-x-1">
           <StartRota users={uniqueUsers}/>
         </div>
       </div>
-      {/* Pattern Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h2 className="text-lg font-medium text-gray-900 mb-1">Pattern 1 - Weekly Schedule</h2>
@@ -960,7 +893,7 @@ const ParentTab: React.FC = () => {
                 selectedWeek === week
                   ? "bg-rose-700 border text-white"
                   : week === currentWeek
-                  ? "bg-green-100 text-green-700  hover:bg-green-200"
+                  ? "bg-green-100 text-green-700 hover:bg-green-200"
                   : "bg-white text-gray-500 hover:bg-gray-100"
               }`}
               onClick={() => setSelectedWeek(week)}
@@ -972,7 +905,6 @@ const ParentTab: React.FC = () => {
           ))}
         </div>
       </div>
-      {/* Schedule Table */}
       <div className="border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
@@ -1003,9 +935,8 @@ const ParentTab: React.FC = () => {
                     onClearShift={clearShift}
                     onEditShift={openEditShiftModal}
                     onStartRota={handleStartRota}
-                    generatingRota={generatingRota}
-                    rotaGenerated={rotaGenerated}
-                    tempShiftSelections={tempShiftSelections}
+                   
+                 
                   />
                 ))
               ) : (
@@ -1022,7 +953,6 @@ const ParentTab: React.FC = () => {
           </Table>
         </div>
       </div>
-      {/* Start Rota Modal */}
       <Dialog open={showRotaModal} onOpenChange={setShowRotaModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1067,20 +997,20 @@ const ParentTab: React.FC = () => {
             <Button variant="outline" onClick={() => setShowRotaModal(false)}>
               Cancel
             </Button>
-            <Button onClick={applyWeekToAll}
-             style={{
-              background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
-              width: 'auto',
-              height: 'auto',
-            }}
-            className="px-3 cursor-pointer py-2"
+            <Button
+              onClick={applyWeekToAll}
+              style={{
+                background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
+                width: 'auto',
+                height: 'auto',
+              }}
+              className="px-3 cursor-pointer py-2"
             >
               Apply Pattern
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Edit Shift Modal */}
       <Dialog open={showEditShiftModal} onOpenChange={setShowEditShiftModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

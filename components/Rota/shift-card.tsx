@@ -3,10 +3,11 @@
 import { cn } from "@/lib/utils"
 import { PencilLine } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import API_URL from "@/app/utils/ENV"
-
 import { useCookies } from "next-client-cookies"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 interface Shift {
   id: number
@@ -28,10 +29,10 @@ interface ShiftCardProps {
   shift_cell_id: number
   shift_id: number
   color: "purple" | "green" | "orange" | "red" | "cyan"
-  user_id: number
-  onShiftTypeChange?: (newType: string) => void
   rate: number
   total_hours: string
+  shift_list: Shift[]
+  onShiftUpdate: () => void
 }
 
 const colorMap = {
@@ -42,44 +43,20 @@ const colorMap = {
   cyan: { border: "border-cyan-500", bg: "bg-cyan-100" },
 }
 
-
-
-export function ShiftCard({ shiftType, shift_cell_id, shift_id, color, user_id, onShiftTypeChange, rate, total_hours }: ShiftCardProps) {
-  const colors = colorMap[color] || colorMap.purple // Default to purple if color not found
+export function ShiftCard({ shiftType, shift_cell_id, shift_id, color, rate, total_hours, shift_list, onShiftUpdate }: ShiftCardProps) {
+  const colors = colorMap[color] || colorMap.purple
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [shiftTypes, setShiftTypes] = useState<Shift[]>([])
-  const cookies=useCookies()
-
-  // Fetch shift types from API
-  useEffect(() => {
-    const fetchShiftTypes = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/staff/shifts/?user_id=${user_id}`,{
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${cookies.get('access_token')}`,
-          }
-        })
-        if (!response.ok) {
-          throw new Error("Failed to fetch shift types")
-        }
-        const data: Shift[] = await response.json()
-        setShiftTypes(data)
-      } catch (err) {
-        console.error("Error fetching shift types:", err)
-        setError("Failed to load shift types. Please try again.")
-      }
-    }
-
-    fetchShiftTypes()
-  }, [user_id])
+  const [editMode, setEditMode] = useState<"salary" | "hours" | null>(null)
+  const [newSalary, setNewSalary] = useState<number>(rate)
+  const [newHours, setNewHours] = useState<string>(total_hours)
+  const cookies = useCookies()
 
   const handleShiftChange = async (newShiftId: number) => {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_URL}/api/rota/child-rota/start-rota/${shift_cell_id}`, {
+      const response = await fetch(`${API_URL}/api/rota/child-rota/${shift_cell_id}/`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -92,14 +69,69 @@ export function ShiftCard({ shiftType, shift_cell_id, shift_id, color, user_id, 
         throw new Error("Failed to update shift")
       }
 
-      const newShift = shiftTypes.find((shift) => shift.id === newShiftId)
-      if (newShift && onShiftTypeChange) {
-        onShiftTypeChange(newShift.name)
+      const newShift = shift_list.find((shift) => shift.id === newShiftId)
+      if (!newShift) {
+        throw new Error("Shift not found")
       }
       console.log(`Shift updated to ID: ${newShiftId}`)
+      onShiftUpdate()
     } catch (err) {
       console.error("Error updating shift:", err)
       setError("Failed to update shift. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSalaryUpdate = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`${API_URL}/api/rota/child-rota/${shift_cell_id}/`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cookies.get('access_token')}`,
+        },
+        body: JSON.stringify({ daily_salary: newSalary }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update salary")
+      }
+      console.log(`Salary updated to: ${newSalary}`)
+      onShiftUpdate()
+      setEditMode(null)
+    } catch (err) {
+      console.error("Error updating salary:", err)
+      setError("Failed to update salary. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleHoursUpdate = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`${API_URL}/api/rota/child-rota/${shift_cell_id}/`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cookies.get('access_token')}`,
+        },
+        body: JSON.stringify({ daily_hours: parseFloat(newHours) }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update hours")
+      }
+      console.log(`Hours updated to: ${newHours}`)
+      onShiftUpdate()
+      setEditMode(null)
+    } catch (err) {
+      console.error("Error updating hours:", err)
+      setError("Failed to update hours. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -119,31 +151,73 @@ export function ShiftCard({ shiftType, shift_cell_id, shift_id, color, user_id, 
             <span className="cursor-pointer font-semibold hover:underline">{shiftType}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            {shiftTypes.map((type) => (
+            {shift_list.map((type) => (
               <DropdownMenuItem
                 key={type.id}
-                onClick={() => {
-                  if (onShiftTypeChange) {
-                    onShiftTypeChange(type.name)
-                    console.log(`Shift type changed to: ${type.name}`)
-                  }
-                }}
+                onClick={() => handleShiftChange(type.id)}
+                disabled={isLoading || type.id === shift_id}
               >
                 {type.name}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <span className="text-xs font-medium">£ {rate}</span>
+        {editMode === "salary" ? (
+          <div className="flex items-center gap-1">
+            <Input
+              type="number"
+              value={newSalary}
+              onChange={(e) => setNewSalary(parseFloat(e.target.value))}
+              className="w-16 text-xs"
+              disabled={isLoading}
+            />
+            <Button size="sm" onClick={handleSalaryUpdate} disabled={isLoading}>
+              Save
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setEditMode(null)} disabled={isLoading}>
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <span
+            className="text-xs font-medium cursor-pointer hover:underline"
+            onClick={() => setEditMode("salary")}
+          >
+            £ {rate}
+          </span>
+        )}
       </div>
       <div className="flex w-full items-center justify-between text-muted-foreground">
-        <span className="text-xs">{total_hours}</span>
+        {editMode === "hours" ? (
+          <div className="flex items-center gap-1">
+            <Input
+              type="text"
+              value={newHours}
+              onChange={(e) => setNewHours(e.target.value)}
+              className="w-16 text-xs"
+              disabled={isLoading}
+            />
+            <Button size="sm" onClick={handleHoursUpdate} disabled={isLoading}>
+              Save
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setEditMode(null)} disabled={isLoading}>
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <span
+            className="text-xs cursor-pointer hover:underline"
+            onClick={() => setEditMode("hours")}
+          >
+            {total_hours}
+          </span>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <PencilLine className="h-3 w-3 cursor-pointer text-gray-500 hover:text-gray-700" />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            {shiftTypes.map((type) => (
+            {shift_list.map((type) => (
               <DropdownMenuItem
                 key={type.id}
                 onClick={() => handleShiftChange(type.id)}

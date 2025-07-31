@@ -131,7 +131,7 @@ export default function VehicleDetailPage() {
       };
 
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
-        method: "PATCH",
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -313,12 +313,12 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       type="text"
-                      value={editVehicle.vehicles_type.name}
+                      value={editVehicle.vehicles_type?.name}
                       onChange={(e) => handleVehicleTypeChange("name", e.target.value)}
                       className="w-full"
                     />
                   ) : (
-                    <p className="font-semibold">{vehicle.vehicles_type.name}</p>
+                    <p className="font-semibold">{vehicle.vehicles_type?.name}</p>
                   )}
                 </div>
                 <div>
@@ -326,12 +326,12 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       type="text"
-                      value={editVehicle.vehicles_type.description}
+                      value={editVehicle.vehicles_type?.description}
                       onChange={(e) => handleVehicleTypeChange("description", e.target.value)}
                       className="w-full"
                     />
                   ) : (
-                    <p className="font-semibold">{vehicle.vehicles_type.description}</p>
+                    <p className="font-semibold">{vehicle.vehicles_type?.description}</p>
                   )}
                 </div>
               </div>
@@ -349,12 +349,12 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       type="text"
-                      value={editVehicle.site_allocated.name}
+                      value={editVehicle.site_allocated?.name}
                       onChange={(e) => handleSiteAllocatedChange("name", e.target.value)}
                       className="w-full"
                     />
                   ) : (
-                    <p className="font-semibold">{vehicle.site_allocated.name}</p>
+                    <p className="font-semibold">{vehicle.site_allocated?.name}</p>
                   )}
                 </div>
                 <div>
@@ -362,12 +362,12 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       type="text"
-                      value={editVehicle.site_allocated.postcode}
+                      value={editVehicle.site_allocated?.postcode}
                       onChange={(e) => handleSiteAllocatedChange("postcode", e.target.value)}
                       className="w-full"
                     />
                   ) : (
-                    <p className="font-semibold">{vehicle.site_allocated.postcode}</p>
+                    <p className="font-semibold">{vehicle.site_allocated?.postcode}</p>
                   )}
                 </div>
                 <div className="col-span-2">
@@ -375,12 +375,12 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       type="text"
-                      value={editVehicle.site_allocated.address}
+                      value={editVehicle.site_allocated?.address}
                       onChange={(e) => handleSiteAllocatedChange("address", e.target.value)}
                       className="w-full"
                     />
                   ) : (
-                    <p className="font-semibold">{vehicle.site_allocated.address}</p>
+                    <p className="font-semibold">{vehicle.site_allocated?.address}</p>
                   )}
                 </div>
                 <div>
@@ -388,12 +388,12 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       type="text"
-                      value={editVehicle.site_allocated.contact_name}
+                      value={editVehicle.site_allocated?.contact_name}
                       onChange={(e) => handleSiteAllocatedChange("contact_name", e.target.value)}
                       className="w-full"
                     />
                   ) : (
-                    <p className="font-semibold">{vehicle.site_allocated.contact_name}</p>
+                    <p className="font-semibold">{vehicle.site_allocated?.contact_name}</p>
                   )}
                 </div>
                 <div>
@@ -401,12 +401,12 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       type="text"
-                      value={editVehicle.site_allocated.contact_phone}
+                      value={editVehicle.site_allocated?.contact_phone}
                       onChange={(e) => handleSiteAllocatedChange("contact_phone", e.target.value)}
                       className="w-full"
                     />
                   ) : (
-                    <p className="font-semibold">{vehicle.site_allocated.contact_phone}</p>
+                    <p className="font-semibold">{vehicle.site_allocated?.contact_phone}</p>
                   )}
                 </div>
                 <div>
@@ -414,14 +414,14 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       type="email"
-                      value={editVehicle.site_allocated.contact_email}
+                      value={editVehicle.site_allocated?.contact_email}
                       onChange={(e) => handleSiteAllocatedChange("contact_email", e.target.value)}
                       className="w-full"
                     />
                   ) : (
                     <p className="font-semibold text-orange-600 hover:underline">
-                      <a href={`mailto:${vehicle.site_allocated.contact_email}`}>
-                        {vehicle.site_allocated.contact_email}
+                      <a href={`mailto:${vehicle.site_allocated?.contact_email}`}>
+                        {vehicle.site_allocated?.contact_email}
                       </a>
                     </p>
                   )}

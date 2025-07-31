@@ -198,7 +198,7 @@ const ShiftCard = memo(
                         })
                       }
                       disabled={saving}
-                      className="pl-10 ..."
+                      className="pl-10"
                       placeholder="0.00"
                     />
                   </div>
@@ -256,7 +256,6 @@ const ShiftCard = memo(
                   {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   {saving ? "Saving..." : "Save Changes"}
                 </Button>
-            
               </div>
             </div>
           ) : (
@@ -363,15 +362,15 @@ const ShiftCard = memo(
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
-                      <Button
-                      className=" mx-2"
-                  onClick={() => handleDelete(shift.id, !isTemplate)}
-                  variant="destructive"
-                  disabled={saving}
-                  size="sm"
-                >
-                  <Trash2 className="h-4  w-4" />
-                </Button>
+                  <Button
+                    className="mx-2"
+                    onClick={() => handleDelete(shift.id, !isTemplate)}
+                    variant="destructive"
+                    disabled={saving}
+                    size="sm"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -397,6 +396,11 @@ const ShiftManagement = () => {
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300)
   const [selectedContract, setSelectedContract] = useState<string>("all")
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false)
+  const [isContractModalOpen, setIsContractModalOpen] = useState<boolean>(false)
+  const [newContract, setNewContract] = useState({
+    name: "",
+    description: "",
+  })
   const [newTemplate, setNewTemplate] = useState({
     name: "",
     hours_from: "06:00:00",
@@ -451,6 +455,74 @@ const ShiftManagement = () => {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  const handleAddContract = useCallback(async () => {
+    const { name, description } = newContract
+    if (!name) {
+      showToast("Please fill in the contract name.", "error")
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch(`${API_URL}/api/staff/contracts/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({
+          name,
+          description: description || "",
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to create contract")
+      }
+
+      await fetchData()
+      showToast("Contract created successfully.", "success")
+      setIsContractModalOpen(false)
+      setNewContract({
+        name: "",
+        description: "",
+      })
+    } catch (err: any) {
+      console.error("Error creating contract:", err)
+      showToast(err.message || "Failed to create contract.", "error")
+    } finally {
+      setSaving(false)
+    }
+  }, [newContract, cookies, showToast, fetchData])
+
+  const handleDeleteContract = useCallback(
+    async (id: number) => {
+      if (!confirm("Are you sure you want to delete this contract?")) return
+
+      setSaving(true)
+      try {
+        const response = await fetch(`${API_URL}/api/staff/contracts/${id}/`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+        })
+
+        if (!response.ok) throw new Error("Failed to delete contract")
+
+        await fetchData()
+        showToast("Contract deleted successfully.", "success")
+      } catch (err: any) {
+        console.error("Error deleting contract:", err)
+        showToast(err.message || "Failed to delete contract.", "error")
+      } finally {
+        setSaving(false)
+      }
+    },
+    [cookies, showToast, fetchData]
+  )
 
   const handleAddTemplate = useCallback(async () => {
     const { name, hours_from, hours_to } = newTemplate
@@ -511,16 +583,6 @@ const ShiftManagement = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
-          // body: JSON.stringify({
-          //   name: template.name,
-          //   hours_from: template.hours_from,
-          //   hours_to: template.hours_to,
-          //   shift_note: template.shift_note || "",
-          //   rate_per_hours: template.rate_per_hours || 0,
-          //   colors: template.colors,
-          //   template: true,
-          //   contract: contractId,
-          // }),
         })
 
         if (!response.ok) {
@@ -545,11 +607,6 @@ const ShiftManagement = () => {
     setIsEditing(item.id)
     setEditedTemplate({ ...item })
   }, [])
-
-  // const handleCancel = useCallback(() => {
-  //   setIsEditing(null)
-  //   setEditedTemplate(null)
-  // }, [])
 
   const handleSaveShift = useCallback(
     async (shift: Shift) => {
@@ -750,7 +807,11 @@ const ShiftManagement = () => {
                   <Plus className="h-4 w-4 mr-2" />
                   New Template
                 </Button>
-                <GradientButton text="New Contract" onClick={() => {}} Icon={Plus} />
+                <GradientButton
+                  text="New Contract"
+                  onClick={() => setIsContractModalOpen(true)}
+                  Icon={Plus}
+                />
               </div>
             </div>
             <div className="flex items-center gap-4 mt-6">
@@ -837,9 +898,9 @@ const ShiftManagement = () => {
                   <AccordionItem
                     key={contract.id}
                     value={`contract-${contract.id}`}
-                    className="border border-gray-200 rounded-xl bg-white shadow-sm"
+                    className="border border-gray-200 rounded-xl bg-white shadow-sm group"
                   >
-                    <AccordionTrigger className="px-6 py-4 hover:no-underline group">
+                    <AccordionTrigger className="px-6 py-4 hover:no-underline">
                       <div className="flex items-center justify-between w-full text-left">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900 group-hover:text-orange transition-colors">
@@ -851,6 +912,20 @@ const ShiftManagement = () => {
                           <Badge className="bg-blue-50 text-blue-700 border-blue-200">
                             {contract.shifts.length} shifts
                           </Badge>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation() // Prevent accordion toggle
+                                handleDeleteContract(contract.id)
+                              }}
+                              disabled={saving}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </AccordionTrigger>
@@ -926,6 +1001,7 @@ const ShiftManagement = () => {
             </div>
           </div>
         </div>
+        {/* Shift Template Modal */}
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
@@ -1000,10 +1076,24 @@ const ShiftManagement = () => {
                   disabled={saving}
                 />
               </div>
-         
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)} disabled={saving}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAddModalOpen(false)
+                  setNewTemplate({
+                    name: "",
+                    hours_from: "06:00:00",
+                    hours_to: "14:00:00",
+                    shift_note: "",
+                    rate_per_hours: 0,
+                    colors: "#FFB6D1",
+                    contract: null,
+                  })
+                }}
+                disabled={saving}
+              >
                 Cancel
               </Button>
               <Button
@@ -1013,6 +1103,54 @@ const ShiftManagement = () => {
               >
                 {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 {saving ? "Creating..." : "Create Template"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* Contract Modal */}
+        <Dialog open={isContractModalOpen} onOpenChange={setIsContractModalOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Create New Contract</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-500">Contract Name</label>
+                <Input
+                  placeholder="Enter contract name"
+                  value={newContract.name}
+                  onChange={(e) => setNewContract({ ...newContract, name: e.target.value })}
+                  disabled={saving}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-500">Description</label>
+                <Input
+                  placeholder="Enter contract description"
+                  value={newContract.description}
+                  onChange={(e) => setNewContract({ ...newContract, description: e.target.value })}
+                  disabled={saving}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsContractModalOpen(false)
+                  setNewContract({ name: "", description: "" })
+                }}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddContract}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {saving ? "Creating..." : "Create Contract"}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -11,8 +11,15 @@ import { Loader2, Car } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
+import FileUploader from "../Media/UploadFile";
 
-// Form state type based on API response
+// Define interfaces
+interface Driver {
+  id: number;
+  full_name: string;
+  avatar: string | null;
+}
+
 interface VehicleFormData {
   assignee_driver: number | null;
   last_milage: number | null;
@@ -73,7 +80,7 @@ interface Site {
 }
 
 export default function AddVehicleStepper() {
-  // Form挽
+  // Initialize form data state
   const [formData, setFormData] = React.useState<VehicleFormData>({
     assignee_driver: null,
     last_milage: null,
@@ -90,7 +97,7 @@ export default function AddVehicleStepper() {
     insurance_expiry: "",
     tacho_download: "",
     tacho_calibration: "",
-    tyre_expiry_front_driver: "", // <-- Added missing property
+    tyre_expiry_front_driver: "",
     tyre_expiry_front_passenger: "",
     tyre_expiry_rear_outer_driver: "",
     tyre_expiry_rear_outer_passenger: "",
@@ -124,22 +131,33 @@ export default function AddVehicleStepper() {
 
   const [vehicleTypes, setVehicleTypes] = React.useState<VehicleType[]>([]);
   const [sites, setSites] = React.useState<Site[]>([]);
+  const [drivers, setDrivers] = React.useState<Driver[]>([]);
   const [vehicleTypesLoading, setVehicleTypesLoading] = React.useState(false);
   const [sitesLoading, setSitesLoading] = React.useState(false);
+  const [driversLoading, setDriversLoading] = React.useState(false);
   const [submitLoading, setSubmitLoading] = React.useState(false);
-    const cookies = useCookies()
+  const [activeStep, setActiveStep] = React.useState(0);
+  const cookies = useCookies();
 
-  // Fetch vehicle types and sites on mount
+  // Handle file upload success
+  const handleFileUploadSuccess = (field: keyof VehicleFormData) => (url: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: url,
+    }));
+  };
+
+  // Fetch vehicle types, sites, and drivers on mount
   React.useEffect(() => {
     const fetchVehicleTypes = async () => {
       setVehicleTypesLoading(true);
       try {
-        const response = await fetch(`${API_URL}/api/vehicle-types/`,{
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${cookies.get("access_token")}`,
-            },
+        const response = await fetch(`${API_URL}/api/vehicle-types/`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
         });
         const data = await response.json();
         if (data.success) {
@@ -152,7 +170,7 @@ export default function AddVehicleStepper() {
           });
         }
       } catch (error) {
-        console.log(error)
+        console.error("Error fetching vehicle types:", error);
         toast({
           title: "Error",
           description: "An error occurred while fetching vehicle types.",
@@ -195,9 +213,42 @@ export default function AddVehicleStepper() {
       }
     };
 
+    const fetchDrivers = async () => {
+      setDriversLoading(true);
+      try {
+        const response = await fetch(`${API_URL}/api/profiles/list-names/?type=driver`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+        });
+        const data = await response.json();
+        if (data.success) {
+          setDrivers(data.data);
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to load drivers.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching drivers:", error);
+        toast({
+          title: "Error",
+          description: "An error occurred while fetching drivers.",
+          variant: "destructive",
+        });
+      } finally {
+        setDriversLoading(false);
+      }
+    };
+
     fetchVehicleTypes();
     fetchSites();
-  }, []);
+    fetchDrivers();
+  }, [cookies]);
 
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -208,13 +259,15 @@ export default function AddVehicleStepper() {
     }));
   };
 
+  // Handle select changes (handles both number and string values)
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: value ? parseInt(value) : null,
+      [name]: name === "vehicle_status" ? value : value ? parseInt(value) : null,
     }));
   };
 
+  // Handle number input changes
   const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -223,16 +276,62 @@ export default function AddVehicleStepper() {
     }));
   };
 
+  // Validate required fields
+  const isFormValid = () => {
+    return (
+      formData.registration_number &&
+      formData.vehicles_type_id !== null &&
+      formData.site_allocated_id !== null
+    );
+  };
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (activeStep !== steps.length - 1) {
+      toast({
+        title: "Incomplete",
+        description: "Please complete all steps before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isFormValid()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!API_URL) {
+      toast({
+        title: "Configuration Error",
+        description: "API URL is not defined.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const token = cookies.get("access_token");
+    if (!token) {
+      toast({
+        title: "Authentication Error",
+        description: "No access token found. Please log in again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/vehicles/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get("access_token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(formData),
       });
@@ -290,15 +389,17 @@ export default function AddVehicleStepper() {
           tacho_download_docs: "",
           tacho_calibration_docs: "",
         });
+        setActiveStep(0);
       } else {
+        const data = await response.json();
         toast({
           title: "Error",
-          description: "Failed to add vehicle. Please try again.",
+          description: data.message || "Failed to add vehicle. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
-        console.error("Error adding vehicle:", error);
+      console.error("Error adding vehicle:", error);
       toast({
         title: "Error",
         description: "An error occurred while adding the vehicle.",
@@ -407,14 +508,34 @@ export default function AddVehicleStepper() {
             </Select>
           </div>
           <div>
-            <Label htmlFor="assignee_driver">Assignee Driver ID</Label>
-            <Input
-              id="assignee_driver"
+            <Label htmlFor="assignee_driver">Assignee Driver</Label>
+            <Select
               name="assignee_driver"
-              type="number"
-              value={formData.assignee_driver || ""}
-              onChange={handleNumberInputChange}
-            />
+              value={formData.assignee_driver?.toString() || ""}
+              onValueChange={(value) => handleSelectChange("assignee_driver", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select driver" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60 overflow-auto">
+                {driversLoading ? (
+                  <SelectItem value="loading" disabled>
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading...
+                    </div>
+                  </SelectItem>
+                ) : drivers.length === 0 ? (
+                  <SelectItem value="none" disabled>No drivers available</SelectItem>
+                ) : (
+                  drivers.map((driver) => (
+                    <SelectItem key={driver.id} value={driver.id.toString()}>
+                      {driver.full_name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label htmlFor="last_milage">Last Mileage</Label>
@@ -440,14 +561,11 @@ export default function AddVehicleStepper() {
             />
           </div>
           <div>
-            <Label htmlFor="vehicle_picture">Vehicle Picture URL</Label>
-            <Input
-              id="vehicle_picture"
-              name="vehicle_picture"
-              value={formData.vehicle_picture}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/vehicles/ford_transit.png"
-            />
+            <Label htmlFor="vehicle_picture">Vehicle Picture</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("vehicle_picture")} />
+            {formData.vehicle_picture && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.vehicle_picture}</p>
+            )}
           </div>
           <div className="col-span-2 flex items-center gap-3 pt-1.5">
             <Label htmlFor="is_roadworthy" className="mb-0">Roadworthy</Label>
@@ -747,124 +865,88 @@ export default function AddVehicleStepper() {
       content: (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="log_book">Log Book URL</Label>
-            <Input
-              id="log_book"
-              name="log_book"
-              value={formData.log_book}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/logbook_fg19abc.pdf"
-            />
+            <Label htmlFor="log_book">Log Book</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("log_book")} />
+            {formData.log_book && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.log_book}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="mot">MOT URL</Label>
-            <Input
-              id="mot"
-              name="mot"
-              value={formData.mot}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/mot_fg19abc.pdf"
-            />
+            <Label htmlFor="mot">MOT</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("mot")} />
+            {formData.mot && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.mot}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="inspection">Inspection URL</Label>
-            <Input
-              id="inspection"
-              name="inspection"
-              value={formData.inspection}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/inspection_fg19abc.pdf"
-            />
+            <Label htmlFor="inspection">Inspection</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("inspection")} />
+            {formData.inspection && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.inspection}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="insurance">Insurance URL</Label>
-            <Input
-              id="insurance"
-              name="insurance"
-              value={formData.insurance}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/insurance_fg19abc.pdf"
-            />
+            <Label htmlFor="insurance">Insurance</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("insurance")} />
+            {formData.insurance && (
+              <p className="text-sm text-grayHV600 mt-2">Uploaded: {formData.insurance}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="fitness_certificate">Fitness Certificate URL</Label>
-            <Input
-              id="fitness_certificate"
-              name="fitness_certificate"
-              value={formData.fitness_certificate}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/fitness_fg19abc.pdf"
-            />
+            <Label htmlFor="fitness_certificate">Fitness Certificate</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("fitness_certificate")} />
+            {formData.fitness_certificate && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.fitness_certificate}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="route_permit">Route Permit URL</Label>
-            <Input
-              id="route_permit"
-              name="route_permit"
-              value={formData.route_permit}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/permit_fg19abc.pdf"
-            />
+            <Label htmlFor="route_permit">Route Permit</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("route_permit")} />
+            {formData.route_permit && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.route_permit}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="financial">Financial Document URL</Label>
-            <Input
-              id="financial"
-              name="financial"
-              value={formData.financial}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/finance_fg19abc.pdf"
-            />
+            <Label htmlFor="financial">Financial Document</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("financial")} />
+            {formData.financial && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.financial}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="others">Other Documents URL</Label>
-            <Input
-              id="others"
-              name="others"
-              value={formData.others}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/others_fg19abc.pdf"
-            />
+            <Label htmlFor="others">Other Documents</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("others")} />
+            {formData.others && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.others}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="service_records">Service Records URL</Label>
-            <Input
-              id="service_records"
-              name="service_records"
-              value={formData.service_records}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/service_fg19abc.pdf"
-            />
+            <Label htmlFor="service_records">Service Records</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("service_records")} />
+            {formData.service_records && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.service_records}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="tax">Tax Document URL</Label>
-            <Input
-              id="tax"
-              name="tax"
-              value={formData.tax}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/tax_fg19abc.pdf"
-            />
+            <Label htmlFor="tax">Tax Document</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("tax")} />
+            {formData.tax && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.tax}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="tacho_download_docs">Tacho Download Docs URL</Label>
-            <Input
-              id="tacho_download_docs"
-              name="tacho_download_docs"
-              value={formData.tacho_download_docs}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/tacho_dl_fg19abc.pdf"
-            />
+            <Label htmlFor="tacho_download_docs">Tacho Download Docs</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("tacho_download_docs")} />
+            {formData.tacho_download_docs && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.tacho_download_docs}</p>
+            )}
           </div>
           <div>
-            <Label htmlFor="tacho_calibration_docs">Tacho Calibration Docs URL</Label>
-            <Input
-              id="tacho_calibration_docs"
-              name="tacho_calibration_docs"
-              value={formData.tacho_calibration_docs}
-              onChange={handleInputChange}
-              placeholder="e.g., https://yourcdn.com/docs/tacho_cal_fg19abc.pdf"
-            />
+            <Label htmlFor="tacho_calibration_docs">Tacho Calibration Docs</Label>
+            <FileUploader onUploadSuccess={handleFileUploadSuccess("tacho_calibration_docs")} />
+            {formData.tacho_calibration_docs && (
+              <p className="text-sm text-gray-600 mt-2">Uploaded: {formData.tacho_calibration_docs}</p>
+            )}
           </div>
         </div>
       ),
@@ -875,7 +957,11 @@ export default function AddVehicleStepper() {
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Add New Vehicle</h1>
       <form onSubmit={handleSubmit}>
-        <Stepper totalSteps={steps.length}>
+        <Stepper
+          totalSteps={steps.length}
+          // activeStep={activeStep}
+          // onStepChange={setActiveStep}
+        >
           <StepperTabs labels={steps.map((step) => step.label)} />
           <StepperContent>
             {steps.map((step, index) => (
@@ -889,7 +975,55 @@ export default function AddVehicleStepper() {
               type="button"
               variant="outline"
               onClick={() => {
-                // Handle cancel logic, e.g., reset form or close modal
+                // Reset form and stepper
+                setFormData({
+                  assignee_driver: null,
+                  last_milage: null,
+                  vehicles_type_id: null,
+                  registration_number: "",
+                  site_allocated_id: null,
+                  vehicle_status: "available",
+                  is_roadworthy: true,
+                  inspection_cycle: null,
+                  inspection_expire: "",
+                  inspection_appointment: "",
+                  mot_expiry: "",
+                  tax_expiry: "",
+                  insurance_expiry: "",
+                  tacho_download: "",
+                  tacho_calibration: "",
+                  tyre_expiry_front_driver: "",
+                  tyre_expiry_front_passenger: "",
+                  tyre_expiry_rear_outer_driver: "",
+                  tyre_expiry_rear_outer_passenger: "",
+                  vehicle_cost: null,
+                  vehicle_picture: "",
+                  tyre_pressure_front_driver: null,
+                  tyre_pressure_front_passenger: null,
+                  tyre_pressure_rear_outer_driver: null,
+                  tyre_pressure_rear_outer_passenger: null,
+                  tyre_depth_front_driver: null,
+                  tyre_depth_front_passenger: null,
+                  tyre_depth_rear_outer_driver: null,
+                  tyre_depth_rear_outer_passenger: null,
+                  tyre_torque_front_driver: null,
+                  tyre_torque_front_passenger: null,
+                  tyre_torque_rear_outer_driver: null,
+                  tyre_torque_rear_outer_passenger: null,
+                  log_book: "",
+                  mot: "",
+                  inspection: "",
+                  insurance: "",
+                  fitness_certificate: "",
+                  route_permit: "",
+                  financial: "",
+                  others: "",
+                  service_records: "",
+                  tax: "",
+                  tacho_download_docs: "",
+                  tacho_calibration_docs: "",
+                });
+                setActiveStep(0);
               }}
               disabled={submitLoading}
             >
@@ -897,7 +1031,14 @@ export default function AddVehicleStepper() {
             </Button>
             <Button
               type="submit"
-              disabled={submitLoading || vehicleTypesLoading || sitesLoading}
+              disabled={
+                submitLoading ||
+                vehicleTypesLoading ||
+                sitesLoading ||
+                driversLoading ||
+                activeStep !== steps.length - 1 ||
+                !isFormValid()
+              }
               className="bg-gradient-to-r from-orange to-magenta text-white hover:from-orange-700 hover:to-magenta-700"
             >
               {submitLoading ? (

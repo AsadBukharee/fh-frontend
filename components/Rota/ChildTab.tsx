@@ -1,83 +1,101 @@
-"use client"
+// components/shift-table.tsx
+"use client";
 
-import { useState, useEffect } from "react"
-import { format } from "date-fns"
-import { Users, Clock, DollarSign, Filter, Calendar, BarChart3, Loader2 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import API_URL from "@/app/utils/ENV"
-import { useCookies } from "next-client-cookies"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
-import { Badge } from "../ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { Users, Clock, DollarSign, Filter, Calendar, BarChart3, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import API_URL from "@/app/utils/ENV";
+import { useCookies } from "next-client-cookies";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Alert, AlertDescription } from "../ui/alert";
+import { ShiftCard } from "./shift-card";
+import { ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from "recharts";
+import React from "react";
 
-import { Alert, AlertDescription } from "../ui/alert"
-import React from "react"
-import { ShiftCard } from "./shift-card"
-import {  ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from "recharts"
-// import ShiftCard from "./shift-card"
-
-interface User {
-  id: number
-  full_name: string
-  display_name?: string
-  email: string
-  is_active?: boolean
-  role?: string | null
-  avatar?: string | null
-  contract?: {
-    id: number
-    name: string
-    description: string
-  } | null
-  parent_rota_completed?: boolean
-  child_rota_completed?: boolean
-}
-
+// Interfaces
 interface Shift {
-  id: number
-  date: string
-  dayname: string
-  status: string
-  daily_salary: number
-  daily_hours: number
+  id: number;
+  date: string;
+  dayname: string;
+  status: string;
+  daily_salary: number;
+  daily_hours: number;
   shift_detail: {
-    id: number
-    name: string
-    hours_from: string
-    hours_to: string
-    total_hours: string
-    colors: string
-    rate_per_hours: number
-    shift_note: string
-  }
-  user?: User
+    id: number;
+    name: string;
+    hours_from: string;
+    hours_to: string;
+    total_hours: string;
+    colors: string;
+    rate_per_hours: number;
+    shift_note: string;
+  };
+  user?: User;
 }
+interface ShiftList {
+  id: number
+  name: string
+  template: boolean
+  hours_from: string
+  hours_to: string
+  total_hours: string
+  shift_note: string
+  rate_per_hours: number
+  colors: string
+  contract: number | null
+  created_at: string
+  updated_at: string
+}
+interface User {
+  id: number;
+  full_name: string;
+  display_name?: string;
+  email: string;
+  is_active?: boolean;
+  role?: string | null;
+  avatar?: string | null;
+  contract?: {
+    id: number;
+    name: string;
+    description: string;
+  } | null;
+  parent_rota_completed?: boolean;
+  shifts: ShiftList[];
+  child_rota_completed?: boolean;
+}
+
+
 
 interface ShiftTableProps {
-  year: number
-  month: number
+  year: number;
+  month: number;
 }
 
 interface DailyStats {
-  date: string
-  users_working: number
+  date: string;
+  users_working: number;
 }
 
 interface ApiResponse {
   rota_by_user: Array<{
-    user: User
-    rota: Shift[]
-  }>
-  daily_stats: DailyStats[]
-  salary_weekly: Record<string, Record<string, number>>
-  salary_monthly: Record<string, Record<string, number>>
-  total_users: number
-  total_rota_entries: number
+    user: User;
+    rota: Shift[];
+  }>;
+  daily_stats: DailyStats[];
+  salary_weekly: Record<string, Record<string, number>>;
+  salary_monthly: Record<string, Record<string, number>>;
+  total_users: number;
+  total_rota_entries: number;
 }
 
 // Map hex color to ShiftCard color
-const hexToColorName = (hex: string): "purple" | "green" | "orange" | "red" | "cyan" => {
+const hexToColorName = (
+  hex: string
+): "purple" | "green" | "orange" | "red" | "cyan" => {
   const colorMapping: { [key: string]: "purple" | "green" | "orange" | "red" | "cyan" } = {
     "#CBA6AA": "purple",
     "#FFB6D1": "purple",
@@ -86,25 +104,25 @@ const hexToColorName = (hex: string): "purple" | "green" | "orange" | "red" | "c
     "#CBA6F7": "purple",
     "#F6C177": "orange",
     "#344601": "green",
-  }
-  return colorMapping[hex.toUpperCase()] || "purple"
-}
+  };
+  return colorMapping[hex.toUpperCase()] || "purple";
+};
 
 // Generate months for dropdown
 const generateMonths = () => {
-  const months = []
-  const currentDate = new Date()
+  const months = [];
+  const currentDate = new Date();
   for (let i = -6; i <= 5; i++) {
-    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1)
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
     months.push({
       value: `${date.getFullYear()}-${date.getMonth()}`,
       label: format(date, "MMMM yyyy"),
       year: date.getFullYear(),
       month: date.getMonth(),
-    })
+    });
   }
-  return months
-}
+  return months;
+};
 
 // Chart colors
 const CHART_COLORS = {
@@ -116,123 +134,142 @@ const CHART_COLORS = {
   cyan: "#06b6d4",
   pink: "#ec4899",
   indigo: "#6366f1",
-}
+};
 
-const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#6366f1"]
+const PIE_COLORS = [
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#ec4899",
+  "#6366f1",
+];
 
 export function ShiftTable({ year, month }: ShiftTableProps) {
-  const [childRotaUsers, setChildRotaUsers] = useState<User[]>([])
-  const [shifts, setShifts] = useState<Shift[]>([])
-  const [selectedUser, setSelectedUser] = useState<number | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedRole, setSelectedRole] = useState<string>("all")
-  const [selectedMonth, setSelectedMonth] = useState<string>(`${year}-${month}`)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [childRotaUsers, setChildRotaUsers] = useState<User[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [selectedUser, setSelectedUser] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  console.log(setSearchTerm)
+  const [selectedRole, setSelectedRole] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>(`${year}-${month}`);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<{
-    totalUsers: number
-    totalEntries: number
-    dailyStats: DailyStats[]
-    salaryData: Record<string, Record<string, number>>
-  } | null>(null)
-  const cookies = useCookies()
-  const months = generateMonths()
-console.log(setSearchTerm,stats)
+    totalUsers: number;
+    totalEntries: number;
+    dailyStats: DailyStats[];
+    salaryData: Record<string, Record<string, number>>;
+  } | null>(null);
+  console.log(stats)
+  const cookies = useCookies();
+  const months = generateMonths();
+
   // Get current month data
-  const currentMonthData = months.find((m) => m.value === selectedMonth) || months[6]
-  const startDate = new Date(currentMonthData.year, currentMonthData.month, 1)
-  const endDate = new Date(currentMonthData.year, currentMonthData.month + 1, 0)
+  const currentMonthData = months.find((m) => m.value === selectedMonth) || months[6];
+  const startDate = new Date(currentMonthData.year, currentMonthData.month, 1);
+  const endDate = new Date(currentMonthData.year, currentMonthData.month + 1, 0);
 
   // Fetch shifts data with query parameters
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const [yearStr, monthStr] = selectedMonth.split("-")
-        console.log(yearStr)
-        const monthNumber = Number.parseInt(monthStr) + 1 // Convert from 0-based to 1-based month
-        const queryParams = new URLSearchParams()
-        queryParams.append("month", monthNumber.toString())
-        if (selectedUser) {
-          queryParams.append("user_id", selectedUser.toString())
-        }
-        const apiUrl = `${API_URL}/api/rota/child-rota/?${queryParams.toString()}`
-        console.log("Fetching data from:", apiUrl)
-
-        const shiftsResponse = await fetch(apiUrl, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get("access_token")}`,
-          },
-        })
-
-        if (!shiftsResponse.ok) throw new Error("Failed to fetch shifts")
-
-        const shiftsData: ApiResponse = await shiftsResponse.json()
-
-        const usersFromChildRota = shiftsData.rota_by_user.map((entry) => ({
-          ...entry.user,
-          display_name: entry.user.display_name || entry.user.full_name, // Fallback to full_name
-          is_active: entry.user.is_active !== undefined ? entry.user.is_active : true,
-          role: entry.user.role || "No Role",
-          contract: entry.user.contract || null,
-          parent_rota_completed: entry.user.parent_rota_completed !== undefined ? entry.user.parent_rota_completed : false,
-          child_rota_completed: entry.user.child_rota_completed !== undefined ? entry.user.child_rota_completed : true,
-        }))
-        setChildRotaUsers(usersFromChildRota)
-
-        const allShifts = shiftsData.rota_by_user.flatMap((entry) =>
-          entry.rota.map((shift: Shift) => {
-            const hours = parseFloat(shift.shift_detail.total_hours) || 0 // Convert "08:00" to 8
-            const salary = hours * shift.shift_detail.rate_per_hours
-            return {
-              ...shift,
-              user: {
-                ...entry.user,
-                display_name: entry.user.display_name || entry.user.full_name,
-                is_active: entry.user.is_active !== undefined ? entry.user.is_active : true,
-                role: entry.user.role || "No Role",
-                contract: entry.user.contract || null,
-                parent_rota_completed: entry.user.parent_rota_completed !== undefined ? entry.user.parent_rota_completed : false,
-                child_rota_completed: entry.user.child_rota_completed !== undefined ? entry.user.child_rota_completed : true,
-              },
-              daily_hours: shift.daily_hours || hours, // Use API value or calculate
-              daily_salary: shift.daily_salary || salary, // Use API value or calculate
-            }
-          }),
-        )
-        setShifts(allShifts)
-        setStats({
-          totalUsers: shiftsData.total_users,
-          totalEntries: shiftsData.total_rota_entries,
-          dailyStats: shiftsData.daily_stats,
-          salaryData: shiftsData.salary_monthly,
-        })
-      } catch (err) {
-        setError("Error fetching data. Please try again.")
-        console.error(err)
-      } finally {
-        setLoading(false)
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [yearStr, monthStr] = selectedMonth.split("-");
+      console.log(yearStr)
+      const monthNumber = Number.parseInt(monthStr) + 1; // Convert from 0-based to 1-based month
+      const queryParams = new URLSearchParams();
+      queryParams.append("month", monthNumber.toString());
+      if (selectedUser) {
+        queryParams.append("user_id", selectedUser.toString());
       }
+      const apiUrl = `${API_URL}/api/rota/child-rota/?${queryParams.toString()}`;
+
+      const shiftsResponse = await fetch(apiUrl, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      });
+
+      if (!shiftsResponse.ok) {
+        throw new Error(
+          shiftsResponse.status === 401
+            ? "Unauthorized: Please check your authentication token."
+            : `Failed to fetch shifts: ${shiftsResponse.statusText}`
+        );
+      }
+
+      const shiftsData: ApiResponse = await shiftsResponse.json();
+
+      const usersFromChildRota = shiftsData.rota_by_user.map((entry) => ({
+        ...entry.user,
+        display_name: entry.user.display_name || entry.user.full_name,
+        is_active: entry.user.is_active !== undefined ? entry.user.is_active : true,
+        role: entry.user.role || "No Role",
+        contract: entry.user.contract || null,
+        parent_rota_completed: entry.user.parent_rota_completed !== undefined ? entry.user.parent_rota_completed : false,
+        child_rota_completed: entry.user.child_rota_completed !== undefined ? entry.user.child_rota_completed : true,
+      }));
+      setChildRotaUsers(usersFromChildRota);
+
+      const allShifts = shiftsData.rota_by_user.flatMap((entry) =>
+        entry.rota.map((shift: Shift) => {
+          const hours = parseFloat(shift.shift_detail.total_hours) || 0;
+          const salary = hours * shift.shift_detail.rate_per_hours;
+          return {
+            ...shift,
+            user: {
+              ...entry.user,
+              display_name: entry.user.display_name || entry.user.full_name,
+              is_active: entry.user.is_active !== undefined ? entry.user.is_active : true,
+              role: entry.user.role || "No Role",
+              contract: entry.user.contract || null,
+              parent_rota_completed: entry.user.parent_rota_completed !== undefined ? entry.user.parent_rota_completed : false,
+              child_rota_completed: entry.user.child_rota_completed !== undefined ? entry.user.child_rota_completed : true,
+            },
+            daily_hours: shift.daily_hours || hours,
+            daily_salary: shift.daily_salary || salary,
+          };
+        })
+      );
+      setShifts(allShifts);
+      setStats({
+        totalUsers: shiftsData.total_users,
+        totalEntries: shiftsData.total_rota_entries,
+        dailyStats: shiftsData.daily_stats,
+        salaryData: shiftsData.salary_monthly,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    fetchData()
-  }, [selectedMonth, selectedUser, cookies])
+  };
+console.log(shifts)
+  useEffect(() => {
+    fetchData();
+  }, [selectedMonth, selectedUser, cookies]);
+
+  // Handle shift type change
 
   // Filter users based on search and role
   const filteredUsers = childRotaUsers.filter((user) => {
     const matchesSearch =
       user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesRole = selectedRole === "all" || user.role === selectedRole
-    return matchesSearch && matchesRole
-  })
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = selectedRole === "all" || user.role === selectedRole;
+    return matchesSearch && matchesRole;
+  });
 
   // Filter shifts by date range and selected user
   const filteredShifts = shifts.filter((shift) => {
-    const shiftDate = new Date(shift.date)
-    return shiftDate >= startDate && shiftDate <= endDate && (!selectedUser || shift.user?.id === selectedUser)
-  })
+    const shiftDate = new Date(shift.date);
+    return shiftDate >= startDate && shiftDate <= endDate && (!selectedUser || shift.user?.id === selectedUser);
+  });
 
   // Calculate summary statistics
   const summaryStats = {
@@ -243,164 +280,171 @@ console.log(setSearchTerm,stats)
       filteredShifts.length > 0
         ? filteredShifts.reduce((sum, shift) => sum + shift.daily_hours, 0) / filteredShifts.length
         : 0,
-  }
+  };
 
   // Prepare chart data
   const prepareChartData = () => {
     const dailyData = filteredShifts.reduce(
       (acc, shift) => {
-        const date = format(new Date(shift.date), "MMM dd")
+        const date = format(new Date(shift.date), "MMM dd");
         if (!acc[date]) {
-          acc[date] = { date, hours: 0, salary: 0, users: new Set() }
+          acc[date] = { date, hours: 0, salary: 0, users: new Set() };
         }
-        acc[date].hours += shift.daily_hours
-        acc[date].salary += shift.daily_salary
-        acc[date].users.add(shift.user?.id)
-        return acc
+        acc[date].hours += shift.daily_hours;
+        acc[date].salary += shift.daily_salary;
+        acc[date].users.add(shift.user?.id);
+        return acc;
       },
-      {} as Record<string, { date: string; hours: number; salary: number; users: Set<number | undefined> }>,
-    )
+      {} as Record<string, { date: string; hours: number; salary: number; users: Set<number | undefined> }>
+    );
     const dailyChartData = Object.values(dailyData).map((item) => ({
       date: item.date,
-      hours: Math.round(item.hours * 10) / 10,
-      salary: Math.round(item.salary * 100) / 100,
+      hours: item.hours, // Keep raw values
+      salary: item.salary,
       users: item.users.size,
-    }))
+    }));
 
     const userPerformance = childRotaUsers
       .map((user) => {
-        const userShifts = filteredShifts.filter((shift) => shift.user?.id === user.id)
+        const userShifts = filteredShifts.filter((shift) => shift.user?.id === user.id);
         return {
-          name: (user.display_name || user.full_name)?.split(" ")[0], // Use display_name or full_name
+          name: (user.display_name || user.full_name)?.split(" ")[0],
           fullName: user.display_name || user.full_name,
           hours: userShifts.reduce((sum, shift) => sum + shift.daily_hours, 0),
           salary: userShifts.reduce((sum, shift) => sum + shift.daily_salary, 0),
           shifts: userShifts.length,
           avatar: user.avatar,
-        }
+        };
       })
-      .filter((user) => user.shifts > 0)
+      .filter((user) => user.shifts > 0);
 
     const shiftTypeData = filteredShifts.reduce(
       (acc, shift) => {
-        const type = shift.shift_detail.name
+        const type = shift.shift_detail.name;
         if (!acc[type]) {
-          acc[type] = { name: type, count: 0, hours: 0, color: shift.shift_detail.colors }
+          acc[type] = { name: type, count: 0, hours: 0, color: shift.shift_detail.colors };
         }
-        acc[type].count += 1
-        acc[type].hours += shift.daily_hours
-        return acc
+        acc[type].count += 1;
+        acc[type].hours += shift.daily_hours;
+        return acc;
       },
-      {} as Record<string, { name: string; count: number; hours: number; color: string }>,
-    )
-    const shiftTypePieData = Object.values(shiftTypeData)
+      {} as Record<string, { name: string; count: number; hours: number; color: string }>
+    );
+    const shiftTypePieData = Object.values(shiftTypeData);
 
     const roleData = childRotaUsers.reduce(
       (acc, user) => {
-        const role = user.role || "No Role"
+        const role = user.role || "No Role";
         if (!acc[role]) {
-          acc[role] = { name: role, count: 0 }
+          acc[role] = { name: role, count: 0 };
         }
-        acc[role].count += 1
-        return acc
+        acc[role].count += 1;
+        return acc;
       },
-      {} as Record<string, { name: string; count: number }>,
-    )
-    const rolePieData = Object.values(roleData)
+      {} as Record<string, { name: string; count: number }>
+    );
+    const rolePieData = Object.values(roleData);
 
     return {
       dailyChartData,
       userPerformance,
       shiftTypePieData,
       rolePieData,
-    }
-  }
-  const chartData = prepareChartData()
+    };
+  };
+  const chartData = prepareChartData();
 
   // Generate days for the selected month
   const generateDaysForMonth = () => {
-    const days = []
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    const date = new Date(start)
+    const days = [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const date = new Date(start);
     while (date <= end) {
-      days.push(new Date(date))
-      date.setDate(date.getDate() + 1)
+      days.push(new Date(date));
+      date.setDate(date.getDate() + 1);
     }
-    return days
-  }
+    return days;
+  };
 
   // Group days by week
   const groupDaysByWeek = (days: Date[]) => {
-    const weeks: Date[][] = []
-    let currentWeek: Date[] = []
+    const weeks: Date[][] = [];
+    let currentWeek: Date[] = [];
     days.forEach((day, index) => {
-      const dayOfWeek = day.getDay()
+      const dayOfWeek = day.getDay();
       if (index === 0 || dayOfWeek === 1) {
         if (currentWeek.length > 0) {
-          weeks.push(currentWeek)
+          weeks.push(currentWeek);
         }
-        currentWeek = []
+        currentWeek = [];
       }
-      currentWeek.push(day)
+      currentWeek.push(day);
       if (index === days.length - 1 || dayOfWeek === 0) {
         if (currentWeek.length > 0) {
-          weeks.push(currentWeek)
+          weeks.push(currentWeek);
         }
-        currentWeek = []
+        currentWeek = [];
       }
-    })
-    return weeks
-  }
+    });
+    return weeks;
+  };
 
-  const days = generateDaysForMonth()
-  const weeks = groupDaysByWeek(days)
+  const days = generateDaysForMonth();
+  const weeks = groupDaysByWeek(days);
 
   const getDayName = (date: Date) => {
-    return date.toLocaleDateString("en-US", { weekday: "long" })
-  }
+    return date.toLocaleDateString("en-US", { weekday: "long" });
+  };
 
   const getRoleColor = (role: string | null | undefined) => {
     switch (role?.toLowerCase()) {
       case "superadmin":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case "supervisor":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "manager":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
-  const uniqueRoles = Array.from(new Set(childRotaUsers.map((user) => user.role).filter(Boolean)))
+  const uniqueRoles = Array.from(new Set(childRotaUsers.map((user) => user.role).filter(Boolean)));
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="text-center">
-        <Loader2 className="h-12 w-12 animate-spin text-orange mx-auto mb-4" />
-        <p className="text-gray-600">Loading child rota...</p>
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-orange mx-auto mb-4" />
+          <p className="text-gray-600">Loading child rota...</p>
+        </div>
       </div>
-    </div>
-    )
+    );
   }
 
   if (error) {
     return (
       <div className="p-6">
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {error}
+            <button
+              className="ml-4 text-blue-600 underline"
+              onClick={fetchData}
+            >
+              Retry
+            </button>
+          </AlertDescription>
         </Alert>
       </div>
-    )
+    );
   }
 
   return (
     <div className="p-6 space-y-6">
       {/* Enhanced Statistics with Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-        {/* Total Hours Card */}
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
@@ -428,7 +472,6 @@ console.log(setSearchTerm,stats)
           </CardContent>
         </Card>
 
-        {/* Total Salary Card */}
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Salary</CardTitle>
@@ -454,7 +497,6 @@ console.log(setSearchTerm,stats)
           </CardContent>
         </Card>
 
-        {/* Active Users Card */}
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Users</CardTitle>
@@ -477,7 +519,6 @@ console.log(setSearchTerm,stats)
           </CardContent>
         </Card>
 
-        {/* Shift Type Distribution Card */}
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Shift Type Distribution</CardTitle>
@@ -637,7 +678,7 @@ console.log(setSearchTerm,stats)
                     {week.map((dayData, dayIndex) => {
                       const totalDailySalary = filteredShifts
                         .filter((shift) => shift.date === dayData.toISOString()?.split("T")[0])
-                        .reduce((sum, shift) => sum + shift.daily_salary, 0)
+                        .reduce((sum, shift) => sum + shift.daily_salary, 0);
 
                       return (
                         <tr key={dayData.toISOString()} className={dayIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}>
@@ -653,22 +694,22 @@ console.log(setSearchTerm,stats)
                             (user) => {
                               const userShift = filteredShifts.find(
                                 (shift) =>
-                                  shift.date === dayData.toISOString()?.split("T")[0] && shift.user?.id === user.id,
-                              )
+                                  shift.date === dayData.toISOString()?.split("T")[0] && shift.user?.id === user.id
+                              );
                               return (
                                 <td key={user.id} className="border-r p-2 align-top">
                                   {userShift ? (
                                     <ShiftCard
                                       shiftType={userShift.shift_detail.name}
                                       shift_cell_id={userShift.id}
-                                      user_id={user.id}
+                                      onShiftUpdate={fetchData}
+                                  
                                       shift_id={userShift.shift_detail.id}
+                                      shift_list={userShift?.user?.shifts ?? []}
                                       color={hexToColorName(userShift.shift_detail.colors)}
-                                      onShiftTypeChange={(newType) => {
-                                        console.log(`Change shift ${userShift.id} to ${newType}`)
-                                      } }
                                       rate={userShift.shift_detail.rate_per_hours}
                                       total_hours={userShift.shift_detail.total_hours}
+                                     
                                     />
                                   ) : (
                                     <div className="h-16 w-[200px] rounded-md bg-gray-100/50 border-2 border-dashed border-gray-200 flex items-center justify-center">
@@ -676,14 +717,14 @@ console.log(setSearchTerm,stats)
                                     </div>
                                   )}
                                 </td>
-                              )
-                            },
+                              );
+                            }
                           )}
                           <td className="p-2 align-top text-sm text-right font-medium">
                             £{totalDailySalary.toFixed(2)}
                           </td>
                         </tr>
-                      )
+                      );
                     })}
                     {weekIndex < weeks.length - 1 && (
                       <tr className="h-2 bg-gray-200">
@@ -706,8 +747,8 @@ console.log(setSearchTerm,stats)
           </CardHeader>
           <CardContent>
             {(() => {
-              const user = childRotaUsers.find((u) => u.id === selectedUser)
-              if (!user) return null
+              const user = childRotaUsers.find((u) => u.id === selectedUser);
+              if (!user) return null;
               return (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
@@ -772,11 +813,11 @@ console.log(setSearchTerm,stats)
                     </div>
                   </div>
                 </div>
-              )
+              );
             })()}
           </CardContent>
         </Card>
       )}
     </div>
-  )
+  );
 }

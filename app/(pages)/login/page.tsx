@@ -113,7 +113,7 @@ console.log(data)
                 type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Enter your email"
                 disabled={isLoading} // Disable input during loading
               />
@@ -127,7 +127,7 @@ console.log(data)
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-3 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Enter your password"
                   disabled={isLoading} // Disable input during loading
                 />

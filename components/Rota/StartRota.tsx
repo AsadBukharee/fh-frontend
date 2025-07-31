@@ -10,13 +10,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { addMonths, isBefore, isValid } from "date-fns";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/app/Context/ToastContext";
 
 interface User {
   id: number;
@@ -34,38 +38,51 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const cookies = useCookies();
   const token = cookies.get("access_token");
-  const { toast } = useToast();
+  const { showToast } = useToast();
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const maxEndDate = startDate ? addMonths(startDate, 3) : undefined;
 
-  const handleStartDateSelect = useCallback((date: Date | undefined) => {
-    if (date && isValid(date) && !isBefore(date, today)) {
-      setStartDate(date);
-      if (endDate && (isBefore(endDate, date) || (maxEndDate && isBefore(maxEndDate, endDate)))) {
+  const handleStartDateSelect = useCallback(
+    (date: Date | undefined) => {
+      if (date && isValid(date) && !isBefore(date, today)) {
+        setStartDate(date);
+        if (
+          endDate &&
+          (isBefore(endDate, date) ||
+            (maxEndDate && isBefore(maxEndDate, endDate)))
+        ) {
+          setEndDate(undefined);
+        }
+      } else {
+        setStartDate(undefined);
+      }
+    },
+    [endDate, maxEndDate, today]
+  );
+
+  const handleEndDateSelect = useCallback(
+    (date: Date | undefined) => {
+      if (
+        date &&
+        isValid(date) &&
+        startDate &&
+        !isBefore(date, startDate) &&
+        maxEndDate &&
+        !isBefore(maxEndDate, date)
+      ) {
+        setEndDate(date);
+      } else {
         setEndDate(undefined);
       }
-    } else {
-      setStartDate(undefined);
-    }
-  }, [endDate, maxEndDate, today]);
-
-  const handleEndDateSelect = useCallback((date: Date | undefined) => {
-    if (date && isValid(date) && startDate && !isBefore(date, startDate) && maxEndDate && !isBefore(maxEndDate, date)) {
-      setEndDate(date);
-    } else {
-      setEndDate(undefined);
-    }
-  }, [startDate, maxEndDate]);
+    },
+    [startDate, maxEndDate]
+  );
 
   const handleSubmit = useCallback(async () => {
     if (!selectedUserId || !startDate || !endDate) {
-      toast({
-        variant: "destructive",
-        title: "Missing Information",
-        description: "Please select a user and both dates.",
-      });
+      showToast("Missing Information", "info");
       return;
     }
 
@@ -77,44 +94,54 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
         end_date: format(endDate, "yyyy-MM-dd"),
       };
 
-      const response = await fetch(`${API_URL}/api/rota/child-rota/start-rota/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `${API_URL}/api/rota/child-rota/start-rota/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const error = await response.json();
+         showToast(
+        error?.error,
+        "error"
+      );
+        throw new Error(`HTTP error! status: ${response.status} - ${error}`);
+        
+
+
       }
 
-      toast({
-        title: "Success",
-        description: "Rota started successfully.",
-        className: "bg-green-50 text-green-800 border-green-200",
-      });
+      showToast(
+         "Rota started successfully.",
+        "success"
+        
+      );
 
       setStartDate(undefined);
       setEndDate(undefined);
       setSelectedUserId(null);
     } catch (error) {
       console.error("Error starting rota:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to start rota. Please try again.",
-      });
+     
     } finally {
       setIsLoading(false);
     }
-  }, [selectedUserId, startDate, endDate, token, toast]);
+  }, [selectedUserId, startDate, endDate, token, showToast]);
 
   return (
     <div className="flex  gap-4 p-4  items-end w-fit bg-white   mx-auto">
       <div className="flex w-[100px] flex-col gap-1">
-        <Label htmlFor="user-select" className="text-sm font-medium text-gray-600">
+        <Label
+          htmlFor="user-select"
+          className="text-sm font-medium text-gray-600"
+        >
           Select User
         </Label>
         <Select
@@ -139,7 +166,10 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="start-date" className="text-sm font-medium text-gray-600">
+        <Label
+          htmlFor="start-date"
+          className="text-sm font-medium text-gray-600"
+        >
           Start Date
         </Label>
         <Popover>
@@ -151,7 +181,11 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
               aria-label="Select start date"
             >
               <CalendarIcon className="mr-2 h-4 w-4 text-gray-500" />
-              {startDate ? format(startDate, "PPP") : <span className="text-gray-500">Pick a start date</span>}
+              {startDate ? (
+                format(startDate, "PPP")
+              ) : (
+                <span className="text-gray-500">Pick a start date</span>
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
@@ -181,7 +215,11 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
               aria-label="Select end date"
             >
               <CalendarIcon className="mr-2 h-4 w-4 text-gray-500" />
-              {endDate ? format(endDate, "PPP") : <span className="text-gray-500">Pick an end date</span>}
+              {endDate ? (
+                format(endDate, "PPP")
+              ) : (
+                <span className="text-gray-500">Pick an end date</span>
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
@@ -208,10 +246,11 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
         disabled={isLoading}
         aria-label="Start rota"
         style={{
-            background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
-            width:  'auto',
-            height: 'auto',
-          }}
+          background:
+            "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+          width: "auto",
+          height: "auto",
+        }}
       >
         {isLoading ? (
           <>
