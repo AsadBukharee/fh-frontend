@@ -1,20 +1,10 @@
 version: "3.9"
-
 services:
-  nextapp:
+  nextjs-app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nextapp
-    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      NODE_ENV: production
-      NEXT_TELEMETRY_DISABLED: "1"
-    networks:
-      - next-net
-
-networks:
-  next-net:
-    driver: bridge
+      - NODE_ENV=production
