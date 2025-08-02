@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect, useCallback, useMemo, memo } from "react"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -45,7 +44,7 @@ import {
   CalendarClock,
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { Dashboard_Loading } from "./Dashboard_Loading"
@@ -157,12 +156,6 @@ const MenuItem = memo(
     const hasChildren = item.children && item.children.length > 0
     const isActive = pathname === `/dashboard${item.href}`
 
-    // Memoize the toggle handler
-    // const handleToggle = useCallback(() => {
-    //   setIsOpen((prev) => !prev)
-    // }, [])
-
-    // Memoized styles
     const buttonStyles = useMemo(
       () => ({
         paddingLeft: `${12 + level * 16}px`,
@@ -230,6 +223,7 @@ MenuItem.displayName = "MenuItem"
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -265,18 +259,24 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         throw new Error("Invalid menu items in response")
       }
 
-      // Use map instead of forEach for better performance
+      // Map API menu items
       const mappedMenus = data.menu.items.map(mapApiMenuToMenuItem)
       setMenuItems(mappedMenus)
+
+      // Navigate to the first menu item's href if the current path is /dashboard
+      if (mappedMenus.length > 0 && pathname === "/dashboard") {
+        const firstLink = mappedMenus[0].href
+        router.push(`/dashboard${firstLink}`)
+      }
     } catch (error) {
       console.error("Error fetching menu:", error)
       setError("Failed to load menu. Please try again.")
     } finally {
       setIsLoading(false)
     }
-  }, [role, cookies])
+  }, [role, cookies, pathname, router])
 
-  // Fetch menu data only when role changes
+  // Fetch menu data when role changes
   useEffect(() => {
     fetchMenu()
   }, [fetchMenu])

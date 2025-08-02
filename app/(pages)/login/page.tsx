@@ -63,7 +63,7 @@ console.log(data)
       // Store tokens in cookies using next-cookies-client
       cookies.set('access_token', data.access);
       cookies.set('user_id', data?.user?.id);
-      cookies.set('role', data?.role.name);
+      cookies.set('role', data?.role_slug);
       cookies.set('refresh_token', data.refresh);
 
       // Optionally store user data in localStorage if rememberMe is checked
