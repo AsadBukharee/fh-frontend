@@ -18,27 +18,52 @@ import {
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 
-// Define interfaces based on API response
+// Define interfaces
+interface OperationHour {
+  id: number;
+  day_of_week: number;
+  day_label: string;
+  is_open_24_hours: boolean;
+  is_closed: boolean;
+  opens_at: string;
+  closes_at: string;
+}
+
+interface Presence {
+  early: string;
+  middle: string;
+  night: string;
+}
+
+interface Staff {
+  driver: number;
+  admin: number;
+  mechanic: number;
+  total: number;
+}
+
 interface Site {
   id: number;
   name: string;
-  status: string;
   image: string | null;
   notes: string | null;
   postcode: string;
   address: string;
-  contact_position: string | null;
+  position: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   radius_m: number;
   latitude: number;
+  contact_position: string | null;
   longitude: number;
   number_of_allocated_vehicles: number;
+  created_by: string;
   created_at: string;
   updated_at: string;
+  operation_hours: OperationHour[];
   warnings: string[];
-  staff_count: number;
-  vehicle_count: number;
+  presence: Presence;
+  staff: Staff;
 }
 
 export default function SiteGrid() {
@@ -47,15 +72,15 @@ export default function SiteGrid() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const cookies = useCookies();
-  const token = cookies.get("access_token");
+  const token = cookies.get('access_token');
 
   // Fetch sites data from API
   const fetchSites = async () => {
     try {
       const response = await fetch(`${API_URL}/api/sites/`, {
         headers: {
-          Authorization: `Bearer ${token}`,
-        },
+          'Authorization': `Bearer ${token}`
+        }
       });
       if (!response.ok) throw new Error("Failed to fetch sites");
       const data: Site[] = await response.json();
@@ -93,7 +118,9 @@ export default function SiteGrid() {
             <p className="text-sm text-gray-500">Browse all available sites</p>
           </div>
           <div className="flex gap-4 items-center">
-            <div className="cursor-pointer" onClick={fetchSites}>
+            <div className="cursor-pointer" onClick={() => {
+              fetchSites();
+            }}>
               <RefreshCcw className="w-4 h-4 text-gray-500" />
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
@@ -114,7 +141,7 @@ export default function SiteGrid() {
           {sites.map((site) => (
             <Card
               key={site.id}
-              className="rounded-xl shadow-sm border w-[320px] h-[380px] bg-white border-gray-200 overflow-hidden p-2"
+              className="rounded-xl shadow-sm border w-[320px] h-[420px] bg-white border-gray-200 overflow-hidden p-2"
             >
               <div className="p-4 pb-0">
                 <div className="flex justify-between items-start">
@@ -124,12 +151,12 @@ export default function SiteGrid() {
                   <div className="flex gap-1">
                     <Badge
                       className={`text-xs font-medium ${
-                        site.status === "inactive"
+                        site.notes?.includes("Temporarily reduced")
                           ? "bg-yellow-100 text-yellow-700"
                           : "bg-green-100 text-green-700"
                       }`}
                     >
-                      {site.status === "inactive" ? "On Hold" : "Active"}
+                      {site.notes?.includes("Temporarily reduced") ? "On Hold" : "Active"}
                     </Badge>
                     <div className="flex items-center cursor-pointer bg-rose w-6 justify-center rounded-full h-6 gap-1">
                       <Tooltip>
@@ -159,6 +186,25 @@ export default function SiteGrid() {
                 </div>
               </div>
 
+              <div className="px-4 mt-3 flex gap-2 flex-wrap">
+                {Object.entries(site.presence).map(([shiftName, person], idx) => (
+                  <Tooltip key={idx}>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        className={`text-[12px] cursor-pointer h-[20px] px-2 py-0 font-medium ${
+                          person ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {shiftName.charAt(0).toUpperCase() + shiftName.slice(1)}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-white text-black">
+                      <p>{person || "None"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+
               <div className="bg-[#FFF0EB] mt-3 mx-4 rounded-lg px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-[#F97316] font-semibold">
                   <Truck className="w-4 h-4" />
@@ -175,7 +221,22 @@ export default function SiteGrid() {
                     <Users className="w-6 h-6 text-orange" />
                     <span className="text-black text-lg font-bold">Staff on Site</span>
                   </div>
-                  <span>{site.staff_count}</span>
+                  <span>{`${site.staff.total}/${site.staff.total}`}</span>
+                </div>
+                <div className="flex gap-2 mt-2 text-xs justify-evenly items-center">
+                  {[
+                    { role: "Driver", count: site.staff.driver },
+                    { role: "Admin", count: site.staff.admin },
+                    { role: "Mechanic", count: site.staff.mechanic },
+                  ].map((role, idx) => (
+                    <div
+                      key={idx}
+                      className="text-white flex flex-col justify-center items-center px-2 py-1 rounded-full"
+                    >
+                      <span className="text-black text-lg font-medium">{role.count}</span>
+                      <span className="text-xs w-fit text-gray-800">{role.role}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -183,6 +244,7 @@ export default function SiteGrid() {
                 <p className="text-black text-[13px] font-semibold">
                   Position: {site.contact_position || "N/A"}
                 </p>
+                <p className="mt-1">Created By: {site.created_by}</p>
                 <p className="mt-1">
                   Last Updated:{" "}
                   {new Date(site.updated_at).toLocaleString("en-US", {
