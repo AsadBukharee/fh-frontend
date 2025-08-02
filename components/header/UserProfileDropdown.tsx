@@ -1,5 +1,7 @@
 "use client"
 
+import { useToast } from "@/app/Context/ToastContext"
+import API_URL from "@/app/utils/ENV"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -14,8 +16,21 @@ import { useRouter } from "next/navigation"
 export function UserProfileDropdown() {
   const cookies = useCookies()
   const router = useRouter()
+  const {showToast}=useToast()
 
-  const handlesignout = () => {
+  const handlesignout = async() => {
+    const response = await fetch(`${API_URL}/auth/logout/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cookies.get("access_token")}`,
+      },
+      body: JSON.stringify({ refresh: cookies.get("refresh_token") }),
+    })
+    if (!response.ok) {
+      showToast('Failed to sign out', 'error')
+      return
+    }
     cookies.remove("user_id")
     cookies.remove("access_token")
     cookies.remove("role")

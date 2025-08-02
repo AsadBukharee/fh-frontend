@@ -52,7 +52,7 @@ interface Site {
   notes: string | null;
   postcode: string;
   address: string;
-  position: string;
+  contact_position: string;
   contact_phone: string;
   contact_email: string;
   radius_m: number;
@@ -112,7 +112,7 @@ export default function SiteDetails() {
           postcode: data.postcode || "",
           contact_phone: data.contact_phone || "",
           contact_email: data.contact_email || "",
-          position: data.position || "",
+          contact_position: data.contact_position || "",
           image: data.image || "",
           notes: data.notes || "",
           radius_m: data.radius_m || 0,
@@ -212,7 +212,7 @@ export default function SiteDetails() {
         notes: editSite.notes,
         postcode: editSite.postcode,
         address: editSite.address,
-        position: editSite.position,
+        contact_position: editSite.contact_position,
         contact_phone: editSite.contact_phone,
         contact_email: editSite.contact_email,
         radius_m: editSite.radius_m,
@@ -490,16 +490,16 @@ export default function SiteDetails() {
                   )}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-500">Position</p>
+                  <p className="font-medium text-gray-500">Contact Position</p>
                   {isEditing ? (
                     <Input
                       type="text"
-                      value={editSite.position}
-                      onChange={(e) => handleInputChange("position", e.target.value)}
+                      value={editSite.contact_position}
+                      onChange={(e) => handleInputChange("contact_position", e.target.value)}
                       className="w-full"
                     />
                   ) : (
-                    <p className="font-semibold">{site.position}</p>
+                    <p className="font-semibold">{site.contact_position}</p>
                   )}
                 </div>
                 <div>

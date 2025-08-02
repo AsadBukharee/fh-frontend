@@ -63,20 +63,7 @@ interface User {
   contract: { id: number; name: string; description: string } | null
   role: string
   site: null
-  shifts?: Array<{
-    id: number
-    name: string
-    template: boolean
-    hours_from: string
-    hours_to: string
-    total_hours: string
-    shift_note: string
-    rate_per_hours: number
-    colors: string
-    contract: number
-    created_at: string
-    updated_at: string
-  }>
+ shifts_count: number
   avatar?: string
 }
 
@@ -625,7 +612,7 @@ export default function UsersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge  className=" bg-orange-100 text-orange-600 border border-orange-600">{user.shifts?.length || 0} shifts</Badge>
+                    <Badge  className=" bg-orange-100 text-orange-600 border border-orange-600">{user.shifts_count|| 0} shifts</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(user.is_active)}>{user.is_active ? "Active" : "In-Active"}</Badge>
