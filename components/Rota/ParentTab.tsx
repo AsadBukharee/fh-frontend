@@ -622,7 +622,7 @@ const ParentTab: React.FC = () => {
           rotation,
         };
         console.log("Generating rota with payload:", payload);
-        const response = await fetch(`${API_URL}/api/rota/parent-rota/generate/`, {
+        const response = await fetch(`${API_URL}/api/rota/parent-rota/save/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
