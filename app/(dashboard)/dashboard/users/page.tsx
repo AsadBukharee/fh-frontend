@@ -46,7 +46,6 @@ import {
   Mail,
   ToggleLeft,
   AlertCircle,
-
   User,
   Lock,
   Shield,
@@ -57,75 +56,79 @@ import {
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { useToast } from "@/app/Context/ToastContext"
+import AddDriver from "@/components/add-driver/page"
 
+// Existing Interfaces (unchanged)
 interface User {
-  id: number
-  email: string
-  full_name: string
-  display_name: string
-  parent_rota_completed: boolean
-  child_rota_completed: boolean
-  is_active: boolean
-  contract: { id: number; name: string; description: string } | null
-  role: string
-  site: null
-  shifts_count: number
-  avatar?: string
+  id: number;
+  email: string;
+  full_name: string;
+  display_name: string;
+  parent_rota_completed: boolean;
+  child_rota_completed: boolean;
+  is_active: boolean;
+  contract: { id: number; name: string; description: string } | null;
+  role: string;
+  site: null;
+  shifts_count: number;
+  avatar?: string;
 }
 
 interface Contract {
-  id: number
-  name: string
-  description: string
+  id: number;
+  name: string;
+  description: string;
 }
 
 interface Role {
-  id: number
-  slug: string
-  name: string
+  id: number;
+  slug: string;
+  name: string;
   menu: {
     items: Array<{
-      nav: string
-      icon: string
-      name: string
-      tooltip: string
-      children: Array<any>
-      isSelected: boolean
-    }>
-  }
+      nav: string;
+      icon: string;
+      name: string;
+      tooltip: string;
+      children: Array<any>;
+      isSelected: boolean;
+    }>;
+  };
 }
 
 interface UserForm {
-  email: string
-  full_name: string
-  password?: string
-  password_confirm?: string
-  role: string
-  contractId?: string
-  is_active: boolean
+  email: string;
+  full_name: string;
+  password?: string;
+  password_confirm?: string;
+  role: string;
+  contractId?: string;
+  is_active: boolean;
 }
 
 export default function UsersPage() {
-  const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedUserType, setSelectedUserType] = useState<string | null>(null)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [users, setUsers] = useState<User[]>([])
-  const [contracts, setContracts] = useState<Contract[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editLoading, setEditLoading] = useState(false)
-  const [contractsLoading, setContractsLoading] = useState(false)
-  const [rolesLoading, setRolesLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [userToDelete, setUserToDelete] = useState<User | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [searchQuery, setSearchQuery] = useState("")
+  const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
+  const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
+  const [selectedUserType, setSelectedUserType] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editLoading, setEditLoading] = useState(false);
+  const [contractsLoading, setContractsLoading] = useState(false);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState<UserForm>({
     email: "",
     full_name: "",
@@ -134,158 +137,158 @@ export default function UsersPage() {
     is_active: true,
     password: "",
     password_confirm: "",
-  })
-  const [formErrors, setFormErrors] = useState<Partial<UserForm>>({})
-  const perPage = 10
-  const { showToast } = useToast()
-  const cookies = useCookies()
+  });
+  const [formErrors, setFormErrors] = useState<Partial<UserForm>>({});
+  const perPage = 10;
+  const { showToast } = useToast();
+  const cookies = useCookies();
 
   const fetchUsers = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const url = `${API_URL}/users/?page=${currentPage}&per_page=${perPage}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`
+      const url = `${API_URL}/users/?page=${currentPage}&per_page=${perPage}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`;
       const response = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
-      })
+      });
       if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
+        showToast("Session expired. Please log in again.", "error");
+        return;
       }
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`)
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      const data = await response.json()
+      const data = await response.json();
       if (data.success) {
-        setUsers(data.data)
-        setTotalPages(data.total_pages || 1)
-        setError(null)
+        setUsers(data.data);
+        setTotalPages(data.total_pages || 1);
+        setError(null);
       } else {
-        setError(data.message || "Failed to fetch users")
-        showToast(data.message || "Failed to fetch users", "error")
+        setError(data.message || "Failed to fetch users");
+        showToast(data.message || "Failed to fetch users", "error");
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching users"
-      setError(errorMessage)
-      showToast(errorMessage, "error")
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching users";
+      setError(errorMessage);
+      showToast(errorMessage, "error");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [cookies, showToast, currentPage, searchQuery])
+  }, [cookies, showToast, currentPage, searchQuery]);
 
   const fetchRoles = useCallback(async () => {
-    setRolesLoading(true)
+    setRolesLoading(true);
     try {
       const response = await fetch(`${API_URL}/roles/`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
-      })
+      });
       if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
+        showToast("Session expired. Please log in again.", "error");
+        return;
       }
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`)
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      const data = await response.json()
+      const data = await response.json();
       if (data.success) {
-        setRoles(data.data)
+        setRoles(data.data);
       } else {
-        showToast(data.message || "Failed to fetch roles", "error")
-        setRoles([])
+        showToast(data.message || "Failed to fetch roles", "error");
+        setRoles([]);
       }
     } catch (error) {
-      console.log(error)
-      showToast("Failed to fetch roles", "error")
-      setRoles([])
+      console.log(error);
+      showToast("Failed to fetch roles", "error");
+      setRoles([]);
     } finally {
-      setRolesLoading(false)
+      setRolesLoading(false);
     }
-  }, [cookies, showToast])
+  }, [cookies, showToast]);
 
   useEffect(() => {
-    fetchUsers()
-    fetchRoles()
-  }, [fetchUsers, fetchRoles])
+    fetchUsers();
+    fetchRoles();
+  }, [fetchUsers, fetchRoles]);
 
   useEffect(() => {
     if (isEditModalOpen || isModalOpen) {
       const fetchContracts = async () => {
-        setContractsLoading(true)
+        setContractsLoading(true);
         try {
           const response = await fetch(`${API_URL}/api/staff/contracts/`, {
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${cookies.get("access_token")}`,
             },
-          })
+          });
           if (response.status === 401) {
-            showToast("Session expired. Please log in again.", "error")
-            return
+            showToast("Session expired. Please log in again.", "error");
+            return;
           }
           if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`)
+            throw new Error(`HTTP error! Status: ${response.status}`);
           }
-          const data = await response.json()
-          setContracts(data)
+          const data = await response.json();
+          setContracts(data);
         } catch {
-          showToast("Failed to fetch contracts", "error")
+          showToast("Failed to fetch contracts", "error");
         } finally {
-          setContractsLoading(false)
+          setContractsLoading(false);
         }
-      }
-      fetchContracts()
+      };
+      fetchContracts();
     }
-  }, [isEditModalOpen, isModalOpen, cookies, showToast])
+  }, [isEditModalOpen, isModalOpen, cookies, showToast]);
 
   const handleMouseMove = (key: string) => (e: React.MouseEvent) => {
-    const button = buttonRefs.current[key]
+    const button = buttonRefs.current[key];
     if (button) {
-      const rect = button.getBoundingClientRect()
-      const x = ((e.clientX - rect.left) / rect.width) * 100
-      const y = ((e.clientY - rect.top) / rect.height) * 100
-      button.style.setProperty("--mouse-x", `${x}%`)
-      button.style.setProperty("--mouse-y", `${y}%`)
+      const rect = button.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      button.style.setProperty("--mouse-x", `${x}%`);
+      button.style.setProperty("--mouse-y", `${y}%`);
     }
-  }
+  };
 
   const getTypeColor = (roleName: string | undefined) => {
     switch (roleName?.toLowerCase()) {
       case "admin":
-        return "bg-blue-100 text-blue-700 hover:bg-blue-100"
+        return "bg-blue-100 text-blue-700 hover:bg-blue-100";
       case "manager":
-        return "bg-red-100 text-red-700 hover:bg-red-100"
+        return "bg-red-100 text-red-700 hover:bg-red-100";
       case "supervisor":
-        return "bg-orange-100 text-orange-700 hover:bg-orange-100"
+        return "bg-orange-100 text-orange-700 hover:bg-orange-100";
       case "superadmin":
-        return "bg-purple-100 text-purple-700 hover:bg-purple-100"
+        return "bg-purple-100 text-purple-700 hover:bg-purple-100";
       case "shahwar":
-        return "bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
+        return "bg-indigo-100 text-indigo-700 hover:bg-indigo-100";
       case "accounts":
-        return "bg-green-100 text-green-700 hover:bg-green-100"
+        return "bg-green-100 text-green-700 hover:bg-green-100";
       case "crh":
-        return "bg-teal-100 text-teal-700 hover:bg-teal-100"
+        return "bg-teal-100 text-teal-700 hover:bg-teal-100";
       case "dvsa":
-        return "bg-cyan-100 text-cyan-700 hover:bg-cyan-100"
+        return "bg-cyan-100 text-cyan-700 hover:bg-cyan-100";
       case "mechanic":
-        return "bg-gray-100 text-gray-700 hover:bg-gray-100"
+        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
       case "driver":
-        return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
+        return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
       default:
-        return "bg-gray-100 text-gray-700 hover:bg-gray-100"
+        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
     }
-  }
+  };
 
   const getStatusColor = (isActive: boolean) => {
-    return isActive ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-red-100 text-red-700 hover:bg-red-100"
-  }
+    return isActive ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-red-100 text-red-700 hover:bg-red-100";
+  };
 
   const handleAddUserClick = (type: string) => {
-    setSelectedUserType(type)
+    setSelectedUserType(type);
     setFormData({
       email: "",
       full_name: "",
@@ -294,13 +297,13 @@ export default function UsersPage() {
       is_active: true,
       password: "",
       password_confirm: "",
-    })
-    setFormErrors({})
-    setIsModalOpen(true)
-  }
+    });
+    setFormErrors({});
+    setIsModalOpen(true);
+  };
 
   const handleEditUserClick = (user: User) => {
-    setSelectedUser(user)
+    setSelectedUser(user);
     setFormData({
       email: user.email,
       full_name: user.full_name,
@@ -309,87 +312,87 @@ export default function UsersPage() {
       is_active: user.is_active,
       password: "",
       password_confirm: "",
-    })
-    setFormErrors({})
-    setIsEditModalOpen(true)
-  }
+    });
+    setFormErrors({});
+    setIsEditModalOpen(true);
+  };
 
   const handleDeleteUserClick = (user: User) => {
-    setUserToDelete(user)
-    setIsDeleteDialogOpen(true)
-  }
+    setUserToDelete(user);
+    setIsDeleteDialogOpen(true);
+  };
 
   const validateAddUserForm = (formData: FormData): Partial<UserForm> => {
-    const errors: Partial<UserForm> = {}
+    const errors: Partial<UserForm> = {};
 
-    const email = formData.get("email") as string
-    const full_name = formData.get("full_name") as string
-    const password = formData.get("password") as string
-    const password_confirm = formData.get("password_confirm") as string
-    const role = formData.get("role") as string
+    const email = formData.get("email") as string;
+    const full_name = formData.get("full_name") as string;
+    const password = formData.get("password") as string;
+    const password_confirm = formData.get("password_confirm") as string;
+    const role = formData.get("role") as string;
 
     if (!email?.trim()) {
-      errors.email = "Email is required"
+      errors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = "Please enter a valid email address"
+      errors.email = "Please enter a valid email address";
     }
 
     if (!full_name?.trim()) {
-      errors.full_name = "Full name is required"
+      errors.full_name = "Full name is required";
     } else if (full_name.trim().length < 2) {
-      errors.full_name = "Full name must be at least 2 characters"
+      errors.full_name = "Full name must be at least 2 characters";
     }
 
     if (!password?.trim()) {
-      errors.password = "Password is required"
+      errors.password = "Password is required";
     } else if (password.length < 6) {
-      errors.password = "Password must be at least 6 characters"
+      errors.password = "Password must be at least 6 characters";
     }
 
     if (!password_confirm?.trim()) {
-      errors.password_confirm = "Password confirmation is required"
+      errors.password_confirm = "Password confirmation is required";
     } else if (password !== password_confirm) {
-      errors.password_confirm = "Passwords do not match"
+      errors.password_confirm = "Passwords do not match";
     }
 
     if (!role) {
-      errors.role = "Role is required"
+      errors.role = "Role is required";
     }
 
-    return errors
-  }
+    return errors;
+  };
 
   const validateEditUserForm = (data: UserForm): Partial<UserForm> => {
-    const errors: Partial<UserForm> = {}
+    const errors: Partial<UserForm> = {};
 
     if (!data.email.trim()) {
-      errors.email = "Email is required"
+      errors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      errors.email = "Please enter a valid email address"
+      errors.email = "Please enter a valid email address";
     }
 
     if (!data.full_name.trim()) {
-      errors.full_name = "Full name is required"
+      errors.full_name = "Full name is required";
     } else if (data.full_name.trim().length < 2) {
-      errors.full_name = "Full name must be at least 2 characters"
+      errors.full_name = "Full name must be at least 2 characters";
     }
 
     if (!data.role) {
-      errors.role = "Role is required"
+      errors.role = "Role is required";
     }
 
-    return errors
-  }
+    return errors;
+  };
 
   const handleAddUserSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const errors = validateAddUserForm(formData)
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const errors = validateAddUserForm(formData);
 
-    setFormErrors(errors)
+    setFormErrors(errors);
     if (Object.keys(errors).length > 0) {
-      showToast("Please fix the form errors", "error")
-      return
+      showToast("Please fix the form errors", "error");
+      return;
     }
 
     const newUser = {
@@ -399,9 +402,9 @@ export default function UsersPage() {
       password_confirm: formData.get("password_confirm") as string,
       role: formData.get("role") as string,
       contractId: formData.get("contract") as string | undefined,
-    }
+    };
 
-    setEditLoading(true)
+    setEditLoading(true);
 
     try {
       const payload = {
@@ -410,7 +413,7 @@ export default function UsersPage() {
         password: newUser.password,
         password_confirm: newUser.password_confirm,
         role: newUser.role,
-      }
+      };
 
       const response = await fetch(`${API_URL}/users/`, {
         method: "POST",
@@ -419,23 +422,27 @@ export default function UsersPage() {
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
         body: JSON.stringify(payload),
-      })
+      });
 
       if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
+        showToast("Session expired. Please log in again.", "error");
+        return;
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (data.success) {
-        showToast(data.message || "User created successfully", "success")
-        setIsModalOpen(false)
-        await fetchUsers()
+        showToast(data.message || "User created successfully", "success");
+        setIsModalOpen(false);
+        await fetchUsers();
 
-        // Optionally assign contract if provided
+        if (newUser.role === "driver" && data.data?.id) {
+          setNewDriverUserId(data.data.id);
+          setIsAddDriverModalOpen(true);
+        }
+
         if (newUser.contractId && newUser.contractId !== "none") {
-          const userId = data.data?.id
+          const userId = data.data?.id;
           if (userId) {
             await fetch(`${API_URL}/users/${userId}/assign-contract/`, {
               method: "POST",
@@ -444,42 +451,41 @@ export default function UsersPage() {
                 Authorization: `Bearer ${cookies.get("access_token")}`,
               },
               body: JSON.stringify({ contract_id: Number.parseInt(newUser.contractId) }),
-            })
+            });
           }
         }
       } else {
-        showToast(data.message || "Failed to create user", "error")
+        showToast(data.message || "Failed to create user", "error");
       }
-      
     } catch (err) {
-      console.log(err)
-      showToast("An error occurred while creating the user", "error")
+      console.log(err);
+      showToast("An error occurred while creating the user", "error");
     } finally {
-      setEditLoading(false)
+      setEditLoading(false);
     }
-  }
+  };
 
   const handleEditUserSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const form = new FormData(e.currentTarget)
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
     const editFormData: UserForm = {
       email: form.get("email") as string,
       full_name: form.get("full_name") as string,
       role: form.get("role") as string,
       contractId: form.get("contract") as string,
       is_active: (form.get("is_active") as string) === "on",
-    }
+    };
 
-    const errors = validateEditUserForm(editFormData)
-    setFormErrors(errors)
+    const errors = validateEditUserForm(editFormData);
+    setFormErrors(errors);
     if (Object.keys(errors).length > 0) {
-      showToast("Please fix the form errors", "error")
-      return
+      showToast("Please fix the form errors", "error");
+      return;
     }
 
-    if (!selectedUser) return
+    if (!selectedUser) return;
 
-    setEditLoading(true)
+    setEditLoading(true);
 
     try {
       const userResponse = await fetch(`${API_URL}/users/${selectedUser.id}/`, {
@@ -494,17 +500,17 @@ export default function UsersPage() {
           role: editFormData.role,
           is_active: editFormData.is_active,
         }),
-      })
+      });
 
       if (userResponse.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
+        showToast("Session expired. Please log in again.", "error");
+        return;
       }
 
-      const userData = await userResponse.json()
+      const userData = await userResponse.json();
       if (!userData.success) {
-        showToast(userData.message || "Failed to update user details", "error")
-        return
+        showToast(userData.message || "Failed to update user details", "error");
+        return;
       }
 
       if (editFormData.contractId && editFormData.contractId !== "none") {
@@ -515,27 +521,27 @@ export default function UsersPage() {
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
           body: JSON.stringify({ contract_id: Number.parseInt(editFormData.contractId) }),
-        })
+        });
         if (contractResponse.status === 401) {
-          showToast("Session expired. Please log in again.", "error")
-          return
+          showToast("Session expired. Please log in again.", "error");
+          return;
         }
-        await contractResponse.json()
+        await contractResponse.json();
       }
 
-      showToast("User updated successfully", "success")
-      setIsEditModalOpen(false)
-      setSelectedUser(null)
-      await fetchUsers()
+      showToast("User updated successfully", "success");
+      setIsEditModalOpen(false);
+      setSelectedUser(null);
+      await fetchUsers();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "An error occurred while updating the user", "error")
+      showToast(error instanceof Error ? error.message : "An error occurred while updating the user", "error");
     } finally {
-      setEditLoading(false)
+      setEditLoading(false);
     }
-  }
+  };
 
   const handleDeleteUser = async () => {
-    if (!userToDelete) return
+    if (!userToDelete) return;
 
     try {
       const response = await fetch(`${API_URL}/users/${userToDelete.id}/`, {
@@ -544,36 +550,36 @@ export default function UsersPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
-      })
+      });
 
       if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
+        showToast("Session expired. Please log in again.", "error");
+        return;
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (response.ok && data.success) {
-        showToast(data.message || `${userToDelete.full_name} has been deleted successfully`, "success")
-        await fetchUsers()
+        showToast(data.message || `${userToDelete.full_name} has been deleted successfully`, "success");
+        await fetchUsers();
       } else {
-        showToast(data.message || "Failed to delete user", "error")
+        showToast(data.message || "Failed to delete user", "error");
       }
     } catch {
-      showToast("An error occurred while deleting the user", "error")
+      showToast("An error occurred while deleting the user", "error");
     } finally {
-      setIsDeleteDialogOpen(false)
-      setUserToDelete(null)
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
     }
-  }
+  };
 
   const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1)
-  }
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
 
   const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1)
-  }
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
 
   return (
     <div className="p-6 bg-white">
@@ -599,23 +605,20 @@ export default function UsersPage() {
             >
               Refresh
             </button>
-        
-                <Button
-                  ref={(el: HTMLButtonElement | null) => {
-                    buttonRefs.current["add-user"] = el
-                  }}
-                  className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
-                  style={{
-                    background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
-                  }}
-                  onClick={() =>handleAddUserClick('driver')}
-                  onMouseMove={handleMouseMove("add-user")}
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Add User
-                </Button>
-             
-        
+            <Button
+              ref={(el: HTMLButtonElement | null) => {
+                buttonRefs.current["add-user"] = el;
+              }}
+              className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
+              style={{
+                background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+              }}
+              onClick={() => handleAddUserClick("driver")}
+              onMouseMove={handleMouseMove("add-user")}
+            >
+              <UserPlus className="w-4 h-4" />
+              Add User
+            </Button>
           </div>
         </div>
       </header>
@@ -624,11 +627,11 @@ export default function UsersPage() {
         <div
           className="relative w-80 gradient-border cursor-glow"
           onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect()
-            const x = ((e.clientX - rect.left) / rect.width) * 100
-            const y = ((e.clientY - rect.top) / rect.height) * 100
-            e.currentTarget.style.setProperty("--mouse-x", `${x}%`)
-            e.currentTarget.style.setProperty("--mouse-y", `${y}%`)
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            e.currentTarget.style.setProperty("--mouse-x", `${x}%`);
+            e.currentTarget.style.setProperty("--mouse-y", `${y}%`);
           }}
         >
           <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
@@ -697,7 +700,7 @@ export default function UsersPage() {
                       <DropdownMenuTrigger asChild>
                         <Button
                           ref={(el: HTMLButtonElement | null) => {
-                            buttonRefs.current[`action-${user.id}`] = el
+                            buttonRefs.current[`action-${user.id}`] = el;
                           }}
                           variant="ghost"
                           size="sm"
@@ -737,7 +740,7 @@ export default function UsersPage() {
         <div className="flex items-center space-x-2">
           <Button
             ref={(el: HTMLButtonElement | null) => {
-              buttonRefs.current["prev"] = el
+              buttonRefs.current["prev"] = el;
             }}
             variant="ghost"
             size="sm"
@@ -751,7 +754,7 @@ export default function UsersPage() {
           </Button>
           <Button
             ref={(el: HTMLButtonElement | null) => {
-              buttonRefs.current["page1"] = el
+              buttonRefs.current["page1"] = el;
             }}
             size="sm"
             className="bg-red-600 hover:bg-red-700 text-white ripple cursor-glow"
@@ -761,7 +764,7 @@ export default function UsersPage() {
           </Button>
           <Button
             ref={(el: HTMLButtonElement | null) => {
-              buttonRefs.current["next"] = el
+              buttonRefs.current["next"] = el;
             }}
             variant="ghost"
             size="sm"
@@ -776,73 +779,73 @@ export default function UsersPage() {
         </div>
       </div>
 
-    <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-  <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto z-50 bg-white">
-    <DialogHeader className="space-y-3">
-      <DialogTitle className="flex items-center gap-2 text-xl">
-        <UserPlus className="w-5 h-5" />
-        Add {selectedUserType} User
-      </DialogTitle>
-      <DialogDescription>
-        Create a new user account with the specified role and permissions.
-      </DialogDescription>
-    </DialogHeader>
+      {/* Add User Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto z-50 bg-white">
+          <DialogHeader className="space-y-3">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <UserPlus className="w-5 h-5" />
+              Add {selectedUserType} User
+            </DialogTitle>
+            <DialogDescription>
+              Create a new user account with the specified role and permissions.
+            </DialogDescription>
+          </DialogHeader>
 
-    <form onSubmit={handleAddUserSubmit} className="space-y-6">
-      {/* Personal Information Section */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          Personal Information
-        </div>
-        <Separator />
+          <form onSubmit={handleAddUserSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                Personal Information
+              </div>
+              <Separator />
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="add-email" className="flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              Email Address *
-            </Label>
-            <Input
-              id="add-email"
-              name="email"
-              type="email"
-              placeholder="Enter email address"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className={formErrors.email ? "border-red-500" : ""}
-              required
-            />
-            {formErrors.email && (
-              <p className="text-sm text-red-500 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                {formErrors.email}
-              </p>
-            )}
-          </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="add-email" className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email Address *
+                  </Label>
+                  <Input
+                    id="add-email"
+                    name="email"
+                    type="email"
+                    placeholder="Enter email address"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className={formErrors.email ? "border-red-500" : ""}
+                    required
+                  />
+                  {formErrors.email && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {formErrors.email}
+                    </p>
+                  )}
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="add-full_name" className="flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Full Name *
-            </Label>
-            <Input
-              id="add-full_name"
-              name="full_name"
-              placeholder="Enter full name"
-              value={formData.full_name}
-              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-              className={formErrors.full_name ? "border-red-500" : ""}
-              required
-            />
-            {formErrors.full_name && (
-              <p className="text-sm text-red-500 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                {formErrors.full_name}
-              </p>
-            )}
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="add-full_name" className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Full Name *
+                  </Label>
+                  <Input
+                    id="add-full_name"
+                    name="full_name"
+                    placeholder="Enter full name"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    className={formErrors.full_name ? "border-red-500" : ""}
+                    required
+                  />
+                  {formErrors.full_name && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {formErrors.full_name}
+                    </p>
+                  )}
+                </div>
 
-         <div className="space-y-2">
+                <div className="space-y-2">
                   <Label htmlFor="add-password" className="flex items-center gap-2">
                     <Lock className="w-4 h-4" />
                     Password *
@@ -874,7 +877,6 @@ export default function UsersPage() {
                   )}
                 </div>
 
-                {/* Confirm Password Field with Toggle */}
                 <div className="space-y-2">
                   <Label htmlFor="add-password_confirm" className="flex items-center gap-2">
                     <Lock className="w-4 h-4" />
@@ -906,149 +908,145 @@ export default function UsersPage() {
                     </p>
                   )}
                 </div>
-              
-            
-        </div>
-      </div>
-
-      {/* Role & Permissions Section */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          Role & Permissions
-        </div>
-        <Separator />
-
-        <div className="space-y-2">
-          <Label htmlFor="add-role" className="flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            User Role *
-          </Label>
-          <Select
-            name="role"
-            required
-            value={formData.role}
-            onValueChange={(value) => setFormData({ ...formData, role: value })}
-          >
-            <SelectTrigger className={formErrors.role ? "border-red-500" : ""}>
-              <SelectValue placeholder={`Select role (default: ${selectedUserType})`} />
-            </SelectTrigger>
-            <SelectContent>
-              {rolesLoading ? (
-                <SelectItem value="loading" disabled>
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Loading roles...
-                  </div>
-                </SelectItem>
-              ) : roles.length === 0 ? (
-                <SelectItem value="none" disabled>
-                  No roles available
-                </SelectItem>
-              ) : (
-                roles.map((role) => (
-                  <SelectItem key={role.id} value={role.slug}>
-                    <div className="flex items-center gap-2">
-                      <Badge className={getTypeColor(role.slug)} variant="secondary">
-                        {role.name}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-          {formErrors.role && (
-            <p className="text-sm text-red-500 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              {formErrors.role}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Contract Assignment Section */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          Contract Assignment
-        </div>
-        <Separator />
-
-        <div className="space-y-2">
-          <Label htmlFor="add-contract" className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Assigned Contract
-          </Label>
-          {contractsLoading ? (
-            <div className="flex items-center gap-2 p-3 border rounded-lg">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm text-gray-500">Loading contracts...</span>
+              </div>
             </div>
-          ) : (
-            <Select
-              name="contract"
-              value={formData.contractId}
-              onValueChange={(value) => setFormData({ ...formData, contractId: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a contract (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No Contract</SelectItem>
-                {contracts.map((contract) => (
-                  <SelectItem key={contract.id} value={contract.id.toString()}>
-                    <div className="space-y-1">
-                      <div className="font-medium">{contract.name}</div>
-                      {contract.description && (
-                        <div className="text-sm text-gray-500">{contract.description}</div>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <p className="text-sm text-gray-500">
-            Assign a contract to define user responsibilities and access levels
-          </p>
-        </div>
-      </div>
 
-      <DialogFooter className="gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setIsModalOpen(false);
-            setFormErrors({});
-          }}
-          disabled={editLoading}
-        >
-          <X className="w-4 h-4 mr-2" />
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={editLoading || rolesLoading}
-          className="bg-gradient-to-r from-orange to-magenta hover:from-orange-700 hover:to-magenta-700"
-        >
-          {editLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Creating...
-            </>
-          ) : (
-            <>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Create User
-            </>
-          )}
-        </Button>
-      </DialogFooter>
-    </form>
-  </DialogContent>
-</Dialog>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                Role & Permissions
+              </div>
+              <Separator />
 
-      {/* Edit User Dialog */}
+              <div className="space-y-2">
+                <Label htmlFor="add-role" className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  User Role *
+                </Label>
+                <Select
+                  name="role"
+                  required
+                  value={formData.role}
+                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                >
+                  <SelectTrigger className={formErrors.role ? "border-red-500" : ""}>
+                    <SelectValue placeholder={`Select role (default: ${selectedUserType})`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rolesLoading ? (
+                      <SelectItem value="loading" disabled>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Loading roles...
+                        </div>
+                      </SelectItem>
+                    ) : roles.length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        No roles available
+                      </SelectItem>
+                    ) : (
+                      roles.map((role) => (
+                        <SelectItem key={role.id} value={role.slug}>
+                          <div className="flex items-center gap-2">
+                            <Badge className={getTypeColor(role.slug)} variant="secondary">
+                              {role.name}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {formErrors.role && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {formErrors.role}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                Contract Assignment
+              </div>
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="add-contract" className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Assigned Contract
+                </Label>
+                {contractsLoading ? (
+                  <div className="flex items-center gap-2 p-3 border rounded-lg">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm text-gray-500">Loading contracts...</span>
+                  </div>
+                ) : (
+                  <Select
+                    name="contract"
+                    value={formData.contractId}
+                    onValueChange={(value) => setFormData({ ...formData, contractId: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a contract (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Contract</SelectItem>
+                      {contracts.map((contract) => (
+                        <SelectItem key={contract.id} value={contract.id.toString()}>
+                          <div className="space-y-1">
+                            <div className="font-medium">{contract.name}</div>
+                            {contract.description && (
+                              <div className="text-sm text-gray-500">{contract.description}</div>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-sm text-gray-500">
+                  Assign a contract to define user responsibilities and access levels
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setFormErrors({});
+                }}
+                disabled={editLoading}
+              >
+                <X className="w-4 h-4 mr-2" />
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={editLoading || rolesLoading}
+                className="bg-gradient-to-r from-orange to-magenta hover:from-orange-700 hover:to-magenta-700"
+              >
+                {editLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Create User
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader className="space-y-3">
@@ -1222,8 +1220,8 @@ export default function UsersPage() {
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setIsEditModalOpen(false)
-                  setFormErrors({})
+                  setIsEditModalOpen(false);
+                  setFormErrors({});
                 }}
                 disabled={editLoading}
               >
@@ -1252,6 +1250,42 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Add Driver Modal */}
+      {newDriverUserId && (
+        <Dialog open={isAddDriverModalOpen} onOpenChange={setIsAddDriverModalOpen}>
+          <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto z-50 bg-white">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <UserPlus className="w-5 h-5" />
+                Add Driver Details
+              </DialogTitle>
+              <DialogDescription>
+                Provide additional details for the driver account.
+              </DialogDescription>
+            </DialogHeader>
+            <AddDriver
+              userId={newDriverUserId}
+              open={isAddDriverModalOpen}
+              onOpenChange={setIsAddDriverModalOpen}
+            />
+            {/* <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsAddDriverModalOpen(false);
+                  setNewDriverUserId(null);
+                }}
+              >
+                <X className="w-4 h-4 mr-2" />
+                Cancel
+              </Button>
+            </DialogFooter> */}
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete User Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1273,5 +1307,5 @@ export default function UsersPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }

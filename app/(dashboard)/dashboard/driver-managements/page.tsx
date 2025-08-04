@@ -35,7 +35,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  UserPlus,
+ 
   Filter,
   Download,
   Loader2,
@@ -55,7 +55,6 @@ import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { useToast } from "@/app/Context/ToastContext"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import AddDriver from "@/components/add-driver/page"
 
 interface Driver {
   id: number
@@ -153,7 +152,7 @@ export default function DriversPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
- 
+ console.log(setIsModalOpen)
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [contracts, setContracts] = useState<Contract[]>([])
   const [roles, setRoles] = useState<Role[]>([])
@@ -333,34 +332,7 @@ export default function DriversPage() {
     }
   }
 
-  const handleAddDriverClick = () => {
-    setFormData({
-      email: "",
-      full_name: "",
-      role: "driver",
-      contractId: "none",
-      is_active: true,
-      password: "",
-      password_confirm: "",
-      date_of_birth: "",
-      phone: "",
-      address: "",
-      account_no: "",
-      sort_code: "",
-      post_code: "",
-      national_insurance_no: "",
-      license_number: "",
-      license_issue_number: "",
-      next_of_kin_name: "",
-      next_of_kin_relationship: "",
-      next_of_kin_contact: "",
-      next_of_kin_email: "",
-      next_of_kin_address: "",
-      manager_name: "",
-    })
-    setFormErrors({})
-    setIsModalOpen(true)
-  }
+ 
 
   const handleEditDriverClick = (driver: Driver) => {
     setSelectedDriver(driver)
@@ -620,7 +592,7 @@ export default function DriversPage() {
             <h1 className="text-3xl font-bold text-gray-900">Driver Management</h1>
             <p className="text-sm text-gray-500">Manage your drivers and their profiles</p>
           </div>
-          <div className="space-x-2 flex">
+          <div className="space-x-2 flex h-[40px]">
             <button className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
               <Filter className="w-4 h-4" />
               Filter
@@ -637,20 +609,7 @@ export default function DriversPage() {
               <RefreshCw className="w-4 h-4" />
               Refresh
             </button>
-            <Button
-              ref={(el: HTMLButtonElement | null) => {
-                buttonRefs.current["add-driver"] = el
-              }}
-              className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
-              style={{
-                background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
-              }}
-              onClick={handleAddDriverClick}
-              onMouseMove={handleMouseMove("add-driver")}
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Driver
-            </Button>
+            
           </div>
         </div>
       </header>
@@ -825,22 +784,7 @@ export default function DriversPage() {
         </div>
       </div>
 
-      {/* Add Driver Dialog */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto z-50 bg-white">
-          <DialogHeader className="space-y-3">
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <UserPlus className="w-5 h-5" />
-              Add Driver
-            </DialogTitle>
-            <DialogDescription>
-              Create a new driver profile with the specified details and permissions.
-            </DialogDescription>
-          </DialogHeader>
-
-          <AddDriver/>
-        </DialogContent>
-      </Dialog>
+   
 
       {/* Edit Driver Dialog */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>

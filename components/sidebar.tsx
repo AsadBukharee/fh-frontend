@@ -42,6 +42,7 @@ import {
   MoreHorizontal,
   SquareCheckBig,
   CalendarClock,
+  Map,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -76,6 +77,7 @@ const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } =
   CalendarCheck,
   Headset,
   RefreshCw,
+  Map,
   LogIn,
   Activity,
   UserCheck,
