@@ -28,7 +28,15 @@
 .animate-slideDownFade {
   animation: slideDownFade 0.4s ease-out forwards;
 }
-
+@layer base {
+  a:hover,
+  button:hover,
+  [type="button"]:hover,
+  [type="submit"]:hover,
+  [role="button"]:hover {
+    @apply opacity-80 transition-opacity duration-200;
+  }
+}
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -109,7 +117,7 @@
   --card-foreground: oklch(0.985 0.002 247.839);
   --popover: oklch(0.21 0.034 264.665);
   --popover-foreground: oklch(0.985 0.002 247.839);
-  --primary: oklch(0.928 0.006 264.531);
+  --primary: rgba(0,0,0,0);
   --primary-foreground: oklch(0.21 0.034 264.665);
   --secondary: oklch(0.278 0.033 256.848);
   --secondary-foreground: oklch(0.985 0.002 247.839);

@@ -10,11 +10,22 @@ interface Walkaround {
   id: number;
   driver: {
     full_name: string;
+    email: string; // Added to use as fallback if full_name is "None None"
   };
   vehicle: {
-    registration_number: string;
+    id: number;
+    vehicles_type: {
+      name: string;
+    };
   };
   status: "pending" | "failed" | "completed";
+  date: string;
+}
+
+interface GroupedWalkaround {
+  vehicle_id: number;
+  vehicle_type: string;
+  drivers: { name: string; status: string; date: string }[];
 }
 
 const getStatusClasses = (status: string) => {
@@ -48,17 +59,17 @@ const WalkaroundPage = () => {
   const [walkarounds, setWalkarounds] = useState<Walkaround[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const cookies=useCookies()
+  const cookies = useCookies();
 
   // Fetch data from API
   useEffect(() => {
     const fetchWalkarounds = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/walk-around/`,{
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${cookies.get("access_token")}`,
-            },
+        const response = await fetch(`${API_URL}/api/walk-around/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
         });
         const result = await response.json();
         if (result.success) {
@@ -67,7 +78,7 @@ const WalkaroundPage = () => {
           setError("Failed to fetch walkarounds.");
         }
       } catch (err) {
-        console.log(err);
+        console.error(err);
         setError("An error occurred while fetching data.");
       } finally {
         setLoading(false);
@@ -77,13 +88,36 @@ const WalkaroundPage = () => {
     fetchWalkarounds();
   }, []);
 
-  // Filter walkarounds based on search term
-  const filteredWalkarounds = walkarounds.filter(
-    (walkaround) =>
-      walkaround.vehicle.registration_number
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      walkaround.driver.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Group walkarounds by vehicle ID
+  const groupedWalkarounds = walkarounds.reduce((acc, walkaround) => {
+    const vehicleId = walkaround.vehicle.id;
+    const vehicleType = walkaround.vehicle.vehicles_type.name;
+    const driverName = walkaround.driver.full_name === "None None" 
+      ? walkaround.driver.email 
+      : walkaround.driver.full_name;
+
+    if (!acc[vehicleId]) {
+      acc[vehicleId] = {
+        vehicle_id: vehicleId,
+        vehicle_type: vehicleType,
+        drivers: [],
+      };
+    }
+    acc[vehicleId].drivers.push({
+      name: driverName,
+      status: walkaround.status,
+      date: walkaround.date,
+    });
+    return acc;
+  }, {} as Record<number, GroupedWalkaround>);
+
+  // Convert grouped object to array and filter based on search term
+  const filteredWalkarounds = Object.values(groupedWalkarounds).filter(
+    (group) =>
+      group.vehicle_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      group.drivers.some((driver) =>
+        driver.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
   );
 
   if (loading) {
@@ -109,7 +143,7 @@ const WalkaroundPage = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
               type="text"
-              placeholder="Search vehicle or driver..."
+              placeholder="Search vehicle type or driver..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 h-10 text-sm"
@@ -117,39 +151,48 @@ const WalkaroundPage = () => {
           </div>
         </div>
 
+        {/* Warning about frequent inspections */}
+        {filteredWalkarounds.some((group) => group.vehicle_id === 4) && (
+          <div className="mb-6 p-4 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
+            <p>
+              <strong>Warning:</strong> Vehicle ID 4 (Transent Van) has an unusually high number of inspections on August 2, 2025. This may indicate duplicate entries or a testing scenario. Please verify the data.
+            </p>
+          </div>
+        )}
+
         {/* Walkaround Cards */}
         <div className="space-y-3">
-          {filteredWalkarounds.map((walkaround) => (
-            <Card key={walkaround.id} className="border border-gray-200">
+          {filteredWalkarounds.map((group, idx) => (
+            <Card key={idx} className="border border-gray-200">
               <div className="flex items-center justify-between px-4 py-3">
-                {/* Left: Vehicle Icon and Plate */}
+                {/* Left: Vehicle Icon and Type/ID */}
                 <div className="flex items-center space-x-3 min-w-0 flex-shrink-0">
                   <Car className="text-gray-600 w-4 h-4" />
                   <span className="text-sm font-medium text-gray-900 whitespace-nowrap">
-                    {walkaround.vehicle.registration_number}
+                    {group.vehicle_type} (ID: {group.vehicle_id})
                   </span>
                 </div>
 
-                {/* Center: Driver Progress Step */}
-                <div className="flex-1 flex justify-center">
-                  <div className="flex flex-col items-center">
-                    {/* Status Circle */}
-                    <div
-                      className={`w-10 h-10 rounded-full text-white flex items-center justify-center text-xs font-semibold ${getStatusClasses(
-                        walkaround.status
-                      )}`}
-                    >
-                      {walkaround.id}
+                {/* Center: Driver Progress Steps */}
+                <div className="flex-1 flex items-center justify-center space-y-2">
+                  {group.drivers.map((driver, driverIdx) => (
+                    <div key={driverIdx} className="flex flex-col items-center">
+                      <div
+                        className={`w-10 h-10 rounded-full text-white flex items-center justify-center text-xs font-semibold ${getStatusClasses(
+                          driver.status
+                        )}`}
+                      >
+                        {idx + 1}
+                      </div>
+                      <span
+                        className={`text-xs text-gray-600 mt-1 py-1 px-4 rounded-2xl font-medium ${getStatusForName(
+                          driver.status
+                        )}`}
+                      >
+                        {driver.name} ({driver.date})
+                      </span>
                     </div>
-                    {/* Driver Name */}
-                    <span
-                      className={`text-xs text-gray-600 mt-1 py-1 px-4 rounded-2xl font-medium ${getStatusForName(
-                        walkaround.status
-                      )}`}
-                    >
-                      {walkaround.driver.full_name}
-                    </span>
-                  </div>
+                  ))}
                 </div>
 
                 {/* Right: View Button */}

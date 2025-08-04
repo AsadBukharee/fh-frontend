@@ -1,3 +1,4 @@
+
 "use client"
 
 import type React from "react"
@@ -32,7 +33,6 @@ import {
 import {
   Search,
   MoreHorizontal,
-  
   Edit,
   Trash2,
   ChevronLeft,
@@ -46,7 +46,13 @@ import {
   Mail,
   ToggleLeft,
   AlertCircle,
-  RefreshCw,
+
+  User,
+  Lock,
+  Shield,
+  FileText,
+  EyeOff,
+  Eye,
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -63,7 +69,7 @@ interface User {
   contract: { id: number; name: string; description: string } | null
   role: string
   site: null
- shifts_count: number
+  shifts_count: number
   avatar?: string
 }
 
@@ -89,11 +95,13 @@ interface Role {
   }
 }
 
-interface EditUserForm {
+interface UserForm {
   email: string
   full_name: string
+  password?: string
+  password_confirm?: string
   role: string
-  contractId: string
+  contractId?: string
   is_active: boolean
 }
 
@@ -103,6 +111,8 @@ export default function UsersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedUserType, setSelectedUserType] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [contracts, setContracts] = useState<Contract[]>([])
   const [roles, setRoles] = useState<Role[]>([])
@@ -116,17 +126,18 @@ export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
-  const perPage = 10
-  const { showToast } = useToast()
-  const [formData, setFormData] = useState<EditUserForm>({
+  const [formData, setFormData] = useState<UserForm>({
     email: "",
     full_name: "",
     role: "",
-    contractId: "",
+    contractId: "none",
     is_active: true,
+    password: "",
+    password_confirm: "",
   })
-  const [formErrors, setFormErrors] = useState<Partial<EditUserForm>>({})
-
+  const [formErrors, setFormErrors] = useState<Partial<UserForm>>({})
+  const perPage = 10
+  const { showToast } = useToast()
   const cookies = useCookies()
 
   const fetchUsers = useCallback(async () => {
@@ -275,6 +286,16 @@ export default function UsersPage() {
 
   const handleAddUserClick = (type: string) => {
     setSelectedUserType(type)
+    setFormData({
+      email: "",
+      full_name: "",
+      role: roles.find((role) => role.name === type)?.slug || "",
+      contractId: "none",
+      is_active: true,
+      password: "",
+      password_confirm: "",
+    })
+    setFormErrors({})
     setIsModalOpen(true)
   }
 
@@ -286,6 +307,8 @@ export default function UsersPage() {
       role: user.role,
       contractId: user.contract?.id.toString() || "none",
       is_active: user.is_active,
+      password: "",
+      password_confirm: "",
     })
     setFormErrors({})
     setIsEditModalOpen(true)
@@ -296,62 +319,106 @@ export default function UsersPage() {
     setIsDeleteDialogOpen(true)
   }
 
-  const validateForm = (): boolean => {
-    const errors: Partial<EditUserForm> = {}
+  const validateAddUserForm = (formData: FormData): Partial<UserForm> => {
+    const errors: Partial<UserForm> = {}
 
-    if (!formData.email.trim()) {
+    const email = formData.get("email") as string
+    const full_name = formData.get("full_name") as string
+    const password = formData.get("password") as string
+    const password_confirm = formData.get("password_confirm") as string
+    const role = formData.get("role") as string
+
+    if (!email?.trim()) {
       errors.email = "Email is required"
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.email = "Please enter a valid email address"
     }
 
-    if (!formData.full_name.trim()) {
+    if (!full_name?.trim()) {
       errors.full_name = "Full name is required"
-    } else if (formData.full_name.trim().length < 2) {
+    } else if (full_name.trim().length < 2) {
       errors.full_name = "Full name must be at least 2 characters"
     }
 
-    if (!formData.role) {
+    if (!password?.trim()) {
+      errors.password = "Password is required"
+    } else if (password.length < 6) {
+      errors.password = "Password must be at least 6 characters"
+    }
+
+    if (!password_confirm?.trim()) {
+      errors.password_confirm = "Password confirmation is required"
+    } else if (password !== password_confirm) {
+      errors.password_confirm = "Passwords do not match"
+    }
+
+    if (!role) {
       errors.role = "Role is required"
     }
 
-    setFormErrors(errors)
-    return Object.keys(errors).length === 0
+    return errors
   }
 
-  const handleFormChange = (field: keyof EditUserForm, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    if (formErrors[field]) {
-      setFormErrors((prev) => ({ ...prev, [field]: undefined }))
+  const validateEditUserForm = (data: UserForm): Partial<UserForm> => {
+    const errors: Partial<UserForm> = {}
+
+    if (!data.email.trim()) {
+      errors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      errors.email = "Please enter a valid email address"
     }
+
+    if (!data.full_name.trim()) {
+      errors.full_name = "Full name is required"
+    } else if (data.full_name.trim().length < 2) {
+      errors.full_name = "Full name must be at least 2 characters"
+    }
+
+    if (!data.role) {
+      errors.role = "Role is required"
+    }
+
+    return errors
   }
 
   const handleAddUserSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
+    const errors = validateAddUserForm(formData)
+
+    setFormErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      showToast("Please fix the form errors", "error")
+      return
+    }
 
     const newUser = {
       email: formData.get("email") as string,
       full_name: formData.get("full_name") as string,
+      password: formData.get("password") as string,
+      password_confirm: formData.get("password_confirm") as string,
       role: formData.get("role") as string,
-      contract: formData.get("contract") as string,
-    }
-
-    if (!newUser.email || !newUser.full_name || !newUser.role) {
-      showToast("Please fill in all required fields", "error")
-      return
+      contractId: formData.get("contract") as string | undefined,
     }
 
     setEditLoading(true)
 
     try {
+      const payload = {
+        email: newUser.email,
+        full_name: newUser.full_name,
+        password: newUser.password,
+        password_confirm: newUser.password_confirm,
+        role: newUser.role,
+      }
+
       const response = await fetch(`${API_URL}/users/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
-        body: JSON.stringify(newUser),
+        body: JSON.stringify(payload),
       })
 
       if (response.status === 401) {
@@ -365,9 +432,25 @@ export default function UsersPage() {
         showToast(data.message || "User created successfully", "success")
         setIsModalOpen(false)
         await fetchUsers()
+
+        // Optionally assign contract if provided
+        if (newUser.contractId && newUser.contractId !== "none") {
+          const userId = data.data?.id
+          if (userId) {
+            await fetch(`${API_URL}/users/${userId}/assign-contract/`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${cookies.get("access_token")}`,
+              },
+              body: JSON.stringify({ contract_id: Number.parseInt(newUser.contractId) }),
+            })
+          }
+        }
       } else {
         showToast(data.message || "Failed to create user", "error")
       }
+      
     } catch (err) {
       console.log(err)
       showToast("An error occurred while creating the user", "error")
@@ -378,7 +461,23 @@ export default function UsersPage() {
 
   const handleEditUserSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!selectedUser || !validateForm()) return
+    const form = new FormData(e.currentTarget)
+    const editFormData: UserForm = {
+      email: form.get("email") as string,
+      full_name: form.get("full_name") as string,
+      role: form.get("role") as string,
+      contractId: form.get("contract") as string,
+      is_active: (form.get("is_active") as string) === "on",
+    }
+
+    const errors = validateEditUserForm(editFormData)
+    setFormErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      showToast("Please fix the form errors", "error")
+      return
+    }
+
+    if (!selectedUser) return
 
     setEditLoading(true)
 
@@ -390,10 +489,10 @@ export default function UsersPage() {
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
         body: JSON.stringify({
-          email: formData.email,
-          full_name: formData.full_name,
-          role: formData.role,
-          is_active: formData.is_active,
+          email: editFormData.email,
+          full_name: editFormData.full_name,
+          role: editFormData.role,
+          is_active: editFormData.is_active,
         }),
       })
 
@@ -408,16 +507,14 @@ export default function UsersPage() {
         return
       }
 
-      showToast(userData.message || "User details updated successfully", "success")
-
-      if (formData.contractId && formData.contractId !== "none") {
+      if (editFormData.contractId && editFormData.contractId !== "none") {
         const contractResponse = await fetch(`${API_URL}/users/${selectedUser.id}/assign-contract/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
-          body: JSON.stringify({ contract_id: Number.parseInt(formData.contractId) }),
+          body: JSON.stringify({ contract_id: Number.parseInt(editFormData.contractId) }),
         })
         if (contractResponse.status === 401) {
           showToast("Session expired. Please log in again.", "error")
@@ -498,13 +595,11 @@ export default function UsersPage() {
             <button
               onClick={fetchUsers}
               disabled={loading}
-              className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               Refresh
             </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+        
                 <Button
                   ref={(el: HTMLButtonElement | null) => {
                     buttonRefs.current["add-user"] = el
@@ -513,34 +608,14 @@ export default function UsersPage() {
                   style={{
                     background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
                   }}
+                  onClick={() =>handleAddUserClick('driver')}
                   onMouseMove={handleMouseMove("add-user")}
                 >
                   <UserPlus className="w-4 h-4" />
                   Add User
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="relative border-0 bg-white">
-                <div className="absolute inset-[-2px] border-4 border-transparent [border-image:linear-gradient(to_right,_#f85032_0%,_#e73827_20%,_#662D8C_100%)_1] z-[-1] rounded-md"></div>
-                {rolesLoading ? (
-                  <DropdownMenuItem disabled>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Loading roles...
-                  </DropdownMenuItem>
-                ) : roles.length === 0 ? (
-                  <DropdownMenuItem disabled>No roles available</DropdownMenuItem>
-                ) : (
-                  roles.map((role) => (
-                    <DropdownMenuItem
-                      key={role.id}
-                      className="cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleAddUserClick(role.name)}
-                    >
-                      {role.name}
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+             
+        
           </div>
         </div>
       </header>
@@ -612,7 +687,7 @@ export default function UsersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge  className=" bg-orange-100 text-orange-600 border border-orange-600">{user.shifts_count|| 0} shifts</Badge>
+                    <Badge className="bg-orange-100 text-orange-600 border border-orange-600">{user.shifts_count || 0} shifts</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(user.is_active)}>{user.is_active ? "Active" : "In-Active"}</Badge>
@@ -633,7 +708,6 @@ export default function UsersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-white">
-                        
                         <DropdownMenuItem onClick={() => handleEditUserClick(user)}>
                           <Edit className="w-4 h-4 mr-2" />
                           Edit
@@ -702,123 +776,279 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Add User Dialog */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto z-50 bg-white">
-          <DialogHeader>
-            <DialogTitle>Add {selectedUserType} User</DialogTitle>
-            <DialogDescription>Create a new user account with the specified role and permissions.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAddUserSubmit} className="space-y-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="add-email" className="text-right">
-                Email *
-              </Label>
-              <Input
-                id="add-email"
-                name="email"
-                type="email"
-                placeholder="Enter email"
-                className="col-span-3"
-                required
-              />
+    <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+  <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto z-50 bg-white">
+    <DialogHeader className="space-y-3">
+      <DialogTitle className="flex items-center gap-2 text-xl">
+        <UserPlus className="w-5 h-5" />
+        Add {selectedUserType} User
+      </DialogTitle>
+      <DialogDescription>
+        Create a new user account with the specified role and permissions.
+      </DialogDescription>
+    </DialogHeader>
 
-              <Label htmlFor="add-full_name" className="text-right">
-                Full Name *
-              </Label>
-              <Input
-                id="add-full_name"
-                name="full_name"
-                placeholder="Enter full name"
-                className="col-span-3"
-                required
-              />
+    <form onSubmit={handleAddUserSubmit} className="space-y-6">
+      {/* Personal Information Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          Personal Information
+        </div>
+        <Separator />
 
-              <Label htmlFor="add-role" className="text-right">
-                Role *
-              </Label>
-              <Select name="role" required defaultValue={roles.find((role) => role.name === selectedUserType)?.slug || ""}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder={`Select role (default: ${selectedUserType})`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {rolesLoading ? (
-                    <SelectItem value="loading" disabled>
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading roles...
-                      </div>
-                    </SelectItem>
-                  ) : roles.length === 0 ? (
-                    <SelectItem value="none" disabled>
-                      No roles available
-                    </SelectItem>
-                  ) : (
-                    roles.map((role) => (
-                      <SelectItem key={role.id} value={role.slug}>
-                        <Badge className={getTypeColor(role.slug)} variant="secondary">
-                          {role.name}
-                        </Badge>
-                      </SelectItem>
-                    ))
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="add-email" className="flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              Email Address *
+            </Label>
+            <Input
+              id="add-email"
+              name="email"
+              type="email"
+              placeholder="Enter email address"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className={formErrors.email ? "border-red-500" : ""}
+              required
+            />
+            {formErrors.email && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                {formErrors.email}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="add-full_name" className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Full Name *
+            </Label>
+            <Input
+              id="add-full_name"
+              name="full_name"
+              placeholder="Enter full name"
+              value={formData.full_name}
+              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+              className={formErrors.full_name ? "border-red-500" : ""}
+              required
+            />
+            {formErrors.full_name && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                {formErrors.full_name}
+              </p>
+            )}
+          </div>
+
+         <div className="space-y-2">
+                  <Label htmlFor="add-password" className="flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Password *
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="add-password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className={formErrors.password ? "border-red-500" : ""}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {formErrors.password && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {formErrors.password}
+                    </p>
                   )}
-                </SelectContent>
-              </Select>
+                </div>
 
-              <Label htmlFor="add-contract" className="text-right">
-                Contract
-              </Label>
-              <Select name="contract">
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select contract (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Contract</SelectItem>
-                  {contractsLoading ? (
-                    <SelectItem value="loading" disabled>
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading contracts...
-                      </div>
-                    </SelectItem>
-                  ) : (
-                    contracts.map((contract) => (
-                      <SelectItem key={contract.id} value={contract.id.toString()}>
-                        {contract.name}
-                      </SelectItem>
-                    ))
+                {/* Confirm Password Field with Toggle */}
+                <div className="space-y-2">
+                  <Label htmlFor="add-password_confirm" className="flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Confirm Password *
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="add-password_confirm"
+                      name="password_confirm"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm password"
+                      value={formData.password_confirm}
+                      onChange={(e) => setFormData({ ...formData, password_confirm: e.target.value })}
+                      className={formErrors.password_confirm ? "border-red-500" : ""}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {formErrors.password_confirm && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {formErrors.password_confirm}
+                    </p>
                   )}
-                </SelectContent>
-              </Select>
+                </div>
+              
+            
+        </div>
+      </div>
+
+      {/* Role & Permissions Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          Role & Permissions
+        </div>
+        <Separator />
+
+        <div className="space-y-2">
+          <Label htmlFor="add-role" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            User Role *
+          </Label>
+          <Select
+            name="role"
+            required
+            value={formData.role}
+            onValueChange={(value) => setFormData({ ...formData, role: value })}
+          >
+            <SelectTrigger className={formErrors.role ? "border-red-500" : ""}>
+              <SelectValue placeholder={`Select role (default: ${selectedUserType})`} />
+            </SelectTrigger>
+            <SelectContent>
+              {rolesLoading ? (
+                <SelectItem value="loading" disabled>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading roles...
+                  </div>
+                </SelectItem>
+              ) : roles.length === 0 ? (
+                <SelectItem value="none" disabled>
+                  No roles available
+                </SelectItem>
+              ) : (
+                roles.map((role) => (
+                  <SelectItem key={role.id} value={role.slug}>
+                    <div className="flex items-center gap-2">
+                      <Badge className={getTypeColor(role.slug)} variant="secondary">
+                        {role.name}
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+          {formErrors.role && (
+            <p className="text-sm text-red-500 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              {formErrors.role}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Contract Assignment Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          Contract Assignment
+        </div>
+        <Separator />
+
+        <div className="space-y-2">
+          <Label htmlFor="add-contract" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Assigned Contract
+          </Label>
+          {contractsLoading ? (
+            <div className="flex items-center gap-2 p-3 border rounded-lg">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm text-gray-500">Loading contracts...</span>
             </div>
+          ) : (
+            <Select
+              name="contract"
+              value={formData.contractId}
+              onValueChange={(value) => setFormData({ ...formData, contractId: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a contract (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Contract</SelectItem>
+                {contracts.map((contract) => (
+                  <SelectItem key={contract.id} value={contract.id.toString()}>
+                    <div className="space-y-1">
+                      <div className="font-medium">{contract.name}</div>
+                      {contract.description && (
+                        <div className="text-sm text-gray-500">{contract.description}</div>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <p className="text-sm text-gray-500">
+            Assign a contract to define user responsibilities and access levels
+          </p>
+        </div>
+      </div>
 
-            <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={editLoading}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={editLoading || rolesLoading}
-                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
-              >
-                {editLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Create User
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <DialogFooter className="gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setIsModalOpen(false);
+            setFormErrors({});
+          }}
+          disabled={editLoading}
+        >
+          <X className="w-4 h-4 mr-2" />
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={editLoading || rolesLoading}
+          className="bg-gradient-to-r from-orange to-magenta hover:from-orange-700 hover:to-magenta-700"
+        >
+          {editLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Create User
+            </>
+          )}
+        </Button>
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
 
-      {/* Enhanced Edit User Dialog */}
+      {/* Edit User Dialog */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader className="space-y-3">
@@ -844,9 +1074,10 @@ export default function UsersPage() {
                   </Label>
                   <Input
                     id="edit-email"
+                    name="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => handleFormChange("email", e.target.value)}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="Enter email address"
                     className={formErrors.email ? "border-red-500" : ""}
                   />
@@ -862,8 +1093,9 @@ export default function UsersPage() {
                   <Label htmlFor="edit-full_name">Full Name</Label>
                   <Input
                     id="edit-full_name"
+                    name="full_name"
                     value={formData.full_name}
-                    onChange={(e) => handleFormChange("full_name", e.target.value)}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                     placeholder="Enter full name"
                     className={formErrors.full_name ? "border-red-500" : ""}
                   />
@@ -884,7 +1116,11 @@ export default function UsersPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-role">User Role</Label>
-                  <Select value={formData.role} onValueChange={(value) => handleFormChange("role", value)}>
+                  <Select
+                    name="role"
+                    value={formData.role}
+                    onValueChange={(value) => setFormData({ ...formData, role: value })}
+                  >
                     <SelectTrigger className={formErrors.role ? "border-red-500" : ""}>
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
@@ -932,8 +1168,9 @@ export default function UsersPage() {
                     </p>
                   </div>
                   <Switch
+                    name="is_active"
                     checked={formData.is_active}
-                    onCheckedChange={(checked) => handleFormChange("is_active", checked)}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
                   />
                 </div>
               </div>
@@ -951,7 +1188,11 @@ export default function UsersPage() {
                     <span className="text-sm text-gray-500">Loading contracts...</span>
                   </div>
                 ) : (
-                  <Select value={formData.contractId} onValueChange={(value) => handleFormChange("contractId", value)}>
+                  <Select
+                    name="contract"
+                    value={formData.contractId}
+                    onValueChange={(value) => setFormData({ ...formData, contractId: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a contract (optional)" />
                     </SelectTrigger>
