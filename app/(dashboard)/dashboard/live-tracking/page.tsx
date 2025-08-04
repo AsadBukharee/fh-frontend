@@ -41,18 +41,26 @@ const initialVehicles: Vehicle[] = [
   { id: 3, name: 'Vehicle 3', position: [53.5700, -2.4400], status: 'active' },
 ]
 
-// Helper to convert Lucide React icon to SVG string for Leaflet DivIcon
-const renderLucideIconToString = (IconComponent: React.ElementType, props = {}) =>
-  renderToStaticMarkup(<IconComponent {...props} />)
+// Helper to convert Lucide React icon to SVG string with fill attribute
+const renderLucideIconToStringWithFill = (
+  IconComponent: React.ElementType,
+  fillColor: string,
+  strokeColor: string,
+  size = 32
+) => {
+  let svgString = renderToStaticMarkup(
+    <IconComponent color={strokeColor} size={size} strokeWidth={1.5} />
+  )
+  // Add fill attribute to svg tag
+  svgString = svgString.replace('<svg ', `<svg fill="${fillColor}" `)
+  return svgString
+}
 
-// Vehicle icon with color based on status
+// Vehicle icon with color fill based on status
 const vehicleIcon = (status: 'active' | 'inactive'): DivIcon => {
   const fillColor = status === 'active' ? '#28a745' : '#dc3545'
-  const svgString = renderLucideIconToString(Car, {
-    color: fillColor,
-    size: 32,
-    strokeWidth: 1.5,
-  })
+  const strokeColor = fillColor
+  const svgString = renderLucideIconToStringWithFill(Car, fillColor, strokeColor)
   return L.divIcon({
     html: svgString,
     className: 'vehicle-icon',
@@ -61,25 +69,21 @@ const vehicleIcon = (status: 'active' | 'inactive'): DivIcon => {
   })
 }
 
-// Site icon as blue pin
+// Site icon as blue pin with fill
 const siteIcon: DivIcon = L.divIcon({
-  html: renderLucideIconToString(MapPin, {
-    color: '#007bff',
-    size: 32,
-    strokeWidth: 1.5,
-  }),
+  html: renderLucideIconToStringWithFill(MapPin, '#007bff', '#007bff'),
   className: 'site-icon',
   iconSize: [32, 32],
-  iconAnchor: [16, 32], // pin tip points here
+  iconAnchor: [16, 32],
 })
 
 const GeocoderControl: React.FC = () => {
   const map = useMap()
   //@ts-expect-error ab thk ha
   useEffect(() => {
-  //@ts-expect-error ab thk ha
+    //@ts-expect-error ab thk ha
     const geocoder = L.Control.Geocoder.nominatim()
-   //@ts-expect-error ab thk ha
+    //@ts-expect-error ab thk ha
     const control = L.Control.geocoder({
       geocoder,
       defaultMarkGeocode: false,
@@ -95,7 +99,10 @@ const GeocoderControl: React.FC = () => {
   return null
 }
 
-const FollowVehicle: React.FC<{ selectedVehicle: string; vehicles: Vehicle[] }> = ({ selectedVehicle, vehicles }) => {
+const FollowVehicle: React.FC<{ selectedVehicle: string; vehicles: Vehicle[] }> = ({
+  selectedVehicle,
+  vehicles,
+}) => {
   const map = useMap()
   useEffect(() => {
     if (selectedVehicle === 'all') return
@@ -157,7 +164,8 @@ const LiveTracking: React.FC = () => {
       setVehicles((prevVehicles) =>
         prevVehicles.map((vehicle) => ({
           ...vehicle,
-          position: vehicle.status === 'active' ? generateSmallMovement(vehicle.position) : vehicle.position,
+          position:
+            vehicle.status === 'active' ? generateSmallMovement(vehicle.position) : vehicle.position,
         }))
       )
     }, 5000)
@@ -220,7 +228,8 @@ const LiveTracking: React.FC = () => {
         </Select>
       </div>
 
-      <div className="relative z-0 h-[500px] w-[800px]">
+      {/* Full width map container */}
+      <div className="relative z-0 h-[500px] w-full">
         <MapContainer center={BOLTON_CENTER} zoom={13} className="leaflet-container">
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

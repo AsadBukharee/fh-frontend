@@ -1,17 +1,34 @@
+"use client";
 
-"use client"
-
-import type React from "react"
-import { useRef, useState, useEffect, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import type React from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -19,17 +36,17 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import {
   Search,
   MoreHorizontal,
@@ -52,13 +69,20 @@ import {
   FileText,
   EyeOff,
   Eye,
-} from "lucide-react"
-import API_URL from "@/app/utils/ENV"
-import { useCookies } from "next-client-cookies"
-import { useToast } from "@/app/Context/ToastContext"
-import AddDriver from "@/components/add-driver/page"
+} from "lucide-react";
+import API_URL from "@/app/utils/ENV";
+import { useCookies } from "next-client-cookies";
+import { useToast } from "@/app/Context/ToastContext";
+import AddDriver from "@/components/add-driver/page";
 
-// Existing Interfaces (unchanged)
+// Interfaces
+interface Site {
+  id: number;
+  name: string;
+  status?: string;
+  image?: string | null;
+}
+
 interface User {
   id: number;
   email: string;
@@ -68,10 +92,10 @@ interface User {
   child_rota_completed: boolean;
   is_active: boolean;
   contract: { id: number; name: string; description: string } | null;
-  role: string;
-  site: null;
+  site: Site[] | null; // Updated to array to match API response
+  role: string | null;
   shifts_count: number;
-  avatar?: string;
+  avatar?: string | null;
 }
 
 interface Contract {
@@ -103,6 +127,7 @@ interface UserForm {
   password_confirm?: string;
   role: string;
   contractId?: string;
+  siteId?: string;
   is_active: boolean;
 }
 
@@ -118,10 +143,12 @@ export default function UsersPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [editLoading, setEditLoading] = useState(false);
   const [contractsLoading, setContractsLoading] = useState(false);
+  const [sitesLoading, setSitesLoading] = useState(false);
   const [rolesLoading, setRolesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -134,6 +161,7 @@ export default function UsersPage() {
     full_name: "",
     role: "",
     contractId: "none",
+    siteId: "none",
     is_active: true,
     password: "",
     password_confirm: "",
@@ -146,7 +174,9 @@ export default function UsersPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const url = `${API_URL}/users/?page=${currentPage}&per_page=${perPage}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`;
+      const url = `${API_URL}/users/?page=${currentPage}&per_page=${perPage}${
+        searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
+      }`;
       const response = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
@@ -163,14 +193,16 @@ export default function UsersPage() {
       const data = await response.json();
       if (data.success) {
         setUsers(data.data);
-        setTotalPages(data.total_pages || 1);
+        // Calculate total pages if not provided by API
+        setTotalPages(data.total_pages || Math.ceil(data.data.length / perPage));
         setError(null);
       } else {
         setError(data.message || "Failed to fetch users");
         showToast(data.message || "Failed to fetch users", "error");
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching users";
+      const errorMessage =
+        error instanceof Error ? error.message : "An error occurred while fetching users";
       setError(errorMessage);
       showToast(errorMessage, "error");
     } finally {
@@ -202,7 +234,6 @@ export default function UsersPage() {
         setRoles([]);
       }
     } catch (error) {
-      console.log(error);
       showToast("Failed to fetch roles", "error");
       setRoles([]);
     } finally {
@@ -241,7 +272,38 @@ export default function UsersPage() {
           setContractsLoading(false);
         }
       };
+
+      const fetchSites = async () => {
+        setSitesLoading(true);
+        try {
+          const response = await fetch(`${API_URL}/api/sites/list-names/`, {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cookies.get("access_token")}`,
+            },
+          });
+          if (response.status === 401) {
+            showToast("Session expired. Please log in again.", "error");
+            return;
+          }
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+          const data = await response.json();
+          if (data.success) {
+            setSites(data.data);
+          } else {
+            showToast(data.message || "Failed to fetch sites", "error");
+          }
+        } catch {
+          showToast("Failed to fetch sites", "error");
+        } finally {
+          setSitesLoading(false);
+        }
+      };
+
       fetchContracts();
+      fetchSites();
     }
   }, [isEditModalOpen, isModalOpen, cookies, showToast]);
 
@@ -256,8 +318,9 @@ export default function UsersPage() {
     }
   };
 
-  const getTypeColor = (roleName: string | undefined) => {
-    switch (roleName?.toLowerCase()) {
+  const getTypeColor = (roleName: string | undefined | null) => {
+    const normalizedRole = roleName?.toLowerCase();
+    switch (normalizedRole) {
       case "admin":
         return "bg-blue-100 text-blue-700 hover:bg-blue-100";
       case "manager":
@@ -284,7 +347,9 @@ export default function UsersPage() {
   };
 
   const getStatusColor = (isActive: boolean) => {
-    return isActive ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-red-100 text-red-700 hover:bg-red-100";
+    return isActive
+      ? "bg-green-100 text-green-700 hover:bg-green-100"
+      : "bg-red-100 text-red-700 hover:bg-red-100";
   };
 
   const handleAddUserClick = (type: string) => {
@@ -292,8 +357,9 @@ export default function UsersPage() {
     setFormData({
       email: "",
       full_name: "",
-      role: roles.find((role) => role.name === type)?.slug || "",
+      role: roles.find((role) => role.name.toLowerCase() === type.toLowerCase())?.slug || "",
       contractId: "none",
+      siteId: "none",
       is_active: true,
       password: "",
       password_confirm: "",
@@ -307,8 +373,9 @@ export default function UsersPage() {
     setFormData({
       email: user.email,
       full_name: user.full_name,
-      role: user.role,
-      contractId: user.contract?.id.toString() || "none",
+      role: user.role || "",
+      contractId: user.contract?.id?.toString() || "none",
+      siteId: user.site && user.site.length > 0 ? user.site[0].id.toString() : "none",
       is_active: user.is_active,
       password: "",
       password_confirm: "",
@@ -402,6 +469,7 @@ export default function UsersPage() {
       password_confirm: formData.get("password_confirm") as string,
       role: formData.get("role") as string,
       contractId: formData.get("contract") as string | undefined,
+      siteId: formData.get("site") as string | undefined,
     };
 
     setEditLoading(true);
@@ -436,14 +504,9 @@ export default function UsersPage() {
         setIsModalOpen(false);
         await fetchUsers();
 
-        if (newUser.role === "driver" && data.data?.id) {
-          setNewDriverUserId(data.data.id);
-          setIsAddDriverModalOpen(true);
-        }
-
-        if (newUser.contractId && newUser.contractId !== "none") {
-          const userId = data.data?.id;
-          if (userId) {
+        const userId = data.data?.id;
+        if (userId) {
+          if (newUser.contractId && newUser.contractId !== "none") {
             await fetch(`${API_URL}/users/${userId}/assign-contract/`, {
               method: "POST",
               headers: {
@@ -453,12 +516,27 @@ export default function UsersPage() {
               body: JSON.stringify({ contract_id: Number.parseInt(newUser.contractId) }),
             });
           }
+
+          if (newUser.siteId && newUser.siteId !== "none") {
+            await fetch(`${API_URL}/users/${userId}/allocate-sites/`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${cookies.get("access_token")}`,
+              },
+              body: JSON.stringify({ site_ids: [Number.parseInt(newUser.siteId)] }),
+            });
+          }
+
+          if (newUser.role.toLowerCase() === "driver") {
+            setNewDriverUserId(userId);
+            setIsAddDriverModalOpen(true);
+          }
         }
       } else {
         showToast(data.message || "Failed to create user", "error");
       }
     } catch (err) {
-      console.log(err);
       showToast("An error occurred while creating the user", "error");
     } finally {
       setEditLoading(false);
@@ -473,6 +551,7 @@ export default function UsersPage() {
       full_name: form.get("full_name") as string,
       role: form.get("role") as string,
       contractId: form.get("contract") as string,
+      siteId: form.get("site") as string,
       is_active: (form.get("is_active") as string) === "on",
     };
 
@@ -514,14 +593,17 @@ export default function UsersPage() {
       }
 
       if (editFormData.contractId && editFormData.contractId !== "none") {
-        const contractResponse = await fetch(`${API_URL}/users/${selectedUser.id}/assign-contract/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get("access_token")}`,
+        const contractResponse = await fetch(
+          `${API_URL}/users/${selectedUser.id}/assign-contract/`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cookies.get("access_token")}`,
+            },
+            body: JSON.stringify({ contract_id: Number.parseInt(editFormData.contractId) }),
           },
-          body: JSON.stringify({ contract_id: Number.parseInt(editFormData.contractId) }),
-        });
+        );
         if (contractResponse.status === 401) {
           showToast("Session expired. Please log in again.", "error");
           return;
@@ -529,12 +611,43 @@ export default function UsersPage() {
         await contractResponse.json();
       }
 
+      if (editFormData.siteId && editFormData.siteId !== "none") {
+        const siteResponse = await fetch(
+          `${API_URL}/users/${selectedUser.id}/allocate-sites/`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cookies.get("access_token")}`,
+            },
+            body: JSON.stringify({ site_ids: [Number.parseInt(editFormData.siteId)] }),
+          },
+        );
+        if (siteResponse.status === 401) {
+          showToast("Session expired. Please log in again.", "error");
+          return;
+        }
+        await siteResponse.json();
+      } else {
+        await fetch(`${API_URL}/users/${selectedUser.id}/allocate-sites/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+          body: JSON.stringify({ site_ids: [] }),
+        });
+      }
+
       showToast("User updated successfully", "success");
       setIsEditModalOpen(false);
       setSelectedUser(null);
       await fetchUsers();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "An error occurred while updating the user", "error");
+      showToast(
+        error instanceof Error ? error.message : "An error occurred while updating the user",
+        "error",
+      );
     } finally {
       setEditLoading(false);
     }
@@ -560,7 +673,10 @@ export default function UsersPage() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        showToast(data.message || `${userToDelete.full_name} has been deleted successfully`, "success");
+        showToast(
+          data.message || `${userToDelete.full_name} has been deleted successfully`,
+          "success",
+        );
         await fetchUsers();
       } else {
         showToast(data.message || "Failed to delete user", "error");
@@ -661,9 +777,9 @@ export default function UsersPage() {
               <TableRow className="border-b border-gray-200">
                 <TableHead className="text-gray-600 font-medium">Sr No.</TableHead>
                 <TableHead className="text-gray-600 font-medium">Name</TableHead>
-                <TableHead className="text-gray-600 font-medium">Email</TableHead>
                 <TableHead className="text-gray-600 font-medium">Role</TableHead>
                 <TableHead className="text-gray-600 font-medium">Contract</TableHead>
+                <TableHead className="text-gray-600 font-medium">Site</TableHead>
                 <TableHead className="text-gray-600 font-medium">Shifts</TableHead>
                 <TableHead className="text-gray-600 font-medium">Status</TableHead>
                 <TableHead className="text-gray-600 font-medium">Action</TableHead>
@@ -673,11 +789,23 @@ export default function UsersPage() {
               {users.map((user) => (
                 <TableRow key={user.id} className="border-b border-gray-100">
                   <TableCell className="font-medium">{user.id}</TableCell>
-                  <TableCell className="font-medium">{user.display_name}</TableCell>
-                  <TableCell className="text-blue-600">{user.email}</TableCell>
+                  <TableCell className="font-medium">
+                    {user.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.display_name}
+                        className="w-8 h-8 rounded-full inline-block mr-2"
+                      />
+                    ) : (
+                      <User className="w-8 h-8 inline-block mr-2" />
+                    )}
+                    {user.display_name}
+                  </TableCell>
                   <TableCell>
                     <Badge className={getTypeColor(user.role)}>
-                      {roles.find((role) => role.slug === user.role)?.name || user.role || "None"}
+                      {user.role
+                        ? roles.find((role) => role.slug === user.role)?.name || user.role
+                        : "Unassigned"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -690,10 +818,27 @@ export default function UsersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge className="bg-orange-100 text-orange-600 border border-orange-600">{user.shifts_count || 0} shifts</Badge>
+                    <span>
+                      {user.site && user.site.length > 0 ? (
+                        user.site.map((s) => (
+                          <Badge key={s.id} className="bg-blue-100 text-blue-500 mr-1">
+                            {s.name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge className="bg-red-100 text-red-600">No Site</Badge>
+                      )}
+                    </span>
                   </TableCell>
                   <TableCell>
-                    <Badge className={getStatusColor(user.is_active)}>{user.is_active ? "Active" : "In-Active"}</Badge>
+                    <Badge className="bg-orange-100 text-orange-600 border border-orange-600">
+                      {user.shifts_count || 0} shifts
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(user.is_active)}>
+                      {user.is_active ? "Active" : "In-Active"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -715,7 +860,10 @@ export default function UsersPage() {
                           <Edit className="w-4 h-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteUserClick(user)}>
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          onClick={() => handleDeleteUserClick(user)}
+                        >
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete
                         </DropdownMenuItem>
@@ -889,7 +1037,9 @@ export default function UsersPage() {
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirm password"
                       value={formData.password_confirm}
-                      onChange={(e) => setFormData({ ...formData, password_confirm: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password_confirm: e.target.value })
+                      }
                       className={formErrors.password_confirm ? "border-red-500" : ""}
                       required
                     />
@@ -898,7 +1048,11 @@ export default function UsersPage() {
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                   {formErrors.password_confirm && (
@@ -1011,6 +1165,49 @@ export default function UsersPage() {
               </div>
             </div>
 
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                Site Assignment
+              </div>
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="add-site" className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Assigned Site
+                </Label>
+                {sitesLoading ? (
+                  <div className="flex items-center gap-2 p-3 border rounded-lg">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm text-gray-500">Loading sites...</span>
+                  </div>
+                ) : (
+                  <Select
+                    name="site"
+                    value={formData.siteId}
+                    onValueChange={(value) => setFormData({ ...formData, siteId: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a site (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Site</SelectItem>
+                      {sites.map((site) => (
+                        <SelectItem key={site.id} value={site.id.toString()}>
+                          <div className="space-y-1">
+                            <div className="font-medium">{site.name}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-sm text-gray-500">
+                  Assign a site to define user location or operational area
+                </p>
+              </div>
+            </div>
+
             <DialogFooter className="gap-2">
               <Button
                 type="button"
@@ -1061,7 +1258,9 @@ export default function UsersPage() {
 
           <form onSubmit={handleEditUserSubmit} className="space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">Personal Information</div>
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                Personal Information
+              </div>
               <Separator />
 
               <div className="space-y-4">
@@ -1108,7 +1307,9 @@ export default function UsersPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">Role & Permissions</div>
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                Role & Permissions
+              </div>
               <Separator />
 
               <div className="space-y-4">
@@ -1175,7 +1376,9 @@ export default function UsersPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">Contract Assignment</div>
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                Contract Assignment
+              </div>
               <Separator />
 
               <div className="space-y-2">
@@ -1211,6 +1414,46 @@ export default function UsersPage() {
                 )}
                 <p className="text-sm text-gray-500">
                   Assign a contract to define user responsibilities and access levels
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                Site Assignment
+              </div>
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-site">Assigned Site</Label>
+                {sitesLoading ? (
+                  <div className="flex items-center gap-2 p-3 border rounded-lg">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm text-gray-500">Loading sites...</span>
+                  </div>
+                ) : (
+                  <Select
+                    name="site"
+                    value={formData.siteId}
+                    onValueChange={(value) => setFormData({ ...formData, siteId: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a site (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Site</SelectItem>
+                      {sites.map((site) => (
+                        <SelectItem key={site.id} value={site.id.toString()}>
+                          <div className="space-y-1">
+                            <div className="font-medium">{site.name}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-sm text-gray-500">
+                  Assign a site to define user location or operational area
                 </p>
               </div>
             </div>
@@ -1268,19 +1511,6 @@ export default function UsersPage() {
               open={isAddDriverModalOpen}
               onOpenChange={setIsAddDriverModalOpen}
             />
-            {/* <DialogFooter className="gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsAddDriverModalOpen(false);
-                  setNewDriverUserId(null);
-                }}
-              >
-                <X className="w-4 h-4 mr-2" />
-                Cancel
-              </Button>
-            </DialogFooter> */}
           </DialogContent>
         </Dialog>
       )}
@@ -1294,8 +1524,8 @@ export default function UsersPage() {
               Delete User
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{userToDelete?.full_name}</strong>? This action cannot be undone
-              and will permanently remove the user from the system.
+              Are you sure you want to delete <strong>{userToDelete?.full_name}</strong>? This action
+              cannot be undone and will permanently remove the user from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

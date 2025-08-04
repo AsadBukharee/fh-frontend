@@ -284,77 +284,88 @@ export async function submitHealthQuestions(
 // ==========================================
 // 4. DOCUMENTS API
 // ==========================================
-export async function submitDocuments(
-  prevState: any,
-  formData: FormData,
-): Promise<{ success: boolean; message: string; data?: any }> {
-  const driver_id = Number.parseInt(formData.get("driver_id") as string) // Get driver_id from hidden input
 
-  if (!driver_id) {
-    return { success: false, message: "Driver ID is missing. Please complete the previous steps." }
+interface ProfessionalCompetency {
+  driver: number;
+  document_name: string;
+  has_expiry: boolean;
+  description: string;
+  expiry_date: string;
+  has_document: boolean;
+  has_back_side: boolean;
+  urls: string[];
+  request_status: string;
+  has_description: boolean;
+  modules: { module_name: string; description: string; expiry_date: string }[];
+}
+// types/professionalCompetency.ts
+export interface Module {
+  module_name: string;
+  description: string;
+  expiry_date: string;
+}
+
+
+
+interface ServerProfessionalCompetency extends ProfessionalCompetency {
+  driver: number;
+}
+
+export async function submitDocuments({
+  driverId,
+  competencies,
+}: {
+  driverId: number;
+  competencies: { [key: string]: ProfessionalCompetency };
+}) {
+  try {
+    // Prepare the payload for the bulk API
+    const professional_competencies: ServerProfessionalCompetency[] = Object.values(competencies)
+      .filter((competency) => competency.has_document || competency.description) // Only include competencies with data
+      .map((competency) => ({
+        driver: driverId,
+        document_name: competency.document_name,
+        has_expiry: competency.has_expiry,
+        description: competency.description,
+        expiry_date: competency.expiry_date || "",
+        has_document: competency.has_document,
+        has_back_side: competency.has_back_side,
+        urls: competency.urls.filter((url) => url), // Remove empty URLs
+        request_status: competency.request_status,
+        has_description: competency.has_description,
+        modules: competency.modules || [],
+      }));
+
+    // Make the API call
+    const response = await fetch(`${process.env.API_BASE_URL}/api/profiles/professional-competency/bulk-create/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Add authentication headers if required (e.g., Authorization: Bearer <token>)
+      },
+      body: JSON.stringify({ professional_competencies }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || "Failed to submit documents.",
+      };
+    }
+
+    // Revalidate cache if needed
+
+    return {
+      success: true,
+      message: "Documents submitted successfully.",
+    };
+  } catch (error) {
+    console.error("Error submitting documents:", error);
+    return {
+      success: false,
+      message: "An error occurred while submitting documents.",
+    };
   }
-
-  const documents: any[] = []
-  let uploadedCount = 0
-  // let allRequiredUploaded = true
-
-  const documentTypes = ["d_or_d1_license", "cpc", "tacho_card", "Passport_Right_To_Work", "proof_of_address"]
-
-  documentTypes.forEach((type) => {
-    const hasDocument = formData.get(`${type}_has_document`) === "on"
-    const frontImage = formData.get(`${type}_front_image`) as File | null
-    const backImage = formData.get(`${type}_back_image`) as File | null
-    const expiryDate = formData.get(`${type}_expiry_date`) as string
-    const description = formData.get(`${type}_description`) as string
-    const reason = formData.get(`${type}_reason`) as string
-
-    const doc: any = {
-      document_type: type,
-      has_document: hasDocument,
-    }
-
-    if (hasDocument) {
-      // Simulate image URLs
-      doc.front_image_url = frontImage ? `https://example.com/uploads/${type}_front.jpg` : null
-      doc.back_image_url = backImage ? `https://example.com/uploads/${type}_back.jpg` : null
-      doc.expiry_date = expiryDate || null
-      doc.has_expiry = !!expiryDate
-      doc.has_back_side = !!backImage
-      doc.description = description || null
-      doc.has_description = !!description
-      doc.upload_timestamp = new Date().toISOString()
-      uploadedCount++
-    } else {
-      doc.reason = reason || "Not provided"
-      if (type === "d_or_d1_license" || type === "Passport_Right_To_Work") {
-        // allRequiredUploaded = false // These are typically required
-      }
-    }
-    documents.push(doc)
-  })
-
-  // const payload = {
-  //   driver_id: driver_id,
-  //   documents: documents,
-  //   total_documents: uploadedCount,
-  //   upload_completed_at: new Date().toISOString(),
-  //   all_required_uploaded: allRequiredUploaded,
-  // }
-
-  // Simulate API call
-  const apiResponse = await simulateApiCall(
-    {
-      driver_id: driver_id,
-      step_completed: "documents",
-      profile_status: "completed",
-      documents_uploaded: uploadedCount,
-      documents_pending_review: uploadedCount,
-      estimated_review_time: "2-3 business days",
-      next_steps: ["Wait for document verification", "Check email for updates"],
-      updated_at: new Date().toISOString(),
-    },
-    true,
-  )
-
-  return apiResponse as { success: boolean; message: string; data?: any }
 }
