@@ -11,7 +11,6 @@ import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { format, parse } from "date-fns";
 
-
 // Define the API response interface for operation hours
 interface OperationHour {
   day_of_week: number;
@@ -21,7 +20,7 @@ interface OperationHour {
   is_open_24_hours: boolean;
 }
 
-// Define a mapping for day labels (for display purposes)
+// Define a mapping for day labels
 const dayLabels = [
   "Sunday",
   "Monday",
@@ -91,58 +90,63 @@ export default function SiteDetails() {
   };
 
   // Fetch site data
-  useEffect(() => {
-    const fetchSite = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${API_URL}/api/sites/${siteId}/`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to fetch site data: ${response.statusText}`);
-        }
-        const data: Site = await response.json();
-        // Initialize defaults for null fields
-        const updatedData = {
-          ...data,
-          name: data.name || "",
-          address: data.address || "",
-          postcode: data.postcode || "",
-          contact_phone: data.contact_phone || "",
-          contact_email: data.contact_email || "",
-          contact_position: data.contact_position || "",
-          image: data.image || "",
-          notes: data.notes || "",
-          radius_m: data.radius_m || 0,
-          latitude: data.latitude || 0,
-          longitude: data.longitude || 0,
-          number_of_allocated_vehicles: data.number_of_allocated_vehicles || 0,
-          operation_hours: data.operation_hours?.length
-            ? data.operation_hours
-            : initializeDefaultOperationHours(),
-          presence: {
-            early: data.presence?.early || "",
-            middle: data.presence?.middle || "",
-            night: data.presence?.night || "",
-          },
-          staff: {
-            driver: data.staff?.driver || 0,
-            admin: data.staff?.admin || 0,
-            mechanic: data.staff?.mechanic || 0,
-            total: data.staff?.total || 0,
-          },
-          warnings: data.warnings || [],
-        };
-        setSite(updatedData);
-        setEditSite(updatedData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Error fetching site data");
-      } finally {
-        setLoading(false);
+  const fetchSite = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/api/sites/${siteId}/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch site data: ${response.statusText}`);
       }
-    };
+      const data: Site = await response.json();
+      // Initialize defaults for null or missing fields
+      const updatedData = {
+        ...data,
+        name: data.name || "",
+        address: data.address || "",
+        postcode: data.postcode || "",
+        contact_phone: data.contact_phone || "",
+        contact_email: data.contact_email || "",
+        contact_position: data.contact_position || "",
+        image: data.image || "",
+        notes: data.notes || "",
+        radius_m: data.radius_m || 0,
+        latitude: data.latitude || 0,
+        longitude: data.longitude || 0,
+        number_of_allocated_vehicles: data.number_of_allocated_vehicles || 0,
+        operation_hours: data.operation_hours?.length
+          ? data.operation_hours.map((hour) => ({
+              ...hour,
+              opens_at: hour.opens_at || "09:00",
+              closes_at: hour.closes_at || "17:00",
+            }))
+          : initializeDefaultOperationHours(),
+        presence: {
+          early: data.presence?.early || "",
+          middle: data.presence?.middle || "",
+          night: data.presence?.night || "",
+        },
+        staff: {
+          driver: data.staff?.driver || 0,
+          admin: data.staff?.admin || 0,
+          mechanic: data.staff?.mechanic || 0,
+          total: data.staff?.total || 0,
+        },
+        warnings: data.warnings || [],
+      };
+      setSite(updatedData);
+      setEditSite(updatedData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error fetching site data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (siteId && token) {
       fetchSite();
     } else {
@@ -153,6 +157,7 @@ export default function SiteDetails() {
 
   // Format time for display
   const formatTime = (time: string) => {
+    if (!time) return "N/A";
     try {
       const parsed = parse(time, "HH:mm", new Date());
       return format(parsed, "h:mm a");
@@ -180,26 +185,29 @@ export default function SiteDetails() {
     });
   };
 
-  // // Validate operation hours
-  // const validateOperationHours = (hours: OperationHour[]): boolean => {
-  //   return hours.every((hour) => {
-  //     if (hour.is_closed || hour.is_open_24_hours) {
-  //       return true; // No need to validate times if closed or 24 hours
-  //     }
-  //     return hour.opens_at && hour.closes_at && hour.opens_at < hour.closes_at;
-  //   });
-  // };
+  // Validate operation hours
+  const validateOperationHours = (hours: OperationHour[]): boolean => {
+    return hours.every((hour) => {
+      if (hour.is_closed || hour.is_open_24_hours) {
+        return true; // No validation needed for closed or 24-hour days
+      }
+      // Ensure opens_at and closes_at are valid times and opens_at < closes_at
+      const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+      return (
+        hour.opens_at &&
+        hour.closes_at &&
+        timeRegex.test(hour.opens_at) &&
+        timeRegex.test(hour.closes_at) &&
+        hour.opens_at < hour.closes_at
+      );
+    });
+  };
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editSite || !token) return;
 
-    // Validate operation hours
-    // if (!validateOperationHours(editSite.operation_hours)) {
-    //   setError("Invalid operation hours: Ensure valid times for open days.");
-    //   return;
-    // }
 
     try {
       setLoading(true);
@@ -237,12 +245,12 @@ export default function SiteDetails() {
         throw new Error(`Failed to update site: ${siteResponse.statusText}`);
       }
 
-      // Update operation hours with the specified payload format
+      // Update operation hours
       const operationHoursPayload = {
         hours: editSite.operation_hours.map((hour) => ({
           day_of_week: hour.day_of_week,
-          opens_at: hour.opens_at,
-          closes_at: hour.closes_at,
+          opens_at: hour.is_closed || hour.is_open_24_hours ? null : hour.opens_at,
+          closes_at: hour.is_closed || hour.is_open_24_hours ? null : hour.closes_at,
           is_closed: hour.is_closed,
           is_open_24_hours: hour.is_open_24_hours,
         })),
@@ -266,9 +274,7 @@ export default function SiteDetails() {
         );
       }
 
-      const updatedSite = await siteResponse.json();
-      setSite(updatedSite);
-      setEditSite(updatedSite);
+      await fetchSite(); // Refresh data after successful update
       setIsEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error updating site data");
@@ -352,7 +358,6 @@ export default function SiteDetails() {
 
   return (
     <div className="p-6 bg-white min-h-screen">
-      
       <h1 className="text-2xl font-bold text-gray-800">Sites Details</h1>
       <p className="text-sm text-gray-500 mb-6">See and edit site details</p>
 
@@ -378,7 +383,7 @@ export default function SiteDetails() {
         ) : (
           <button
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 bg-rose text-white px-4 py-2 rounded-md"
+            className="flex items-center gap-2 bg-rose-600 text-white px-4 py-2 rounded-md"
           >
             <Edit className="w-4 h-4" /> Edit
           </button>
@@ -601,17 +606,12 @@ export default function SiteDetails() {
 
           {/* Right Column */}
           <div className="lg:col-span-1 space-y-6">
-          <div className=" w-full h-[200px] rounded-md shadow-md  hover:shadow-lg transition-all duration-300 flex justify-center items-center">
-                  <img
-                  src={site.image || ""}
-                  className="w-full h-full rounded-md "
-                  />
-                </div>
+            <div className="w-full h-[200px] rounded-md shadow-md hover:shadow-lg transition-all duration-300 flex justify-center items-center">
+              <img src={site.image || ""} className="w-full h-full rounded-md" />
+            </div>
             {/* Site Alerts */}
             <Card className="p-4 border border-red-200 rounded-lg bg-red-50">
-       
               <div className="flex justify-between items-center mb-2">
-              
                 <div className="flex items-center gap-2">
                   <TriangleAlert className="w-5 h-5 text-yellow-600" />
                   <span className="text-yellow-600 font-bold">Site Alerts</span>
@@ -694,7 +694,7 @@ export default function SiteDetails() {
                     <div className="flex gap-4">
                       <Input
                         type="time"
-                        value={hour.opens_at || "09:00"}
+                        value={hour.opens_at}
                         onChange={(e) =>
                           handleOperationHourChange(index, "opens_at", e.target.value)
                         }
@@ -703,7 +703,7 @@ export default function SiteDetails() {
                       />
                       <Input
                         type="time"
-                        value={hour.closes_at || "17:00"}
+                        value={hour.closes_at}
                         onChange={(e) =>
                           handleOperationHourChange(index, "closes_at", e.target.value)
                         }
@@ -718,10 +718,10 @@ export default function SiteDetails() {
                       ) : !hour.is_open_24_hours ? (
                         <div className="flex gap-4 text-sm text-gray-700">
                           <span className="px-3 py-2 rounded-lg">
-                            {formatTime(hour.opens_at || "09:00")}
+                            {formatTime(hour.opens_at)}
                           </span>
                           <span className="px-3 py-2 rounded-lg">
-                            {formatTime(hour.closes_at || "17:00")}
+                            {formatTime(hour.closes_at)}
                           </span>
                         </div>
                       ) : null}
@@ -780,21 +780,15 @@ export default function SiteDetails() {
               <div className="space-y-2 text-sm text-gray-700">
                 <div className="flex justify-between">
                   <span>Early Shift</span>
-                 
-                    <span>{site.presence.early}</span>
-                  
+                  <span>{site.presence.early}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Middle Shift</span>
-               
-                    <span>{site.presence.middle}</span>
-                  
+                  <span>{site.presence.middle}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Night Shift</span>
-              
-                    <span>{site.presence.night}</span>
-                  
+                  <span>{site.presence.night}</span>
                 </div>
               </div>
             </Card>

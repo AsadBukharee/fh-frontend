@@ -35,7 +35,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
       {typeof window !== 'undefined' &&
         createPortal(
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 z-9999">
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 z-[10000000000000000000]">
             {toasts.map(toast => (
               <Toast key={toast.id} type={toast.type} message={toast.message} />
             ))}

@@ -105,286 +105,6 @@ const LUCIDE_ICON_MAP: { [key: string]: LucideIcon } = {
 
 const AVAILABLE_ICONS = Object.keys(LUCIDE_ICON_MAP)
 
-const INITIAL_MENU_ITEMS = [
-        {
-            "nav": "/",
-            "icon": "BarChart3",
-            "name": "Dashboard",
-            "tooltip": "Overview of key metrics",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/users",
-            "icon": "UserPlus",
-            "name": "User Management",
-            "tooltip": "Manage users and permissions",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/rbac",
-            "icon": "TowerControl",
-            "name": "RBAC",
-            "tooltip": "Manage roles and permissions",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/sites",
-            "icon": "Building2",
-            "name": "Sites",
-            "tooltip": "Manage operational sites",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/vehicles",
-            "icon": "Truck",
-            "name": "Vehicles",
-            "tooltip": "Vehicle dashboard and tools",
-            "children": [
-                {
-                    "nav": "/vehicles/walkaround",
-                    "icon": "ClipboardCheck",
-                    "name": "Walkaround",
-                    "tooltip": "Walkaround inspection checks",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/vehicles/fuel-checks",
-                    "icon": "Fuel",
-                    "name": "Fuel Checks",
-                    "tooltip": "Vehicle fuel checks and logs",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/vehicles/tyre-checks",
-                    "icon": "LifeBuoy",
-                    "name": "Tyre Checks",
-                    "tooltip": "Tyre condition and tread inspections",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/vehicles/equipment-checks",
-                    "icon": "Stethoscope",
-                    "name": "Equipment Checks",
-                    "tooltip": "Onboard equipment inspections",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/vehicles/valet-checks",
-                    "icon": "Car",
-                    "name": "Valet Checks",
-                    "tooltip": "Vehicle cleanliness & valet review",
-                    "children": [
-                        {
-                            "nav": "/vehicles/valet-checks/gatekeeper",
-                            "icon": "ShieldCheck",
-                            "name": "Gate Keeper Checks",
-                            "tooltip": "Final checks at site gate",
-                            "children": [],
-                            "isSelected": true
-                        }
-                    ],
-                    "isSelected": true
-                }
-            ],
-            "isSelected": true
-        },
-        {
-            "nav": "/staff",
-            "icon": "BookUser",
-            "name": "Staff",
-            "tooltip": "Staff records and schedules",
-            "children": [
-                {
-                    "nav": "/staff/duty-logs",
-                    "icon": "CalendarCheck",
-                    "name": "Daily Duty Logs",
-                    "tooltip": "Daily staff duty logs",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/staff/wtd-logs",
-                    "icon": "Clock",
-                    "name": "WTD Logs",
-                    "tooltip": "Working Time Directive logs",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/staff/clocking",
-                    "icon": "LogIn",
-                    "name": "Clocking Logs",
-                    "tooltip": "Clock-in / Clock-out entries",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/staff/rotas",
-                    "icon": "RefreshCw",
-                    "name": "Rotas",
-                    "tooltip": "Weekly rota planning",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/staff/contracts",
-                    "icon": "FileText",
-                    "name": "Contracts",
-                    "tooltip": "Staff contract records",
-                    "children": [],
-                    "isSelected": true
-                }
-            ],
-            "isSelected": true
-        },
-        {
-            "nav": "/inspections",
-            "icon": "ClipboardList",
-            "name": "MOTs & Insp.",
-            "tooltip": "MOTs & Inspections",
-            "children": [
-                {
-                    "nav": "/inspections/maintenance-pmi",
-                    "icon": "Activity",
-                    "name": "Maintenance PMI",
-                    "tooltip": "Maintenance PMI Analysis",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/inspections/driver-pmi",
-                    "icon": "UserCheck",
-                    "name": "Driver PMI",
-                    "tooltip": "Driver PMI Analysis",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/inspections/service-history",
-                    "icon": "Book",
-                    "name": "Service History",
-                    "tooltip": "Service and inspection history",
-                    "children": [],
-                    "isSelected": true
-                }
-            ],
-            "isSelected": true
-        },
-        {
-            "nav": "/mechanic-jobs",
-            "icon": "Wrench",
-            "name": "Mechanic",
-            "tooltip": "Mechanic Jobs",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/su-transport",
-            "icon": "Database",
-            "name": "SU Transport Data",
-            "tooltip": "Special unit transport logs",
-            "children": [
-                {
-                    "nav": "/su-transport/numbers",
-                    "icon": "ListNumbers",
-                    "name": "SU Numbers Screen",
-                    "tooltip": "Show SU Numbers",
-                    "children": [],
-                    "isSelected": true
-                }
-            ],
-            "isSelected": true
-        },
-        {
-            "nav": "/audit-expiry",
-            "icon": "CalendarX",
-            "name": "Audit Expiry",
-            "tooltip": "Audit Expiry Dates",
-            "children": [
-                {
-                    "nav": "/audit-expiry/vehicles",
-                    "icon": "Truck",
-                    "name": "Vehicles",
-                    "tooltip": "Audit Expiry Dates for Vehicles",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/audit-expiry/drivers",
-                    "icon": "User",
-                    "name": "Drivers",
-                    "tooltip": "Audit Expiry Dates for Drivers",
-                    "children": [],
-                    "isSelected": true
-                },
-                {
-                    "nav": "/audit-expiry/others",
-                    "icon": "MoreHorizontal",
-                    "name": "Others",
-                    "tooltip": "Audit Expiry Dates for Others",
-                    "children": [],
-                    "isSelected": true
-                }
-            ],
-            "isSelected": true
-        },
-        {
-            "nav": "/knowledge",
-            "icon": "BookOpen",
-            "name": "Knowledge",
-            "tooltip": "Knowledge Library",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/documents",
-            "icon": "File",
-            "name": "Documents",
-            "tooltip": "Document Lists",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/tasks",
-            "icon": "SquareCheckBig",
-            "name": "Outstanding Tasks",
-            "tooltip": "Outstanding Tasks",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/reminders",
-            "icon": "CalendarClock",
-            "name": "Reminders",
-            "tooltip": "Reminders",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/notifications",
-            "icon": "Bell",
-            "name": "Notifications",
-            "tooltip": "All notifications",
-            "children": [],
-            "isSelected": true
-        },
-        {
-            "nav": "/help",
-            "icon": "Headset",
-            "name": "Help",
-            "tooltip": "Help and documentation",
-            "children": [],
-            "isSelected": true
-        }
-    ]
 // ============= TYPES =============
 type Permission = { view: boolean; create: boolean; update: boolean; delete: boolean }
 type Resource = { id: number; name: string }
@@ -393,6 +113,7 @@ type MenuItem = { nav: string; icon: string; name: string; tooltip: string; chil
 type UserData = { id: number; type: string; permissions: UserPermissions; menu: { items: MenuItem[] } }
 type ApiRole = { id: number; name: string; menu: { items: MenuItem[] }; permissions: { [key: string]: Permission } }
 type ApiResponse = { success: boolean; message: string; data: { resources: Resource[]; roles: ApiRole[] } }
+type MenuApiResponse = { role: string; menu: { items: MenuItem[] } }
 
 // ============= OPTIMIZED PERMISSION CELL COMPONENT =============
 const PermissionCell = memo(
@@ -656,14 +377,13 @@ export default function UsersPageOptimized() {
   const [dialogMode, setDialogMode] = useState<"add" | "edit">("add")
   const [newRoleName, setNewRoleName] = useState("")
   const [editingRoleId, setEditingRoleId] = useState<number | null>(null)
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(INITIAL_MENU_ITEMS)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [roleToDelete, setRoleToDelete] = useState<number | null>(null)
   const [modifiedPermissions, setModifiedPermissions] = useState<{ [key: number]: UserPermissions }>({})
   const [originalPermissions, setOriginalPermissions] = useState<{ [key: number]: UserPermissions }>({})
   const [isSaving, setIsSaving] = useState<{ [key: number]: boolean }>({})
-  console.log(originalPermissions)
   const [resources, setResources] = useState<Resource[]>([])
   const [selectedResources, setSelectedResources] = useState<string[]>([])
   const [tempSelectedResources, setTempSelectedResources] = useState<string[]>([])
@@ -720,6 +440,31 @@ export default function UsersPageOptimized() {
   }, [])
 
   // ============= API FUNCTIONS =============
+  const fetchMenuItems = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/roles/get-menu`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) throw new Error("Failed to fetch menu items")
+
+      const apiResponse: MenuApiResponse = await response.json()
+      if (!apiResponse.menu?.items) {
+        throw new Error("Invalid menu data received")
+      }
+
+      setMenuItems(apiResponse.menu.items)
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "An error occurred while fetching menu items", "error")
+      // Fallback to empty array or handle as needed
+      setMenuItems([])
+    }
+  }, [showToast, token])
+
   const fetchRoles = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -741,7 +486,8 @@ export default function UsersPageOptimized() {
       const { resources, roles } = apiResponse.data
       setResources(resources || [])
 
-      const resourceNames = resources.map((r) => r.name.toLowerCase())
+      // Set default to first 3 resources (or fewer if less than 3)
+      const resourceNames = resources.slice(0, 3).map((r) => r.name.toLowerCase())
       setSelectedResources(resourceNames)
       setTempSelectedResources(resourceNames)
 
@@ -1198,20 +944,19 @@ export default function UsersPageOptimized() {
     setEditingRoleId(role.id)
     setNewRoleName(role.type)
 
-    // Merge INITIAL_MENU_ITEMS with role.menu.items
-    const mergeMenuItems = (initial: MenuItem[], saved: MenuItem[]): MenuItem[] => {
-      return initial.map((initialItem) => {
-        const savedItem = saved.find((item) => item.nav === initialItem.nav)
+    // Merge fetched menu items with role.menu.items
+    const mergeMenuItems = (fetched: MenuItem[], saved: MenuItem[]): MenuItem[] => {
+      return fetched.map((fetchedItem) => {
+        const savedItem = saved.find((item) => item.nav === fetchedItem.nav)
         return {
-          ...initialItem,
+          ...fetchedItem,
           isSelected: savedItem ? savedItem.isSelected : false,
-          children: mergeMenuItems(initialItem.children, savedItem?.children || []),
+          children: mergeMenuItems(fetchedItem.children, savedItem?.children || []),
         }
       })
     }
 
-    const mergedMenuItems = mergeMenuItems(INITIAL_MENU_ITEMS, role.menu.items || [])
-    setMenuItems(mergedMenuItems)
+    setMenuItems((prevMenuItems) => mergeMenuItems(prevMenuItems, role.menu.items || []))
     setIsDialogOpen(true)
   }, [])
 
@@ -1292,8 +1037,9 @@ export default function UsersPageOptimized() {
 
   // ============= EFFECTS =============
   useEffect(() => {
+    fetchMenuItems()
     fetchRoles()
-  }, [fetchRoles])
+  }, [fetchMenuItems, fetchRoles])
 
   useEffect(() => {
     return () => {
@@ -1387,7 +1133,7 @@ export default function UsersPageOptimized() {
                 onClick={() => {
                   setDialogMode("add")
                   setNewRoleName("")
-                  setMenuItems(INITIAL_MENU_ITEMS)
+                  fetchMenuItems() // Refresh menu items for Add Role
                   setIsDialogOpen(true)
                 }}
               />
@@ -1504,7 +1250,11 @@ export default function UsersPageOptimized() {
                       Menu Configuration (Drag or use arrow keys to reorder)
                     </h3>
                     <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
-                      {renderMenuItems(menuItems)}
+                      {menuItems.length > 0 ? (
+                        renderMenuItems(menuItems)
+                      ) : (
+                        <p className="text-gray-500 text-center">No menu items available</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1515,7 +1265,7 @@ export default function UsersPageOptimized() {
                       setIsDialogOpen(false)
                       setDialogMode("add")
                       setNewRoleName("")
-                      setMenuItems(INITIAL_MENU_ITEMS)
+                      fetchMenuItems() // Reset to fetched menu items
                       setEditingRoleId(null)
                     }}
                     className="w-full sm:w-auto"

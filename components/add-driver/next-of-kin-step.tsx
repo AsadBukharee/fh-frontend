@@ -12,34 +12,48 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { useStepper } from "@/components/ui/stepper"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 
 interface NextOfKinStepProps {
   driverId: number | null
   setNextOfKinData: (data: any) => void
-  user_id:number
+  user_id: number
+  initialNextOfKinData?: any // Optional prop for pre-populating data
 }
 
-export function NextOfKinStep({ user_id,driverId, setNextOfKinData }: NextOfKinStepProps) {
+export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNextOfKinData }: NextOfKinStepProps) {
   const { goToNextStep, goToPreviousStep } = useStepper()
-  const cookies=useCookies();
+  const cookies = useCookies()
 
-  const [formData, setFormData] = useState({
-    kin_name: "",
-    kin_contact: "",
-    kin_relationship: "",
-    kin_address: "",
-    kin_email: "",
+  // Initialize formData with data from localStorage or initialNextOfKinData, if provided
+  const [formData, setFormData] = useState(() => {
+    const savedData = localStorage.getItem(`nextOfKin_${driverId}`)
+    return savedData
+      ? JSON.parse(savedData)
+      : initialNextOfKinData || {
+          kin_name: "",
+          kin_contact: "",
+          kin_relationship: "",
+          kin_address: "",
+          kin_email: "",
+        }
   })
 
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
+  // Persist formData to localStorage whenever it changes
+  useEffect(() => {
+    if (driverId) {
+      localStorage.setItem(`nextOfKin_${driverId}`, JSON.stringify(formData))
+    }
+  }, [formData, driverId])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    setFormData((prev: any) => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,13 +67,20 @@ export function NextOfKinStep({ user_id,driverId, setNextOfKinData }: NextOfKinS
       return
     }
 
+    const token = cookies.get('access_token')
+    if (!token) {
+      setError("Authentication token is missing. Please log in again.")
+      setLoading(false)
+      return
+    }
+
     const payload = {
       next_of_kin_name: formData.kin_name,
       next_of_kin_contact: formData.kin_contact,
       next_of_kin_relationship: formData.kin_relationship,
       next_of_kin_address: formData.kin_address,
       next_of_kin_email: formData.kin_email,
-      user_id:user_id,
+      user_id: user_id,
       driver_id: driverId,
     }
 
@@ -68,20 +89,28 @@ export function NextOfKinStep({ user_id,driverId, setNextOfKinData }: NextOfKinS
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get('access_token')}`,
-
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       })
 
+      const responseData = await res.json()
+      console.log("API Response:", responseData) // Debug the response
+
       if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData?.detail || "Submission failed.")
+        throw new Error(responseData?.detail || "Submission failed.")
       }
 
+      // Update parent state with the submitted data
       setNextOfKinData(payload)
+
+      // Optionally, clear localStorage after successful submission
+      localStorage.removeItem(`nextOfKin_${driverId}`)
+
+      // Proceed to the next step
       goToNextStep()
     } catch (err: any) {
+      console.error("Error:", err) // Debug the error
       setError(err.message || "Something went wrong.")
     } finally {
       setLoading(false)

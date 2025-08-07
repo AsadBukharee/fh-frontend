@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
+import { useToast } from "@/app/Context/ToastContext";
 
 // Define interfaces
 interface OperationHour {
@@ -72,22 +73,55 @@ export default function SiteGrid() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const cookies = useCookies();
-  const token = cookies.get('access_token');
+  const token = cookies.get("access_token");
+  const { showToast } = useToast(); // Placeholder: Ensure you have a toast hook or remove this
 
   // Fetch sites data from API
   const fetchSites = async () => {
+    if (!token) {
+      setError("No access token found. Please log in.");
+      setLoading(false);
+      showToast(
+        "No access token found. Please log in.","error",
+      );
+      return;
+    }
+    setLoading(true);
+    setError(null);
     try {
       const response = await fetch(`${API_URL}/api/sites/`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+         
+        },
       });
-      if (!response.ok) throw new Error("Failed to fetch sites");
+      if (response.status === 401) {
+        setError("Session expired. Please log in again.");
+        setLoading(false);
+        showToast(
+         "Session expired. Please log in again.","error"
+          
+       );
+        // Optionally redirect to login
+        // window.location.href = '/login';
+        return;
+      }
+      if (!response.ok) throw new Error(`Failed to fetch sites: ${response.status}`);
       const data: Site[] = await response.json();
-      setSites(data);
-      setLoading(false);
+      console.log("Fetched sites:", data); // Debug API response
+      setSites([...data]); // Ensure new array reference for state update
+      showToast( 
+     "Sites refreshed successfully","success"
+     );
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      console.error("Fetch error:", err);
+      const errorMessage = err instanceof Error ? err.message : "An error occurred";
+      setError(errorMessage);
+      showToast(
+       errorMessage, "error",
+  
+      );
+    } finally {
       setLoading(false);
     }
   };
@@ -96,7 +130,7 @@ export default function SiteGrid() {
     fetchSites();
   }, []);
 
-  if (loading) {
+  if (loading && sites.length === 0) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50">
         <div className="flex flex-col items-center gap-4">
@@ -107,7 +141,20 @@ export default function SiteGrid() {
     );
   }
 
-  if (error) return <div className="p-8 text-red-600">Error: {error}</div>;
+  if (error) {
+    return (
+      <div className="p-8 text-red-600">
+        Error: {error}
+        <button
+          type="button"
+          className="ml-4 p-2 text-blue-600 underline"
+          onClick={fetchSites}
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -118,11 +165,14 @@ export default function SiteGrid() {
             <p className="text-sm text-gray-500">Browse all available sites</p>
           </div>
           <div className="flex gap-4 items-center">
-            <div className="cursor-pointer" onClick={() => {
-              fetchSites();
-            }}>
-              <RefreshCcw className="w-4 h-4 text-gray-500" />
-            </div>
+            <button
+              type="button"
+              disabled={loading}
+              className={`p-2 ${loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              onClick={fetchSites}
+            >
+              <RefreshCcw className={`w-4 h-4 text-gray-500 ${loading ? "animate-spin" : ""}`} />
+            </button>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <GradientButton text="Add Site" Icon={Plus} />
@@ -158,10 +208,13 @@ export default function SiteGrid() {
                     >
                       {site.notes?.includes("Temporarily reduced") ? "On Hold" : "Active"}
                     </Badge>
-                    <div className="flex items-center cursor-pointer bg-rose w-6 justify-center rounded-full h-6 gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
+                    <div className="flex items-center cursor-pointer bg-rose w-6 justify-center rounded-full h-6 gap-1">
+
                           <span className="text-white text-xs font-medium">{site.warnings.length}</span>
+                    </div>
+
                         </TooltipTrigger>
                         <TooltipContent className="bg-white border-0 text-black">
                           <ul className="list-disc border-0 pl-4">
@@ -171,7 +224,6 @@ export default function SiteGrid() {
                           </ul>
                         </TooltipContent>
                       </Tooltip>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -242,7 +294,7 @@ export default function SiteGrid() {
 
               <div className="text-xs text-gray-500 mt-4 px-4">
                 <p className="text-black text-[13px] font-semibold">
-                  Position: {site.contact_position || "N/A"}
+                  Contact Position: {site.contact_position || "N/A"}
                 </p>
                 <p className="mt-1">Created By: {site.created_by}</p>
                 <p className="mt-1">

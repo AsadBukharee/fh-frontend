@@ -28,15 +28,7 @@ const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => 
   return (
     <div className="flex items-center justify-center bg-background">
       <div className="w-full max-w-4xl relative">
-        {/* Cancel Button */}
-        <Button
-          variant="outline"
-          className="absolute top-4 right-4"
-          onClick={() => onOpenChange(false)}
-        >
-          <X className="w-4 h-4 mr-2" />
-          Cancel
-        </Button>
+     
         <Stepper totalSteps={stepLabels.length} initialStep={0}>
           <StepperTabs labels={stepLabels} />
           <StepperContent>
