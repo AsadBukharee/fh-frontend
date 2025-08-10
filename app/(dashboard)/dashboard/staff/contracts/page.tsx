@@ -626,9 +626,9 @@ const ShiftManagement = () => {
       setSaving(true)
       try {
         const response = await fetch(
-          `${API_URL}/api/staff/shifts/${shift.id}/add-to-contract/${contract}/`,
+          `${API_URL}/api/staff/shifts/${shift.id}/`,
           {
-            method: "POST",
+            method: "PUT",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${cookies.get("access_token")}`,
