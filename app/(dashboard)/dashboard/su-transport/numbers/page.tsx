@@ -1,94 +1,93 @@
-
-"use client";
-
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, ChevronLeft, ChevronRight, Filter, Download, Loader2, AlertCircle } from "lucide-react";
-import API_URL from "@/app/utils/ENV";
-import { useCookies } from "next-client-cookies";
-import { useToast } from "@/app/Context/ToastContext";
+"use client"
+import type React from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Search, ChevronLeft, ChevronRight, Filter, Download, Loader2, AlertCircle } from "lucide-react"
+import API_URL from "@/app/utils/ENV"
+import { useCookies } from "next-client-cookies"
+import { useToast } from "@/app/Context/ToastContext"
 
 // Interface for the Number data
 interface NumberData {
-  id: number;
+  id: number
   location: {
-    id: number;
-    name: string;
-    latitude: string;
-    longitude: string;
-    zip_code: string;
-    address: string;
-    city: string;
-    state: string;
-    country: string;
-    created_at: string;
-    updated_at: string;
-  };
-  location_name: string;
+    id: number
+    name: string
+    latitude: string
+    longitude: string
+    zip_code: string
+    address: string
+    city: string
+    state: string
+    country: string
+    created_at: string
+    updated_at: string
+  }
+  location_name: string
   vehicle: {
-    id: number;
-    registration_number: string;
-    vehicles_type_name: string;
+    id: number
+    registration_number: string
+    vehicles_type_name: string
     site_allocated: {
-      id: number;
-      name: string;
-      status: string;
-      image: string;
-    };
-  };
-  vehicle_registration: string;
-  in_count: number;
-  out_count: number;
-  spillover: number;
-  created_at: string;
-  updated_at: string;
+      id: number
+      name: string
+      status: string
+      image: string
+    }
+  }
+  vehicle_registration: string
+  in_count: number
+  out_count: number
+  spillover: number
+  created_at: string
+  updated_at: string
 }
 
 // Interface for location data
 interface Location {
-  id: number;
-  name: string;
-  latitude: string;
-  longitude: string;
-  zip_code: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  created_at: string;
-  updated_at: string;
+  id: number
+  name: string
+  latitude: string
+  longitude: string
+  zip_code: string
+  address: string
+  city: string
+  state: string
+  country: string
+  created_at: string
+  updated_at: string
 }
 
 // Interface for pagination
 interface Pagination {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  current_page: number;
-  total_pages: number;
-  page_size: number;
+  count: number
+  next: string | null
+  previous: string | null
+  current_page: number
+  total_pages: number
+  page_size: number
 }
 
 // Interface for filters
 interface Filters {
-  date_from: string;
-  location_name: string;
-  in_count_min: number;
-  spillover_min: number;
-  page: number;
-  page_size: number;
+  date_from: string
+  location_name: string
+  in_count_min: number
+  spillover_min: number
+  page: number
+  page_size: number
 }
 
 export default function NumbersPage() {
-  const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
-  const [numbers, setNumbers] = useState<NumberData[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [locationsLoading, setLocationsLoading] = useState(false);
+  const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
+  const [numbers, setNumbers] = useState<NumberData[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
   const [pagination, setPagination] = useState<Pagination>({
     count: 0,
     next: null,
@@ -96,23 +95,23 @@ export default function NumbersPage() {
     current_page: 1,
     total_pages: 1,
     page_size: 5,
-  });
+  })
   const [filters, setFilters] = useState<Filters>({
     date_from: "2024-01-01",
-    location_name: "London",
+    location_name: "", // Initialize as empty, will be set by fetchLocations
     in_count_min: 10,
     spillover_min: 2,
     page: 1,
     page_size: 5,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const { showToast } = useToast();
-  const cookies = useCookies();
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const { showToast } = useToast()
+  const cookies = useCookies()
 
   const fetchNumbers = useCallback(async () => {
-    setLoading(true);
+    setLoading(true)
     try {
       const query = new URLSearchParams({
         ...filters,
@@ -121,102 +120,127 @@ export default function NumbersPage() {
         page: filters.page.toString(),
         page_size: filters.page_size.toString(),
         ...(searchQuery && { q: encodeURIComponent(searchQuery) }),
-      }).toString();
+      }).toString()
 
       const response = await fetch(`${API_URL}/api/su/?${query}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
-      });
+      })
 
       if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error");
-        return;
+        showToast("Session expired. Please log in again.", "error")
+        return
       }
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        throw new Error(`HTTP error! Status: ${response.status}`)
       }
-
-      const data = await response.json();
+      const data = await response.json()
       if (data.success) {
-        setNumbers(data.data.results);
-        setPagination(data.data.pagination);
-        setError(null);
+        setNumbers(data.data.results)
+        setPagination(data.data.pagination)
+        setError(null)
       } else {
-        setError(data.message || "Failed to fetch numbers");
-        showToast(data.message || "Failed to fetch numbers", "error");
+        setError(data.message || "Failed to fetch numbers")
+        showToast(data.message || "Failed to fetch numbers", "error")
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching numbers";
-      setError(errorMessage);
-      showToast(errorMessage, "error");
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching numbers"
+      setError(errorMessage)
+      showToast(errorMessage, "error")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [cookies, showToast, filters, searchQuery]);
+  }, [cookies, showToast, filters, searchQuery])
 
   const fetchLocations = useCallback(async () => {
-    setLocationsLoading(true);
+    setLocationsLoading(true)
     try {
       const response = await fetch(`${API_URL}/api/locations/`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
-      });
-
+      })
       if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error");
-        return;
+        showToast("Session expired. Please log in again.", "error")
+        return
       }
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        throw new Error(`HTTP error! Status: ${response.status}`)
       }
-
-      const data = await response.json();
+      const data = await response.json()
       if (data.success) {
-        setLocations(data.data);
+        setLocations(data.data)
+        // Default select the first location if available
+        if (data.data.length > 0) {
+          setFilters((prev) => ({
+            ...prev,
+            location_name: data.data[0].name,
+            page: 1, // Reset to first page when location changes
+          }))
+        } else {
+          // If no locations, ensure the filter is cleared
+          setFilters((prev) => ({
+            ...prev,
+            location_name: "",
+            page: 1,
+          }))
+        }
       } else {
-        showToast(data.message || "Failed to fetch locations", "error");
-        setLocations([]);
+        showToast(data.message || "Failed to fetch locations", "error")
+        setLocations([])
+        setFilters((prev) => ({
+          ...prev,
+          location_name: "",
+          page: 1,
+        }))
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching locations";
-      showToast(errorMessage, "error");
-      setLocations([]);
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching locations"
+      showToast(errorMessage, "error")
+      setLocations([])
+      setFilters((prev) => ({
+        ...prev,
+        location_name: "",
+        page: 1,
+      }))
     } finally {
-      setLocationsLoading(false);
+      setLocationsLoading(false)
     }
-  }, [cookies, showToast]);
+  }, [cookies, showToast])
 
   useEffect(() => {
-    fetchNumbers();
-    fetchLocations();
-  }, [fetchNumbers, fetchLocations]);
+    fetchLocations()
+  }, [fetchLocations])
+
+  // Fetch numbers whenever filters change (including initial location set by fetchLocations)
+  useEffect(() => {
+    fetchNumbers()
+  }, [fetchNumbers, filters]) // Added filters to dependency array
 
   const handleFilterChange = (name: string, value: string | number) => {
     setFilters((prev) => ({
       ...prev,
       [name]: value,
       page: 1, // Reset to first page when filters change
-    }));
-  };
+    }))
+  }
 
   const handlePageChange = (newPage: number) => {
-    setFilters((prev) => ({ ...prev, page: newPage }));
-  };
-
+    setFilters((prev) => ({ ...prev, page: newPage }))
+  }
   const handleMouseMove = (key: string) => (e: React.MouseEvent) => {
-    const button = buttonRefs.current[key];
+    const button = buttonRefs.current[key]
     if (button) {
-      const rect = button.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      button.style.setProperty("--mouse-x", `${x}%`);
-      button.style.setProperty("--mouse-y", `${y}%`);
+      const rect = button.getBoundingClientRect()
+      const x = ((e.clientX - rect.left) / rect.width) * 100
+      const y = ((e.clientY - rect.top) / rect.height) * 100
+      button.style.setProperty("--mouse-x", `${x}%`)
+      button.style.setProperty("--mouse-y", `${y}%`)
     }
-  };
+  }
 
   return (
     <div className="p-6 bg-white">
@@ -245,7 +269,6 @@ export default function NumbersPage() {
           </div>
         </div>
       </header>
-
       <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <Label htmlFor="date_from" className="block text-sm font-medium text-gray-700">
@@ -280,7 +303,7 @@ export default function NumbersPage() {
               </SelectTrigger>
               <SelectContent>
                 {locations.length === 0 ? (
-                  <SelectItem value="none" disabled>
+                  <SelectItem value="" disabled>
                     No locations available
                   </SelectItem>
                 ) : (
@@ -323,16 +346,15 @@ export default function NumbersPage() {
           />
         </div>
       </div>
-
       <div className="mb-6">
         <div
           className="relative w-80 gradient-border cursor-glow"
           onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 100;
-            const y = ((e.clientY - rect.top) / rect.height) * 100;
-            e.currentTarget.style.setProperty("--mouse-x", `${x}%`);
-            e.currentTarget.style.setProperty("--mouse-y", `${y}%`);
+            const rect = e.currentTarget.getBoundingClientRect()
+            const x = ((e.clientX - rect.left) / rect.width) * 100
+            const y = ((e.clientY - rect.top) / rect.height) * 100
+            e.currentTarget.style.setProperty("--mouse-x", `${x}%`)
+            e.currentTarget.style.setProperty("--mouse-y", `${y}%`)
           }}
         >
           <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
@@ -344,7 +366,6 @@ export default function NumbersPage() {
           />
         </div>
       </div>
-
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin mr-2" />
@@ -363,8 +384,8 @@ export default function NumbersPage() {
                 <TableHead className="text-gray-600 font-medium">ID</TableHead>
                 <TableHead className="text-gray-600 font-medium">Location</TableHead>
                 <TableHead className="text-gray-600 font-medium">Vehicle</TableHead>
-                <TableHead className="text-gray-600 font-medium">In Count</TableHead>
-                <TableHead className="text-gray-600 font-medium">Out Count</TableHead>
+                <TableHead className="text-gray-600 font-medium">In Bound</TableHead>
+                <TableHead className="text-gray-600 font-medium">Out Bound</TableHead>
                 <TableHead className="text-gray-600 font-medium">Spillover</TableHead>
                 <TableHead className="text-gray-600 font-medium">Created At</TableHead>
               </TableRow>
@@ -391,7 +412,6 @@ export default function NumbersPage() {
           </Table>
         </div>
       )}
-
       <div className="flex items-center justify-between mt-6">
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-600">Page</span>
@@ -403,7 +423,7 @@ export default function NumbersPage() {
         <div className="flex items-center space-x-2">
           <Button
             ref={(el) => {
-              buttonRefs.current["prev"] = el;
+              buttonRefs.current["prev"] = el
             }}
             variant="ghost"
             size="sm"
@@ -417,7 +437,7 @@ export default function NumbersPage() {
           </Button>
           <Button
             ref={(el) => {
-              buttonRefs.current["page1"] = el;
+              buttonRefs.current["page1"] = el
             }}
             size="sm"
             className="bg-red-600 hover:bg-red-700 text-white ripple cursor-glow"
@@ -427,7 +447,7 @@ export default function NumbersPage() {
           </Button>
           <Button
             ref={(el) => {
-              buttonRefs.current["next"] = el;
+              buttonRefs.current["next"] = el
             }}
             variant="ghost"
             size="sm"
@@ -442,5 +462,5 @@ export default function NumbersPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }
