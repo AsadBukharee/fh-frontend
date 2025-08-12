@@ -496,7 +496,7 @@ const VehicleDetailsPanel: React.FC<{
               <span className="text-muted-foreground">Fuel Level</span>
               <span className="font-semibold">{vehicle.fuel}%</span>
             </div>
-            <Progress value={vehicle.fuel} className="h-2" />
+            <Progress bgcolor="bg-red-600" value={vehicle.fuel} className="h-2" />
           </div>
 
           <div>
@@ -504,7 +504,7 @@ const VehicleDetailsPanel: React.FC<{
               <span className="text-muted-foreground">Battery</span>
               <span className="font-semibold">{vehicle.batteryLevel}%</span>
             </div>
-            <Progress value={vehicle.batteryLevel} className="h-2" />
+            <Progress bgcolor="bg-red-600"  value={vehicle.batteryLevel} className="h-2" />
           </div>
         </div>
 
