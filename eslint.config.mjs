@@ -13,9 +13,17 @@ const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
 
   {
-    files: ["**/*.ts", "**/*.tsx"], // Optional: target TypeScript files
+    files: ["**/*.ts", "**/*.tsx"],
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: __dirname,
+      },
+    },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      "no-unused-vars": "warn", // ✅ highlights unused variables
+      "@typescript-eslint/no-unused-vars": ["warn"], // ✅ better with TS
     },
   },
 ];

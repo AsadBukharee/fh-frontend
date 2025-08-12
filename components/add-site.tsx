@@ -1,20 +1,20 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Save, MapPin, User, Building2, Car, Loader2, ImageIcon } from "lucide-react"
+import { Save, MapPin, User, Building2, Car, Loader2 } from "lucide-react"
 import { useToast } from "@/app/Context/ToastContext"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
+import ImageUploader from "./Media/UploadImage"
+// import ImageUploader from "./ImageUploader" // Import the ImageUploader component
 
 export default function AddSiteForm() {
-  // Add your actual API configuration
   const { showToast } = useToast()
   const cookies = useCookies()
   const token = cookies.get("access_token")
@@ -42,11 +42,16 @@ export default function AddSiteForm() {
     setForm({ ...form, [name]: value })
   }
 
+  // Callback function to handle successful image upload
+  const handleImageUpload = (url: string) => {
+    setForm({ ...form, image: url })
+    showToast("Image uploaded successfully!", "success")
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Prepare the payload for the API
     const payload = {
       name: form.name,
       postcode: form.postcode,
@@ -59,6 +64,7 @@ export default function AddSiteForm() {
       contact_phone: form.contact_phone,
       contact_email: form.contact_email,
       number_of_allocated_vehicles: Number.parseInt(form.number_of_allocated_vehicles.toString(), 10),
+      image: form.image || undefined, // Include image URL in payload
     }
 
     try {
@@ -79,7 +85,6 @@ export default function AddSiteForm() {
       showToast("Site added successfully!", "success")
       console.log("API response:", result)
 
-      // Reset form after successful submission
       setForm({
         name: "",
         image: "",
@@ -105,10 +110,7 @@ export default function AddSiteForm() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Add New Site</h1>
-        <p className="text-muted-foreground">Fill in the details below to add a new site to your system</p>
-      </div>
+     
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
@@ -133,18 +135,9 @@ export default function AddSiteForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="image">Image URL</Label>
-                <div className="relative">
-                  <ImageIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="image"
-                    name="image"
-                    value={form.image}
-                    onChange={handleChange}
-                    placeholder="https://example.com/image.jpg"
-                    className="pl-10"
-                  />
-                </div>
+                <Label>Image Upload</Label>
+                <ImageUploader onUploadSuccess={handleImageUpload} />
+              
               </div>
             </div>
             <div className="space-y-2">

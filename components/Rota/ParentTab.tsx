@@ -1,4 +1,3 @@
-
 "use client"
 import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -121,9 +120,6 @@ interface TempShiftSelection {
   };
 }
 
-
-
-
 // Memoized ShiftCell component
 const ShiftCell = memo(({
   shift,
@@ -184,7 +180,7 @@ const ShiftCell = memo(({
             </div>
           )}
         </PopoverTrigger>
-        <PopoverContent className="w-80 p-2">
+        <PopoverContent className="w-80 max-h-[200px] overflow-y-auto p-2">
           <div className="space-y-1">
             <div className="flex items-center justify-between mb-2 px-2">
               <div className="text-xs font-medium text-gray-700">Available Shifts ({availableShifts.length})</div>
@@ -264,7 +260,6 @@ const EmployeeRow = memo(
     onClearShift,
     onEditShift,
     onStartRota,
-
   }: {
     employee: Employee;
     userIndex: number;
@@ -274,7 +269,6 @@ const EmployeeRow = memo(
     onClearShift: (userIndex: number, shiftIndex: number) => void;
     onEditShift: (shift: EmployeeShift) => void;
     onStartRota: (employeeId: number) => void;
-
   }) => {
     const handleSelectShift = useCallback(
       (shiftIndex: number, shift: EmployeeShift) => {
@@ -292,7 +286,6 @@ const EmployeeRow = memo(
       onStartRota(employee.id);
     }, [employee.id, onStartRota]);
 
- 
     return (
       <TableRow key={employee.id}>
         <TableCell className="w-[200px] min-w-[200px]">
@@ -335,7 +328,6 @@ const EmployeeRow = memo(
           <Button
             size="sm"
             onClick={handleStartRota}
-            // disabled={ !hasChanges }
             style={{
               background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
               width: 'auto',
@@ -377,10 +369,8 @@ const ParentTab: React.FC = () => {
   const [showRotaModal, setShowRotaModal] = useState<boolean>(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
   const [selectedWeekForApply, setSelectedWeekForApply] = useState<string>("week1");
-  const [applyToAll, setApplyToAll] = useState<boolean>(false);
   const [generatingRota, setGeneratingRota] = useState<boolean>(false);
   const [rotaGenerated, setRotaGenerated] = useState<{ [key: number]: boolean }>({});
-  console.log(generatingRota, rotaGenerated);
   const [showEditShiftModal, setShowEditShiftModal] = useState<boolean>(false);
   const [selectedShift, setSelectedShift] = useState<EmployeeShift | null>(null);
   const [editShiftForm, setEditShiftForm] = useState({
@@ -613,16 +603,18 @@ const ParentTab: React.FC = () => {
             const apiDayName = dayMapping[dayName as keyof typeof dayMapping];
             if (shift && shift !== "dropdown" && shift !== null) {
               rotation[weekKey as keyof typeof rotation][apiDayName] = shift.shiftId;
+            } else {
+              rotation[weekKey as keyof typeof rotation][apiDayName] = 0; // Assign 0 for unassigned shifts
             }
           });
         });
         const payload = {
           userid: employee.id,
-          apply_to_all: true,
+          apply_to_all: selectedWeekForApply === "all",
           rotation,
         };
         console.log("Generating rota with payload:", payload);
-        const response = await fetch(`${API_URL}/api/rota/parent-rota/generate/`, {
+        const response = await fetch(`${API_URL}/api/rota/parent-rota/save/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -644,7 +636,7 @@ const ParentTab: React.FC = () => {
         setGeneratingRota(false);
       }
     },
-    [token, fetchRota, tempShiftSelections],
+    [token, fetchRota, tempShiftSelections, selectedWeekForApply],
   );
 
   const handleStartRota = useCallback(
@@ -779,15 +771,26 @@ const ParentTab: React.FC = () => {
     const employee = employees.find((emp) => emp.id === selectedEmployeeId);
     if (!employee) return;
 
-    const sourceWeekShifts =
-      tempShiftSelections[selectedEmployeeId]?.[selectedWeekForApply] ||
-      employee.allWeeksShifts[selectedWeekForApply as keyof typeof employee.allWeeksShifts];
+    let sourceWeekShifts: (EmployeeShift | "dropdown" | null)[];
+    if (selectedWeekForApply === "all") {
+      sourceWeekShifts =
+        tempShiftSelections[selectedEmployeeId]?.[selectedWeek] ||
+        employee.allWeeksShifts[selectedWeek as keyof typeof employee.allWeeksShifts];
+    } else {
+      sourceWeekShifts =
+        tempShiftSelections[selectedEmployeeId]?.[selectedWeekForApply] ||
+        employee.allWeeksShifts[selectedWeekForApply as keyof typeof employee.allWeeksShifts];
+    }
+
+    if (!sourceWeekShifts || sourceWeekShifts.every((shift) => shift === null || shift === "dropdown")) {
+      alert("Please select shifts for the chosen week before applying.");
+      return;
+    }
 
     console.log("Applying week pattern:", {
       employeeId: selectedEmployeeId,
       sourceWeek: selectedWeekForApply,
       sourceShifts: sourceWeekShifts,
-      applyToAll,
     });
 
     setTempShiftSelections((prev) => {
@@ -797,7 +800,7 @@ const ParentTab: React.FC = () => {
         week3: employee.allWeeksShifts.week3,
         week4: employee.allWeeksShifts.week4,
       };
-      const updatedSelections = applyToAll
+      const updatedSelections = selectedWeekForApply === "all"
         ? {
             week1: [...sourceWeekShifts],
             week2: [...sourceWeekShifts],
@@ -814,13 +817,9 @@ const ParentTab: React.FC = () => {
       };
     });
 
-    setShowRotaModal(false);
-    setSelectedEmployeeId(null);
-    setApplyToAll(false);
-
     const updatedEmployee = {
       ...employee,
-      allWeeksShifts: applyToAll
+      allWeeksShifts: selectedWeekForApply === "all"
         ? {
             week1: [...sourceWeekShifts],
             week2: [...sourceWeekShifts],
@@ -833,10 +832,14 @@ const ParentTab: React.FC = () => {
           },
     };
 
-    if (hasAll28DaysShifts(updatedEmployee)) {
+    setShowRotaModal(false);
+    setSelectedEmployeeId(null);
+    setSelectedWeekForApply("week1");
+
+    if (selectedWeekForApply === "all" || hasAll28DaysShifts(updatedEmployee)) {
       await generateRota(updatedEmployee);
     }
-  }, [selectedEmployeeId, employees, tempShiftSelections, selectedWeekForApply, applyToAll, generateRota, hasAll28DaysShifts]);
+  }, [selectedEmployeeId, employees, tempShiftSelections, selectedWeekForApply, selectedWeek, generateRota, hasAll28DaysShifts]);
 
   useEffect(() => {
     if (token) {
@@ -935,8 +938,6 @@ const ParentTab: React.FC = () => {
                     onClearShift={clearShift}
                     onEditShift={openEditShiftModal}
                     onStartRota={handleStartRota}
-                   
-                 
                   />
                 ))
               ) : (
@@ -960,13 +961,12 @@ const ParentTab: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Please select all 28 days (4 weeks) before starting the rota. You can select a week pattern and apply it
-              to all weeks.
+              Please select a week pattern to apply to the rota. Choose a specific week or Select All to apply the pattern to all weeks.
             </p>
             <div className="space-y-3">
               <div className="text-sm font-medium text-gray-700">Select Week Pattern:</div>
               <div className="flex flex-wrap gap-2">
-                {["week1", "week2", "week3", "week4"].map((week) => (
+                {["week1", "week2", "week3", "week4", "all"].map((week) => (
                   <Badge
                     key={week}
                     variant={selectedWeekForApply === week ? "default" : "outline"}
@@ -977,20 +977,10 @@ const ParentTab: React.FC = () => {
                     }`}
                     onClick={() => setSelectedWeekForApply(week)}
                   >
-                    Week {week.slice(-1)}
+                    {week === "all" ? "Select All" : `Week ${week.slice(-1)}`}
                   </Badge>
                 ))}
               </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="apply-all"
-                checked={applyToAll}
-                onCheckedChange={(checked) => setApplyToAll(checked as boolean)}
-              />
-              <label htmlFor="apply-all" className="text-sm text-gray-700 cursor-pointer">
-                Apply this pattern to all 4 weeks
-              </label>
             </div>
           </div>
           <DialogFooter className="flex gap-2">
@@ -1005,6 +995,8 @@ const ParentTab: React.FC = () => {
                 height: 'auto',
               }}
               className="px-3 cursor-pointer py-2"
+              //@ts-expect-error ab thk ha
+              disabled={!selectedWeekForApply || selectedWeekForApply === "all" && !tempShiftSelections[selectedEmployeeId]}
             >
               Apply Pattern
             </Button>

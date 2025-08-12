@@ -123,3 +123,130 @@
   --top-orange: rgba(242, 156, 43, 1);
   --color-primary: #6D1C7D;
 }
+/* Enhanced styling for map markers */
+.custom-vehicle-icon {
+  background: transparent;
+  border: none;
+}
+
+.vehicle-marker {
+  background: white;
+  border-radius: 50%;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.vehicle-marker:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.vehicle-marker.active {
+  animation: pulse-green 2s infinite;
+}
+
+.vehicle-marker.maintenance {
+  animation: pulse-yellow 2s infinite;
+}
+
+.vehicle-marker.selected {
+  transform: scale(1.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border: 2px solid #3b82f6;
+}
+
+@keyframes pulse-green {
+  0% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes pulse-yellow {
+  0% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.custom-site-icon {
+  background: transparent;
+  border: none;
+}
+
+.site-marker {
+  background: white;
+  border-radius: 50% 50% 50% 0;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transform: rotate(-45deg);
+}
+
+.site-marker svg {
+  transform: rotate(45deg);
+}
+
+/* Cluster styling */
+.marker-cluster-small {
+  background-color: rgba(59, 130, 246, 0.6);
+}
+
+.marker-cluster-small div {
+  background-color: rgba(59, 130, 246, 0.8);
+}
+
+.marker-cluster-medium {
+  background-color: rgba(245, 158, 11, 0.6);
+}
+
+.marker-cluster-medium div {
+  background-color: rgba(245, 158, 11, 0.8);
+}
+
+.marker-cluster-large {
+  background-color: rgba(239, 68, 68, 0.6);
+}
+
+.marker-cluster-large div {
+  background-color: rgba(239, 68, 68, 0.8);
+}
+
+/* Cluster marker styling */
+.custom-cluster-icon {
+  background: transparent;
+  border: none;
+}
+
+.cluster-marker {
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  text-align: center;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.cluster-marker:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Leaflet popup customization */
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+  margin: 12px 16px;
+  line-height: 1.4;
+}
+
+/* Dark mode adjustments */
+.dark .leaflet-container {
+  filter: hue-rotate(180deg) invert(1);
+}
+
+.dark .leaflet-control-container {
+  filter: hue-rotate(180deg) invert(1);
+}

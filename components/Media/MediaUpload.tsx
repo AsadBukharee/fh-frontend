@@ -2,44 +2,57 @@
 
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import React, { useState, ChangeEvent, useEffect } from "react";
-import { CheckCircle, Upload } from "lucide-react";
+import React, { useState, ChangeEvent } from "react";
+import { CheckCircle } from "lucide-react";
 
 interface UploadResponse {
   success: boolean;
   message: string;
   data: {
     url: string;
-    thumbnail_url: string;
     original_filename: string;
+    mime_type: string;
+    size: number;
   };
 }
 
 interface Props {
   onUploadSuccess: (url: string) => void;
+  accept?: string; // e.g., "image/*,application/pdf"
+  maxSize?: number; // in bytes
+  id?: string; // For accessibility
 }
 
-export default function ImageUploader({ onUploadSuccess }: Props) {
+export default function FileUploader({ onUploadSuccess, accept = "image/*,application/pdf", maxSize = 5 * 1024 * 1024, id = "file-upload" }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const cookies = useCookies();
-  const inputId = "image-upload";
+  const token = cookies.get("access_token");
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
+    if (!file) return;
 
-      setError(null);
-      setUploadSuccess(false);
-      await handleUpload(file);
+    // Validate file size
+    if (maxSize && file.size > maxSize) {
+      setError(`File size exceeds ${maxSize / (1024 * 1024)}MB limit.`);
+      return;
     }
+
+    setSelectedFile(file);
+    setError(null);
+    setUploadSuccess(false);
+    await handleUpload(file);
   };
 
   const handleUpload = async (file: File) => {
+    if (!token) {
+      setError("Authentication token missing. Please log in.");
+      return;
+    }
+
     setUploading(true);
     setError(null);
 
@@ -47,10 +60,10 @@ export default function ImageUploader({ onUploadSuccess }: Props) {
     formData.append("file", file);
 
     try {
-      const res = await fetch(`${API_URL}/media/upload_image/`, {
+      const res = await fetch(`${API_URL}/media/upload_media/`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${cookies.get("access_token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
@@ -60,10 +73,10 @@ export default function ImageUploader({ onUploadSuccess }: Props) {
       }
 
       const result: UploadResponse = await res.json();
-
       if (result.success) {
         onUploadSuccess(result.data.url);
         setUploadSuccess(true);
+        setSelectedFile(null); // Reset after successful upload
       } else {
         setError(result.message || "Upload failed. Try again.");
       }
@@ -76,13 +89,13 @@ export default function ImageUploader({ onUploadSuccess }: Props) {
   };
 
   return (
-    <div className="space-y-4 w-full max-w-md ">
+    <div className="space-y-4 w-full max-w-md">
       <div className="relative">
         <div className="relative flex items-center">
           <input
-            id={inputId}
+            id={id}
             type="file"
-            accept="image/*"
+            accept={accept}
             onChange={handleFileChange}
             className="block w-full text-sm text-gray-500
               file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0
@@ -90,8 +103,8 @@ export default function ImageUploader({ onUploadSuccess }: Props) {
               file:text-orange-700 hover:file:bg-orange-100
               disabled:opacity-50 disabled:cursor-not-allowed
               focus:outline-none focus:ring-2 focus:ring-orange-500"
-            disabled={uploading}
-            aria-describedby={error ? "error-message" : undefined}
+            disabled={uploading || !token}
+            aria-describedby={error ? `${id}-error` : undefined}
           />
           {uploadSuccess && !uploading && (
             <CheckCircle
@@ -106,7 +119,7 @@ export default function ImageUploader({ onUploadSuccess }: Props) {
 
       {error && (
         <p
-          id="error-message"
+          id={`${id}-error`}
           className="text-sm text-red-500 mt-2"
           role="alert"
         >
