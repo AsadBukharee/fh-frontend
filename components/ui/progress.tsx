@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>
+  //@ts-expect-error ab thk ha
 >(({ bgcolor,className, value, ...props }, ref) => (
   <ProgressPrimitive.Root
     ref={ref}
@@ -16,6 +17,7 @@ const Progress = React.forwardRef<
       className
     )}
     {...props}
+    //@ts-expect-error ab thk ha
     bgcolor={bgcolor}
   >
     <ProgressPrimitive.Indicator

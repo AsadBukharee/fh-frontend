@@ -1,14 +1,18 @@
 "use client"
 
-import { Eye, Search, Car, Plus, RefreshCcw } from "lucide-react"
+import { Eye, Car, Plus, RefreshCcw } from "lucide-react"
 import { useState, useEffect } from "react"
-import { Input } from "@/components/ui/input"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import GradientButton from "@/app/utils/GradientButton"
 import Addwalkaround from "@/components/walkaround/add-walkaround"
 import WalkaroundDetailsDialog from "@/components/walkaround/walkaround_detail"
+import { format } from "date-fns"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Walkaround {
   id: number
@@ -27,15 +31,25 @@ interface Walkaround {
   date: string
   time: string
   milage: number
-  defects?: string // Added optional defects
-  notes?: string // Added optional notes
+  defects?: string
+  notes?: string
 }
 
 interface GroupedWalkaround {
   vehicle_id: number
   vehicle_type: string
   registration_number: string
-  drivers: Walkaround[] // Store full Walkaround objects here
+  drivers: Walkaround[]
+}
+
+interface ApiResponse {
+  success: boolean
+  data: {
+    results: any[]
+    count: number
+    next: string | null
+    previous: string | null
+  }
 }
 
 const getStatusClasses = (status: string) => {
@@ -54,25 +68,37 @@ const getStatusClasses = (status: string) => {
 }
 
 const WalkaroundPage = () => {
-  const [searchTerm, setSearchTerm] = useState("")
   const [walkarounds, setWalkarounds] = useState<Walkaround[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [open, setOpen] = useState(false) // State for Addwalkaround dialog
-  const [selectedWalkaround, setSelectedWalkaround] = useState<Walkaround | null>(null) // State for details dialog
-  const [openDetailsDialog, setOpenDetailsDialog] = useState(false) // State for details dialog visibility
+  const [open, setOpen] = useState(false)
+  const [selectedWalkaround, setSelectedWalkaround] = useState<Walkaround | null>(null)
+  const [openDetailsDialog, setOpenDetailsDialog] = useState(false)
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date("2025-08-12"))
+  const [dateTo, setDateTo] = useState<Date | undefined>(new Date("2025-08-12"))
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [totalCount, setTotalCount] = useState(0)
 
   const cookies = useCookies()
 
   const fetchWalkarounds = async () => {
+    setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/api/walk-around/`, {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: pageSize.toString(),
+        ...(dateFrom && { date_from: format(dateFrom, "yyyy-MM-dd") }),
+        ...(dateTo && { date_to: format(dateTo, "yyyy-MM-dd") }),
+      })
+
+      const response = await fetch(`${API_URL}/api/walk-around/?${params.toString()}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
       })
-      const result = await response.json()
+      const result: ApiResponse = await response.json()
       if (result.success) {
         const mappedWalkarounds = result.data.results.flatMap((chain: any) => {
           const steps = [chain.root, ...chain.children]
@@ -96,12 +122,13 @@ const WalkaroundPage = () => {
               date: step.date,
               time: step.time,
               milage: step.milage,
-              defects: step.defects || undefined, // Include if present in API response
-              notes: step.notes || undefined, // Include if present in API response
+              defects: step.defects || undefined,
+              notes: step.notes || undefined,
             }
           })
         })
         setWalkarounds(mappedWalkarounds)
+        setTotalCount(result.data.count)
       } else {
         setError("Failed to fetch walkarounds.")
       }
@@ -115,7 +142,23 @@ const WalkaroundPage = () => {
 
   useEffect(() => {
     fetchWalkarounds()
-  }, [])
+  }, [page, pageSize, dateFrom, dateTo])
+
+  // Validate date range
+  useEffect(() => {
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      setError("Start date cannot be later than end date.")
+    } else if (error === "Start date cannot be later than end date.") {
+      setError(null)
+    }
+  }, [dateFrom, dateTo, error])
+
+  const resetFilters = () => {
+    setDateFrom(new Date("2025-08-01"))
+    setDateTo(new Date("2025-08-12"))
+    setPage(1)
+    setPageSize(50)
+  }
 
   const groupedWalkarounds = walkarounds.reduce(
     (acc, walkaround) => {
@@ -131,26 +174,20 @@ const WalkaroundPage = () => {
           drivers: [],
         }
       }
-      acc[vehicleId].drivers.push(walkaround) // Push the full walkaround object
+      acc[vehicleId].drivers.push(walkaround)
       return acc
     },
     {} as Record<number, GroupedWalkaround>,
   )
 
-  const filteredWalkarounds = Object.values(groupedWalkarounds).filter(
-    (group) =>
-      group.registration_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      group.drivers.some((driver) =>
-        (driver.driver.full_name === "None None" ? driver.driver.email : driver.driver.full_name)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()),
-      ),
-  )
+  const allWalkarounds = Object.values(groupedWalkarounds)
 
   const handleViewDetails = (walkaroundData: Walkaround) => {
     setSelectedWalkaround(walkaroundData)
     setOpenDetailsDialog(true)
   }
+
+  const totalPages = Math.ceil(totalCount / pageSize)
 
   if (loading) {
     return <div className="text-center py-12">Loading...</div>
@@ -163,32 +200,74 @@ const WalkaroundPage = () => {
     <div className="min-h-screen bg-white p-6">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Vehicle Walkaround</h1>
-            <p className="text-sm text-gray-500 mb-4">Dummy text</p>
-            {/* Search Input for Vehicle Number */}
-            <div className="relative max-w-xs">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="text"
-                placeholder="Search vehicle no..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-10 text-sm"
-              />
+            <p className="text-sm text-gray-500 mb-4">View vehicle walkaround details</p>
+            {/* Filter Controls */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Date Range Picker */}
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                      {dateFrom ? format(dateFrom, "PPP") : "Pick start date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={setDateFrom}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                      {dateTo ? format(dateTo, "PPP") : "Pick end date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={setDateTo}
+                      initialFocus
+                      disabled={(date) => (dateFrom ? date < dateFrom : false)}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {/* Page Size Selector */}
+              <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue placeholder="Page size" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              {/* Reset Filters */}
+              <Button variant="outline" onClick={resetFilters}>
+                Reset Filters
+              </Button>
             </div>
           </div>
-          <div className=" flex gap-4 items-center justify-center">
+          <div className="flex gap-4 items-center justify-center">
             <RefreshCcw
-              className=" text-gray-500 hover:text-gray-600 cursor-pointer"
+              className="text-gray-500 hover:text-gray-600 cursor-pointer"
               onClick={() => fetchWalkarounds()}
             />
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <GradientButton text="Walkaround" Icon={Plus} />
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto ">
+              <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Walkaround</DialogTitle>
                 </DialogHeader>
@@ -199,20 +278,18 @@ const WalkaroundPage = () => {
         </div>
         {/* Walkaround List */}
         <div className="space-y-6">
-          {filteredWalkarounds.map((group, idx) => (
+          {allWalkarounds.map((group, idx) => (
             <div key={idx} className="flex items-center justify-between p-2 border-b border-gray-200">
-              {/* Left: Vehicle Icon and Registration Number */}
               <div className="flex items-center space-x-3">
                 <Car className="text-gray-600 w-4 h-4" />
                 <span className="text-sm font-medium text-gray-900">{group.registration_number}</span>
               </div>
-              {/* Center: Driver Status Circles */}
               <div className="flex items-center max-w-[450px] overflow-x-auto space-x-2">
                 {group.drivers.map((driver, driverIdx) => (
                   <div
                     key={driverIdx}
                     className="flex flex-col items-center cursor-pointer"
-                    onClick={() => handleViewDetails(driver)} // Pass the full driver object
+                    onClick={() => handleViewDetails(driver)}
                   >
                     <span className="text-xs text-gray-600 mt-1">{driver.walkaround_assignee || "N/A"}</span>
                     <div
@@ -233,7 +310,6 @@ const WalkaroundPage = () => {
                   +
                 </div>
               </div>
-              {/* Right: View Button */}
               <div className="flex items-center space-x-2">
                 <span className="text-xs text-gray-500 font-medium">View</span>
                 <Eye className="text-gray-500 w-4 h-4 cursor-pointer hover:text-gray-700 transition-colors" />
@@ -241,16 +317,39 @@ const WalkaroundPage = () => {
             </div>
           ))}
         </div>
+        {/* Pagination Controls */}
+        <div className="flex justify-between items-center mt-6">
+          <div>
+            <p className="text-sm text-gray-500">
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} walkarounds
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              disabled={page === 1}
+              onClick={() => setPage((prev) => prev - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              disabled={page === totalPages}
+              onClick={() => setPage((prev) => prev + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
         {/* No Results */}
-        {filteredWalkarounds.length === 0 && (
+        {allWalkarounds.length === 0 && (
           <div className="text-center py-12">
             <Car className="mx-auto w-12 h-12 text-gray-400 mb-3" />
-            <p className="text-gray-500">No walkarounds found matching your search.</p>
+            <p className="text-gray-500">No walkarounds found.</p>
           </div>
         )}
       </div>
 
-      {/* Walkaround Details Dialog */}
       <WalkaroundDetailsDialog
         walkaround={selectedWalkaround}
         open={openDetailsDialog}

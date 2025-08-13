@@ -228,7 +228,6 @@ const page = () => {
                         <Progress
                           value={item.progress}
                           className="h-2"
-                          bgcolor={item.progressColor}
                         />
                       </div>
                       <span className="text-xs text-gray-600 min-w-[60px]">

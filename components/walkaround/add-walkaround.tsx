@@ -72,6 +72,18 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
   const cookies = useCookies();
   const token = cookies.get('access_token');
 
+  // Set current date and time on component mount
+  useEffect(() => {
+    const now = new Date();
+    const formattedDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const formattedTime = now.toTimeString().split(' ')[0].slice(0, 5); // HH:MM
+    setFormData((prev) => ({
+      ...prev,
+      date: formattedDate,
+      time: formattedTime,
+    }));
+  }, []);
+
   useEffect(() => {
     const fetchProfiles = async (
       type: string,
@@ -177,6 +189,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
     if (!formData.vehicle) newErrors.vehicle = 'Vehicle is required.';
     if (!formData.milage) newErrors.milage = 'Mileage is required.';
     if (!formData.date) newErrors.date = 'Date is required.';
+    if (!formData.time) newErrors.time = 'Time is required.';
     if (!formData.signature) newErrors.signature = 'Signature is required.';
 
     if (Object.keys(newErrors).length > 0) {
@@ -196,8 +209,8 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
           ? parseInt(formData.walkaround_assignee, 10)
           : null,
       signature: formData.signature || null,
-      date: formData.date || null,
-      time: formData.time || null,
+      date: formData.date,
+      time: formData.time,
       note: formData.note || null,
       defects: formData.defects || null,
     };
@@ -224,8 +237,8 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
         driver: '',
         walkaround_assignee: 'none',
         vehicle: '',
-        date: '',
-        time: '',
+        date: new Date().toISOString().split('T')[0], // Reset to current date
+        time: new Date().toTimeString().split(' ')[0].slice(0, 5), // Reset to current time
         milage: '',
         signature: '',
         note: '',
@@ -253,12 +266,10 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      
       {
         //@ts-expect-error ab thk ha
-      errors.form && <div className="text-red-500">{errors.form}</div>}
-
-  
+        errors.form && <div className="text-red-500">{errors.form}</div>
+      }
 
       {/* Driver */}
       <div>
@@ -336,30 +347,6 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
         {errors.vehicle && <div className="text-red-500 text-sm">{errors.vehicle}</div>}
       </div>
 
-      {/* Date */}
-      <div>
-        <Label>Date</Label>
-        <Input
-          type="date"
-          name="date"
-          value={formData.date}
-          onChange={handleFormChange}
-        />
-        {errors.date && <div className="text-red-500 text-sm">{errors.date}</div>}
-      </div>
-
-      {/* Time */}
-      <div>
-        <Label>Time</Label>
-        <Input
-          type="time"
-          name="time"
-          value={formData.time}
-          onChange={handleFormChange}
-        />
-        {errors.time && <div className="text-red-500 text-sm">{errors.time}</div>}
-      </div>
-
       {/* Mileage */}
       <div>
         <Label>Mileage</Label>
@@ -411,7 +398,6 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
         />
         {errors.defects && <div className="text-red-500 text-sm">{errors.defects}</div>}
       </div>
-
 
       {/* Status */}
       <div>
