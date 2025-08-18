@@ -193,7 +193,7 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
               mode="single"
               selected={startDate}
               onSelect={handleStartDateSelect}
-              disabled={(date) => isBefore(date, today)}
+              // disabled={(date) => isBefore(date, today)}
               initialFocus
               className="text-sm"
             />

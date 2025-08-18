@@ -917,9 +917,9 @@ const ParentTab: React.FC = () => {
                 {days.map((day, index) => (
                   <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
                     <div className="text-sm font-medium">{day.day.slice(0, 3)}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
+                    {/* <div className="text-xs text-muted-foreground mt-0.5">
                       {day.date}
-                    </div>
+                    </div> */}
                   </TableHead>
                 ))}
                 <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>
