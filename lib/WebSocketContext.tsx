@@ -1,5 +1,6 @@
 'use client';
 
+import { useToast } from '@/app/Context/ToastContext';
 import { createContext, useContext, useEffect, useState } from 'react';
 
 interface WebSocketContextType {
@@ -20,7 +21,7 @@ interface WebSocketProviderProps {
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, token }) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-
+const {showToast}=useToast();
   useEffect(() => {
     if (!token) {
       console.warn('No token found, skipping WebSocket connection');
@@ -34,7 +35,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, 
 
     const connect = () => {
       socket = new WebSocket(
-        `ws://v2.fosterhartley.uk/ws/notifications/?token=${token}`
+                `ws://v2.fosterhartley.uk/ws/notifications/?token=${token}`
+
       );
 
       socket.onopen = () => {
@@ -46,7 +48,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, 
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          alert(
+            data?.notification?.body||"Message Recived",
+            
+          )
           console.log('📩 Received:', data);
+          
         } catch (err) {
           console.error('Failed to parse WebSocket message', err);
         }

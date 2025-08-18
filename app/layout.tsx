@@ -4,6 +4,7 @@ import { ToastProvider } from "./Context/ToastContext";
 import { CookiesProvider } from "next-client-cookies/server";
 import { WebSocketProvider } from "@/lib/WebSocketContext";
 import { cookies } from "next/headers"; // ✅ correct import
+import NotificationDisplay from "@/components/NotificationDisplay";
 
 export const metadata: Metadata = {
   title: "Foster Hartley - Vehicle Management",
@@ -27,7 +28,6 @@ export default async function RootLayout({
       <body>
         <CookiesProvider>
           <ToastProvider>
-          
             
             <WebSocketProvider token={token}>
               {children}

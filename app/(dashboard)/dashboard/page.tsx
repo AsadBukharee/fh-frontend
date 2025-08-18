@@ -11,7 +11,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { DollarSign, Calendar, Car, MapPin, Filter, Eye, MoreHorizontal } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
-import NotificationComponent from "@/components/NotificationComponent"
+
 
 // Define API response type
 interface DashboardData {
@@ -156,7 +156,6 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      <NotificationComponent/>
       <div className="flex items-center justify-between">
         <p className="text-gray-600">Last updated: {new Date(dashboardData.system.last_updated).toLocaleString()}</p>
       </div>
