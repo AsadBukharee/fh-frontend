@@ -21,12 +21,16 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies(); // ✅ get cookies from Next.js
   const token = cookieStore.get("access_token")?.value; // ✅ extract token safely
+if (!token) {
+  throw new Error("No access token found in cookies");
+}
 
   return (
     <html lang="en">
       <body>
         <CookiesProvider>
           <ToastProvider>
+            
             <WebSocketProvider token={token}>
               {children}
             </WebSocketProvider>
