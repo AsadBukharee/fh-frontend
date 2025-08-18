@@ -7,42 +7,63 @@ interface WebSocketContextType {
   isConnected: boolean;
 }
 
-const WebSocketContext = createContext<WebSocketContextType>({ ws: null, isConnected: false });
+const WebSocketContext = createContext<WebSocketContextType>({
+  ws: null,
+  isConnected: false,
+});
 
-export const WebSocketProvider: React.FC<{ children: React.ReactNode; token: string }> = ({ children, token }) => {
+interface WebSocketProviderProps {
+  children: React.ReactNode;
+  token?: string; // ✅ optional now
+}
+
+export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, token }) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    if (!token) {
+      console.warn('No token found, skipping WebSocket connection');
+      return;
+    }
+
     let socket: WebSocket;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
-    const reconnectDelay = 1000;
+    const reconnectDelay = 2000;
 
     const connect = () => {
-      socket = new WebSocket(`ws://v2.fosterhartley.uk/ws/notifications/?token=${token}`);
+      socket = new WebSocket(
+        `ws://v2.fosterhartley.uk/ws/notifications/?token=${token}`
+      );
 
       socket.onopen = () => {
-        console.log('Connected to WebSocket server');
+        console.log('✅ Connected to WebSocket server');
         setIsConnected(true);
         reconnectAttempts = 0;
       };
 
       socket.onmessage = (event) => {
-        console.log('Received:', JSON.parse(event.data));
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📩 Received:', data);
+        } catch (err) {
+          console.error('Failed to parse WebSocket message', err);
+        }
       };
 
       socket.onclose = () => {
-        console.log('Disconnected from WebSocket server');
+        console.log('❌ Disconnected from WebSocket server');
         setIsConnected(false);
         if (reconnectAttempts < maxReconnectAttempts) {
-          setTimeout(connect, reconnectDelay);
           reconnectAttempts++;
+          console.log(`🔄 Reconnecting attempt ${reconnectAttempts}...`);
+          setTimeout(connect, reconnectDelay);
         }
       };
 
       socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('⚠️ WebSocket error:', error);
         setIsConnected(false);
       };
 
@@ -52,7 +73,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode; token: str
     connect();
 
     return () => {
-      socket.close();
+      socket?.close();
       setWs(null);
       setIsConnected(false);
     };
