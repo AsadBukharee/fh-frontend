@@ -68,7 +68,7 @@ export default function WalkaroundDetailsDialog({ walkaround, open, onOpenChange
             </Label>
             <div className="relative">
               <Package className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-700 w-5 h-5 z-10" />
-              <Input id="walkaround-step" value="2" readOnly className="pl-9 h-9 text-sm" />
+              {/* <Input id="walkaround-step" value={w} readOnly className="pl-9 h-9 text-sm" /> */}
             </div>
           </div>
           {/* Walkaround Duration */}
