@@ -1,6 +1,6 @@
 "use client"
 
-import { Eye, Car, Plus, RefreshCcw } from "lucide-react"
+import { Eye, Car, Plus, RefreshCcw, MoveRight } from "lucide-react"
 import { useState, useEffect } from "react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -74,8 +74,8 @@ const WalkaroundPage = () => {
   const [open, setOpen] = useState(false)
   const [selectedWalkaround, setSelectedWalkaround] = useState<Walkaround | null>(null)
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false)
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date("2025-08-12"))
-  const [dateTo, setDateTo] = useState<Date | undefined>(new Date("2025-08-12"))
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date())
+  const [dateTo, setDateTo] = useState<Date | undefined>(new Date())
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
   const [totalCount, setTotalCount] = useState(0)
@@ -144,7 +144,6 @@ const WalkaroundPage = () => {
     fetchWalkarounds()
   }, [page, pageSize, dateFrom, dateTo])
 
-  // Validate date range
   useEffect(() => {
     if (dateFrom && dateTo && dateFrom > dateTo) {
       setError("Start date cannot be later than end date.")
@@ -154,8 +153,8 @@ const WalkaroundPage = () => {
   }, [dateFrom, dateTo, error])
 
   const resetFilters = () => {
-    setDateFrom(new Date("2025-08-01"))
-    setDateTo(new Date("2025-08-12"))
+    setDateFrom(new Date())
+    setDateTo(new Date())
     setPage(1)
     setPageSize(50)
   }
@@ -163,14 +162,11 @@ const WalkaroundPage = () => {
   const groupedWalkarounds = walkarounds.reduce(
     (acc, walkaround) => {
       const vehicleId = walkaround.vehicle.id
-      const vehicleType = walkaround.vehicle.vehicles_type_name
-      const registrationNumber = walkaround.vehicle.registration_number
-
       if (!acc[vehicleId]) {
         acc[vehicleId] = {
           vehicle_id: vehicleId,
-          vehicle_type: vehicleType,
-          registration_number: registrationNumber,
+          vehicle_type: walkaround.vehicle.vehicles_type_name,
+          registration_number: walkaround.vehicle.registration_number,
           drivers: [],
         }
       }
@@ -277,42 +273,36 @@ const WalkaroundPage = () => {
           </div>
         </div>
         {/* Walkaround List */}
-        <div className="space-y-6">
+        <div className="space-y-6 ">
           {allWalkarounds.map((group, idx) => (
-            <div key={idx} className="flex items-center justify-between p-2 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <Car className="text-gray-600 w-4 h-4" />
-                <span className="text-sm font-medium text-gray-900">{group.registration_number}</span>
-              </div>
-              <div className="flex items-center max-w-[450px] overflow-x-auto space-x-2">
-                {group.drivers.map((driver, driverIdx) => (
-                  <div
-                    key={driverIdx}
-                    className="flex flex-col items-center cursor-pointer"
-                    onClick={() => handleViewDetails(driver)}
-                  >
-                    <span className="text-xs text-gray-600 mt-1">{driver.walkaround_assignee || "N/A"}</span>
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold ${getStatusClasses(
-                        driver.status,
-                      )}`}
-                    >
-                      {driverIdx + 1}
+            <div key={idx} className="p-4 border  border-gray-200 rounded-lg">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Vehicle: {group.registration_number} ({group.vehicle_type})
+              </h2>
+              <div className="space-y-4 flex flex-row items-center">
+                {group.drivers
+                  .sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime())
+                  .map((driver, driverIdx, arr) => (
+                    <div key={driver.id} className="relative flex items-center">
+                      {/* Walkaround Box */}
+                      <div
+                        className="p-4 rounded-lg bg-green-100 text-center"
+                        style={{ minWidth: "200px", display: "inline-block" }}
+                      >
+                        <h3 className="text-red-600 underline font-semibold">Walkaround {driver.id} Driver:</h3>
+                        <p>{driver.conducted_by || "N/A"}</p>
+                        <p>Status: Passed</p>
+                        <p>Passed Date: {format(new Date(driver.date), "dd.MM.yy")}</p>
+                        <p>Time: {driver.time}</p>
+                      </div>
+                      {/* Arrow to next box */}
+                      {driverIdx < arr.length - 1 && (
+                        <div className="flex items-center ml-2">
+                          <MoveRight className="text-gray-500" />
+                        </div>
+                      )}
                     </div>
-                    <span className="text-xs text-gray-600 mt-1">{driver.conducted_by || "Not conducted"}</span>
-                  </div>
-                ))}
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold ${getStatusClasses(
-                    "custom",
-                  )} cursor-pointer`}
-                >
-                  +
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-500 font-medium">View</span>
-                <Eye className="text-gray-500 w-4 h-4 cursor-pointer hover:text-gray-700 transition-colors" />
+                  ))}
               </div>
             </div>
           ))}

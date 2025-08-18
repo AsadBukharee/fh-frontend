@@ -322,13 +322,13 @@ export default function DriversPage() {
   const getProfileStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "approved":
-        return "bg-green-100 text-green-700"
+        return "bg-green-100 text-[10px] text-green-700"
       case "review":
-        return "bg-yellow-100 text-yellow-700"
+        return "bg-yellow-100 text-[10px]  text-yellow-700"
       case "not_approved":
-        return "bg-red-100 text-red-700"
+        return "bg-red-100 text-[10px]  text-red-700"
       default:
-        return "bg-gray-100 text-gray-700"
+        return "bg-gray-100 text-[10px]  text-gray-700"
     }
   }
 

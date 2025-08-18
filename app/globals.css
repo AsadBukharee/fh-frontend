@@ -11,6 +11,15 @@
   --color-purple: #6D1C7D;
   --background-image-gradient-primary: linear-gradient(90deg, #F15A29 0%, #E12B47 27.16%, #9A217F 73.9%, #6D1C7D 100%);
 }
+.shadow-r {
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+.shadow-l {
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
+}
+.shadow-b {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 
 @layer base {
   body {
