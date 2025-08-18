@@ -35,7 +35,7 @@ const {showToast}=useToast();
 
     const connect = () => {
       socket = new WebSocket(
-                `ws://v2.fosterhartley.uk/ws/notifications/?token=${token}`
+                `wss://v2.fosterhartley.uk/ws/notifications/?token=${token}`
 
       );
 
