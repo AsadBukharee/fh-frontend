@@ -1,3 +1,4 @@
+// components/walkaround/walkaround_detail.tsx
 "use client"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -7,8 +8,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Package, Clock, User, Car, Calendar } from "lucide-react"
 
-// Re-defining Walkaround interface here for clarity within this component,
-// but it should ideally be in a shared types file.
 interface Walkaround {
   id: number
   driver: {
@@ -25,9 +24,11 @@ interface Walkaround {
   status: "pending" | "failed" | "completed" | "custom"
   date: string
   time: string
-  milage: number
+  mileage: number
   defects?: string
   notes?: string
+  signature?: string
+  parent?: number | null
 }
 
 interface WalkaroundDetailsDialogProps {
@@ -56,31 +57,11 @@ export default function WalkaroundDetailsDialog({ walkaround, open, onOpenChange
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[500px] overflow-y-auto">
+      <DialogContent className="sm:max-w-[550px] max-h-[600px] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>View Data</DialogTitle>
+          <DialogTitle>Walkaround Details</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4 py-4">
-          {/* Walkaround Step */}
-          <div className="space-y-2">
-            <Label htmlFor="walkaround-step" className="text-sm">
-              Walkaround Step
-            </Label>
-            <div className="relative">
-              <Package className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-700 w-5 h-5 z-10" />
-              <Input id="walkaround-step" value={'1'} readOnly className="pl-9 h-9 text-sm" />
-            </div>
-          </div>
-          {/* Walkaround Duration */}
-          <div className="space-y-2">
-            <Label htmlFor="walkaround-duration" className="text-sm">
-              Walkaround Duration
-            </Label>
-            <div className="relative">
-              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-700 w-5 h-5 z-10" />
-              <Input id="walkaround-duration" value="4 hrs" readOnly className="pl-9 h-9 text-sm" />
-            </div>
-          </div>
           {/* Conducted By */}
           <div className="space-y-2">
             <Label htmlFor="conducted-by" className="text-sm">
@@ -132,7 +113,7 @@ export default function WalkaroundDetailsDialog({ walkaround, open, onOpenChange
               <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-700 w-5 h-5 z-10" />
               <Input
                 id="vehicle"
-                value={walkaround.vehicle.registration_number}
+                value={`${walkaround.vehicle.registration_number} (${walkaround.vehicle.vehicles_type_name})`}
                 readOnly
                 className="pl-9 h-9 text-sm"
               />
@@ -158,24 +139,56 @@ export default function WalkaroundDetailsDialog({ walkaround, open, onOpenChange
               <Input id="time" value={walkaround.time} readOnly className="pl-9 h-9 text-sm" />
             </div>
           </div>
-          {/* Milage */}
+          {/* Mileage */}
           <div className="space-y-2">
             <Label htmlFor="milage" className="text-sm">
-              Milage
+              Mileage
             </Label>
             <div className="relative">
               <Package className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-700 w-5 h-5 z-10" />
-              <Input id="milage" value={walkaround.milage.toString()} readOnly className="pl-9 h-9 text-sm" />
+              <Input id="milage" value={walkaround.mileage?.toString()} readOnly className="pl-9 h-9 text-sm" />
             </div>
           </div>
           {/* Status */}
-          <div className="space-y-2 gap-2">
+          <div className="space-y-2">
             <Label htmlFor="status" className="text-sm">
               Status
             </Label>
-            <Badge className={`px-3 mx-2  py-1 rounded-full text-sm font-medium ${getStatusClasses(walkaround.status)}`}>
+            <Badge className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusClasses(walkaround.status)}`}>
               {walkaround.status.charAt(0).toUpperCase() + walkaround.status.slice(1)}
             </Badge>
+          </div>
+          {/* Parent Walkaround */}
+          <div className="space-y-2">
+            <Label htmlFor="parent" className="text-sm">
+              Parent Walkaround ID
+            </Label>
+            <div className="relative">
+              <Package className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-700 w-5 h-5 z-10" />
+              <Input
+                id="parent"
+                value={walkaround.parent?.toString() || "None"}
+                readOnly
+                className="pl-9 h-9 text-sm"
+              />
+            </div>
+          </div>
+          {/* Signature */}
+          <div className="space-y-2 col-span-2">
+            <Label htmlFor="signature" className="text-sm">
+              Signature
+            </Label>
+            {walkaround.signature ? (
+              <img
+                src={walkaround.signature}
+                alt="Signature"
+                className="border rounded-md w-full h-40 object-contain"
+              />
+            ) : (
+              <div className="border rounded-md p-2 text-sm text-gray-500">
+                No signature provided.
+              </div>
+            )}
           </div>
           {/* Defects */}
           <div className="space-y-2 col-span-2">
