@@ -46,7 +46,7 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
 
   const handleStartDateSelect = useCallback(
     (date: Date | undefined) => {
-      if (date && isValid(date) && !isBefore(date, today)) {
+      if (date ) {
         setStartDate(date);
         if (
           endDate &&
