@@ -684,9 +684,13 @@ console.log(shifts)
                         <tr key={dayData.toISOString()} className={dayIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                           <td className="sticky max-w-[200px] left-0 z-10 whitespace-nowrap border-r px-4 py-2 text-sm font-medium bg-inherit">
                             <div>
-                              <div className="font-semibold">
-                                {getDayName(dayData)} {dayData.getDate()}
-                              </div>
+                           <div className="font-semibold flex items-center gap-2">
+  {getDayName(dayData)}
+  <span className="bg-green-400 w-6 h-6 rounded-full flex items-center justify-center text-white text-sm">
+    {dayData.getDate()}
+  </span>
+</div>
+
                               <div className="text-xs text-muted-foreground">{format(dayData, "MMM yyyy")}</div>
                             </div>
                           </td>
