@@ -1,25 +1,24 @@
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
-import { Notification } from "@/app/lib/types"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Notification } from "@/app/lib/types";
+import { formatDistanceToNow, parseISO } from "date-fns";
 
 interface NotificationItemProps {
-  notification: Notification
+  notification: Notification;
 }
 
 export function NotificationItem({ notification }: NotificationItemProps) {
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case "request":
-        return "w-2 h-2 bg-blue-500 rounded-full"
-      case "alert":
-        return "w-2 h-2 bg-yellow-500 rounded-full"
-      case "warning":
-        return "w-2 h-2 bg-orange-500 rounded-full"
-      case "sos":
-        return "w-2 h-2 bg-red-500 rounded-full"
+      case "system":
+        return "w-2 h-2 bg-gray-500 rounded-full";
       default:
-        return "w-2 h-2 bg-gray-500 rounded-full"
+        return "w-2 h-2 bg-gray-500 rounded-full";
     }
-  }
+  };
+
+  const formattedTime = formatDistanceToNow(parseISO(notification.created_at), {
+    addSuffix: true,
+  });
 
   return (
     <DropdownMenuItem className="p-4 border-b">
@@ -27,10 +26,10 @@ export function NotificationItem({ notification }: NotificationItemProps) {
         <div className={`${getNotificationIcon(notification.type)} mt-2`}></div>
         <div>
           <p className="font-medium">{notification.title}</p>
-          <p className="text-sm text-gray-500">{notification.message}</p>
-          <p className="text-xs text-gray-400">{notification.time}</p>
+          <p className="text-sm text-gray-500">{notification.body}</p>
+          <p className="text-xs text-gray-400">{formattedTime}</p>
         </div>
       </div>
     </DropdownMenuItem>
-  )
+  );
 }

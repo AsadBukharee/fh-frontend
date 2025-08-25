@@ -1,9 +1,9 @@
 "use client"
 
-import { notifications, users } from "@/app/lib/data"
+import {  users } from "@/app/lib/data"
 import { NotificationsDropdown } from "./header/NotificationsDropdown"
 import { SearchBar } from "./header/SearchBar"
-import { MessageDialog } from "./header/MessageDialog"
+// import { MessageDialog } from "./header/MessageDialog"
 import { UserProfileDropdown } from "./header/UserProfileDropdown"
 import { Breadcrumbs } from "./header/Breadcrumbs"
 
@@ -18,8 +18,8 @@ export function Header() {
           <SearchBar />
         </div>
         <div className="flex items-center space-x-4">
-          <NotificationsDropdown notifications={notifications} />
-          <MessageDialog users={users} />
+          <NotificationsDropdown  />
+          {/* <MessageDialog users={users} /> */}
           <UserProfileDropdown />
         </div>
       </div>

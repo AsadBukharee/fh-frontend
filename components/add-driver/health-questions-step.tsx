@@ -24,89 +24,86 @@ interface HealthQuestionsStepProps {
   setHealthQuestionsData: (data: any) => void
 }
 
- 
-
 export function HealthQuestionsStep({ driverId, setHealthQuestionsData }: HealthQuestionsStepProps) {
   const { goToNextStep, goToPreviousStep } = useStepper()
   const [healthQuestions, setHealthQuestions] = useState<HealthQuestion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const cookies=useCookies();
+  const cookies = useCookies()
+  const [answers, setAnswers] = useState<Record<number, string>>({}) // Track Yes/No answers
+  const [notes, setNotes] = useState<Record<number, string>>({}) // Track notes
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   const [healthQuestionsState, healthQuestionsAction, healthQuestionsPending] = useActionState(
     async (prevState: any, formData: FormData) => {
       if (driverId === null) {
         return { success: false, message: "Please complete the 'Personal Info' and 'Next of Kin' steps first." }
       }
-      formData.append("driver_id", driverId!.toString())
-        try {
-    const driverId = formData.get("driver_id")?.toString();
-    if (!driverId) {
-      return { success: false, message: "Driver ID is required" };
-    }
 
-    const healthAnswers = [];
-    for (const [key, value] of formData.entries()) {
-      const questionMatch = key.match(/question_(\d+)_answer/);
-
-      if (questionMatch) {
-        const questionId = parseInt(questionMatch[1], 10);
-        const answer = value === "true";
-        const noteKey = `question_${questionId}_note`;
-        const note = formData.get(noteKey)?.toString() || "";
-
-        healthAnswers.push({
-          question: questionId,
-          answered_by: parseInt(driverId, 10),
-          answer,
-          note: note || "No additional notes",
-        });
+      // 🚨 Validate notes if "Yes" is selected
+      for (const q of healthQuestions) {
+        const ans = formData.get(`question_${q.id}_answer`)
+        const note = formData.get(`question_${q.id}_note`)?.toString().trim()
+        if (ans === "true" && !note) {
+          return { success: false, message: `Notes are required for: "${q.question}"` }
+        }
       }
-    }
 
-    if (healthAnswers.length === 0) {
-      return { success: false, message: "No health answers provided" };
-    }
+      formData.append("driver_id", driverId!.toString())
+      try {
+        const driverId = formData.get("driver_id")?.toString()
+        if (!driverId) {
+          return { success: false, message: "Driver ID is required" }
+        }
 
-    const response = await fetch(`${API_URL}/api/profiles/health-answers/bulk-create/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Add authentication headers if required
-              Authorization: `Bearer ${cookies.get("access_token") || ""}`,
-      },
-      body: JSON.stringify({ health_answers: healthAnswers }),
-    });
+        const healthAnswers = []
+        for (const [key, value] of formData.entries()) {
+          const questionMatch = key.match(/question_(\d+)_answer/)
+          if (questionMatch) {
+            const questionId = parseInt(questionMatch[1], 10)
+            const answer = value === "true"
+            const noteKey = `question_${questionId}_note`
+            const note = formData.get(noteKey)?.toString() || ""
 
-    const result = await response.json();
+            healthAnswers.push({
+              question: questionId,
+              answered_by: parseInt(driverId, 10),
+              answer,
+              note: note || "No additional notes",
+            })
+          }
+        }
 
-    if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || "Failed to submit health answers",
-      };
-    }
-    setHealthQuestionsData(Object.fromEntries(formData.entries()))
+        if (healthAnswers.length === 0) {
+          return { success: false, message: "No health answers provided" }
+        }
+
+        const response = await fetch(`${API_URL}/api/profiles/health-answers/bulk-create/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token") || ""}`,
+          },
+          body: JSON.stringify({ health_answers: healthAnswers }),
+        })
+
+        const result = await response.json()
+        if (!response.ok) {
+          return { success: false, message: result.message || "Failed to submit health answers" }
+        }
+
+        setHealthQuestionsData(Object.fromEntries(formData.entries()))
         goToNextStep()
 
-    return {
-      success: true,
-      message: "Health answers submitted successfully",
-      data: result.data,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error:error,
-      message: "An error occurred while submitting health answers",
-    };
-  }
-   
+        return { success: true, message: "Health answers submitted successfully", data: result.data }
+      } catch (error) {
+        return { success: false, error, message: "An error occurred while submitting health answers" }
+      }
     },
     { success: false, message: "" },
   )
 
-  // Fetch health questions from the API
+  // Fetch questions
   useEffect(() => {
     async function fetchHealthQuestions() {
       try {
@@ -130,7 +127,6 @@ export function HealthQuestionsStep({ driverId, setHealthQuestionsData }: Health
           setError(data.message || "Failed to load questions")
         }
       } catch (err) {
-        console.log(err)
         setError("An error occurred while fetching questions")
       } finally {
         setLoading(false)
@@ -150,29 +146,22 @@ export function HealthQuestionsStep({ driverId, setHealthQuestionsData }: Health
         <input type="hidden" name="driver_id" value={driverId || ""} />
         <CardContent className="space-y-6 min-h-[200px]">
           {driverId === null ? (
-            <div className="text-center text-red-500 font-medium py-8" aria-live="polite">
-              Please complete the &quot;Personal Info&quot; and &quot;Next of Kin&quot; steps first to enable this section.
-            </div>
+            <div className="text-center text-red-500 font-medium py-8">Please complete the &quot;Personal Info&quot; and &quot;Next of Kin&quot; steps first.</div>
           ) : loading ? (
-            <div className="text-center text-gray-500 font-medium py-8" aria-live="polite">
-              Loading questions...
-            </div>
+            <div className="text-center text-gray-500 font-medium py-8">Loading questions...</div>
           ) : error ? (
-            <div className="text-center text-red-500 font-medium py-8" aria-live="polite">
-              {error}
-            </div>
+            <div className="text-center text-red-500 font-medium py-8">{error}</div>
           ) : healthQuestions.length === 0 ? (
-            <div className="text-center text-gray-500 font-medium py-8" aria-live="polite">
-              No health questions available.
-            </div>
+            <div className="text-center text-gray-500 font-medium py-8">No health questions available.</div>
           ) : (
             healthQuestions.map((q) => (
               <div key={q.id} className="space-y-2">
                 <Label>{q.question}</Label>
                 <RadioGroup
                   name={`question_${q.id}_answer`}
-                  defaultValue={q.answer.toString()}
+                  defaultValue={q.answer?.toString()}
                   className="flex space-x-4"
+                  onValueChange={(val) => setAnswers((prev) => ({ ...prev, [q.id]: val }))}
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="true" id={`q${q.id}-yes`} />
@@ -185,27 +174,24 @@ export function HealthQuestionsStep({ driverId, setHealthQuestionsData }: Health
                 </RadioGroup>
                 <Textarea
                   name={`question_${q.id}_note`}
-                  placeholder="Add any relevant notes here (optional)"
-                  className="mt-2"
+                  placeholder={answers[q.id] === "true" ? "Required - add notes here" : "Optional notes"}
+                  className={`mt-2 ${answers[q.id] === "true" && !notes[q.id] ? "border-red-500" : ""}`}
+                  required={answers[q.id] === "true"}
+                  value={notes[q.id] || ""}
+                  onChange={(e) => setNotes((prev) => ({ ...prev, [q.id]: e.target.value }))}
                 />
               </div>
             ))
           )}
-          {healthQuestionsState?.message && !healthQuestionsState.success && (
-            <p className="text-sm text-red-500" aria-live="polite">
-              {healthQuestionsState.message}
-            </p>
-          )}
+          {(healthQuestionsState?.message && !healthQuestionsState.success) || validationError ? (
+            <p className="text-sm text-red-500">{healthQuestionsState.message || validationError}</p>
+          ) : null}
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button type="button" variant="outline" className="border border-magenta text-magenta" onClick={goToPreviousStep}>
+          <Button type="button" variant="outline" onClick={goToPreviousStep}>
             Previous
           </Button>
-          <Button
-            type="submit"
-            className="bg-magenta text-white"
-            disabled={healthQuestionsPending || driverId === null || loading || !!error}
-          >
+          <Button type="submit" disabled={healthQuestionsPending || driverId === null || loading || !!error}>
             {healthQuestionsPending ? "Saving..." : "Save & Continue"}
           </Button>
         </CardFooter>

@@ -5,7 +5,7 @@ import { Settings } from 'lucide-react'
 
 export function Dashboard_Loading() {
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-[1000]">
       <div className="flex flex-col items-center space-y-4">
         {/* Gears Container */}
         <div className="flex items-center justify-center space-x-2">
