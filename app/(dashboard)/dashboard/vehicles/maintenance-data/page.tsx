@@ -317,7 +317,7 @@ export default function VehiclesPage() {
                   <TableCell className="font-medium">{vehicle.id}</TableCell>
                   <TableCell>
                     <Link
-                      href={`vehicles-managements/${vehicle.id}`}
+                      href={`maintenance-data/${vehicle.id}`}
                       className="text-magenta underline hover:text-magenta-600"
                     >
                       {vehicle.registration_number}

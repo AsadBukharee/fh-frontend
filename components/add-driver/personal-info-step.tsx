@@ -89,6 +89,29 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
     have_other_jobs_note: "",
   });
   const cookies = useCookies();
+// Utility: calculate age
+const calculateAge = (dob: string) => {
+  if (!dob) return "";
+  const birthDate = new Date(dob);
+  const today = new Date();
+
+  let years = today.getFullYear() - birthDate.getFullYear();
+  let months = today.getMonth() - birthDate.getMonth();
+  let days = today.getDate() - birthDate.getDate();
+
+  if (days < 0) {
+    months -= 1;
+    const prevMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+    days += prevMonth.getDate();
+  }
+
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  return `${years} years ${months} months ${days} days`;
+};
 
   // Retrieve driver ID from localStorage or use driver_profile_id on mount
   useEffect(() => {
@@ -262,7 +285,32 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
           <div className="space-y-2">
             <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label htmlFor="date_of_birth">Date of Birth</Label>
+  <Label htmlFor="date_of_birth">Date of Birth</Label>
+  <div
+    className="relative w-full gradient-border cursor-glow"
+    onMouseMove={(e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      e.currentTarget.style.setProperty("--mouse-x", `${x}%`);
+      e.currentTarget.style.setProperty("--mouse-y", `${y}%`);
+    }}
+  >
+    <Input
+      id="date_of_birth"
+      name="date_of_birth"
+      type="date"
+      required
+      value={formData.date_of_birth}
+      onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+      className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+    />
+  </div>
+
+  
+</div>
+ <div className="space-y-1">
+                <Label htmlFor="address1">Driver Age:</Label>
                 <div
                   className="relative w-full gradient-border cursor-glow"
                   onMouseMove={(e) => {
@@ -274,16 +322,19 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
                   }}
                 >
                   <Input
-                    id="date_of_birth"
-                    name="date_of_birth"
-                    type="date"
-                    required
-                    value={formData.date_of_birth}
-                    onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                    id="address1"
+                    name="address1"
+                    placeholder="123 Main St"
+                    readOnly
+                    disabled
+                    value={calculateAge(formData.date_of_birth) || "Select Date"}
+    
+                    // onChange={(e) => setFormData({ ...formData, address1: e.target.value })}
                     className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
+
             </div>
             <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
               <div className="space-y-1">

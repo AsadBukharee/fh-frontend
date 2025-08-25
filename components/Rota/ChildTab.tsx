@@ -3,17 +3,44 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Users, Clock, DollarSign, Filter, Calendar, BarChart3, Loader2 } from "lucide-react";
+import {
+  Users,
+  Clock,
+  DollarSign,
+  Filter,
+  Calendar,
+  BarChart3,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Alert, AlertDescription } from "../ui/alert";
 import { ShiftCard } from "./shift-card";
-import { ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from "recharts";
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Area,
+  AreaChart,
+} from "recharts";
 import React from "react";
 
 // Interfaces
@@ -37,18 +64,18 @@ interface Shift {
   user?: User;
 }
 interface ShiftList {
-  id: number
-  name: string
-  template: boolean
-  hours_from: string
-  hours_to: string
-  total_hours: string
-  shift_note: string
-  rate_per_hours: number
-  colors: string
-  contract: number | null
-  created_at: string
-  updated_at: string
+  id: number;
+  name: string;
+  template: boolean;
+  hours_from: string;
+  hours_to: string;
+  total_hours: string;
+  shift_note: string;
+  rate_per_hours: number;
+  colors: string;
+  contract: number | null;
+  created_at: string;
+  updated_at: string;
 }
 interface User {
   id: number;
@@ -67,8 +94,6 @@ interface User {
   shifts: ShiftList[];
   child_rota_completed?: boolean;
 }
-
-
 
 interface ShiftTableProps {
   year: number;
@@ -96,7 +121,9 @@ interface ApiResponse {
 const hexToColorName = (
   hex: string
 ): "purple" | "green" | "orange" | "red" | "cyan" => {
-  const colorMapping: { [key: string]: "purple" | "green" | "orange" | "red" | "cyan" } = {
+  const colorMapping: {
+    [key: string]: "purple" | "green" | "orange" | "red" | "cyan";
+  } = {
     "#CBA6AA": "purple",
     "#FFB6D1": "purple",
     "#FFD580": "orange",
@@ -113,7 +140,11 @@ const generateMonths = () => {
   const months = [];
   const currentDate = new Date();
   for (let i = -6; i <= 5; i++) {
-    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+    const date = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + i,
+      1
+    );
     months.push({
       value: `${date.getFullYear()}-${date.getMonth()}`,
       label: format(date, "MMMM yyyy"),
@@ -152,9 +183,11 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  console.log(setSearchTerm)
+  console.log(setSearchTerm);
   const [selectedRole, setSelectedRole] = useState<string>("all");
-  const [selectedMonth, setSelectedMonth] = useState<string>(`${year}-${month}`);
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    `${year}-${month}`
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<{
@@ -163,14 +196,19 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     dailyStats: DailyStats[];
     salaryData: Record<string, Record<string, number>>;
   } | null>(null);
-  console.log(stats)
+  console.log(stats);
   const cookies = useCookies();
   const months = generateMonths();
 
   // Get current month data
-  const currentMonthData = months.find((m) => m.value === selectedMonth) || months[6];
+  const currentMonthData =
+    months.find((m) => m.value === selectedMonth) || months[6];
   const startDate = new Date(currentMonthData.year, currentMonthData.month, 1);
-  const endDate = new Date(currentMonthData.year, currentMonthData.month + 1, 0);
+  const endDate = new Date(
+    currentMonthData.year,
+    currentMonthData.month + 1,
+    0
+  );
 
   // Fetch shifts data with query parameters
   const fetchData = async () => {
@@ -178,7 +216,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     setError(null);
     try {
       const [yearStr, monthStr] = selectedMonth.split("-");
-      console.log(yearStr)
+      console.log(yearStr);
       const monthNumber = Number.parseInt(monthStr) + 1; // Convert from 0-based to 1-based month
       const queryParams = new URLSearchParams();
       queryParams.append("month", monthNumber.toString());
@@ -207,11 +245,18 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
       const usersFromChildRota = shiftsData.rota_by_user.map((entry) => ({
         ...entry.user,
         display_name: entry.user.display_name || entry.user.full_name,
-        is_active: entry.user.is_active !== undefined ? entry.user.is_active : true,
+        is_active:
+          entry.user.is_active !== undefined ? entry.user.is_active : true,
         role: entry.user.role || "No Role",
         contract: entry.user.contract || null,
-        parent_rota_completed: entry.user.parent_rota_completed !== undefined ? entry.user.parent_rota_completed : false,
-        child_rota_completed: entry.user.child_rota_completed !== undefined ? entry.user.child_rota_completed : true,
+        parent_rota_completed:
+          entry.user.parent_rota_completed !== undefined
+            ? entry.user.parent_rota_completed
+            : false,
+        child_rota_completed:
+          entry.user.child_rota_completed !== undefined
+            ? entry.user.child_rota_completed
+            : true,
       }));
       setChildRotaUsers(usersFromChildRota);
 
@@ -224,11 +269,20 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
             user: {
               ...entry.user,
               display_name: entry.user.display_name || entry.user.full_name,
-              is_active: entry.user.is_active !== undefined ? entry.user.is_active : true,
+              is_active:
+                entry.user.is_active !== undefined
+                  ? entry.user.is_active
+                  : true,
               role: entry.user.role || "No Role",
               contract: entry.user.contract || null,
-              parent_rota_completed: entry.user.parent_rota_completed !== undefined ? entry.user.parent_rota_completed : false,
-              child_rota_completed: entry.user.child_rota_completed !== undefined ? entry.user.child_rota_completed : true,
+              parent_rota_completed:
+                entry.user.parent_rota_completed !== undefined
+                  ? entry.user.parent_rota_completed
+                  : false,
+              child_rota_completed:
+                entry.user.child_rota_completed !== undefined
+                  ? entry.user.child_rota_completed
+                  : true,
             },
             daily_hours: shift.daily_hours || hours,
             daily_salary: shift.daily_salary || salary,
@@ -243,13 +297,15 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
         salaryData: shiftsData.salary_monthly,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred."
+      );
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
-console.log(shifts)
+  console.log(shifts);
   useEffect(() => {
     fetchData();
   }, [selectedMonth, selectedUser, cookies]);
@@ -268,35 +324,43 @@ console.log(shifts)
   // Filter shifts by date range and selected user
   const filteredShifts = shifts.filter((shift) => {
     const shiftDate = new Date(shift.date);
-    return shiftDate >= startDate && shiftDate <= endDate && (!selectedUser || shift.user?.id === selectedUser);
+    return (
+      shiftDate >= startDate &&
+      shiftDate <= endDate &&
+      (!selectedUser || shift.user?.id === selectedUser)
+    );
   });
 
   // Calculate summary statistics
   const summaryStats = {
-    totalHours: filteredShifts.reduce((sum, shift) => sum + shift.daily_hours, 0),
-    totalSalary: filteredShifts.reduce((sum, shift) => sum + shift.daily_salary, 0),
+    totalHours: filteredShifts.reduce(
+      (sum, shift) => sum + shift.daily_hours,
+      0
+    ),
+    totalSalary: filteredShifts.reduce(
+      (sum, shift) => sum + shift.daily_salary,
+      0
+    ),
     activeUsers: new Set(filteredShifts.map((shift) => shift.user?.id)).size,
     averageHoursPerDay:
       filteredShifts.length > 0
-        ? filteredShifts.reduce((sum, shift) => sum + shift.daily_hours, 0) / filteredShifts.length
+        ? filteredShifts.reduce((sum, shift) => sum + shift.daily_hours, 0) /
+          filteredShifts.length
         : 0,
   };
 
   // Prepare chart data
   const prepareChartData = () => {
-    const dailyData = filteredShifts.reduce(
-      (acc, shift) => {
-        const date = format(new Date(shift.date), "MMM dd");
-        if (!acc[date]) {
-          acc[date] = { date, hours: 0, salary: 0, users: new Set() };
-        }
-        acc[date].hours += shift.daily_hours;
-        acc[date].salary += shift.daily_salary;
-        acc[date].users.add(shift.user?.id);
-        return acc;
-      },
-      {} as Record<string, { date: string; hours: number; salary: number; users: Set<number | undefined> }>
-    );
+    const dailyData = filteredShifts.reduce((acc, shift) => {
+      const date = format(new Date(shift.date), "MMM dd");
+      if (!acc[date]) {
+        acc[date] = { date, hours: 0, salary: 0, users: new Set() };
+      }
+      acc[date].hours += shift.daily_hours;
+      acc[date].salary += shift.daily_salary;
+      acc[date].users.add(shift.user?.id);
+      return acc;
+    }, {} as Record<string, { date: string; hours: number; salary: number; users: Set<number | undefined> }>);
     const dailyChartData = Object.values(dailyData).map((item) => ({
       date: item.date,
       hours: item.hours, // Keep raw values
@@ -306,43 +370,47 @@ console.log(shifts)
 
     const userPerformance = childRotaUsers
       .map((user) => {
-        const userShifts = filteredShifts.filter((shift) => shift.user?.id === user.id);
+        const userShifts = filteredShifts.filter(
+          (shift) => shift.user?.id === user.id
+        );
         return {
           name: (user.display_name || user.full_name)?.split(" ")[0],
           fullName: user.display_name || user.full_name,
           hours: userShifts.reduce((sum, shift) => sum + shift.daily_hours, 0),
-          salary: userShifts.reduce((sum, shift) => sum + shift.daily_salary, 0),
+          salary: userShifts.reduce(
+            (sum, shift) => sum + shift.daily_salary,
+            0
+          ),
           shifts: userShifts.length,
           avatar: user.avatar,
         };
       })
       .filter((user) => user.shifts > 0);
 
-    const shiftTypeData = filteredShifts.reduce(
-      (acc, shift) => {
-        const type = shift.shift_detail.name;
-        if (!acc[type]) {
-          acc[type] = { name: type, count: 0, hours: 0, color: shift.shift_detail.colors };
-        }
-        acc[type].count += 1;
-        acc[type].hours += shift.daily_hours;
-        return acc;
-      },
-      {} as Record<string, { name: string; count: number; hours: number; color: string }>
-    );
+    const shiftTypeData = filteredShifts.reduce((acc, shift) => {
+      const type = shift.shift_detail.name;
+      if (!acc[type]) {
+        acc[type] = {
+          name: type,
+          count: 0,
+          hours: 0,
+          color: shift.shift_detail.colors,
+        };
+      }
+      acc[type].count += 1;
+      acc[type].hours += shift.daily_hours;
+      return acc;
+    }, {} as Record<string, { name: string; count: number; hours: number; color: string }>);
     const shiftTypePieData = Object.values(shiftTypeData);
 
-    const roleData = childRotaUsers.reduce(
-      (acc, user) => {
-        const role = user.role || "No Role";
-        if (!acc[role]) {
-          acc[role] = { name: role, count: 0 };
-        }
-        acc[role].count += 1;
-        return acc;
-      },
-      {} as Record<string, { name: string; count: number }>
-    );
+    const roleData = childRotaUsers.reduce((acc, user) => {
+      const role = user.role || "No Role";
+      if (!acc[role]) {
+        acc[role] = { name: role, count: 0 };
+      }
+      acc[role].count += 1;
+      return acc;
+    }, {} as Record<string, { name: string; count: number }>);
     const rolePieData = Object.values(roleData);
 
     return {
@@ -410,7 +478,9 @@ console.log(shifts)
     }
   };
 
-  const uniqueRoles = Array.from(new Set(childRotaUsers.map((user) => user.role).filter(Boolean)));
+  const uniqueRoles = Array.from(
+    new Set(childRotaUsers.map((user) => user.role).filter(Boolean))
+  );
 
   if (loading) {
     return (
@@ -451,7 +521,9 @@ console.log(shifts)
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{summaryStats.totalHours.toFixed(1)}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {summaryStats.totalHours.toFixed(1)}
+            </div>
             <p className="text-xs text-muted-foreground mb-3">
               Avg: {summaryStats.averageHoursPerDay.toFixed(1)} hrs/day
             </p>
@@ -478,8 +550,12 @@ console.log(shifts)
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">£{summaryStats.totalSalary.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mb-3">For {currentMonthData.label}</p>
+            <div className="text-2xl font-bold text-green-600">
+              £{summaryStats.totalSalary.toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              For {currentMonthData.label}
+            </p>
             <div className="h-16">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData.dailyChartData.slice(-7)}>
@@ -503,14 +579,28 @@ console.log(shifts)
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{summaryStats.activeUsers}</div>
-            <p className="text-xs text-muted-foreground mb-3">Out of {childRotaUsers.length} total</p>
+            <div className="text-2xl font-bold text-purple-600">
+              {summaryStats.activeUsers}
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Out of {childRotaUsers.length} total
+            </p>
             <div className="h-16">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={chartData.rolePieData} cx="50%" cy="50%" innerRadius={20} outerRadius={30} dataKey="count">
+                  <Pie
+                    data={chartData.rolePieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={20}
+                    outerRadius={30}
+                    dataKey="count"
+                  >
                     {chartData.rolePieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
                     ))}
                   </Pie>
                 </PieChart>
@@ -521,18 +611,36 @@ console.log(shifts)
 
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Shift Type Distribution</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Shift Type Distribution
+            </CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-cyan-600">{chartData.shiftTypePieData.length} Types</div>
-            <p className="text-xs text-muted-foreground mb-3">Shift types assigned</p>
+            <div className="text-2xl font-bold text-cyan-600">
+              {chartData.shiftTypePieData.length} Types
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Shift types assigned
+            </p>
             <div className="h-16">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={chartData.shiftTypePieData} cx="50%" cy="50%" innerRadius={20} outerRadius={30} dataKey="count">
+                  <Pie
+                    data={chartData.shiftTypePieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={20}
+                    outerRadius={30}
+                    dataKey="count"
+                  >
                     {chartData.shiftTypePieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || PIE_COLORS[index % PIE_COLORS.length]} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          entry.color || PIE_COLORS[index % PIE_COLORS.length]
+                        }
+                      />
                     ))}
                   </Pie>
                 </PieChart>
@@ -549,7 +657,9 @@ console.log(shifts)
             <Filter className="h-5 w-5" />
             Filters
           </CardTitle>
-          <CardDescription>Filter shifts by month, user, and role</CardDescription>
+          <CardDescription>
+            Filter shifts by month, user, and role
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -576,7 +686,9 @@ console.log(shifts)
               <label className="text-sm font-medium">User</label>
               <Select
                 value={selectedUser !== null ? selectedUser.toString() : "all"}
-                onValueChange={(value) => setSelectedUser(value === "all" ? null : Number(value))}
+                onValueChange={(value) =>
+                  setSelectedUser(value === "all" ? null : Number(value))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select user" />
@@ -629,7 +741,9 @@ console.log(shifts)
           <CardTitle className="text-lg">Shift Schedule</CardTitle>
           <CardDescription>
             {selectedUser
-              ? `Showing shifts for ${childRotaUsers.find((u) => u.id === selectedUser)?.full_name} - ${currentMonthData.label}`
+              ? `Showing shifts for ${
+                  childRotaUsers.find((u) => u.id === selectedUser)?.full_name
+                } - ${currentMonthData.label}`
               : `Showing all shifts for ${currentMonthData.label}`}
           </CardDescription>
         </CardHeader>
@@ -641,7 +755,10 @@ console.log(shifts)
                   <th className="sticky left-0 z-10 border-b border-r px-4 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-50">
                     Day
                   </th>
-                  {(selectedUser ? childRotaUsers.filter((u) => u.id === selectedUser) : filteredUsers).map((user) => (
+                  {(selectedUser
+                    ? childRotaUsers.filter((u) => u.id === selectedUser)
+                    : filteredUsers
+                  ).map((user) => (
                     <th
                       key={user.id}
                       className="border-b w-[200px] border-r px-4 py-3 text-left text-xs font-medium uppercase tracking-wider min-w-[200px]"
@@ -659,7 +776,13 @@ console.log(shifts)
                         <div>
                           <div className="font-medium">{user.full_name}</div>
                           {user.role && (
-                            <Badge variant="outline" className={cn("text-xs mt-1", getRoleColor(user.role))}>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-xs mt-1",
+                                getRoleColor(user.role)
+                              )}
+                            >
                               {user.role}
                             </Badge>
                           )}
@@ -677,53 +800,70 @@ console.log(shifts)
                   <React.Fragment key={weekIndex}>
                     {week.map((dayData, dayIndex) => {
                       const totalDailySalary = filteredShifts
-                        .filter((shift) => shift.date === dayData.toISOString()?.split("T")[0])
+                        .filter(
+                          (shift) =>
+                            shift.date === dayData.toISOString()?.split("T")[0]
+                        )
                         .reduce((sum, shift) => sum + shift.daily_salary, 0);
 
                       return (
-                        <tr key={dayData.toISOString()} className={dayIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <tr
+                          key={dayData.toISOString()}
+                          className={
+                            dayIndex % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }
+                        >
                           <td className="sticky max-w-[200px] left-0 z-10 whitespace-nowrap border-r px-4 py-2 text-sm font-medium bg-inherit">
                             <div>
-                           <div className="font-semibold flex items-center gap-2">
-  {getDayName(dayData)}
-  <span className="bg-green-400 w-6 h-6 rounded-full flex items-center justify-center text-white text-sm">
-    {dayData.getDate()}
-  </span>
-</div>
+                              <div className="font-semibold flex items-center gap-2">
+                                {getDayName(dayData)}
+                              </div>
 
-                              <div className="text-xs text-muted-foreground">{format(dayData, "MMM yyyy")}</div>
+                              <div className="text-xs text-muted-foreground">
+                           
+                                {format(dayData, "dd/MM/yyyy")}
+                              </div>
                             </div>
                           </td>
-                          {(selectedUser ? childRotaUsers.filter((u) => u.id === selectedUser) : filteredUsers).map(
-                            (user) => {
-                              const userShift = filteredShifts.find(
-                                (shift) =>
-                                  shift.date === dayData.toISOString()?.split("T")[0] && shift.user?.id === user.id
-                              );
-                              return (
-                                <td key={user.id} className="border-r p-2 align-top">
-                                  {userShift ? (
-                                    <ShiftCard
-                                      shiftType={userShift.shift_detail.name}
-                                      shift_cell_id={userShift.id}
-                                      onShiftUpdate={fetchData}
-                                  
-                                      shift_id={userShift.shift_detail.id}
-                                      shift_list={userShift?.user?.shifts ?? []}
-                                      color={hexToColorName(userShift.shift_detail.colors)}
-                                      rate={userShift.shift_detail.rate_per_hours}
-                                      total_hours={userShift.shift_detail.total_hours}
-                                     
-                                    />
-                                  ) : (
-                                    <div className="h-16 w-[200px] rounded-md bg-gray-100/50 border-2 border-dashed border-gray-200 flex items-center justify-center">
-                                      <span className="text-xs text-gray-400">No shift</span>
-                                    </div>
-                                  )}
-                                </td>
-                              );
-                            }
-                          )}
+                          {(selectedUser
+                            ? childRotaUsers.filter(
+                                (u) => u.id === selectedUser
+                              )
+                            : filteredUsers
+                          ).map((user) => {
+                            const userShift = filteredShifts.find(
+                              (shift) =>
+                                shift.date ===
+                                  dayData.toISOString()?.split("T")[0] &&
+                                shift.user?.id === user.id
+                            );
+                            return (
+                              <td
+                                key={user.id}
+                                className="border-r p-2 align-top"
+                              >
+                                {userShift ? (
+                                  <ShiftCard
+                                    shiftType={userShift.shift_detail.name}
+                                    shift_cell_id={userShift.id}
+                                    onShiftUpdate={fetchData}
+                                    shift_id={userShift.shift_detail.id}
+                                    shift_list={userShift?.user?.shifts ?? []}
+                                    color={
+                                      userShift.shift_detail.colors
+                                    }
+                                    rate={userShift.shift_detail.rate_per_hours}
+                                    total_hours={userShift.shift_detail.total_hours}                              />
+                                ) : (
+                                  <div className="h-16 w-[200px] rounded-md bg-gray-100/50 border-2 border-dashed border-gray-200 flex items-center justify-center">
+                                    <span className="text-xs text-gray-400">
+                                      No shift
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
                           <td className="p-2 align-top text-sm text-right font-medium">
                             £{totalDailySalary.toFixed(2)}
                           </td>
@@ -732,7 +872,11 @@ console.log(shifts)
                     })}
                     {weekIndex < weeks.length - 1 && (
                       <tr className="h-2 bg-gray-200">
-                        <td colSpan={(selectedUser ? 1 : filteredUsers.length) + 2}></td>
+                        <td
+                          colSpan={
+                            (selectedUser ? 1 : filteredUsers.length) + 2
+                          }
+                        ></td>
                       </tr>
                     )}
                   </React.Fragment>
@@ -768,21 +912,29 @@ console.log(shifts)
                       </Avatar>
                       <div>
                         <h3 className="font-semibold">{user.full_name}</h3>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {user.email}
+                        </p>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">Role:</span>
                         {user.role ? (
-                          <Badge className={getRoleColor(user.role)}>{user.role}</Badge>
+                          <Badge className={getRoleColor(user.role)}>
+                            {user.role}
+                          </Badge>
                         ) : (
-                          <span className="text-sm text-muted-foreground">No role assigned</span>
+                          <span className="text-sm text-muted-foreground">
+                            No role assigned
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">Status:</span>
-                        <Badge variant={user.is_active ? "default" : "secondary"}>
+                        <Badge
+                          variant={user.is_active ? "default" : "secondary"}
+                        >
                           {user.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </div>
@@ -791,10 +943,16 @@ console.log(shifts)
                   <div className="space-y-4">
                     {user.contract && (
                       <div>
-                        <h4 className="font-medium mb-2">Contract Information</h4>
+                        <h4 className="font-medium mb-2">
+                          Contract Information
+                        </h4>
                         <div className="space-y-1">
-                          <p className="text-sm font-medium">{user.contract.name}</p>
-                          <p className="text-sm text-muted-foreground">{user.contract.description}</p>
+                          <p className="text-sm font-medium">
+                            {user.contract.name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {user.contract.description}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -803,14 +961,30 @@ console.log(shifts)
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="text-sm">Parent Rota:</span>
-                          <Badge variant={user.parent_rota_completed ? "default" : "secondary"}>
-                            {user.parent_rota_completed ? "Completed" : "Pending"}
+                          <Badge
+                            variant={
+                              user.parent_rota_completed
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {user.parent_rota_completed
+                              ? "Completed"
+                              : "Pending"}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm">Child Rota:</span>
-                          <Badge variant={user.child_rota_completed ? "default" : "secondary"}>
-                            {user.child_rota_completed ? "Completed" : "Pending"}
+                          <Badge
+                            variant={
+                              user.child_rota_completed
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {user.child_rota_completed
+                              ? "Completed"
+                              : "Pending"}
                           </Badge>
                         </div>
                       </div>

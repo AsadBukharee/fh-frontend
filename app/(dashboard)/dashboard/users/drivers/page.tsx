@@ -49,6 +49,7 @@ import {
  
   Shield,
   FileText,
+  Check,
   
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
@@ -194,6 +195,23 @@ export default function DriversPage() {
   const perPage = 10
   const { showToast } = useToast()
   const cookies = useCookies()
+const handleApproveDriverClick = async (driverId: number) => {
+  const response=await fetch(`${API_URL}/api/profiles/driver/approve/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${cookies.get("access_token")}`,
+    },
+    body: JSON.stringify({ driver_id: driverId }),
+  })
+  const data = await response.json()
+  if (data.success) {
+    showToast("Driver approved successfully", "success")
+    fetchDrivers()
+  } else {
+    showToast(data.message || "Failed to approve driver", "error")
+  }
+}
 
   const fetchDrivers = useCallback(async () => {
     setLoading(true)
@@ -716,6 +734,10 @@ export default function DriversPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-white">
+                           <DropdownMenuItem  onClick={() => handleApproveDriverClick(driver.id)}>
+                          <Check className="w-4 h-4 mr-2" />
+                          Approve
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleEditDriverClick(driver)}>
                           <Edit className="w-4 h-4 mr-2" />
                           Edit
