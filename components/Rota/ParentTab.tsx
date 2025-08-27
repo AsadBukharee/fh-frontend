@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import StartRota from "./StartRota";
+import StatsTab from "./StatsTab";
 
 // TypeScript Interfaces
 interface ShiftDetail {
@@ -403,17 +404,23 @@ const ParentTab: React.FC = () => {
     });
   }, []);
 
-  const getCurrentWeek = useCallback((): string => {
-    const currentDate = new Date(2025, 6, 22);
-    const week1Start = new Date(2025, 6, 21);
-    const week2Start = new Date(2025, 6, 28);
-    const week3Start = new Date(2025, 7, 4);
-    const week4Start = new Date(2025, 7, 11);
-    if (currentDate >= week1Start && currentDate < week2Start) return "week1";
-    if (currentDate >= week2Start && currentDate < week3Start) return "week2";
-    if (currentDate >= week3Start && currentDate < week4Start) return "week3";
-    return "week4";
-  }, []);
+ const getCurrentWeek = useCallback((): string => {
+  // Find the first user with a valid stats.current_week
+  const validUserRota = cachedApiData.find((userRota) => userRota.stats?.current_week);
+  if (validUserRota && validUserRota.stats.current_week) {
+    return `week${validUserRota.stats.current_week}`;
+  }
+  // Fallback to hardcoded logic if no valid current_week is found
+  const currentDate = new Date(); // Use actual current date instead of hardcoded
+  const week1Start = new Date(2025, 6, 21); // July 21, 2025
+  const week2Start = new Date(2025, 6, 28); // July 28, 2025
+  const week3Start = new Date(2025, 7, 4); // August 4, 2025
+  const week4Start = new Date(2025, 7, 11); // August 11, 2025
+  if (currentDate >= week1Start && currentDate < week2Start) return "week1";
+  if (currentDate >= week2Start && currentDate < week3Start) return "week2";
+  if (currentDate >= week3Start && currentDate < week4Start) return "week3";
+  return "week4";
+}, [cachedApiData]);
 
   const convertUserShiftsToEmployeeShifts = useCallback((userShifts: UserShift[]): EmployeeShift[] => {
     return userShifts.map((shift) => ({

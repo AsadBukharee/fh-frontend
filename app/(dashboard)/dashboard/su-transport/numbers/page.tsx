@@ -98,7 +98,7 @@ export default function NumbersPage() {
   })
   const [filters, setFilters] = useState<Filters>({
     date_from: "2024-01-01",
-    location_name: "", // Initialize as empty, will be set by fetchLocations
+    location_name: "",
     in_count_min: 10,
     spillover_min: 2,
     page: 1,
@@ -111,6 +111,13 @@ export default function NumbersPage() {
   const cookies = useCookies()
 
   const fetchNumbers = useCallback(async () => {
+    const token = cookies.get("access_token")
+    if (!token) {
+      setError("No access token found. Please log in.")
+      showToast("No access token found. Please log in.", "error")
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const query = new URLSearchParams({
@@ -125,7 +132,7 @@ export default function NumbersPage() {
       const response = await fetch(`${API_URL}/api/su/?${query}`, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
+          Authorization: `Bearer ${token}`,
         },
       })
 
@@ -137,16 +144,26 @@ export default function NumbersPage() {
         throw new Error(`HTTP error! Status: ${response.status}`)
       }
       const data = await response.json()
-      if (data.success) {
+      if (data.success && data.data && Array.isArray(data.data.results) && data.data.pagination) {
         setNumbers(data.data.results)
         setPagination(data.data.pagination)
         setError(null)
       } else {
-        setError(data.message || "Failed to fetch numbers")
-        showToast(data.message || "Failed to fetch numbers", "error")
+        setNumbers([])
+        setPagination({
+          count: 0,
+          next: null,
+          previous: null,
+          current_page: 1,
+          total_pages: 1,
+          page_size: 5,
+        })
+        setError(data.message || "No data returned from the server")
+        showToast(data.message || "No data returned from the server", "error")
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching numbers"
+      setNumbers([])
       setError(errorMessage)
       showToast(errorMessage, "error")
     } finally {
@@ -155,12 +172,24 @@ export default function NumbersPage() {
   }, [cookies, showToast, filters, searchQuery])
 
   const fetchLocations = useCallback(async () => {
+    const token = cookies.get("access_token")
+    if (!token) {
+      setLocations([])
+      setFilters((prev) => ({
+        ...prev,
+        location_name: "",
+        page: 1,
+      }))
+      showToast("No access token found. Please log in.", "error")
+      setLocationsLoading(false)
+      return
+    }
     setLocationsLoading(true)
     try {
       const response = await fetch(`${API_URL}/api/locations/`, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
+          Authorization: `Bearer ${token}`,
         },
       })
       if (response.status === 401) {
@@ -171,17 +200,15 @@ export default function NumbersPage() {
         throw new Error(`HTTP error! Status: ${response.status}`)
       }
       const data = await response.json()
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
         setLocations(data.data)
-        // Default select the first location if available
         if (data.data.length > 0) {
           setFilters((prev) => ({
             ...prev,
             location_name: data.data[0].name,
-            page: 1, // Reset to first page when location changes
+            page: 1,
           }))
         } else {
-          // If no locations, ensure the filter is cleared
           setFilters((prev) => ({
             ...prev,
             location_name: "",
@@ -189,23 +216,23 @@ export default function NumbersPage() {
           }))
         }
       } else {
-        showToast(data.message || "Failed to fetch locations", "error")
         setLocations([])
         setFilters((prev) => ({
           ...prev,
           location_name: "",
           page: 1,
         }))
+        showToast(data.message || "No locations returned from the server", "error")
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching locations"
-      showToast(errorMessage, "error")
       setLocations([])
       setFilters((prev) => ({
         ...prev,
         location_name: "",
         page: 1,
       }))
+      showToast(errorMessage, "error")
     } finally {
       setLocationsLoading(false)
     }
@@ -215,22 +242,22 @@ export default function NumbersPage() {
     fetchLocations()
   }, [fetchLocations])
 
-  // Fetch numbers whenever filters change (including initial location set by fetchLocations)
   useEffect(() => {
     fetchNumbers()
-  }, [fetchNumbers, filters]) // Added filters to dependency array
+  }, [fetchNumbers, filters])
 
   const handleFilterChange = (name: string, value: string | number) => {
     setFilters((prev) => ({
       ...prev,
       [name]: value,
-      page: 1, // Reset to first page when filters change
+      page: 1,
     }))
   }
 
   const handlePageChange = (newPage: number) => {
     setFilters((prev) => ({ ...prev, page: newPage }))
   }
+
   const handleMouseMove = (key: string) => (e: React.MouseEvent) => {
     const button = buttonRefs.current[key]
     if (button) {
@@ -295,23 +322,21 @@ export default function NumbersPage() {
           ) : (
             <Select
               name="location_name"
-              value={filters.location_name}
+              value={filters.location_name || ""}
               onValueChange={(value) => handleFilterChange("location_name", value)}
             >
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Select a location" />
               </SelectTrigger>
               <SelectContent>
-                {locations.length === 0 ? (
-                  <SelectItem value="" disabled>
-                    No locations available
-                  </SelectItem>
-                ) : (
+                {locations && locations.length > 0 ? (
                   locations.map((location) => (
                     <SelectItem key={location.id} value={location.name}>
                       {location.address} {location.city}
                     </SelectItem>
                   ))
+                ) : (
+                  <div className="px-4 py-2 text-sm text-gray-500">No locations available</div>
                 )}
               </SelectContent>
             </Select>
@@ -391,23 +416,31 @@ export default function NumbersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {numbers.map((number) => (
-                <TableRow key={number.id} className="border-b border-gray-100">
-                  <TableCell className="font-medium">{number.id}</TableCell>
-                  <TableCell>{number.location_name}</TableCell>
-                  <TableCell>{number.vehicle_registration}</TableCell>
-                  <TableCell>
-                    <Badge className="bg-green-100 text-green-700">{number.in_count}</Badge>
+              {numbers && numbers.length > 0 ? (
+                numbers.map((number) => (
+                  <TableRow key={number.id} className="border-b border-gray-100">
+                    <TableCell className="font-medium">{number.id}</TableCell>
+                    <TableCell>{number.location_name}</TableCell>
+                    <TableCell>{number.vehicle_registration}</TableCell>
+                    <TableCell>
+                      <Badge className="bg-green-100 text-green-700">{number.in_count}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-orange-100 text-orange-700">{number.out_count}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-blue-100 text-blue-700">{number.spillover}</Badge>
+                    </TableCell>
+                    <TableCell>{new Date(number.created_at).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-gray-500 py-4">
+                    No data available
                   </TableCell>
-                  <TableCell>
-                    <Badge className="bg-orange-100 text-orange-700">{number.out_count}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className="bg-blue-100 text-blue-700">{number.spillover}</Badge>
-                  </TableCell>
-                  <TableCell>{new Date(number.created_at).toLocaleString()}</TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </div>

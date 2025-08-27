@@ -34,9 +34,10 @@ export async function middleware(request: NextRequest) {
     try {
       const response = await fetch(`${API_URL}/auth/refresh/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json',
+        headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${refreshToken}`,
-         },
+        },
         body: JSON.stringify({ refreshToken }),
       })
 
@@ -46,7 +47,9 @@ export async function middleware(request: NextRequest) {
       const newAccessToken = data.accessToken
       const newRefreshToken = data.refreshToken
       const newPayload = decodeJwt(newAccessToken)
-      const newExpiry = newPayload?.exp ? newPayload.exp * 1000 : Date.now() + 3600 * 1000 // Convert to ms
+      const newExpiry = newPayload?.exp
+        ? newPayload.exp * 1000
+        : Date.now() + 3600 * 1000 // fallback 1hr
 
       return {
         accessToken: newAccessToken,
@@ -66,15 +69,14 @@ export async function middleware(request: NextRequest) {
       accessToken = newTokens.accessToken
       const response = NextResponse.next()
 
-      // Update cookies with new tokens
+      // Update cookies
       response.cookies.set('access_token', newTokens.accessToken)
       response.cookies.set('refresh_token', newTokens.refreshToken)
-      // Store expiry in milliseconds for consistency
       response.cookies.set('token_expiry', newTokens.expiry.toString())
 
       return response
     } else {
-      // If refresh fails, clear tokens and redirect to login
+      // Refresh failed → clear & redirect
       const response = NextResponse.redirect(new URL('/login', request.url))
       response.cookies.delete('access_token')
       response.cookies.delete('refresh_token')
@@ -91,24 +93,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Handle dashboard and its child routes
-  if (pathname.startsWith('/dashboard')) {
+  // Handle protected routes (dashboard + profile)
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/profile')) {
     if (!accessToken) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
   }
 
-  // Handle login and register routes
+  // Handle login/register routes
   if (pathname === '/login' || pathname === '/register') {
     if (accessToken) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
 
-  // Allow other routes to proceed
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/', '/dashboard/:path*', '/login', '/register'],
+  matcher: ['/', '/dashboard/:path*', '/profile/:path*', '/login', '/register'],
 }

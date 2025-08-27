@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/popover";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import { addMonths, isBefore, isValid } from "date-fns";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useToast } from "@/app/Context/ToastContext";
@@ -33,7 +32,6 @@ interface StartRotaProps {
 
 const StartRota: React.FC<StartRotaProps> = ({ users }) => {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const cookies = useCookies();
@@ -42,46 +40,13 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const maxEndDate = startDate ? addMonths(startDate, 3) : undefined;
 
-  const handleStartDateSelect = useCallback(
-    (date: Date | undefined) => {
-      if (date ) {
-        setStartDate(date);
-        if (
-          endDate &&
-          (isBefore(endDate, date) ||
-            (maxEndDate && isBefore(maxEndDate, endDate)))
-        ) {
-          setEndDate(undefined);
-        }
-      } else {
-        setStartDate(undefined);
-      }
-    },
-    [endDate, maxEndDate, today]
-  );
-
-  const handleEndDateSelect = useCallback(
-    (date: Date | undefined) => {
-      if (
-        date &&
-        isValid(date) &&
-        startDate &&
-        !isBefore(date, startDate) &&
-        maxEndDate &&
-        !isBefore(maxEndDate, date)
-      ) {
-        setEndDate(date);
-      } else {
-        setEndDate(undefined);
-      }
-    },
-    [startDate, maxEndDate]
-  );
+  const handleStartDateSelect = useCallback((date: Date | undefined) => {
+    setStartDate(date || undefined);
+  }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!selectedUserId || !startDate || !endDate) {
+    if (!selectedUserId || !startDate) {
       showToast("Missing Information", "info");
       return;
     }
@@ -91,7 +56,6 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
       const payload = {
         user_id: selectedUserId,
         start_date: format(startDate, "yyyy-MM-dd"),
-        end_date: format(endDate, "yyyy-MM-dd"),
       };
 
       const response = await fetch(
@@ -108,35 +72,26 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
 
       if (!response.ok) {
         const error = await response.json();
-         showToast(
-        error?.error,
-        "error"
-      );
-        throw new Error(`HTTP error! status: ${response.status} - ${error}`);
-        
-
-
+        showToast(error?.error, "error");
+        throw new Error(
+          `HTTP error! status: ${response.status} - ${error}`
+        );
       }
 
-      showToast(
-         "Rota started successfully.",
-        "success"
-        
-      );
+      showToast("Rota started successfully.", "success");
 
       setStartDate(undefined);
-      setEndDate(undefined);
       setSelectedUserId(null);
     } catch (error) {
       console.error("Error starting rota:", error);
-     
     } finally {
       setIsLoading(false);
     }
-  }, [selectedUserId, startDate, endDate, token, showToast]);
+  }, [selectedUserId, startDate, token, showToast]);
 
   return (
-    <div className="flex  gap-4 p-4  items-end w-fit bg-white   mx-auto">
+    <div className="flex gap-4 p-4 items-end w-fit bg-white mx-auto">
+      {/* User Select */}
       <div className="flex w-[100px] flex-col gap-1">
         <Label
           htmlFor="user-select"
@@ -165,6 +120,7 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
         </Select>
       </div>
 
+      {/* Start Date Picker */}
       <div className="flex flex-col gap-1">
         <Label
           htmlFor="start-date"
@@ -193,7 +149,6 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
               mode="single"
               selected={startDate}
               onSelect={handleStartDateSelect}
-              // disabled={(date) => isBefore(date, today)}
               initialFocus
               className="text-sm"
             />
@@ -201,45 +156,7 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
         </Popover>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="end-date" className="text-sm font-medium text-gray-600">
-          End Date
-        </Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              id="end-date"
-              variant="outline"
-              className="h-9 text-sm justify-start border-gray-300 hover:bg-gray-50"
-              disabled={!startDate}
-              aria-label="Select end date"
-            >
-              <CalendarIcon className="mr-2 h-4 w-4 text-gray-500" />
-              {endDate ? (
-                format(endDate, "PPP")
-              ) : (
-                <span className="text-gray-500">Pick an end date</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={endDate}
-              onSelect={handleEndDateSelect}
-              disabled={(date) => {
-                if (!startDate) return true;
-                if (isBefore(date, startDate)) return true;
-                if (maxEndDate && isBefore(maxEndDate, date)) return true;
-                return false;
-              }}
-              initialFocus
-              className="text-sm"
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
+      {/* Submit Button */}
       <Button
         onClick={handleSubmit}
         className="h-9 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50"

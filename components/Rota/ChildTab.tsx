@@ -1,8 +1,7 @@
-// components/shift-table.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, getISOWeek } from "date-fns";
 import {
   Users,
   Clock,
@@ -11,6 +10,7 @@ import {
   Calendar,
   BarChart3,
   Loader2,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
@@ -133,6 +133,14 @@ const hexToColorName = (
     "#344601": "green",
   };
   return colorMapping[hex.toUpperCase()] || "purple";
+};
+
+// Week colors for 4-week cycle
+const WEEK_COLORS = {
+  "Week 1": "#3b82f6", // Blue
+  "Week 2": "#10b981", // Green
+  "Week 3": "#f59e0b", // Orange
+  "Week 4": "#ef4444", // Red
 };
 
 // Generate months for dropdown
@@ -310,8 +318,6 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     fetchData();
   }, [selectedMonth, selectedUser, cookies]);
 
-  // Handle shift type change
-
   // Filter users based on search and role
   const filteredUsers = childRotaUsers.filter((user) => {
     const matchesSearch =
@@ -363,7 +369,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     }, {} as Record<string, { date: string; hours: number; salary: number; users: Set<number | undefined> }>);
     const dailyChartData = Object.values(dailyData).map((item) => ({
       date: item.date,
-      hours: item.hours, // Keep raw values
+      hours: item.hours,
       salary: item.salary,
       users: item.users.size,
     }));
@@ -435,22 +441,33 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     return days;
   };
 
-  // Group days by week
+  // Group days by week and assign week labels
   const groupDaysByWeek = (days: Date[]) => {
-    const weeks: Date[][] = [];
+    const weeks: { days: Date[]; weekLabel: string; weekColor: string }[] = [];
     let currentWeek: Date[] = [];
+    let currentWeekNumber = 0;
     days.forEach((day, index) => {
       const dayOfWeek = day.getDay();
+      const weekNumber = getISOWeek(day) % 4 || 4; // Cycle through 1-4
       if (index === 0 || dayOfWeek === 1) {
         if (currentWeek.length > 0) {
-          weeks.push(currentWeek);
+          weeks.push({
+            days: currentWeek,
+            weekLabel: `Week ${currentWeekNumber}`,
+            weekColor: WEEK_COLORS[`Week ${String(currentWeekNumber)}` as keyof typeof WEEK_COLORS],
+          });
         }
         currentWeek = [];
+        currentWeekNumber = weekNumber;
       }
       currentWeek.push(day);
       if (index === days.length - 1 || dayOfWeek === 0) {
         if (currentWeek.length > 0) {
-          weeks.push(currentWeek);
+          weeks.push({
+            days: currentWeek,
+            weekLabel: `Week ${currentWeekNumber}`,
+            weekColor: WEEK_COLORS[`Week ${String(currentWeekNumber)}` as keyof typeof WEEK_COLORS],
+          });
         }
         currentWeek = [];
       }
@@ -476,6 +493,11 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const getWeekColor = (date: Date) => {
+    const weekNumber = getISOWeek(date) % 4 || 4;
+    return WEEK_COLORS[`Week ${weekNumber}` as keyof typeof WEEK_COLORS];
   };
 
   const uniqueRoles = Array.from(
@@ -518,7 +540,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Check className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
@@ -737,8 +759,9 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
 
       {/* Shift Schedule */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Shift Schedule</CardTitle>
+        <CardHeader className="flex justify-between flex-row w-full items-center">
+         <div className="">
+           <CardTitle className="text-lg">Shift Schedule</CardTitle>
           <CardDescription>
             {selectedUser
               ? `Showing shifts for ${
@@ -746,6 +769,22 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                 } - ${currentMonthData.label}`
               : `Showing all shifts for ${currentMonthData.label}`}
           </CardDescription>
+         </div>
+       <div className="">
+           <CardTitle className="text-lg">Shift Week Labels</CardTitle>
+          <CardDescription>
+             {Object.entries(WEEK_COLORS).map(([week, color]) => (
+        <div
+          key={week}
+          className=" rounded-lg text-black flex items-center font-medium"
+         
+        >
+          <div className="w-2 h-2 mr-1"  style={{ backgroundColor: color }}></div>
+          {week}
+        </div>
+      ))}
+          </CardDescription>
+       </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto rounded-lg border">
@@ -798,7 +837,19 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
               <tbody>
                 {weeks.map((week, weekIndex) => (
                   <React.Fragment key={weekIndex}>
-                    {week.map((dayData, dayIndex) => {
+                    {/* Week Label Row */}
+                    <tr className="bg-gray-100">
+                      <td
+                        colSpan={
+                          (selectedUser ? 1 : filteredUsers.length) + 2
+                        }
+                        className="px-4 py-2 text-sm font-semibold"
+                        style={{ backgroundColor: week.weekColor, color: "#fff" }}
+                      >
+                        {week.weekLabel}
+                      </td>
+                    </tr>
+                    {week.days.map((dayData, dayIndex) => {
                       const totalDailySalary = filteredShifts
                         .filter(
                           (shift) =>
@@ -813,14 +864,15 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                             dayIndex % 2 === 0 ? "bg-white" : "bg-gray-50"
                           }
                         >
-                          <td className="sticky max-w-[200px] left-0 z-10 whitespace-nowrap border-r px-4 py-2 text-sm font-medium bg-inherit">
+                          <td
+                            className="sticky max-w-[200px] left-0 z-10 whitespace-nowrap border-r px-4 py-2 text-sm font-medium bg-inherit"
+                            style={{ color: getWeekColor(dayData) }}
+                          >
                             <div>
                               <div className="font-semibold flex items-center gap-2">
                                 {getDayName(dayData)}
                               </div>
-
                               <div className="text-xs text-muted-foreground">
-                           
                                 {format(dayData, "dd/MM/yyyy")}
                               </div>
                             </div>
@@ -849,11 +901,11 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                                     onShiftUpdate={fetchData}
                                     shift_id={userShift.shift_detail.id}
                                     shift_list={userShift?.user?.shifts ?? []}
-                                    color={
-                                      userShift.shift_detail.colors
-                                    }
+                                    shift_daily_salary={userShift.daily_salary}
+                                    color={userShift.shift_detail.colors}
                                     rate={userShift.shift_detail.rate_per_hours}
-                                    total_hours={userShift.shift_detail.total_hours}                              />
+                                    total_hours={userShift.shift_detail.total_hours}
+                                  />
                                 ) : (
                                   <div className="h-16 w-[200px] rounded-md bg-gray-100/50 border-2 border-dashed border-gray-200 flex items-center justify-center">
                                     <span className="text-xs text-gray-400">

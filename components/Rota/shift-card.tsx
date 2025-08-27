@@ -37,6 +37,7 @@ interface ShiftCardProps {
   shift_id: number;
   color: string;
   rate: number;
+  shift_daily_salary: number;
   total_hours: string;
   shift_list: Shift[];
   onShiftUpdate: () => void;
@@ -45,8 +46,8 @@ interface ShiftCardProps {
 // ✅ Format hours like "1 Hour", "10.5 Hours"
 function formatHours(hours: string | number) {
   const value = parseFloat(hours as string);
-  if (isNaN(value)) return "0 Hours";
-  return `${value} ${value === 1 ? "Hour" : "Hours"}`;
+  if (isNaN(value)) return "0 Hrs";
+  return `${value} ${value === 1 ? "Hr" : "Hrs"}`;
 }
 
 // ✅ Format salary globally as "£X.00"
@@ -64,6 +65,7 @@ export function ShiftCard({
   shift_id,
   color,
   rate,
+  shift_daily_salary,
   total_hours,
   shift_list,
   onShiftUpdate,
@@ -79,42 +81,58 @@ export function ShiftCard({
 
   const cookies = useCookies();
 
-  const handleSaveAll = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const token = cookies.get("access_token");
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
+ const handleSaveAll = async () => {
+  setIsLoading(true);
+  setError(null);
+  try {
+    const token = cookies.get("access_token");
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
 
-      // ✅ Combine all updates into ONE request
-      const response = await fetch(
-        `${API_URL}/api/rota/child-rota/${shift_cell_id}/`,
-        {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({
-            shift: newShift,
-            daily_salary: newSalary,
-            daily_hours: parseFloat(newHours),
-          }),
-        }
-      );
+    // API calls
+    const updateHours = fetch(
+      `${API_URL}/api/rota/child-rota/${shift_cell_id}/`,
+      {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          daily_hours: parseFloat(newHours),
+        }),
+      }
+    );
 
-      if (!response.ok) throw new Error("Update failed");
+    const updateSalary = fetch(
+      `${API_URL}/api/rota/child-rota/${shift_cell_id}/`,
+      {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          "shift": newShift,
+        }),
+      }
+    );
 
-      console.log("✅ Shift, Salary, Hours updated successfully");
-      onShiftUpdate();
-      setOpen(false);
-    } catch (err) {
-      console.error("❌ Error updating:", err);
-      setError("Failed to update. Please try again.");
-    } finally {
-      setIsLoading(false);
+    // Run both in parallel
+    const [hoursRes, salaryRes] = await Promise.all([updateHours, updateSalary]);
+
+    // Check responses
+    if (!hoursRes.ok || !salaryRes.ok) {
+      throw new Error("One or more updates failed");
     }
-  };
+
+    console.log("✅ Shift & Salary updated successfully");
+    onShiftUpdate();
+    setOpen(false);
+  } catch (err) {
+    console.error("❌ Error updating:", err);
+    setError("Failed to update. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div
@@ -127,7 +145,8 @@ export function ShiftCard({
       }}
     >
       <div className="flex w-full items-center justify-between">
-        <span className="cursor-pointer font-semibold">{shiftType}</span>
+        <span className="cursor-pointer font-semibold">{shiftType} ({formatPrice(rate)} P/H)</span>
+
 
         {/* Edit Button with Modal */}
         <Dialog open={open} onOpenChange={setOpen}>
@@ -165,7 +184,8 @@ export function ShiftCard({
                   step="0.01"
                   value={newSalary}
                   onChange={(e) => setNewSalary(parseFloat(e.target.value))}
-                  disabled={isLoading}
+                  readOnly
+                  
                 />
               </div>
 
@@ -173,9 +193,9 @@ export function ShiftCard({
               <div>
                 <label className="text-sm font-medium">Hours</label>
                 <Input
-                  type="number"
+                  type="text"
                   step="0.5"
-                  value={newHours}
+                  value={newHours||"123"}
                   onChange={(e) => setNewHours(e.target.value)}
                   disabled={isLoading}
                 />
@@ -204,7 +224,8 @@ export function ShiftCard({
 
       {/* Display Info */}
       <div className="flex justify-between w-full text-xs text-gray-600">
-        <span>{formatPrice(rate)}</span>
+        <span className="cursor-pointer ">Daily Pay:  ({formatPrice(shift_daily_salary)})</span>
+        
         <span>{formatHours(total_hours)}</span>
       </div>
     </div>
