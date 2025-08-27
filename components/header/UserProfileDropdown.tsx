@@ -46,7 +46,7 @@ export function UserProfileDropdown() {
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="bg-white">
-        <DropdownMenuItem className="hover:bg-gray-100">
+        <DropdownMenuItem onClick={()=>router.push(`/profile?user_id=${cookies.get("user_id")}`)} className="hover:bg-gray-100">
           <User className="w-4 h-4 mr-2" />
           Profile
         </DropdownMenuItem>

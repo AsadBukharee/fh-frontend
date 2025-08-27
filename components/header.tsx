@@ -6,6 +6,7 @@ import { SearchBar } from "./header/SearchBar"
 // import { MessageDialog } from "./header/MessageDialog"
 import { UserProfileDropdown } from "./header/UserProfileDropdown"
 import { Breadcrumbs } from "./header/Breadcrumbs"
+import StateDialog from "./header/StateDialog"
 
 
 
@@ -18,6 +19,7 @@ export function Header() {
           <SearchBar />
         </div>
         <div className="flex items-center space-x-4">
+          <StateDialog />
           <NotificationsDropdown  />
           {/* <MessageDialog users={users} /> */}
           <UserProfileDropdown />
