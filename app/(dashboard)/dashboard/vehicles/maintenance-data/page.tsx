@@ -356,7 +356,7 @@ export default function VehiclesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-white">
                         <DropdownMenuItem>
-                          <Link href={`vehicles-managements/${vehicle.id}`} className="flex items-center">
+                          <Link href={`maintenance-data/${vehicle.id}`} className="flex items-center">
                             <Eye className="w-4 h-4 mr-2" />
                             View
                           </Link>
