@@ -10,8 +10,7 @@ import { useStepper } from "@/components/ui/stepper";
 import { useActionState, useState } from "react";
 import { submitDocuments } from "../action";
 import FileUploader from "../Media/MediaUpload";
-// Import shared types
-// types/professionalCompetency.ts
+
 export interface Module {
   module_name: string;
   description: string;
@@ -29,7 +28,9 @@ export interface ProfessionalCompetency {
   request_status: string;
   has_description: boolean;
   modules: Module[];
+  // Removed driver property, as it is added in submitDocuments
 }
+
 interface DocumentsStepProps {
   driverId: number | null;
   setDocumentsData: (data: any) => void;
@@ -37,7 +38,70 @@ interface DocumentsStepProps {
 
 export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps) {
   const { goToNextStep, goToPreviousStep } = useStepper();
-  const [competencies, setCompetencies] = useState<{ [key: string]: ProfessionalCompetency }>({});
+  const [competencies, setCompetencies] = useState<{ [key: string]: ProfessionalCompetency }>(
+    {
+      "d_or_d1_license": {
+        document_name: "D or D1 License",
+        has_document: true,
+        has_expiry: true,
+        has_description: true,
+        request_status: "pending",
+        modules: [],
+        urls: ["", ""],
+        has_back_side: false,
+        description: "",
+        expiry_date: "",
+      },
+      cpc: {
+        document_name: "CPC",
+        has_document: true,
+        has_expiry: true,
+        has_description: true,
+        request_status: "pending",
+        modules: [],
+        urls: ["", ""],
+        has_back_side: false,
+        description: "",
+        expiry_date: "",
+      },
+      tacho_card: {
+        document_name: "Tacho Card",
+        has_document: false,
+        has_expiry: false,
+        has_description: false,
+        request_status: "pending",
+        modules: [],
+        urls: ["", ""],
+        has_back_side: false,
+        description: "",
+        expiry_date: "",
+      },
+      Passport_Right_To_Work: {
+        document_name: "Passport / Right To Work",
+        has_document: true,
+        has_expiry: true,
+        has_description: true,
+        request_status: "pending",
+        modules: [],
+        urls: ["", ""],
+        has_back_side: false,
+        description: "",
+        expiry_date: "",
+      },
+      proof_of_address: {
+        document_name: "Proof of Address",
+        has_document: true,
+        has_expiry: true,
+        has_description: true,
+        request_status: "pending",
+        modules: [],
+        urls: ["", ""],
+        has_back_side: false,
+        description: "",
+        expiry_date: "",
+      },
+    }
+  );
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [isModuleDialogOpen, setIsModuleDialogOpen] = useState(false);
   const [currentModule, setCurrentModule] = useState<Module | null>(null);
@@ -51,7 +115,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
           message: "Please complete the 'Personal Info', 'Next of Kin', and 'Health Questions' steps first.",
         };
       }
-    //@ts-expect-error ab thk ha
+      //@ts-expect-error ab thk ha
       const result = await submitDocuments({ driverId, competencies });
       if (result.success) {
         setDocumentsData(competencies);
@@ -59,7 +123,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
       }
       return result;
     },
-    { success: false, message: "" },
+    { success: false, message: "" }
   );
 
   const documentTypes = [
@@ -84,7 +148,11 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
     const errors: { [key: string]: string } = {};
     documentTypes.forEach((docType) => {
       const competency = competencies[docType.id];
-      if (competency?.has_document) {
+      if (docType.id === "tacho_card" && !competency?.has_document) {
+        if (!competency?.description) {
+          errors[`${docType.id}_reason`] = `Reason is required if ${docType.label} is not provided.`;
+        }
+      } else {
         if (!competency.urls[0]) {
           errors[`${docType.id}_front_image`] = `Front image is required for ${docType.label}.`;
         }
@@ -94,8 +162,6 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
         if (docType.id === "cpc" && competency.modules.length === 0) {
           errors[`${docType.id}_modules`] = `At least one CPC module is required.`;
         }
-      } else if (!competency?.description) {
-        errors[`${docType.id}_reason`] = `Reason is required if ${docType.label} is not provided.`;
       }
     });
     return errors;
@@ -113,7 +179,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
             m.description === currentModule.description &&
             m.expiry_date === currentModule.expiry_date
               ? module
-              : m,
+              : m
           ),
         },
       }));
@@ -148,7 +214,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
               m.module_name === module.module_name &&
               m.description === module.description &&
               m.expiry_date === module.expiry_date
-            ),
+            )
         ),
       },
     }));
@@ -160,7 +226,6 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
       [docId]: {
         ...prev[docId],
         has_document: checked,
-        document_name: documentTypes.find((d) => d.id === docId)?.label || "",
         has_expiry: checked,
         has_description: checked,
         request_status: "pending",
@@ -185,13 +250,10 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
     e.preventDefault();
     const errors = validateForm();
     setFormErrors(errors);
-    console.log('hi',errors
-    )
+    console.log("Form Errors:", errors);
 
     if (Object.keys(errors).length === 0) {
       documentsAction(new FormData());
-    }else{
-      console.log("hello")
     }
   };
 
@@ -211,16 +273,20 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
           ) : (
             documentTypes.map((docType) => (
               <div key={docType.id} className="space-y-4 rounded-md border p-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`${docType.id}_has_document`}
-                    checked={competencies[docType.id]?.has_document || false}
-                    onCheckedChange={(checked) => handleCheckboxChange(docType.id, checked as boolean)}
-                  />
-                  <Label htmlFor={`${docType.id}_has_document`} className="text-sm font-medium text-gray-700">
-                    I have a {docType.label}
-                  </Label>
-                </div>
+                {docType.id === "tacho_card" ? (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`${docType.id}_has_document`}
+                      checked={competencies[docType.id]?.has_document || false}
+                      onCheckedChange={(checked) => handleCheckboxChange(docType.id, checked as boolean)}
+                    />
+                    <Label htmlFor={`${docType.id}_has_document`} className="text-sm font-medium text-gray-700">
+                      I have a {docType.label}
+                    </Label>
+                  </div>
+                ) : (
+                  <Label className="text-sm font-medium text-gray-700">{docType.label} (Required)</Label>
+                )}
                 {competencies[docType.id]?.has_document && (
                   <>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -248,19 +314,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
                           accept="image/*,application/pdf"
                           maxSize={5 * 1024 * 1024}
                         />
-                        <Checkbox
-                          id={`${docType.id}_has_back_side`}
-                          checked={competencies[docType.id]?.has_back_side || false}
-                          onCheckedChange={(checked) =>
-                            setCompetencies((prev) => ({
-                              ...prev,
-                              [docType.id]: { ...prev[docType.id], has_back_side: checked as boolean },
-                            }))
-                          }
-                        />
-                        <Label htmlFor={`${docType.id}_has_back_side`} className="text-sm">
-                          Has Back Side
-                        </Label>
+                        
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -357,7 +411,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
                     )}
                   </>
                 )}
-                {!competencies[docType.id]?.has_document && (
+                {docType.id === "tacho_card" && !competencies[docType.id]?.has_document && (
                   <div className="space-y-2">
                     <Label htmlFor={`${docType.id}_reason`} className="text-sm font-medium text-gray-700">
                       Reason if not provided
@@ -394,7 +448,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
           <Button
             type="submit"
             className="bg-orange-600 text-white hover:bg-orange-700 text-sm"
-            // disabled={documentsPending || driverId === null}
+            disabled={documentsPending || driverId === null}
           >
             {documentsPending ? "Uploading..." : "Upload & Complete"}
           </Button>

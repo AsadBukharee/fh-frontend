@@ -1,7 +1,7 @@
 "use client";
 
-import { Eye, Car, Plus, RefreshCcw, User, CalendarDays, Clock } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Eye, Car, Plus, RefreshCcw, User, CalendarDays, Clock, MoveRight } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -16,54 +16,70 @@ import Addwalkaround from "@/components/walkaround/add-walkaround";
 import PlusWalkaround from "@/components/walkaround/pluswalkaround";
 import { debounce } from "lodash";
 
-// import type { Walkaround } from "@/types/walkaround";
+interface Walkaround {
+  id: number;
+  driver: {
+    id: number;
+    full_name: string;
+    email: string;
+  };
+  vehicle: {
+    id: number;
+    vehicles_type_name: string;
+    registration_number: string;
+  };
+  conducted_by: string | null;
+  walkaround_assignee: string | null;
+  status: "pending" | "failed" | "completed";
+  date: string;
+  time: string;
+  mileage: number;
+  defects?: string;
+  notes?: string;
+  walkaround_step?: number;
+  signature?: string;
+  parent?: number | null;
+  chain_id?: number;
+  total_steps?: number;
+}
 
 interface ApiResponse {
   success: boolean;
   data: {
-    results: any[];
-    count: number;
-    next: string | null;
-    previous: string | null;
+    results: {
+      root: any;
+      children: any[];
+      total_steps: number;
+      latest_step: number;
+      chain_id: number;
+      vehicle_id: number;
+      conducted_by_id: number;
+      status: string;
+      date: string;
+      created_at: string;
+      updated_at: string;
+    }[];
+    pagination: {
+      count: number;
+      next: string | null;
+      previous: string | null;
+      current_page: number;
+      total_pages: number;
+      page_size: number;
+    };
   };
-}
-interface Walkaround {
-  id: number
-  driver: {
-    id: number
-    full_name: string
-    email: string
-  }
-  vehicle: {
-    id: number
-    vehicles_type_name: string
-    registration_number: string
-  }
-  conducted_by: string | null
-  walkaround_assignee: string | null
-  status: "pending" | "failed" | "completed" | "custom"
-  date: string
-  time: string
-  mileage: number
-  defects?: string
-  notes?: string
-  walkaround_step?: number
-  signature?: string
-  parent?: number | null
 }
 
 const getStatusClasses = (status: Walkaround["status"]) => {
   switch (status.toLowerCase()) {
     case "completed":
-      return "bg-green-100 text-green-600";
+      return "bg-green-200 text-green-800";
     case "pending":
-      return "bg-yellow-100 text-yellow-600";
+      return "bg-yellow-200 text-yellow-800";
     case "failed":
-      return "bg-red-100 text-red-600";
-    case "custom":
-      return "bg-purple-100 text-purple-600";
+      return "bg-red-200 text-red-800";
     default:
-      return "bg-gray-100 text-gray-500";
+      return "bg-gray-200 text-gray-800";
   }
 };
 
@@ -102,42 +118,81 @@ const WalkaroundPage = () => {
 
       const result: ApiResponse = await response.json();
       if (result.success && result.data) {
-        const mappedWalkarounds = result.data.results.map((step: any) => {
-          const conductor = step.conducted_by || { full_name: "None None", email: "unknown" };
+        const mappedWalkarounds = result.data.results.flatMap((item) => {
+          const root = item.root;
+          const conductor = root.conducted_by || { full_name: "None None", email: "unknown" };
           const conductorName = conductor.full_name !== "None None" ? conductor.full_name : conductor.email;
           let assigneeName = null;
-          if (step.walkaround_assignee) {
+          if (root.walkaround_assignee) {
             assigneeName =
-              step.walkaround_assignee.full_name !== "None None"
-                ? step.walkaround_assignee.full_name
-                : step.walkaround_assignee.email;
+              root.walkaround_assignee.full_name !== "None None"
+                ? root.walkaround_assignee.full_name
+                : root.walkaround_assignee.email;
           }
-          return {
-            id: step?.id,
+
+          const rootWalkaround: Walkaround = {
+            id: root.id,
             driver: conductor,
             vehicle: {
-              id: step.vehicle?.id,
-              vehicles_type_name: step.vehicle.vehicles_type_name,
-              registration_number: step.vehicle.registration_number,
-              site_allocated: step.vehicle.site_allocated,
+              id: root.vehicle.id,
+              vehicles_type_name: root.vehicle.vehicles_type_name,
+              registration_number: root.vehicle.registration_number,
             },
             conducted_by: conductorName,
             walkaround_assignee: assigneeName,
-            status: step.status,
-            date: step.date,
-            time: step.time,
-            mileage: step.milage,
-            defects: step.defects || undefined,
-            note: step.note || undefined,
-            walkaround_step: step.walkaround_step,
-            signature: step.signature,
-            created_at: step.created_at,
-            updated_at: step.updated_at,
-            parent: step.parent,
+            status: root.status,
+            date: root.date,
+            time: root.time,
+            mileage: root.milage,
+            defects: root.defects === "no" || root.defects === "non" ? "None" : root.defects || "None",
+            notes: root.note === "no" || root.note === "non" ? "None" : root.note || "None",
+            walkaround_step: root.walkaround_step,
+            signature: root.signature,
+            parent: root.parent || null,
+            chain_id: item.chain_id,
+            total_steps: item.total_steps,
           };
+
+          const childWalkarounds = item.children.map((child) => {
+            const childConductor = child.conducted_by || { full_name: "None None", email: "unknown" };
+            const childConductorName =
+              childConductor.full_name !== "None None" ? childConductor.full_name : childConductor.email;
+            let childAssigneeName = null;
+            if (child.walkaround_assignee) {
+              childAssigneeName =
+                child.walkaround_assignee.full_name !== "None None"
+                  ? child.walkaround_assignee.full_name
+                  : child.walkaround_assignee.email;
+            }
+            return {
+              id: child.id,
+              driver: childConductor,
+              vehicle: {
+                id: child.vehicle.id,
+                vehicles_type_name: child.vehicle.vehicles_type_name,
+                registration_number: child.vehicle.registration_number,
+              },
+              conducted_by: childConductorName,
+              walkaround_assignee: childAssigneeName,
+              status: child.status,
+              date: child.date,
+              time: child.time,
+              mileage: child.milage,
+              defects: child.defects === "no" || child.defects === "non" ? "None" : child.defects || "None",
+              notes: child.note === "no" || child.note === "non" ? "None" : child.note || "None",
+              walkaround_step: child.walkaround_step,
+              signature: child.signature,
+              parent: child.parent || null,
+              chain_id: item.chain_id,
+              total_steps: item.total_steps,
+            };
+          });
+
+          return [rootWalkaround, ...childWalkarounds];
         });
+
         setWalkarounds(mappedWalkarounds);
-        setTotalCount(result.data.count || 0);
+        setTotalCount(result.data.pagination.count || 0);
       } else {
         setError("Failed to fetch walkarounds.");
       }
@@ -181,37 +236,66 @@ const WalkaroundPage = () => {
     setError(null);
   };
 
-  const handleViewDetails = (walkaroundData: Walkaround) => {
-    setSelectedWalkaround(walkaroundData);
+  const handleViewDetails = (walkaround: Walkaround) => {
+    setSelectedWalkaround(walkaround);
     setOpenDetailsDialog(true);
   };
 
-  const handleAddChildWalkaround = (parentWalkaround: Walkaround) => {
-    setSelectedWalkaround(parentWalkaround);
-    setOpenPlus(true);
+  const handleAddChildWalkaround = (chainId: number) => {
+    // Find all walkarounds in the same chain
+    const chainWalkarounds = walkarounds.filter((w) => w.chain_id === chainId);
+    // Find the walkaround with the highest walkaround_step
+    const latestWalkaround = chainWalkarounds.reduce((latest, current) => {
+      return (current.walkaround_step || 0) > (latest.walkaround_step || 0) ? current : latest;
+    }, chainWalkarounds[0]);
+
+    if (latestWalkaround) {
+      setSelectedWalkaround(latestWalkaround);
+      setOpenPlus(true);
+    }
   };
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
+  // Group walkarounds by vehicle_id and chain_id
+  const groupedWalkarounds = useMemo(() => {
+    const byVehicle = walkarounds.reduce((acc, walkaround) => {
+      const vehicleId = walkaround.vehicle.id;
+      if (!acc[vehicleId]) {
+        acc[vehicleId] = {};
+      }
+      const chainId = walkaround.chain_id || walkaround.id;
+      if (!acc[vehicleId][chainId]) {
+        acc[vehicleId][chainId] = { root: null, children: [] };
+      }
+      if (walkaround.parent === null) {
+        acc[vehicleId][chainId].root = walkaround;
+      } else {
+        acc[vehicleId][chainId].children.push(walkaround);
+      }
+      return acc;
+    }, {} as Record<number, Record<number, { root: Walkaround | null; children: Walkaround[] }>>);
+    return byVehicle;
+  }, [walkarounds]);
+
   if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
-  }
-  if (error) {
     return (
-      <div className="text-center py-12 text-red-500">
-        {error}
-        <Button variant="outline" onClick={resetFilters} className="ml-4">
-          Reset Filters
-        </Button>
+      <div className="min-h-screen bg-white p-6 flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white p-6">
+    <div className="min-h-screen bg-white p-6 relative">
+      {loading && (
+        <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center">
+          <div className="text-gray-600">Loading...</div>
+        </div>
+      )}
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Vehicle Walkaround</h1>
             <p className="text-sm text-gray-500 mb-4">View vehicle walkaround details</p>
@@ -220,7 +304,11 @@ const WalkaroundPage = () => {
               <div className="flex gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                    <Button
+                      variant="outline"
+                      className="w-[150px] justify-start text-left font-normal"
+                      aria-label="Select start date"
+                    >
                       {dateFrom ? format(dateFrom, "PPP") : "Pick start date"}
                     </Button>
                   </PopoverTrigger>
@@ -228,14 +316,25 @@ const WalkaroundPage = () => {
                     <Calendar
                       mode="single"
                       selected={dateFrom}
-                      onSelect={setDateFrom}
+                      onSelect={(date) => {
+                        setDateFrom(date);
+                        if (date && dateTo && date > dateTo) {
+                          setError("Start date cannot be later than end date.");
+                        } else {
+                          setError(null);
+                        }
+                      }}
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                    <Button
+                      variant="outline"
+                      className="w-[150px] justify-start text-left font-normal"
+                      aria-label="Select end date"
+                    >
                       {dateTo ? format(dateTo, "PPP") : "Pick end date"}
                     </Button>
                   </PopoverTrigger>
@@ -243,15 +342,25 @@ const WalkaroundPage = () => {
                     <Calendar
                       mode="single"
                       selected={dateTo}
-                      onSelect={setDateTo}
+                      onSelect={(date) => {
+                        setDateTo(date);
+                        if (dateFrom && date && dateFrom > date) {
+                          setError("Start date cannot be later than end date.");
+                        } else {
+                          setError(null);
+                        }
+                      }}
                       initialFocus
                       disabled={(date) => (dateFrom ? date < dateFrom : false)}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
-              <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
-                <SelectTrigger className="w-[100px]">
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger className="w-[100px]" aria-label="Select page size">
                   <SelectValue placeholder="Page size" />
                 </SelectTrigger>
                 <SelectContent>
@@ -261,15 +370,17 @@ const WalkaroundPage = () => {
                   <SelectItem value="100">100</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" onClick={resetFilters}>
+              <Button variant="outline" onClick={resetFilters} aria-label="Reset filters">
                 Reset Filters
               </Button>
             </div>
+            {error && <div className="text-red-500 mt-2">{error}</div>}
           </div>
           <div className="flex gap-4 items-center justify-center">
             <RefreshCcw
               className="text-gray-500 hover:text-gray-600 cursor-pointer"
               onClick={debouncedFetchWalkarounds}
+              aria-label="Refresh walkarounds"
             />
             <Dialog open={openAdd} onOpenChange={setOpenAdd}>
               <DialogTrigger asChild>
@@ -279,112 +390,115 @@ const WalkaroundPage = () => {
                 <DialogHeader>
                   <DialogTitle>Create New Walkaround</DialogTitle>
                 </DialogHeader>
-                <Addwalkaround setOpen={setOpenAdd}  />
+                <Addwalkaround setOpen={setOpenAdd} />
               </DialogContent>
             </Dialog>
           </div>
         </div>
         {/* Walkaround List */}
         <div className="space-y-6">
-          {walkarounds
-            .sort((a, b) => {
-              const dateA = a.date && a.time ? new Date(`${a.date} ${a.time}`) : new Date(0);
-              const dateB = b.date && b.time ? new Date(`${b.date} ${b.time}`) : new Date(0);
-              return dateB.getTime() - dateA.getTime(); // Descending order
-            })
-            .map((walkaround) => (
-              <div
-                key={walkaround.id}
-                className="p-4 border border-gray-200 rounded-lg flex items-center justify-between"
-              >
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                    Vehicle: {walkaround.vehicle.registration_number} ({walkaround.vehicle.vehicles_type_name})
-                    {walkaround.parent && (
-                      <span className="text-sm text-gray-500 ml-2">(Child of Walkaround #{walkaround.parent})</span>
-                    )}
-                  </h2>
-                  <div className="p-5 rounded-2xl w-full max-w-[300px] shadow-md bg-white border border-gray-200 flex flex-col items-center justify-center text-center transition hover:shadow-lg">
-                    <h3 className="text-lg font-semibold text-orange-600 underline mb-2">
-                      Walkaround #{walkaround.id}
-                    </h3>
-                    <div className="space-y-1 text-gray-700 text-sm">
-                      <p className="flex items-center gap-2 justify-center">
-                        <User className="w-4 h-4 text-gray-500" />
-                        {walkaround.conducted_by || "N/A"}
-                      </p>
-                      <p className="flex items-center gap-2 justify-center">
-                        <span className="font-medium text-gray-600">Status:</span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusClasses(
-                            walkaround.status
-                          )}`}
-                        >
-                          {walkaround.status || "N/A"}
-                        </span>
-                      </p>
-                      <p className="flex items-center gap-2 justify-center">
-                        <CalendarDays className="w-4 h-4 text-gray-500" />
-                        {format(new Date(walkaround.date), "dd.MM.yy")}
-                      </p>
-                      <p className="flex items-center gap-2 justify-center">
-                        <Clock className="w-4 h-4 text-gray-500" />
-                        {walkaround.time}
-                      </p>
-                      {walkaround.walkaround_step && (
-                        <p className="flex items-center gap-2 justify-center">
-                          <span className="font-medium text-gray-600">Step:</span>
-                          {walkaround.walkaround_step}
-                        </p>
+          {Object.entries(groupedWalkarounds).map(([vehicleId, chains]) => {
+            const chainKeys = Object.keys(chains).map(Number) as Array<keyof typeof chains>;
+            const firstChain = chains[chainKeys[0]];
+            return (
+              <div key={vehicleId} className="p-4 border border-gray-200 rounded-lg">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Vehicle: {firstChain.root?.vehicle.registration_number ||
+                    firstChain.children[0]?.vehicle.registration_number} (
+                  {firstChain.root?.vehicle.vehicles_type_name ||
+                    firstChain.children[0]?.vehicle.vehicles_type_name})
+                </h2>
+                <div className="space-y-4">
+                  {Object.entries(chains).map(([chainId, { root, children }]) => (
+                    <div key={chainId} className="flex flex-col sm:flex-row  w-full overflow-y-auto items-start sm:items-center gap-4">
+                      {root && (
+                        <>
+                          <div className={`p-4 shrink-0 rounded-lg ${getStatusClasses(root.status)} text-center w-full sm:w-64`}>
+                            <h3 className="text-sm font-semibold">Step {root.walkaround_step}</h3>
+                            <p className="text-sm">Driver: {root.conducted_by || "N/A"}</p>
+                            <p className="text-sm">Status: {root.status.charAt(0).toUpperCase() + root.status.slice(1)}</p>
+                            <p className="text-sm">Date: {format(new Date(root.date), "dd.MM.yy")}</p>
+                            <p className="text-sm">Time: {root.time}</p>
+                            <Button
+                              variant="outline"
+                              className="text-xs mt-2"
+                              onClick={() => handleViewDetails(root)}
+                              aria-label={`View details for walkaround ${root.id}`}
+                            >
+                              <Eye className="h-4 w-4 mr-1" /> Details
+                            </Button>
+                          </div>
+                          {children.length > 0 && (
+                            <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
+                          )}
+                        </>
                       )}
+                      {children
+                        .sort((a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0))
+                        .map((child, idx) => (
+                          <div key={child.id} className="flex items-center gap-4">
+                            <div className={`p-4 rounded-lg ${getStatusClasses(child.status)} text-center w-full sm:w-64`}>
+                              <h3 className="text-sm font-semibold">Step {child.walkaround_step}</h3>
+                              <p className="text-sm">Driver: {child.conducted_by || "N/A"}</p>
+                              <p className="text-sm">Status: {child.status.charAt(0).toUpperCase() + child.status.slice(1)}</p>
+                              <p className="text-sm">Date: {format(new Date(child.date), "dd.MM.yy")}</p>
+                              <p className="text-sm">Time: {child.time}</p>
+                              <Button
+                                variant="outline"
+                                className="text-xs mt-2"
+                                onClick={() => handleViewDetails(child)}
+                                aria-label={`View details for walkaround ${child.id}`}
+                              >
+                                <Eye className="h-4 w-4 mr-1" /> Details
+                              </Button>
+                            </div>
+                            {idx < children.length - 1 && (
+                              <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
+                            )}
+                          </div>
+                        ))}
+                      <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
+                      <Dialog open={openPlus} onOpenChange={setOpenPlus}>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className="w-8 h-8 flex justify-center items-center bg-purple-700 text-white rounded-full"
+                            onClick={() => handleAddChildWalkaround(Number(chainId))}
+                            aria-label={`Add child walkaround for chain ${chainId}`}
+                          >
+                            +
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Add Child Walkaround</DialogTitle>
+                          </DialogHeader>
+                          <PlusWalkaround
+                            setOpen={setOpenPlus}
+                            refreshWalkarounds={debouncedFetchWalkarounds}
+                            parentId={selectedWalkaround?.id || 0}
+                            walkaround={selectedWalkaround}
+                          />
+                        </DialogContent>
+                      </Dialog>
                     </div>
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => handleViewDetails(walkaround)}
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Details
-                    </Button>
-                  </div>
+                  ))}
                 </div>
-                <Dialog open={openPlus} onOpenChange={setOpenPlus}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="w-8 h-8 flex justify-center items-center bg-purple-700 text-white rounded-full"
-                      onClick={() => handleAddChildWalkaround(walkaround)}
-                    >
-                      +
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Add Child Walkaround</DialogTitle>
-                    </DialogHeader>
-                    <PlusWalkaround
-                      setOpen={setOpenPlus}
-                      refreshWalkarounds={debouncedFetchWalkarounds}
-                      parentId={walkaround.id}
-                      walkaround={walkaround}
-                    />
-                  </DialogContent>
-                </Dialog>
               </div>
-            ))}
+            );
+          })}
         </div>
         {/* Pagination Controls */}
         <div className="flex justify-between items-center mt-6">
-          <div>
-            <p className="text-sm text-gray-500">
-              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} walkarounds
-            </p>
-          </div>
+          <p className="text-sm text-gray-500">
+            Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} walkarounds | Page {page} of {totalPages}
+          </p>
           <div className="flex gap-2">
             <Button
               variant="outline"
               disabled={page === 1}
               onClick={() => setPage((prev) => prev - 1)}
+              aria-label="Previous page"
             >
               Previous
             </Button>
@@ -392,21 +506,12 @@ const WalkaroundPage = () => {
               variant="outline"
               disabled={page === totalPages || totalCount === 0}
               onClick={() => setPage((prev) => prev + 1)}
+              aria-label="Next page"
             >
               Next
             </Button>
           </div>
         </div>
-        {/* No Results */}
-        {walkarounds.length === 0 && (
-          <div className="text-center py-12">
-            <Car className="mx-auto w-12 h-12 text-gray-400 mb-3" />
-            <p className="text-gray-500 mb-2">No walkarounds found.</p>
-            <Button variant="outline" onClick={resetFilters}>
-              Reset Filters
-            </Button>
-          </div>
-        )}
       </div>
 
       <WalkaroundDetailsDialog

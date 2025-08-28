@@ -1,87 +1,87 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useCookies } from "next-client-cookies"
-import API_URL from "@/app/utils/ENV"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { useState, useEffect, useRef } from "react";
+import { useCookies } from "next-client-cookies";
+import API_URL from "@/app/utils/ENV";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import SignatureCanvas from "react-signature-canvas"
-import { useToast } from "@/components/ui/use-toast"
+} from "@/components/ui/select";
+import SignatureCanvas from "react-signature-canvas";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Walkaround {
-  id: number
+  id: number;
   driver: {
-    id: number
-    full_name: string
-    email: string
-  }
+    id: number;
+    full_name: string;
+    email: string;
+  };
   vehicle: {
-    id: number
-    vehicles_type_name: string
-    registration_number: string
-  }
-  conducted_by: string | null
-  walkaround_assignee: string | null
-  status: "pending" | "failed" | "completed" | "custom"
-  date: string
-  time: string
-  mileage: number
-  defects?: string
-  notes?: string
-  walkaround_step?: number
+    id: number;
+    vehicles_type_name: string;
+    registration_number: string;
+  };
+  conducted_by: string | null;
+  walkaround_assignee: string | null;
+  status: "pending" | "failed" | "completed" | "custom";
+  date: string;
+  time: string;
+  mileage: number;
+  defects?: string;
+  notes?: string;
+  walkaround_step?: number;
 }
 
 interface Profile {
-  id: number
-  full_name: string
-  avatar: string | null
-  email: string
-  sites: { id: number; name: string }[]
+  id: number;
+  full_name: string;
+  avatar: string | null;
+  email: string;
+  sites: { id: number; name: string }[];
 }
 
 interface Vehicle {
-  id: number
-  name: string
+  id: number;
+  name: string;
 }
 
 interface PlusWalkaroundProps {
-  setOpen: (open: boolean) => void
-  refreshWalkarounds: () => void
-  parentId: number
-  walkaround: Walkaround
+  setOpen: (open: boolean) => void;
+  refreshWalkarounds: () => void;
+  parentId: number;
+  walkaround: Walkaround | null; // Allow null to handle edge cases
 }
 
 const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: PlusWalkaroundProps) => {
   const [formData, setFormData] = useState({
-    driver: walkaround.driver.id.toString(),
-    walkaround_assignee: walkaround.walkaround_assignee ? walkaround.walkaround_assignee : "none",
-    vehicle: walkaround.vehicle.id.toString(),
+    driver: walkaround?.driver.id.toString() || "",
+    walkaround_assignee: walkaround?.walkaround_assignee ? walkaround.walkaround_assignee : "none",
+    vehicle: walkaround?.vehicle.id.toString() || "",
     date: new Date().toISOString().split("T")[0], // Current date in YYYY-MM-DD format
     time: new Date().toTimeString().split(" ")[0].slice(0, 5), // Current time in HH:MM format
     milage: "",
     signature: "",
-    note: "",
-    defects: "",
-    status: "pending",
-    walkaround_step: (walkaround.walkaround_step || 1).toString(),
-  })
-  const [errors, setErrors] = useState<Partial<typeof formData>>({})
-  const [loading, setLoading] = useState(false)
-  const [drivers, setDrivers] = useState<Profile[]>([])
-  const [managers, setManagers] = useState<Profile[]>([])
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const sigCanvas = useRef<SignatureCanvas>(null)
-  const cookies = useCookies()
-  const { toast } = useToast()
+    note: walkaround?.notes || "",
+    defects: walkaround?.defects || "",
+    status: walkaround?.status || "pending",
+    walkaround_step: ((walkaround?.walkaround_step || 0) + 1).toString(),
+  });
+  const [errors, setErrors] = useState<Partial<typeof formData>>({});
+  const [loading, setLoading] = useState(false);
+  const [drivers, setDrivers] = useState<Profile[]>([]);
+  const [managers, setManagers] = useState<Profile[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const sigCanvas = useRef<SignatureCanvas>(null);
+  const cookies = useCookies();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchProfiles = async (
@@ -95,22 +95,22 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
-        })
+        });
         if (!response.ok) {
-          throw new Error(`Failed to fetch ${type}s: ${response.statusText}`)
+          throw new Error(`Failed to fetch ${type}s: ${response.statusText}`);
         }
-        const result = await response.json()
+        const result = await response.json();
         if (result.success) {
-          setData(result.data)
+          setData(result.data);
         } else {
-          setErrors({ [type]: result.message || `Failed to fetch ${type}s` })
+          setErrors({ [type]: result.message || `Failed to fetch ${type}s` });
         }
       } catch (err) {
         setErrors({
           [type]: err instanceof Error ? err.message : `An error occurred while fetching ${type}s`,
-        })
+        });
       }
-    }
+    };
 
     const fetchVehicles = async () => {
       try {
@@ -120,76 +120,76 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
-        })
+        });
         if (!response.ok) {
-          throw new Error(`Failed to fetch vehicles: ${response.statusText}`)
+          throw new Error(`Failed to fetch vehicles: ${response.statusText}`);
         }
-        const result = await response.json()
+        const result = await response.json();
         if (result.success) {
           setVehicles(
             result.data.map((vehicle: any) => ({
               id: vehicle.id,
               name: `${vehicle.vehicle_type_name} (${vehicle.registration_number})`,
             })),
-          )
+          );
         } else {
-          setErrors({ vehicle: result.message || "Failed to fetch vehicles" })
+          setErrors({ vehicle: result.message || "Failed to fetch vehicles" });
         }
       } catch (err) {
         setErrors({
           vehicle: err instanceof Error ? err.message : "An error occurred while fetching vehicles",
-        })
+        });
       }
-    }
+    };
 
-    fetchProfiles("driver", setDrivers)
-    fetchProfiles("manager", setManagers)
-    fetchVehicles()
-  }, [cookies])
+    fetchProfiles("driver", setDrivers);
+    fetchProfiles("manager", setManagers);
+    fetchVehicles();
+  }, [cookies]);
 
   const formatName = (name: string): string =>
     name
       .split(" ")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(" ")
+      .join(" ");
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-    setErrors((prev) => ({ ...prev, [name]: undefined }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: undefined }));
+  };
 
   const clearSignature = () => {
-    sigCanvas.current?.clear()
-    setFormData((prev) => ({ ...prev, signature: "" }))
-    setErrors((prev) => ({ ...prev, signature: undefined }))
-  }
+    sigCanvas.current?.clear();
+    setFormData((prev) => ({ ...prev, signature: "" }));
+    setErrors((prev) => ({ ...prev, signature: undefined }));
+  };
 
   const saveSignature = () => {
     if (sigCanvas.current) {
-      const signatureData = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png")
-      setFormData((prev) => ({ ...prev, signature: signatureData }))
-      setErrors((prev) => ({ ...prev, signature: undefined }))
+      const signatureData = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
+      setFormData((prev) => ({ ...prev, signature: signatureData }));
+      setErrors((prev) => ({ ...prev, signature: undefined }));
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrors({})
-    setLoading(true)
+    e.preventDefault();
+    setErrors({});
+    setLoading(true);
 
-    const newErrors: Partial<typeof formData> = {}
-    if (!formData.driver) newErrors.driver = "Driver is required."
-    if (!formData.vehicle) newErrors.vehicle = "Vehicle is required."
-    if (!formData.milage) newErrors.milage = "Mileage is required."
-    if (!formData.date) newErrors.date = "Date is required."
-    if (!formData.time) newErrors.time = "Time is required."
-    if (!formData.signature) newErrors.signature = "Signature is required."
+    const newErrors: Partial<typeof formData> = {};
+    if (!formData.driver) newErrors.driver = "Driver is required.";
+    if (!formData.vehicle) newErrors.vehicle = "Vehicle is required.";
+    if (!formData.milage) newErrors.milage = "Mileage is required.";
+    if (!formData.date) newErrors.date = "Date is required.";
+    if (!formData.time) newErrors.time = "Time is required.";
+    if (!formData.signature) newErrors.signature = "Signature is required.";
 
     if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      setLoading(false)
-      return
+      setErrors(newErrors);
+      setLoading(false);
+      return;
     }
 
     const payload = {
@@ -197,7 +197,7 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
       vehicle: parseInt(formData.vehicle, 10),
       status: formData.status,
       milage: parseFloat(formData.milage),
-      walkaround_step: (walkaround.walkaround_step || 1) + 1,
+      walkaround_step: parseInt(formData.walkaround_step, 10),
       walkaround_assignee:
         formData.walkaround_assignee && formData.walkaround_assignee !== "none"
           ? parseInt(formData.walkaround_assignee, 10)
@@ -209,7 +209,7 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
       time: formData.time,
       note: formData.note || null,
       defects: formData.defects || null,
-    }
+    };
 
     try {
       const response = await fetch(`${API_URL}/api/walk-around/`, {
@@ -219,17 +219,17 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
         body: JSON.stringify(payload),
-      })
+      });
 
       if (response.ok) {
         toast({
           title: "Success",
           description: "Child walkaround added successfully",
-        })
-        refreshWalkarounds()
-        setOpen(false)
+        });
+        refreshWalkarounds();
+        setOpen(false);
       } else {
-        const errorData = await response.json()
+        const errorData = await response.json();
         toast({
           title: "Error",
           description:
@@ -237,23 +237,22 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             errorData.message.driver?.[0] ||
             "Failed to add child walkaround",
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
-      console.error(error)
+      console.error(error);
       toast({
         title: "Error",
         description: "An error occurred while adding the child walkaround",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-
       {/* Vehicle */}
       <div>
         <Label>Vehicle</Label>
@@ -274,7 +273,8 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
           </SelectContent>
         </Select>
         <p className="text-sm text-gray-500 mt-1">
-          Current: {walkaround.vehicle.registration_number} ({walkaround.vehicle.vehicles_type_name})
+          Current: {walkaround?.vehicle.registration_number || "N/A"} (
+          {walkaround?.vehicle.vehicles_type_name || "N/A"})
         </p>
         {errors.vehicle && <div className="text-red-500 text-sm">{errors.vehicle}</div>}
       </div>
@@ -298,7 +298,7 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
           </SelectContent>
         </Select>
         <p className="text-sm text-gray-500 mt-1">
-          Current: {walkaround.driver.full_name || walkaround.driver.email}
+          Current: {walkaround?.driver.full_name || walkaround?.driver.email || "N/A"}
         </p>
         {errors.driver && <div className="text-red-500 text-sm">{errors.driver}</div>}
       </div>
@@ -324,7 +324,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             ))}
           </SelectContent>
         </Select>
-        <p className="text-sm text-gray-500 mt-1">Current: {walkaround.walkaround_assignee || "None"}</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Current: {walkaround?.walkaround_assignee || "None"}
+        </p>
         {errors.walkaround_assignee && (
           <div className="text-red-500 text-sm">{errors.walkaround_assignee}</div>
         )}
@@ -341,7 +343,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
           step="0.1"
           min="0"
         />
-        <p className="text-sm text-gray-500 mt-1">Previous: {walkaround.mileage}</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Previous: {walkaround?.mileage || "N/A"}
+        </p>
         {errors.milage && <div className="text-red-500 text-sm">{errors.milage}</div>}
       </div>
 
@@ -369,7 +373,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
       <div>
         <Label>Note</Label>
         <Textarea name="note" value={formData.note} onChange={handleFormChange} />
-        <p className="text-sm text-gray-500 mt-1">Previous: {walkaround.notes || "None"}</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Previous: {walkaround?.notes || "None"}
+        </p>
         {errors.note && <div className="text-red-500 text-sm">{errors.note}</div>}
       </div>
 
@@ -377,7 +383,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
       <div>
         <Label>Defects</Label>
         <Textarea name="defects" value={formData.defects} onChange={handleFormChange} />
-        <p className="text-sm text-gray-500 mt-1">Previous: {walkaround.defects || "None"}</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Previous: {walkaround?.defects || "None"}
+        </p>
         {errors.defects && <div className="text-red-500 text-sm">{errors.defects}</div>}
       </div>
 
@@ -386,7 +394,7 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
         <Label>Status</Label>
         <Select
           value={formData.status}
-          onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+          onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value as "pending" | "failed" | "completed" | "custom" }))}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select status" />
@@ -398,7 +406,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             <SelectItem value="custom">Custom</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-sm text-gray-500 mt-1">Previous: {walkaround.status}</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Previous: {walkaround?.status || "N/A"}
+        </p>
         {errors.status && <div className="text-red-500 text-sm">{errors.status}</div>}
       </div>
 
@@ -407,11 +417,13 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
         <Label>Walkaround Step</Label>
         <Input
           type="number"
-          value={(walkaround.walkaround_step || 1) + 1}
+          value={formData.walkaround_step}
           disabled
           className="bg-gray-100"
         />
-        <p className="text-sm text-gray-500 mt-1">Previous: {walkaround.walkaround_step || 1}</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Previous: {walkaround?.walkaround_step || "N/A"}
+        </p>
       </div>
 
       <div className="flex justify-end gap-2">
@@ -423,7 +435,7 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
         </Button>
       </div>
     </form>
-  )
-}
+  );
+};
 
-export default PlusWalkaround
+export default PlusWalkaround;
