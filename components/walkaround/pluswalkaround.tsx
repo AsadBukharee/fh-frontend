@@ -165,13 +165,18 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
     setErrors((prev) => ({ ...prev, signature: undefined }));
   };
 
-  const saveSignature = () => {
-    if (sigCanvas.current) {
-      const signatureData = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
-      setFormData((prev) => ({ ...prev, signature: signatureData }));
-      setErrors((prev) => ({ ...prev, signature: undefined }));
-    }
-  };
+const saveSignature = () => {
+  if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+    const signatureData = sigCanvas.current
+      .getTrimmedCanvas()
+      .toDataURL("image/png");
+    setFormData((prev) => ({ ...prev, signature: signatureData }));
+    setErrors((prev) => ({ ...prev, signature: undefined }));
+  } else {
+    setErrors((prev) => ({ ...prev, signature: "Please provide a signature." }));
+  }
+};
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -354,12 +359,12 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
         <Label>Signature</Label>
         <div className="border rounded-md">
           <SignatureCanvas
-            ref={sigCanvas}
-            canvasProps={{
-              className: "w-full h-40",
-            }}
-            onEnd={saveSignature}
-          />
+  ref={sigCanvas}
+  penColor="black"
+  canvasProps={{ className: "w-full h-40 bg-white" }}
+  onEnd={saveSignature}
+/>
+
         </div>
         <div className="mt-2">
           <Button type="button" variant="outline" onClick={clearSignature} className="mr-2">

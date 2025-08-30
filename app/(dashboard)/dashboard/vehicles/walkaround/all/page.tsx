@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Addwalkaround from "@/components/walkaround/add-walkaround";
 import PlusWalkaround from "@/components/walkaround/pluswalkaround";
 import { debounce } from "lodash";
+import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 
 interface Walkaround {
   id: number;
@@ -98,6 +100,7 @@ const WalkaroundPage = () => {
   const [totalCount, setTotalCount] = useState(0);
 
   const cookies = useCookies();
+  const router = useRouter();
 
   const fetchWalkarounds = async () => {
     setLoading(true);
@@ -257,25 +260,21 @@ const WalkaroundPage = () => {
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // Group walkarounds by vehicle_id and chain_id
+  // Group walkarounds by chain_id instead of by vehicle_id
   const groupedWalkarounds = useMemo(() => {
-    const byVehicle = walkarounds.reduce((acc, walkaround) => {
-      const vehicleId = walkaround.vehicle.id;
-      if (!acc[vehicleId]) {
-        acc[vehicleId] = {};
-      }
+    const byChain = walkarounds.reduce((acc, walkaround) => {
       const chainId = walkaround.chain_id || walkaround.id;
-      if (!acc[vehicleId][chainId]) {
-        acc[vehicleId][chainId] = { root: null, children: [] };
+      if (!acc[chainId]) {
+        acc[chainId] = { root: null, children: [] };
       }
       if (walkaround.parent === null) {
-        acc[vehicleId][chainId].root = walkaround;
+        acc[chainId].root = walkaround;
       } else {
-        acc[vehicleId][chainId].children.push(walkaround);
+        acc[chainId].children.push(walkaround);
       }
       return acc;
-    }, {} as Record<number, Record<number, { root: Walkaround | null; children: Walkaround[] }>>);
-    return byVehicle;
+    }, {} as Record<number, { root: Walkaround | null; children: Walkaround[] }>);
+    return byChain;
   }, [walkarounds]);
 
   if (loading) {
@@ -293,7 +292,7 @@ const WalkaroundPage = () => {
           <div className="text-gray-600">Loading...</div>
         </div>
       )}
-      <div className="max-w-5xl mx-auto">
+      <div className=" mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
@@ -395,94 +394,88 @@ const WalkaroundPage = () => {
             </Dialog>
           </div>
         </div>
-        {/* Walkaround List */}
+        {/* Walkaround List - Now each chain gets its own box */}
         <div className="space-y-6">
-          {Object.entries(groupedWalkarounds).map(([vehicleId, chains]) => {
-            const chainKeys = Object.keys(chains).map(Number) as Array<keyof typeof chains>;
-            const firstChain = chains[chainKeys[0]];
+          {Object.entries(groupedWalkarounds).map(([chainId, { root, children }]) => {
+            // Get vehicle info from root or first child
+            const vehicleInfo = root?.vehicle || children[0]?.vehicle;
+            
             return (
-              <div key={vehicleId} className="p-4 border border-gray-200 rounded-lg">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Vehicle: {firstChain.root?.vehicle.registration_number ||
-                    firstChain.children[0]?.vehicle.registration_number} (
-                  {firstChain.root?.vehicle.vehicles_type_name ||
-                    firstChain.children[0]?.vehicle.vehicles_type_name})
+              <div key={chainId} className="p-4 border border-gray-200 rounded-lg">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                  Vehicle: {vehicleInfo?.registration_number} ({vehicleInfo?.vehicles_type_name})   
                 </h2>
-                <div className="space-y-4">
-                  {Object.entries(chains).map(([chainId, { root, children }]) => (
-                    <div key={chainId} className="flex flex-col sm:flex-row  w-full overflow-y-auto items-start sm:items-center gap-4">
-                      {root && (
-                        <>
-                          <div className={`p-4 shrink-0 rounded-lg ${getStatusClasses(root.status)} text-center w-full sm:w-64`}>
-                            <h3 className="text-sm font-semibold">Step {root.walkaround_step}</h3>
-                            <p className="text-sm">Driver: {root.conducted_by || "N/A"}</p>
-                            <p className="text-sm">Status: {root.status.charAt(0).toUpperCase() + root.status.slice(1)}</p>
-                            <p className="text-sm">Date: {format(new Date(root.date), "dd.MM.yy")}</p>
-                            <p className="text-sm">Time: {root.time}</p>
-                            <Button
-                              variant="outline"
-                              className="text-xs mt-2"
-                              onClick={() => handleViewDetails(root)}
-                              aria-label={`View details for walkaround ${root.id}`}
-                            >
-                              <Eye className="h-4 w-4 mr-1" /> Details
-                            </Button>
-                          </div>
-                          {children.length > 0 && (
-                            <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
-                          )}
-                        </>
+                <div className="flex flex-col sm:flex-row bg-white overflow-y-auto items-start sm:items-center gap-4">
+                  {root && (
+                    <>
+                      <div className={`p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64`}>
+                        <h3 className="text-sm font-semibold">Step <span className=" text-gray-500">{root.walkaround_step}</span></h3>
+                        <p className="text-sm font-semibold">Driver: <span className=" text-gray-500">{root.conducted_by || "N/A"}</span></p>
+                        <p className="text-sm font-semibold">Status: <Badge className={`${getStatusClasses(root.status)}`}>{root.status.charAt(0).toUpperCase() + root.status.slice(1)}</Badge></p>
+                        <p className="text-sm font-semibold">Date: <span className=" text-gray-500">{format(new Date(root.date), "dd.MM.yy")}</span></p>
+                        <p className="text-sm font-semibold">Time: <span className=" text-gray-500">{root.time}</span></p>
+                        <Button
+                          variant="outline"
+                          className="text-xs mt-2"
+                          onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${root.id}`)}
+                          aria-label={`View details for walkaround ${root.id}`}
+                        >
+                          <Eye className="h-4 w-4 mr-1" /> Details
+                        </Button>
+                      </div>
+                      {children.length > 0 && (
+                        <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
                       )}
-                      {children
-                        .sort((a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0))
-                        .map((child, idx) => (
-                          <div key={child.id} className="flex items-center gap-4">
-                            <div className={`p-4 rounded-lg ${getStatusClasses(child.status)} text-center w-full sm:w-64`}>
-                              <h3 className="text-sm font-semibold">Step {child.walkaround_step}</h3>
-                              <p className="text-sm">Driver: {child.conducted_by || "N/A"}</p>
-                              <p className="text-sm">Status: {child.status.charAt(0).toUpperCase() + child.status.slice(1)}</p>
-                              <p className="text-sm">Date: {format(new Date(child.date), "dd.MM.yy")}</p>
-                              <p className="text-sm">Time: {child.time}</p>
-                              <Button
-                                variant="outline"
-                                className="text-xs mt-2"
-                                onClick={() => handleViewDetails(child)}
-                                aria-label={`View details for walkaround ${child.id}`}
-                              >
-                                <Eye className="h-4 w-4 mr-1" /> Details
-                              </Button>
-                            </div>
-                            {idx < children.length - 1 && (
-                              <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
-                            )}
-                          </div>
-                        ))}
-                      <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
-                      <Dialog open={openPlus} onOpenChange={setOpenPlus}>
-                        <DialogTrigger asChild>
+                    </>
+                  )}
+                  {children
+                    .sort((a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0))
+                    .map((child, idx) => (
+                      <div key={child.id} className="flex items-center gap-4">
+                        <div className={`p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64`}>
+                          <h3 className="text-sm font-semibold">Step <span className=" text-gray-500">{child.walkaround_step}</span> </h3>
+                          <p className="text-sm font-semibold ">Driver: <span className=" text-gray-500">{child.conducted_by || "N/A"}</span></p>
+                          <p className="text-sm font-semibold ">Status: <Badge className={`${getStatusClasses(child.status)}`}>{child.status.charAt(0).toUpperCase() + child.status.slice(1)}</Badge></p>
+                          <p className="text-sm font-semibold ">Date: <span className=" text-gray-500">{format(new Date(child.date), "dd.MM.yy")}</span></p>
+                          <p className="text-sm font-semibold ">Time: <span className=" text-gray-500">{child.time}</span></p>
                           <Button
-                            variant="ghost"
-                            className="w-8 h-8 flex justify-center items-center bg-purple-700 text-white rounded-full"
-                            onClick={() => handleAddChildWalkaround(Number(chainId))}
-                            aria-label={`Add child walkaround for chain ${chainId}`}
+                            variant="outline"
+                            className="text-xs mt-2"
+                            onClick={() =>router.push(`/dashboard/vehicles/walkaround/all/${child.id}`)}
+                            aria-label={`View details for walkaround ${child.id}`}
                           >
-                            +
+                            <Eye className="h-4 w-4 mr-1" /> Details
                           </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Add Child Walkaround</DialogTitle>
-                          </DialogHeader>
-                          <PlusWalkaround
-                            setOpen={setOpenPlus}
-                            refreshWalkarounds={debouncedFetchWalkarounds}
-                            parentId={selectedWalkaround?.id || 0}
-                            walkaround={selectedWalkaround}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  ))}
+                        </div>
+                        {idx < children.length - 1 && (
+                          <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
+                        )}
+                      </div>
+                    ))}
+                  <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
+                  <Dialog open={openPlus} onOpenChange={setOpenPlus}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="w-8 h-8 flex justify-center items-center bg-purple-700 text-white rounded-full"
+                        onClick={() => handleAddChildWalkaround(Number(chainId))}
+                        aria-label={`Add child walkaround for chain ${chainId}`}
+                      >
+                        +
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Add Child Walkaround</DialogTitle>
+                      </DialogHeader>
+                      <PlusWalkaround
+                        setOpen={setOpenPlus}
+                        refreshWalkarounds={debouncedFetchWalkarounds}
+                        parentId={selectedWalkaround?.id || 0}
+                        walkaround={selectedWalkaround}
+                      />
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
             );

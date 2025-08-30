@@ -1,7 +1,8 @@
+
 "use client"
 import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Edit, X, Loader2, ChevronDown } from "lucide-react";
+import { Edit, X, Loader2, ChevronDown, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import StartRota from "./StartRota";
-import StatsTab from "./StatsTab";
+import StatsTab from "../header/StatsTab";
 
 // TypeScript Interfaces
 interface ShiftDetail {
@@ -121,7 +122,166 @@ interface TempShiftSelection {
   };
 }
 
-// Memoized ShiftCell component
+interface DayStats {
+  Total: number;
+  D: number;
+  S: number;
+  
+}
+
+interface WeekStats {
+  week_reference: {
+    current_cycle_week: number;
+    requested_week_number: number;
+    applied_offset_weeks: number;
+    start_date: string;
+    end_date: string;
+  };
+  monday: { total_staff: number; total_drivers: number };
+  tuesday: { total_staff: number; total_drivers: number };
+  wednesday: { total_staff: number; total_drivers: number };
+  thursday: { total_staff: number; total_drivers: number };
+  friday: { total_staff: number; total_drivers: number };
+  saturday: { total_staff: number; total_drivers: number };
+  sunday: { total_staff: number; total_drivers: number };
+}
+
+// Day Stats Popover Component
+const DayStatsPopover = memo(({
+  day,
+  weekNumber,
+  token,
+}: {
+  day: Day;
+  weekNumber: number;
+  token: string;
+}) => {
+  const [stats, setStats] = useState<DayStats | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+
+  const fetchDayStats = useCallback(async () => {
+    if (!isOpen) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`${API_URL}/api/rota/stats/${weekNumber}/daily_stats/`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: WeekStats = await response.json();
+      const dayKey = day.day.toLowerCase() as keyof Omit<WeekStats, 'week_reference'>;
+      setStats({
+        Total: data[dayKey].total_staff + data[dayKey].total_drivers,
+        D: data[dayKey].total_drivers,
+        S: data[dayKey].total_staff,
+       
+      });
+    } catch (error) {
+      console.error("Error fetching day stats:", error);
+      setError("Failed to load stats");
+    } finally {
+      setLoading(false);
+    }
+  }, [day.day, weekNumber, token, isOpen]);
+
+  useEffect(() => {
+    fetchDayStats();
+  }, [fetchDayStats]);
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <div className="text-center cursor-pointer hover:bg-gray-50 rounded px-2 py-1 transition-colors">
+          <div className="text-sm font-medium flex items-center justify-center gap-1">
+            {day.day.slice(0, 3)}
+            <BarChart3 className="w-3 h-3 opacity-50" />
+          </div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {day.date}
+          </div>
+        </div>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3">
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-gray-900 border-b pb-2">
+            {day.day} Stats
+          </div>
+          
+          {loading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-gray-500 mr-2" />
+              <span className="text-sm text-gray-500">Loading stats...</span>
+            </div>
+          ) : error ? (
+            <div className="text-sm text-red-600 text-center py-2">
+              {error}
+            </div>
+          ) : stats ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Shifts:</span>
+                  <span className="font-medium">{stats.Total}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Drivers (D):</span>
+                  <span className="font-medium">{stats.D}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Staff (S):</span>
+                  <span className="font-medium">{stats.S}</span>
+                </div>
+              
+              
+              </div>
+              
+              {stats.Total > 0 && (
+                <div className="mt-3 pt-2 border-t">
+                  <div className="text-xs text-gray-500 mb-1">Shift Distribution:</div>
+                  <div className="space-y-1">
+                    {Object.entries(stats).filter(([key, value]) => key !== 'Total' && value > 0).map(([shiftType, count]) => (
+                      <div key={shiftType} className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600">{shiftType}:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{count}</span>
+                          <div className="w-12 bg-gray-200 rounded-full h-1">
+                            <div 
+                              className="bg-blue-500 h-1 rounded-full transition-all duration-300"
+                              style={{ width: `${((count as number) / stats.Total) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500 text-center py-2">
+              No stats available
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+});
+DayStatsPopover.displayName = "DayStatsPopover";
+
+// ShiftCell component (unchanged)
 const ShiftCell = memo(({
   shift,
   isOpen,
@@ -250,7 +410,7 @@ const ShiftCell = memo(({
 });
 ShiftCell.displayName = "ShiftCell";
 
-// Modified EmployeeRow component
+// EmployeeRow component (unchanged)
 const EmployeeRow = memo(
   ({
     employee,
@@ -345,7 +505,7 @@ const EmployeeRow = memo(
 );
 EmployeeRow.displayName = "EmployeeRow";
 
-// Debounce hook
+// Debounce hook (unchanged)
 const useDebounce = (value: string, delay: number): string => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -404,23 +564,21 @@ const ParentTab: React.FC = () => {
     });
   }, []);
 
- const getCurrentWeek = useCallback((): string => {
-  // Find the first user with a valid stats.current_week
-  const validUserRota = cachedApiData.find((userRota) => userRota.stats?.current_week);
-  if (validUserRota && validUserRota.stats.current_week) {
-    return `week${validUserRota.stats.current_week}`;
-  }
-  // Fallback to hardcoded logic if no valid current_week is found
-  const currentDate = new Date(); // Use actual current date instead of hardcoded
-  const week1Start = new Date(2025, 6, 21); // July 21, 2025
-  const week2Start = new Date(2025, 6, 28); // July 28, 2025
-  const week3Start = new Date(2025, 7, 4); // August 4, 2025
-  const week4Start = new Date(2025, 7, 11); // August 11, 2025
-  if (currentDate >= week1Start && currentDate < week2Start) return "week1";
-  if (currentDate >= week2Start && currentDate < week3Start) return "week2";
-  if (currentDate >= week3Start && currentDate < week4Start) return "week3";
-  return "week4";
-}, [cachedApiData]);
+  const getCurrentWeek = useCallback((): string => {
+    const validUserRota = cachedApiData.find((userRota) => userRota.stats?.current_week);
+    if (validUserRota && validUserRota.stats.current_week) {
+      return `week${validUserRota.stats.current_week}`;
+    }
+    const currentDate = new Date();
+    const week1Start = new Date(2025, 6, 21);
+    const week2Start = new Date(2025, 6, 28);
+    const week3Start = new Date(2025, 7, 4);
+    const week4Start = new Date(2025, 7, 11);
+    if (currentDate >= week1Start && currentDate < week2Start) return "week1";
+    if (currentDate >= week2Start && currentDate < week3Start) return "week2";
+    if (currentDate >= week3Start && currentDate < week4Start) return "week3";
+    return "week4";
+  }, [cachedApiData]);
 
   const convertUserShiftsToEmployeeShifts = useCallback((userShifts: UserShift[]): EmployeeShift[] => {
     return userShifts.map((shift) => ({
@@ -611,7 +769,7 @@ const ParentTab: React.FC = () => {
             if (shift && shift !== "dropdown" && shift !== null) {
               rotation[weekKey as keyof typeof rotation][apiDayName] = shift.shiftId;
             } else {
-              rotation[weekKey as keyof typeof rotation][apiDayName] = 0; // Assign 0 for unassigned shifts
+              rotation[weekKey as keyof typeof rotation][apiDayName] = 0;
             }
           });
         });
@@ -923,10 +1081,11 @@ const ParentTab: React.FC = () => {
                 <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
                 {days.map((day, index) => (
                   <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
-                    <div className="text-sm font-medium">{day.day.slice(0, 3)}</div>
-                    {/* <div className="text-xs text-muted-foreground mt-0.5">
-                      {day.date}
-                    </div> */}
+                    <DayStatsPopover 
+                      day={day} 
+                      weekNumber={parseInt(selectedWeek.slice(-1))} 
+                      token={token ?? ""} 
+                    />
                   </TableHead>
                 ))}
                 <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>
@@ -1002,8 +1161,11 @@ const ParentTab: React.FC = () => {
                 height: 'auto',
               }}
               className="px-3 cursor-pointer py-2"
-              //@ts-expect-error ab thk ha
-              disabled={!selectedWeekForApply || selectedWeekForApply === "all" && !tempShiftSelections[selectedEmployeeId]}
+              disabled={
+                !selectedWeekForApply ||
+                (selectedWeekForApply === "all" &&
+                  (selectedEmployeeId === null || !tempShiftSelections[selectedEmployeeId]))
+              }
             >
               Apply Pattern
             </Button>
@@ -1127,5 +1289,4 @@ const ParentTab: React.FC = () => {
     </div>
   );
 };
-
-export default memo(ParentTab);
+export default ParentTab;
