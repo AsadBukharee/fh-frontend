@@ -325,8 +325,16 @@ const PMI: FC = () => {
   ) => {
     try {
       setLoading(true);
+      const originalFieldValue = pmiData.find(row => row.id === rowId)?.[field];
       const updateData = column
-        ? { [field]: { ...pmiData.find(row => row.id === rowId)?.[field], [column]: value } }
+        ? { 
+            [field]: { 
+              ...(originalFieldValue && typeof originalFieldValue === 'object' && !Array.isArray(originalFieldValue)
+                ? originalFieldValue as object
+                : {}), 
+              [column]: value 
+            } 
+          }
         : { [field]: value };
       await apiCall(API_CONFIG.endpoints.update.replace("{id}", rowId.toString()), {
         method: "PATCH",

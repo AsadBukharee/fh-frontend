@@ -206,7 +206,7 @@ const DayStatsPopover = memo(({
         <div className="text-center cursor-pointer hover:bg-gray-50 rounded px-2 py-1 transition-colors">
           <div className="text-sm font-medium flex items-center justify-center gap-1">
             {day.day.slice(0, 3)}
-            <BarChart3 className="w-3 h-3 opacity-50" />
+            {/* <BarChart3 className="w-3 h-3 opacity-50" /> */}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
             {day.date}
