@@ -168,7 +168,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
           setVehicles(
             result.data.map((vehicle: any) => ({
               id: vehicle.id,
-              name: `${vehicle.vehicle_type_name} (${vehicle.registration_number})`,
+              name: ` ${vehicle.registration_number}`,
             })),
           );
         } else {
@@ -349,9 +349,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
             <SelectContent>
               {drivers.map((driver) => (
                 <SelectItem key={driver.id} value={driver.id.toString()}>
-                  {`${formatName(driver.full_name)} (${driver.sites
-                    .map((site) => site.name)
-                    .join(', ')})`}
+                  {`${formatName(driver.full_name)} `}
                 </SelectItem>
               ))}
             </SelectContent>

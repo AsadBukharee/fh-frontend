@@ -2,18 +2,16 @@
 "use client"
 import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Edit, X, Loader2, ChevronDown, BarChart3 } from "lucide-react";
+import { Edit, X, Loader2, ChevronDown} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import StartRota from "./StartRota";
-import StatsTab from "../header/StatsTab";
 
 // TypeScript Interfaces
 interface ShiftDetail {

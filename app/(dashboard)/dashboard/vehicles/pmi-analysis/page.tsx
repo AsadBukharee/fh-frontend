@@ -1,15 +1,53 @@
-
 "use client";
-import { useState, useEffect, useMemo, FC } from "react";
+import { useState, useEffect, useMemo, type FC } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Search, Calendar, Car, ChevronLeft, ChevronRight, Edit, Eye, Trash2, Download, MoreVertical, Check, X
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Search,
+  CalendarDays,
+  Car,
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  Eye,
+  Trash2,
+  Download,
+  MoreVertical,
+  Check,
+  Database,
+  Scale,
+  Settings,
+  X,
+  Calendar,
+  RefreshCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCookies } from "next-client-cookies";
 import API_URL from "@/app/utils/ENV";
+import { useCookies } from "next-client-cookies";
+import AddPMI from "@/components/pmi/AddPmi";
 
 // API configuration
 const API_CONFIG = {
@@ -18,8 +56,8 @@ const API_CONFIG = {
     pmi: "/activity/pmi/",
     update: "/activity/pmi/{id}/",
     delete: "/activity/pmi/{id}/",
-    download: "/activity/pmi/{id}/download/"
-  }
+    download: "/activity/pmi/{id}/download/",
+  },
 };
 
 // Types
@@ -39,11 +77,12 @@ interface PmiRow {
   brake_test_not_recorded: string | null;
   brake_test_report_attached: string | null;
   maintenance_error_answer: string | null;
-  maintenence_provider_error: string | null;
+  maintenance_provider_error: string | null;
   brake_imbalance: string | null;
   brake_imbalance_note: string | null;
   maintenance_error_note: string | null;
   Correct_DTP_Code_Used: string | null;
+  Correct_DTP_Code_Used_references: string | null;
   signature: string | null;
   created_at: string;
   updated_at: string;
@@ -69,10 +108,38 @@ interface StatusCellProps {
   rowId: number | string;
   field: keyof PmiRow;
   column: string;
-  onUpdate: (rowId: number | string, field: keyof PmiRow, column: string, value: string | number) => void;
+  onUpdate: (
+    rowId: number | string,
+    field: keyof PmiRow,
+    column: string,
+    value: string | number
+  ) => void;
   isEditable?: boolean;
   type?: "status" | "number" | "date";
 }
+
+const getSafetyColor = (value: number | string | null | undefined, field: keyof PmiRow): string => {
+  if (value === null || value === undefined || isNaN(Number(value))) return "bg-gray-100 text-gray-800";
+
+  const numValue = Number(value);
+
+  if (field === "tyre_depth") {
+    if (numValue < 1.5) return "bg-red-100 text-red-800";
+    if (numValue >= 1.5 && numValue <= 2) return "bg-orange-100 text-orange-800";
+    if (numValue > 2 && numValue <= 8) return "bg-green-100 text-green-800";
+    return "bg-gray-100 text-gray-800";
+  }
+
+  if (field === "tyre_pressure") {
+    if (numValue < 25 || numValue > 50) return "bg-red-100 text-red-800";
+    if ((numValue >= 26 && numValue <= 28) || (numValue >= 44 && numValue <= 48))
+      return "bg-orange-100 text-orange-800";
+    if (numValue >= 29 && numValue <= 42) return "bg-green-100 text-green-800";
+    return "bg-gray-100 text-gray-800";
+  }
+
+  return "bg-gray-100 text-gray-800";
+};
 
 const ActionMenu: FC<ActionMenuProps> = ({
   row,
@@ -81,73 +148,56 @@ const ActionMenu: FC<ActionMenuProps> = ({
   onDelete,
   onDownload,
   onApprove,
-  onReject
+  onReject,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
   return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="p-1 hover:bg-gray-100 rounded transition-colors"
-      >
-        <MoreVertical className="w-4 h-4" />
-      </button>
-      {isOpen && (
-        <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[160px]">
-          <div className="py-1">
-            <button
-              onClick={() => { onView(row); setIsOpen(false); }}
-              className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => onView(row)}>
+          <Eye className="mr-2 h-4 w-4" />
+          View Details
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onEdit(row)}>
+          <Edit className="mr-2 h-4 w-4" />
+          Edit
+        </DropdownMenuItem>
+        {row.file_url && (
+          <DropdownMenuItem onClick={() => onDownload(row)}>
+            <Download className="mr-2 h-4 w-4" />
+            Download Report
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        {row.status === "pending" && (
+          <>
+            <DropdownMenuItem
+              onClick={() => onApprove(row.id)}
+              className="text-green-600"
             >
-              <Eye className="w-4 h-4 mr-2" />
-              View Details
-            </button>
-            <button
-              onClick={() => { onEdit(row); setIsOpen(false); }}
-              className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              <Check className="mr-2 h-4 w-4" />
+              Approve
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onReject(row.id)}
+              className="text-red-600"
             >
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </button>
-            {row.file_url && (
-              <button
-                onClick={() => { onDownload(row); setIsOpen(false); }}
-                className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download Report
-              </button>
-            )}
-            <div className="border-t my-1" />
-            {row.status === "pending" && (
-              <>
-                <button
-                  onClick={() => { onApprove(row.id); setIsOpen(false); }}
-                  className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-green-50"
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  Approve
-                </button>
-                <button
-                  onClick={() => { onReject(row.id); setIsOpen(false); }}
-                  className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Reject
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => { onDelete(row.id); setIsOpen(false); }}
-              className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+              <X className="mr-2 h-4 w-4" />
+              Reject
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onDelete(row.id)} className="text-red-600">
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
@@ -157,111 +207,180 @@ const StatusCell: FC<StatusCellProps> = ({
   field,
   column,
   onUpdate,
-  isEditable = false,
-  type = "status"
+  isEditable = true,
+  type,
 }) => {
-  const [value, setValue] = useState<string>(status?.toString() ?? "");
-  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(status || "");
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const getStatusStyle = (val: string): string => {
-    if (type !== "status") return "text-gray-600 bg-gray-50 border-gray-200 focus:ring-gray-500";
-    switch (val.toLowerCase()) {
-      case "yes":
-        return "text-green-600 bg-green-50 border-green-200 focus:ring-green-500";
-      case "no":
-        return "text-red-600 bg-red-50 border-red-200 focus:ring-red-500";
-      case "":
-      case "na":
-      case "n/a":
-        return "text-gray-600 bg-gray-50 border-gray-200 focus:ring-gray-500";
-      default:
-        return "text-gray-600 bg-gray-50 border-gray-200 focus:ring-gray-500";
+  const handleDoubleClick = () => {
+    if (isEditable) {
+      setIsEditing(true);
     }
   };
 
-  const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const newValue = e.target.value;
+  const handleConfirm = async () => {
+    if (!isEditable || isUpdating) return;
+
     setIsUpdating(true);
-    const originalValue = value;
-    setValue(newValue);
-    let updateValue: string | number = newValue;
-    if (type === "number" && newValue) {
-      updateValue = parseFloat(newValue);
-    }
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      onUpdate(rowId, field, column, updateValue);
+      await onUpdate(rowId, field, column, value);
+      setIsEditing(false);
     } catch (error) {
-      console.error("Failed to update:", error);
-      setValue(originalValue);
-      
+      setValue(status || "");
     } finally {
       setIsUpdating(false);
     }
   };
 
-  if (!isEditable) {
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-xl border",
-          getStatusStyle(value)
-        )}
-      >
-        {value || "N/A"}
-      </span>
-    );
-  }
+  const handleChange = (newValue: string) => {
+    setValue(newValue);
+  };
 
-  const inputClass = cn(
-    "px-2 py-0.5 w-[60px] text-xs font-medium rounded-lg cursor-pointer focus:outline-none focus:ring-2",
-    getStatusStyle(value),
-    isUpdating && "opacity-50 cursor-not-allowed"
-  );
+  const inputClass =
+    "w-[80px] text-center border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-2 py-1";
 
   if (type === "status") {
     return (
-      <select
-        value={value}
-        onChange={handleChange}
-        disabled={isUpdating}
-        className={cn(inputClass, "appearance-none")}
-      >
-        <option value="Yes">Yes</option>
-        <option value="No">No</option>
-        <option value="NA">NA</option>
-      </select>
+      <div className="flex items-center justify-center">
+        {isEditing ? (
+          <div className="flex items-center gap-1">
+            <Select
+              onValueChange={handleChange}
+              disabled={isUpdating}
+              defaultValue={value as string}
+            >
+              <SelectTrigger className={cn(inputClass, "h-8")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Yes">Yes</SelectItem>
+                <SelectItem value="No">No</SelectItem>
+                <SelectItem value="NA">NA</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleConfirm}
+              disabled={isUpdating}
+              className="p-1 h-6 w-6"
+            >
+              <Check className="h-4 w-4 text-green-500" />
+            </Button>
+          </div>
+        ) : (
+          <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
+            {status || "N/A"}
+          </div>
+        )}
+      </div>
     );
   }
+
   if (type === "number") {
     return (
-      <input
-        type="number"
-        step="0.1"
-        value={value}
-        onChange={handleChange}
-        disabled={isUpdating}
-        className={inputClass}
-      />
+      <div className="flex items-center justify-center">
+        {isEditing ? (
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              value={value}
+              onChange={(e) => handleChange(e.target.value)}
+              disabled={isUpdating}
+              className={cn(inputClass, getSafetyColor(value, field))}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleConfirm}
+              disabled={isUpdating}
+              className="p-1 h-6 w-6"
+            >
+              <Check className="h-4 w-4 text-green-500" />
+            </Button>
+          </div>
+        ) : (
+          <div
+            onDoubleClick={handleDoubleClick}
+            className={cn(
+              "cursor-pointer px-2 py-1 rounded",
+              getSafetyColor(status, field)
+            )}
+          >
+            {status || "N/A"}
+          </div>
+        )}
+      </div>
     );
   }
+
   if (type === "date") {
     return (
-      <input
-        type="date"
-        value={value}
-        onChange={handleChange}
-        disabled={isUpdating}
-        className={cn(inputClass, "w-[120px]")}
-      />
+      <div className="flex items-center justify-center">
+        {isEditing ? (
+          <div className="flex items-center gap-1">
+            <Input
+              type="date"
+              value={value as string}
+              onChange={(e) => handleChange(e.target.value)}
+              disabled={isUpdating}
+              className={inputClass}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleConfirm}
+              disabled={isUpdating}
+              className="p-1 h-6 w-6"
+            >
+              <Check className="h-4 w-4 text-green-500" />
+            </Button>
+          </div>
+        ) : (
+          <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
+            {status || "N/A"}
+          </div>
+        )}
+      </div>
     );
   }
-  return null;
+
+  return (
+    <div className="flex items-center justify-center">
+      {isEditing ? (
+        <div className="flex items-center gap-1">
+          <Input
+            value={value as string}
+            onChange={(e) => handleChange(e.target.value)}
+            disabled={isUpdating}
+            className={inputClass}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleConfirm}
+            disabled={isUpdating}
+            className="p-1 h-6 w-6"
+          >
+            <Check className="h-4 w-4 text-green-500" />
+          </Button>
+        </div>
+      ) : (
+        <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
+          {status || "N/A"}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const PMI: FC = () => {
   const [pmiData, setPmiData] = useState<PmiRow[]>([]);
-  const [activeTab, setActiveTab] = useState<"All Data" | "Tyre Depth" | "Tyre Dates" | "Others">("All Data");
+  const [activeTab, setActiveTab] = useState<
+    "All Data" | "Tyre Depth" | "Tyre Dates" | "Others"
+  >("All Data");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [rowsPerPage] = useState<number>(10);
@@ -271,35 +390,104 @@ const PMI: FC = () => {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editForm, setEditForm] = useState<Partial<PmiRow>>({});
-  const [sortConfig, setSortConfig] = useState<{ key: keyof PmiRow; direction: 'asc' | 'desc' } | null>(null);
-  const token=useCookies().get('access_token')
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof PmiRow;
+    direction: "asc" | "desc";
+  } | null>(null);
+  const token = useCookies().get("access_token");
 
-  const tabs: Array<"All Data" | "Tyre Depth" | "Tyre Dates" | "Others"> = [
-    "All Data",
-    "Tyre Depth",
-    "Tyre Dates",
-    "Others",
-  ];
+  const tabs = [
+    { label: "All Data", icon: Database },
+    { label: "Tyre Depth", icon: Scale },
+    { label: "Tyre Dates", icon: CalendarDays },
+    { label: "Others", icon: Settings },
+  ] as const;
+
+  // Safe state setter to prevent non-array values
+  const safeSetPmiData = (newData: unknown) => {
+    if (Array.isArray(newData)) {
+      setPmiData(newData as PmiRow[]);
+    } else {
+      console.error("Attempted to set non-array data:", newData);
+      setPmiData([]);
+      setError("Invalid data format received");
+    }
+  };
+
+  // Transform API response to match PmiRow structure
+  const transformApiResponse = (apiData: any[]): PmiRow[] => {
+    return apiData.map((item) => {
+      const tyrePressure: TyreData = {};
+      const tyreDepth: TyreData = {};
+      const tyreDates: TyreData = {};
+
+      // Extract tyre-related fields
+      Object.keys(item).forEach((key) => {
+        if (key.startsWith("tyre_pressure_")) {
+          const tyreKey = key.replace("tyre_pressure_", "");
+          tyrePressure[tyreKey] = item[key];
+        } else if (key.startsWith("tyre_depth_")) {
+          const tyreKey = key.replace("tyre_depth_", "");
+          tyreDepth[tyreKey] = item[key];
+        } else if (key.startsWith("tyre_date_")) {
+          const tyreKey = key.replace("tyre_date_", "");
+          tyreDates[tyreKey] = item[key];
+        }
+      });
+
+      return {
+        ...item,
+        tyre_pressure: tyrePressure,
+        tyre_depth: tyreDepth,
+        tyre_dates: tyreDates,
+      } as PmiRow;
+    });
+  };
+
+  // Flatten tyre fields for API payload
+  const flattenTyreFields = (row: Partial<PmiRow>): Record<string, any> => {
+    const flattened: Record<string, any> = { ...row };
+    ["tyre_pressure", "tyre_depth", "tyre_dates"].forEach((field) => {
+      //@ts-expect-error ab thk ha
+      if (row[field] && typeof row[field] === "object") {
+        //@ts-expect-error ab thk ha
+        Object.entries(row[field]!).forEach(([key, value]) => {
+          flattened[`${field}_${key}`] = value;
+        });
+        delete flattened[field];
+      }
+    });
+    return flattened;
+  };
 
   // API Functions
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     const defaultHeaders = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     };
-    return fetch(`${API_URL}/activity/pmi/`, {
+    return fetch(`${API_URL}${endpoint}`, {
       ...options,
-      headers: { ...defaultHeaders, ...options.headers }
+      headers: { ...defaultHeaders, ...options.headers },
     });
   };
-
-  useEffect(() => {
-    const fetchPmiData = async () => {
+ const fetchPmiData = async () => {
       setLoading(true);
       try {
         const response = await apiCall(API_CONFIG.endpoints.pmi);
-        const data: PmiRow[] = await response.json();
-        setPmiData(data);
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+        const apiResponse = await response.json();
+        console.log("API Response:", apiResponse); // For debugging
+        if (!apiResponse.success || !Array.isArray(apiResponse.data)) {
+          console.error("API response is invalid:", apiResponse);
+          safeSetPmiData([]);
+          setError("Invalid API response format");
+          return;
+        }
+        const transformedData = transformApiResponse(apiResponse.data);
+        safeSetPmiData(transformedData);
       } catch (error) {
         console.error("Failed to fetch PMI data:", error);
         setError("Failed to load PMI records");
@@ -307,12 +495,15 @@ const PMI: FC = () => {
         setLoading(false);
       }
     };
+  useEffect(() => {
+   
     fetchPmiData();
   }, []);
 
   useEffect(() => {
     if (error) {
-      setError(null);
+      const timer = setTimeout(() => setError(null), 5000); // Clear error after 5 seconds
+      return () => clearTimeout(timer);
     }
   }, [error]);
 
@@ -325,23 +516,13 @@ const PMI: FC = () => {
   ) => {
     try {
       setLoading(true);
-      const originalFieldValue = pmiData.find(row => row.id === rowId)?.[field];
-      const updateData = column
-        ? { 
-            [field]: { 
-              ...(originalFieldValue && typeof originalFieldValue === 'object' && !Array.isArray(originalFieldValue)
-                ? originalFieldValue as object
-                : {}), 
-              [column]: value 
-            } 
-          }
-        : { [field]: value };
+      const updateData = column ? { [`${field}_${column}`]: value } : { [field]: value };
       await apiCall(API_CONFIG.endpoints.update.replace("{id}", rowId.toString()), {
-        method: "PATCH",
-        body: JSON.stringify(updateData)
+        method: "PUT",
+        body: JSON.stringify(updateData),
       });
-      setPmiData((prevData) =>
-        prevData.map((row) =>
+      safeSetPmiData(
+        pmiData.map((row) =>
           row.id === rowId
             ? column
               ? { ...row, [field]: { ...(row[field] as TyreData), [column]: value } }
@@ -368,7 +549,16 @@ const PMI: FC = () => {
       brake_imbalance: row.brake_imbalance,
       brake_imbalance_note: row.brake_imbalance_note,
       maintenance_error_note: row.maintenance_error_note,
-      Correct_DTP_Code_Used: row.Correct_DTP_Code_Used
+      Correct_DTP_Code_Used: row.Correct_DTP_Code_Used,
+      brake_test_not_recorded: row.brake_test_not_recorded,
+      brake_test_report_attached: row.brake_test_report_attached,
+      maintenance_error_answer: row.maintenance_error_answer,
+      maintenance_provider_error: row.maintenance_provider_error,
+      signature: row.signature,
+      vehicle: row.vehicle,
+      tyre_pressure: { ...row.tyre_pressure },
+      tyre_depth: { ...row.tyre_depth },
+      tyre_dates: { ...row.tyre_dates },
     });
     setIsEditing(true);
     setShowModal(true);
@@ -384,12 +574,16 @@ const PMI: FC = () => {
     if (!selectedRow) return;
     try {
       setLoading(true);
-      await apiCall(API_CONFIG.endpoints.update.replace("{id}", selectedRow.id.toString()), {
-        method: "PATCH",
-        body: JSON.stringify(editForm)
-      });
-      setPmiData(prev =>
-        prev.map(row =>
+      const flattenedData = flattenTyreFields(editForm);
+      await apiCall(
+        API_CONFIG.endpoints.update.replace("{id}", selectedRow.id.toString()),
+        {
+          method: "PUT",
+          body: JSON.stringify(flattenedData),
+        }
+      );
+      safeSetPmiData(
+        pmiData.map((row) =>
           row.id === selectedRow.id ? { ...row, ...editForm } : row
         )
       );
@@ -404,11 +598,14 @@ const PMI: FC = () => {
   };
 
   const handleDelete = async (id: number | string) => {
-    if (!window.confirm("Are you sure you want to delete this PMI record?")) return;
+    if (!window.confirm("Are you sure you want to delete this PMI record?"))
+      return;
     try {
       setLoading(true);
-      await apiCall(API_CONFIG.endpoints.delete.replace("{id}", id.toString()), { method: "DELETE" });
-      setPmiData(prev => prev.filter(row => row.id !== id));
+      await apiCall(API_CONFIG.endpoints.delete.replace("{id}", id.toString()), {
+        method: "DELETE",
+      });
+      safeSetPmiData(pmiData.filter((row) => row.id !== id));
     } catch (error) {
       console.error("Failed to delete:", error);
       setError("Failed to delete record");
@@ -420,9 +617,11 @@ const PMI: FC = () => {
   const handleDownload = async (row: PmiRow) => {
     if (!row.file_url) return;
     try {
-      const response = await apiCall(API_CONFIG.endpoints.download.replace("{id}", row.id.toString()));
+      const response = await apiCall(
+        API_CONFIG.endpoints.download.replace("{id}", row.id.toString())
+      );
       const blob = await response.blob();
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `${row.vehicle_reg}-pmi-report.pdf`;
       link.click();
@@ -437,12 +636,14 @@ const PMI: FC = () => {
     try {
       setLoading(true);
       await apiCall(API_CONFIG.endpoints.update.replace("{id}", id.toString()), {
-        method: "PATCH",
-        body: JSON.stringify({ status: "approved" })
+        method: "PUT",
+        body: JSON.stringify({ status: "approved" }),
       });
-      setPmiData(prev => prev.map(row =>
-        row.id === id ? { ...row, status: "approved" } : row
-      ));
+      safeSetPmiData(
+        pmiData.map((row) =>
+          row.id === id ? { ...row, status: "approved" } : row
+        )
+      );
     } catch (error) {
       console.error("Failed to approve:", error);
       setError("Failed to approve record");
@@ -455,12 +656,14 @@ const PMI: FC = () => {
     try {
       setLoading(true);
       await apiCall(API_CONFIG.endpoints.update.replace("{id}", id.toString()), {
-        method: "PATCH",
-        body: JSON.stringify({ status: "rejected" })
+        method: "PUT",
+        body: JSON.stringify({ status: "rejected" }),
       });
-      setPmiData(prev => prev.map(row =>
-        row.id === id ? { ...row, status: "rejected" } : row
-      ));
+      safeSetPmiData(
+        pmiData.map((row) =>
+          row.id === id ? { ...row, status: "rejected" } : row
+        )
+      );
     } catch (error) {
       console.error("Failed to reject:", error);
       setError("Failed to reject record");
@@ -470,31 +673,35 @@ const PMI: FC = () => {
   };
 
   // Filter and Sort
-  const filteredData = useMemo(() =>
-    pmiData.filter(
+  const filteredData = useMemo(() => {
+    if (!Array.isArray(pmiData)) {
+      return [];
+    }
+    return pmiData.filter(
       (item) =>
-        (item.vehicle_reg?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+        (item.vehicle_reg?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+          false) ||
         (item.analysis_date?.includes(searchTerm) ?? false) ||
         (item.pmi_expiry?.includes(searchTerm) ?? false) ||
-        (item.defects?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+        (item.defects?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+          false) ||
         (item.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-    ),
-    [pmiData, searchTerm]
-  );
+    );
+  }, [pmiData, searchTerm]);
 
   const handleSort = (key: keyof PmiRow) => {
-    setSortConfig(prev => ({
+    setSortConfig((prev) => ({
       key,
-      direction: prev?.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+      direction: prev?.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
   };
 
   const sortedData = useMemo(() => {
     if (!sortConfig) return filteredData;
     return [...filteredData].sort((a, b) => {
-      const aValue = a[sortConfig.key] ?? '';
-      const bValue = b[sortConfig.key] ?? '';
-      if (sortConfig.direction === 'asc') {
+      const aValue = a[sortConfig.key] ?? "";
+      const bValue = b[sortConfig.key] ?? "";
+      if (sortConfig.direction === "asc") {
         return aValue > bValue ? 1 : -1;
       } else {
         return aValue < bValue ? 1 : -1;
@@ -503,15 +710,20 @@ const PMI: FC = () => {
   }, [filteredData, sortConfig]);
 
   const tyreColumns = useMemo(() => {
-    const firstValidRow = pmiData.find(row => row.tyre_pressure && Object.keys(row.tyre_pressure).length > 0);
+    if (!Array.isArray(pmiData)) {
+      return [];
+    }
+    const firstValidRow = pmiData.find(
+      (row) => row.tyre_pressure && Object.keys(row.tyre_pressure).length > 0
+    );
     return firstValidRow ? Object.keys(firstValidRow.tyre_pressure) : [];
   }, [pmiData]);
 
   // Pagination
   const totalPages = Math.ceil(sortedData.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
-  const paginatedData = useMemo(() =>
-    sortedData.slice(startIndex, startIndex + rowsPerPage),
+  const paginatedData = useMemo(
+    () => sortedData.slice(startIndex, startIndex + rowsPerPage),
     [sortedData, startIndex, rowsPerPage]
   );
 
@@ -519,20 +731,26 @@ const PMI: FC = () => {
     const maxPagesToShow = 5;
     const startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
     const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+    return Array.from(
+      { length: endPage - startPage + 1 },
+      (_, i) => startPage + i
+    );
   };
 
   const getStatusBadge = (status: string) => {
     const statusStyles = {
       pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
       approved: "bg-green-100 text-green-800 border-green-200",
-      rejected: "bg-red-100 text-red-800 border-red-200"
+      rejected: "bg-red-100 text-red-800 border-red-200",
     };
     return (
-      <span className={cn(
-        "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border",
-        statusStyles[status as keyof typeof statusStyles] || "bg-gray-100 text-gray-800 border-gray-200"
-      )}>
+      <span
+        className={cn(
+          "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border",
+          statusStyles[status as keyof typeof statusStyles] ||
+            "bg-gray-100 text-gray-800 border-gray-200"
+        )}
+      >
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
@@ -541,8 +759,7 @@ const PMI: FC = () => {
   if (loading) return <div className="flex justify-center py-8">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-    
+    <div className="min-h-screen bg-white p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-gray-900 mb-1">
@@ -552,28 +769,36 @@ const PMI: FC = () => {
             Comprehensive vehicle inspection data with action controls
           </p>
         </div>
-        <div className="flex items-end mb-0">
-          {tabs.map((tab) => (
-            <div key={tab} className="relative">
+        <div className="flex">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
               <button
+                key={tab.label}
+                onClick={() => setActiveTab(tab.label)}
                 className={cn(
-                  "relative px-6 py-3 border rounded-t-lg text-sm font-medium transition-all duration-200",
-                  activeTab === tab
-                    ? 'bg-white text-gray-700 border-gray-200 border-b-white z-10'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-200'
+                  "relative flex items-center gap-2 px-6 py-3 text-sm justify-start font-medium transition-colors clip-tab",
+                  activeTab === tab.label
+                    ? "bg-white text-orange-500 border-b-2 border-orange-500"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                 )}
-                onClick={() => setActiveTab(tab)}
               >
-                {tab}
+                <Icon size={16} />
+                {tab.label}
               </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
+        {error && (
+          <div className="bg-red-100 text-red-700 p-4 rounded mb-4">
+            {error}
+          </div>
+        )}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 z-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   placeholder="Search PMI records..."
                   value={searchTerm}
@@ -581,164 +806,201 @@ const PMI: FC = () => {
                   className="pl-10"
                 />
               </div>
-              <div className="flex space-x-2">
-                <Button variant="outline" size="sm">
+              <div className="flex space-x-2 items-center">
+                <RefreshCcw className="w-6 h-6 text-gray-400 mx-4 hover:text-gray-700" onClick={()=>fetchPmiData()} />
+                <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
                   <Calendar className="w-4 h-4 mr-2" />
                   Filter by Date
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
                   <Car className="w-4 h-4 mr-2" />
                   Filter by Vehicle
                 </Button>
-                <Button className="bg-orange-500 hover:bg-orange-600">
-                  Export Data
-                </Button>
+                <AddPMI/>
               </div>
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+            <Table>
+              <TableHeader>
                 {activeTab === "All Data" && (
                   <>
-                    <tr>
-                      <th
-                        className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                        onClick={() => handleSort('analysis_date')}
+                    <TableRow>
+                      <TableHead
+                        className="cursor-pointer"
+                        onClick={() => handleSort("analysis_date")}
                       >
-                        Report Date {sortConfig?.key === 'analysis_date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th
-                        className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                        onClick={() => handleSort('vehicle_reg')}
+                        Report Date{" "}
+                        {sortConfig?.key === "analysis_date" &&
+                          (sortConfig.direction === "asc" ? "↑" : "↓")}
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer"
+                        onClick={() => handleSort("vehicle_reg")}
                       >
-                        Vehicle No {sortConfig?.key === 'vehicle_reg' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th
-                        className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                        onClick={() => handleSort('status')}
+                        Vehicle No{" "}
+                        {sortConfig?.key === "vehicle_reg" &&
+                          (sortConfig.direction === "asc" ? "↑" : "↓")}
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer"
+                        onClick={() => handleSort("status")}
                       >
-                        Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th colSpan={tyreColumns.length} className="text-center bg-blue-50 py-3 px-2 font-medium text-blue-600 border-l border-r border-blue-200">
+                        Status{" "}
+                        {sortConfig?.key === "status" &&
+                          (sortConfig.direction === "asc" ? "↑" : "↓")}
+                      </TableHead>
+                      <TableHead
+                        colSpan={tyreColumns.length}
+                        className="text-center bg-blue-50 border-l border-r border-blue-200"
+                      >
                         Tyre Pressure (PSI)
-                      </th>
-                      <th colSpan={tyreColumns.length} className="text-center py-3 px-2 font-medium bg-green-50 text-green-600 border-l border-r border-green-200">
+                      </TableHead>
+                      <TableHead
+                        colSpan={tyreColumns.length}
+                        className="text-center bg-green-50 border-l border-r border-green-200"
+                      >
                         Tyre Depth (mm)
-                      </th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Actions</th>
-                    </tr>
-                    <tr className="bg-gray-25">
-                      <th></th>
-                      <th></th>
-                      <th></th>
+                      </TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                    <TableRow>
+                      <TableHead></TableHead>
+                      <TableHead></TableHead>
+                      <TableHead></TableHead>
                       {tyreColumns.map((col) => (
-                        <th key={col} className="text-center py-2 px-2 font-medium text-gray-600 bg-blue-25 border-blue-100">
+                        <TableHead key={col} className="text-center bg-blue-25">
                           {col}
-                        </th>
+                        </TableHead>
                       ))}
                       {tyreColumns.map((col) => (
-                        <th key={col} className="text-center py-2 px-2 font-medium text-gray-600 bg-green-25 border-green-100">
+                        <TableHead key={col} className="text-center bg-green-25">
                           {col}
-                        </th>
+                        </TableHead>
                       ))}
-                      <th></th>
-                    </tr>
+                      <TableHead></TableHead>
+                    </TableRow>
                   </>
                 )}
                 {activeTab === "Tyre Depth" && (
-                  <tr>
-                    <th
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                      onClick={() => handleSort('analysis_date')}
+                  <TableRow>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("analysis_date")}
                     >
-                      Report Date {sortConfig?.key === 'analysis_date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                      onClick={() => handleSort('vehicle_reg')}
+                      Report Date{" "}
+                      {sortConfig?.key === "analysis_date" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("vehicle_reg")}
                     >
-                      Vehicle No {sortConfig?.key === 'vehicle_reg' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                      onClick={() => handleSort('status')}
+                      Vehicle No{" "}
+                      {sortConfig?.key === "vehicle_reg" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("status")}
                     >
-                      Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
+                      Status{" "}
+                      {sortConfig?.key === "status" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
                     {tyreColumns.map((col) => (
-                      <th key={col} className="text-center py-2 px-2 font-medium text-gray-600">
+                      <TableHead key={col} className="text-center">
                         {col}
-                      </th>
+                      </TableHead>
                     ))}
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Actions</th>
-                  </tr>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
                 )}
                 {activeTab === "Tyre Dates" && (
-                  <tr>
-                    <th
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                      onClick={() => handleSort('analysis_date')}
+                  <TableRow>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("analysis_date")}
                     >
-                      Report Date {sortConfig?.key === 'analysis_date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                      onClick={() => handleSort('vehicle_reg')}
+                      Report Date{" "}
+                      {sortConfig?.key === "analysis_date" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("vehicle_reg")}
                     >
-                      Vehicle No {sortConfig?.key === 'vehicle_reg' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                      onClick={() => handleSort('status')}
+                      Vehicle No{" "}
+                      {sortConfig?.key === "vehicle_reg" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("status")}
                     >
-                      Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
+                      Status{" "}
+                      {sortConfig?.key === "status" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
                     {tyreColumns.map((col) => (
-                      <th key={col} className="text-center py-2 px-2 font-medium text-gray-600">
+                      <TableHead key={col} className="text-center">
                         {col}
-                      </th>
+                      </TableHead>
                     ))}
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Actions</th>
-                  </tr>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
                 )}
                 {activeTab === "Others" && (
-                  <tr>
-                    <th
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                      onClick={() => handleSort('analysis_date')}
+                  <TableRow>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("analysis_date")}
                     >
-                      Report Date {sortConfig?.key === 'analysis_date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                      onClick={() => handleSort('vehicle_reg')}
+                      Report Date{" "}
+                      {sortConfig?.key === "analysis_date" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("vehicle_reg")}
                     >
-                      Vehicle No {sortConfig?.key === 'vehicle_reg' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer"
-                      onClick={() => handleSort('status')}
+                      Vehicle No{" "}
+                      {sortConfig?.key === "vehicle_reg" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("status")}
                     >
-                      Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th className="text-center py-2 px-2 font-medium text-gray-600">Brake Test Not Recorded</th>
-                    <th className="text-center py-2 px-2 font-medium text-gray-600">Brake Test Report Attached</th>
-                    <th className="text-center py-2 px-2 font-medium text-gray-600">Maintenance Error Answer</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Actions</th>
-                  </tr>
+                      Status{" "}
+                      {sortConfig?.key === "status" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead className="text-center">
+                      Brake Test Not Recorded
+                    </TableHead>
+                    <TableHead className="text-center">
+                      Brake Test Report Attached
+                    </TableHead>
+                    <TableHead className="text-center">
+                      Maintenance Error Answer
+                    </TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
                 )}
-              </thead>
-              <tbody className="divide-y divide-gray-200">
+              </TableHeader>
+              <TableBody>
                 {paginatedData.map((row) => {
                   if (activeTab === "All Data") {
                     return (
-                      <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">{row.analysis_date}</td>
-                        <td className="px-4 py-3 font-medium">{row.vehicle_reg}</td>
-                        <td className="px-4 py-3">{getStatusBadge(row.status)}</td>
+                      <TableRow key={row.id}>
+                        <TableCell>{row.analysis_date}</TableCell>
+                        <TableCell className="font-medium">
+                          {row.vehicle_reg}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(row.status)}</TableCell>
                         {tyreColumns.map((col) => (
-                          <td key={col} className="text-center py-3">
+                          <TableCell key={col} className="text-center">
                             <StatusCell
                               status={row.tyre_pressure[col]}
                               rowId={row.id}
@@ -748,10 +1010,10 @@ const PMI: FC = () => {
                               isEditable={true}
                               type="number"
                             />
-                          </td>
+                          </TableCell>
                         ))}
                         {tyreColumns.map((col) => (
-                          <td key={col} className="text-center py-3">
+                          <TableCell key={col} className="text-center">
                             <StatusCell
                               status={row.tyre_depth[col]}
                               rowId={row.id}
@@ -761,9 +1023,9 @@ const PMI: FC = () => {
                               isEditable={true}
                               type="number"
                             />
-                          </td>
+                          </TableCell>
                         ))}
-                        <td className="px-4 py-3 text-center">
+                        <TableCell className="text-center">
                           <ActionMenu
                             row={row}
                             onEdit={handleEdit}
@@ -773,18 +1035,20 @@ const PMI: FC = () => {
                             onApprove={handleApprove}
                             onReject={handleReject}
                           />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   }
                   if (activeTab === "Tyre Depth") {
                     return (
-                      <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">{row.analysis_date}</td>
-                        <td className="px-4 py-3 font-medium">{row.vehicle_reg}</td>
-                        <td className="px-4 py-3">{getStatusBadge(row.status)}</td>
+                      <TableRow key={row.id}>
+                        <TableCell>{row.analysis_date}</TableCell>
+                        <TableCell className="font-medium">
+                          {row.vehicle_reg}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(row.status)}</TableCell>
                         {Object.keys(row.tyre_depth).map((col) => (
-                          <td key={col} className="text-center py-3">
+                          <TableCell key={col} className="text-center">
                             <StatusCell
                               status={row.tyre_depth[col]}
                               rowId={row.id}
@@ -794,9 +1058,9 @@ const PMI: FC = () => {
                               isEditable={true}
                               type="number"
                             />
-                          </td>
+                          </TableCell>
                         ))}
-                        <td className="px-4 py-3 text-center">
+                        <TableCell className="text-center">
                           <ActionMenu
                             row={row}
                             onEdit={handleEdit}
@@ -806,18 +1070,20 @@ const PMI: FC = () => {
                             onApprove={handleApprove}
                             onReject={handleReject}
                           />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   }
                   if (activeTab === "Tyre Dates" && row.tyre_dates) {
                     return (
-                      <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">{row.analysis_date}</td>
-                        <td className="px-4 py-3 font-medium">{row.vehicle_reg}</td>
-                        <td className="px-4 py-3">{getStatusBadge(row.status)}</td>
+                      <TableRow key={row.id}>
+                        <TableCell>{row.analysis_date}</TableCell>
+                        <TableCell className="font-medium">
+                          {row.vehicle_reg}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(row.status)}</TableCell>
                         {Object.keys(row.tyre_dates).map((col) => (
-                          <td key={col} className="text-center py-3">
+                          <TableCell key={col} className="text-center">
                             <StatusCell
                               status={row.tyre_dates?.[col]}
                               rowId={row.id}
@@ -827,9 +1093,9 @@ const PMI: FC = () => {
                               isEditable={true}
                               type="date"
                             />
-                          </td>
+                          </TableCell>
                         ))}
-                        <td className="px-4 py-3 text-center">
+                        <TableCell className="text-center">
                           <ActionMenu
                             row={row}
                             onEdit={handleEdit}
@@ -839,17 +1105,19 @@ const PMI: FC = () => {
                             onApprove={handleApprove}
                             onReject={handleReject}
                           />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   }
                   if (activeTab === "Others") {
                     return (
-                      <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">{row.analysis_date}</td>
-                        <td className="px-4 py-3 font-medium">{row.vehicle_reg}</td>
-                        <td className="px-4 py-3">{getStatusBadge(row.status)}</td>
-                        <td className="text-center py-3">
+                      <TableRow key={row.id}>
+                        <TableCell>{row.analysis_date}</TableCell>
+                        <TableCell className="font-medium">
+                          {row.vehicle_reg}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(row.status)}</TableCell>
+                        <TableCell className="text-center">
                           <StatusCell
                             status={row.brake_test_not_recorded}
                             rowId={row.id}
@@ -859,8 +1127,8 @@ const PMI: FC = () => {
                             isEditable={true}
                             type="status"
                           />
-                        </td>
-                        <td className="text-center py-3">
+                        </TableCell>
+                        <TableCell className="text-center">
                           <StatusCell
                             status={row.brake_test_report_attached}
                             rowId={row.id}
@@ -870,8 +1138,8 @@ const PMI: FC = () => {
                             isEditable={true}
                             type="status"
                           />
-                        </td>
-                        <td className="text-center py-3">
+                        </TableCell>
+                        <TableCell className="text-center">
                           <StatusCell
                             status={row.maintenance_error_answer}
                             rowId={row.id}
@@ -881,8 +1149,8 @@ const PMI: FC = () => {
                             isEditable={true}
                             type="status"
                           />
-                        </td>
-                        <td className="px-4 py-3 text-center">
+                        </TableCell>
+                        <TableCell className="text-center">
                           <ActionMenu
                             row={row}
                             onEdit={handleEdit}
@@ -892,19 +1160,21 @@ const PMI: FC = () => {
                             onApprove={handleApprove}
                             onReject={handleReject}
                           />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   }
                   return null;
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-700">
-                Showing {startIndex + 1}-{Math.min(startIndex + rowsPerPage, sortedData.length)} of {sortedData.length} results
+                Showing {startIndex + 1}-
+                {Math.min(startIndex + rowsPerPage, sortedData.length)} of{" "}
+                {sortedData.length} results
               </span>
             </div>
             <div className="flex items-center space-x-1">
@@ -946,7 +1216,9 @@ const PMI: FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
                 disabled={currentPage === totalPages}
               >
                 Next <ChevronRight className="w-4 h-4 ml-1" />
@@ -955,10 +1227,12 @@ const PMI: FC = () => {
           </div>
         </div>
         {showModal && selectedRow && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">{isEditing ? "Edit PMI Record" : "PMI Record Details"}</h2>
+                <h2 className="text-xl font-semibold">
+                  {isEditing ? "Edit PMI Record" : "PMI Record Details"}
+                </h2>
                 <button
                   onClick={() => {
                     setShowModal(false);
@@ -974,124 +1248,437 @@ const PMI: FC = () => {
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Registration</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Vehicle Registration
+                        </label>
                         <Input
                           value={editForm.vehicle_reg || ""}
-                          onChange={(e) => setEditForm({ ...editForm, vehicle_reg: e.target.value })}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              vehicle_reg: e.target.value,
+                            })
+                          }
                           className="w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Analysis Date</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Analysis Date
+                        </label>
                         <Input
                           type="date"
                           value={editForm.analysis_date || ""}
-                          onChange={(e) => setEditForm({ ...editForm, analysis_date: e.target.value })}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              analysis_date: e.target.value,
+                            })
+                          }
                           className="w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">PMI Expiry</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          PMI Expiry
+                        </label>
                         <Input
                           type="date"
                           value={editForm.pmi_expiry || ""}
-                          onChange={(e) => setEditForm({ ...editForm, pmi_expiry: e.target.value })}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              pmi_expiry: e.target.value,
+                            })
+                          }
                           className="w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Correct DTP Code Used</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Correct DTP Code Used
+                        </label>
                         <Input
                           value={editForm.Correct_DTP_Code_Used || ""}
-                          onChange={(e) => setEditForm({ ...editForm, Correct_DTP_Code_Used: e.target.value })}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              Correct_DTP_Code_Used: e.target.value,
+                            })
+                          }
                           className="w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Brake Imbalance</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Brake Imbalance
+                        </label>
                         <Input
                           value={editForm.brake_imbalance || ""}
-                          onChange={(e) => setEditForm({ ...editForm, brake_imbalance: e.target.value })}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              brake_imbalance: e.target.value,
+                            })
+                          }
                           className="w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Brake Imbalance Note</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Brake Imbalance Note
+                        </label>
                         <Input
                           value={editForm.brake_imbalance_note || ""}
-                          onChange={(e) => setEditForm({ ...editForm, brake_imbalance_note: e.target.value })}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              brake_imbalance_note: e.target.value,
+                            })
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Brake Test Not Recorded
+                        </label>
+                        <Select
+                          value={editForm.brake_test_not_recorded || ""}
+                          onValueChange={(value) =>
+                            setEditForm({
+                              ...editForm,
+                              brake_test_not_recorded: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Yes">Yes</SelectItem>
+                            <SelectItem value="No">No</SelectItem>
+                            <SelectItem value="NA">NA</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Brake Test Report Attached
+                        </label>
+                        <Select
+                          value={editForm.brake_test_report_attached || ""}
+                          onValueChange={(value) =>
+                            setEditForm({
+                              ...editForm,
+                              brake_test_report_attached: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Yes">Yes</SelectItem>
+                            <SelectItem value="No">No</SelectItem>
+                            <SelectItem value="NA">NA</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Maintenance Error Answer
+                        </label>
+                        <Select
+                          value={editForm.maintenance_error_answer || ""}
+                          onValueChange={(value) =>
+                            setEditForm({
+                              ...editForm,
+                              maintenance_error_answer: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Yes">Yes</SelectItem>
+                            <SelectItem value="No">No</SelectItem>
+                            <SelectItem value="NA">NA</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Maintenance Provider Error
+                        </label>
+                        <Input
+                          value={editForm.maintenance_provider_error || ""}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              maintenance_provider_error: e.target.value,
+                            })
+                          }
                           className="w-full"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Defects</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Defects
+                      </label>
                       <Textarea
                         value={editForm.defects || ""}
-                        onChange={(e) => setEditForm({ ...editForm, defects: e.target.value })}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, defects: e.target.value })
+                        }
                         className="w-full"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Notes
+                      </label>
                       <Textarea
                         value={editForm.notes || ""}
-                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, notes: e.target.value })
+                        }
                         className="w-full"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Maintenance Error Note</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Maintenance Error Note
+                      </label>
                       <Textarea
                         value={editForm.maintenance_error_note || ""}
-                        onChange={(e) => setEditForm({ ...editForm, maintenance_error_note: e.target.value })}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            maintenance_error_note: e.target.value,
+                          })
+                        }
                         className="w-full"
                       />
                     </div>
+                    {tyreColumns.map((col) => (
+                      <div key={col}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tyre Pressure {col} (PSI)
+                        </label>
+                        <Input
+                          type="number"
+                          value={editForm.tyre_pressure?.[col] ?? ""}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              tyre_pressure: {
+                                ...editForm.tyre_pressure,
+                                [col]: e.target.value,
+                              },
+                            })
+                          }
+                          className={cn("w-full", getSafetyColor(editForm.tyre_pressure?.[col], "tyre_pressure"))}
+                        />
+                      </div>
+                    ))}
+                    {tyreColumns.map((col) => (
+                      <div key={col}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tyre Depth {col} (mm)
+                        </label>
+                        <Input
+                          type="number"
+                          value={editForm.tyre_depth?.[col] ?? ""}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              tyre_depth: {
+                                ...editForm.tyre_depth,
+                                [col]: e.target.value,
+                              },
+                            })
+                          }
+                          className={cn("w-full", getSafetyColor(editForm.tyre_depth?.[col], "tyre_depth"))}
+                        />
+                      </div>
+                    ))}
+                    {tyreColumns.map((col) => (
+                      <div key={col}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tyre Date {col}
+                        </label>
+                        <Input
+                          value={editForm.tyre_dates?.[col] ?? ""}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              tyre_dates: {
+                                ...editForm.tyre_dates,
+                                [col]: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                    ))}
                   </>
                 ) : (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Registration</label>
-                        <div className="text-sm text-gray-900">{selectedRow.vehicle_reg}</div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Vehicle Registration
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.vehicle_reg}
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Analysis Date</label>
-                        <div className="text-sm text-gray-900">{selectedRow.analysis_date}</div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Analysis Date
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.analysis_date}
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">PMI Expiry</label>
-                        <div className="text-sm text-gray-900">{selectedRow.pmi_expiry ?? "N/A"}</div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          PMI Expiry
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.pmi_expiry ?? "N/A"}
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Status
+                        </label>
                         <div>{getStatusBadge(selectedRow.status)}</div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Brake Imbalance</label>
-                        <div className="text-sm text-gray-900">{selectedRow.brake_imbalance ?? "N/A"}</div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Brake Imbalance
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.brake_imbalance ?? "N/A"}
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Brake Imbalance Note</label>
-                        <div className="text-sm text-gray-900">{selectedRow.brake_imbalance_note ?? "N/A"}</div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Brake Imbalance Note
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.brake_imbalance_note ?? "N/A"}
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Correct DTP Code Used</label>
-                        <div className="text-sm text-gray-900">{selectedRow.Correct_DTP_Code_Used ?? "N/A"}</div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Correct DTP Code Used
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.Correct_DTP_Code_Used ?? "N/A"}
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Maintenance Error Note</label>
-                        <div className="text-sm text-gray-900">{selectedRow.maintenance_error_note ?? "N/A"}</div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Maintenance Error Note
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.maintenance_error_note ?? "N/A"}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Brake Test Not Recorded
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.brake_test_not_recorded ?? "N/A"}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Brake Test Report Attached
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.brake_test_report_attached ?? "N/A"}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Maintenance Error Answer
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.maintenance_error_answer ?? "N/A"}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Maintenance Provider Error
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRow.maintenance_provider_error ?? "N/A"}
+                        </div>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Defects</label>
-                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">{selectedRow.defects}</div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Defects
+                      </label>
+                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
+                        {selectedRow.defects}
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">{selectedRow.notes}</div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Notes
+                      </label>
+                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
+                        {selectedRow.notes}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tyre Pressure
+                      </label>
+                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
+                        {Object.entries(selectedRow.tyre_pressure).map(([key, value]) => (
+                          <div
+                            key={key}
+                            className={cn("p-1 rounded", getSafetyColor(value, "tyre_pressure"))}
+                          >
+                            {`${key}: ${value ?? "N/A"}`}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tyre Depth
+                      </label>
+                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
+                        {Object.entries(selectedRow.tyre_depth).map(([key, value]) => (
+                          <div
+                            key={key}
+                            className={cn("p-1 rounded", getSafetyColor(value, "tyre_depth"))}
+                          >
+                            {`${key}: ${value ?? "N/A"}`}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tyre Dates
+                      </label>
+                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
+                        {Object.entries(selectedRow.tyre_dates).map(([key, value]) => (
+                          <div key={key}>{`${key}: ${value ?? "N/A"}`}</div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1171,8 +1758,22 @@ const PMI: FC = () => {
                             notes: selectedRow.notes,
                             brake_imbalance: selectedRow.brake_imbalance,
                             brake_imbalance_note: selectedRow.brake_imbalance_note,
-                            maintenance_error_note: selectedRow.maintenance_error_note,
-                            Correct_DTP_Code_Used: selectedRow.Correct_DTP_Code_Used
+                            maintenance_error_note:
+                              selectedRow.maintenance_error_note,
+                            Correct_DTP_Code_Used:
+                              selectedRow.Correct_DTP_Code_Used,
+                            brake_test_not_recorded: selectedRow.brake_test_not_recorded,
+                            brake_test_report_attached:
+                              selectedRow.brake_test_report_attached,
+                            maintenance_error_answer:
+                              selectedRow.maintenance_error_answer,
+                            maintenance_provider_error:
+                              selectedRow.maintenance_provider_error,
+                            signature: selectedRow.signature,
+                            vehicle: selectedRow.vehicle,
+                            tyre_pressure: { ...selectedRow.tyre_pressure },
+                            tyre_depth: { ...selectedRow.tyre_depth },
+                            tyre_dates: { ...selectedRow.tyre_dates },
                           });
                         }}
                         disabled={loading}

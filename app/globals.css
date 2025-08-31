@@ -20,6 +20,10 @@
 .shadow-b {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+/* Only top-right corner is slanted */
+.clip-tab {
+clip-path: polygon(0 0, 71% 0, 100% 100%, 100% 100%, 0% 100%);
+}
 
 @layer base {
   body {
