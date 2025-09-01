@@ -1,22 +1,33 @@
-"use client"
+"use client";
 
-import React, { useState, useRef, useCallback } from "react"
-import { Camera, Upload, X } from "lucide-react"
+import React, { useState, useRef, useCallback } from "react";
+import { Camera, Upload, X } from "lucide-react";
 
 interface ImageUploaderProps {
-  onUploadSuccess: (url: string) => void
-  cameraFacing?: "user" | "environment"
+  onUploadSuccess: (url: string) => void;
+  cameraFacing?: "user" | "environment";
 }
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onUploadSuccess, cameraFacing = "environment" }) => {
-  const [isCapturing, setIsCapturing] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [stream, setStream] = useState<MediaStream | null>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [isCameraLoading, setIsCameraLoading] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce utility to prevent rapid camera restarts
+  const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: Parameters<T>) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  };
 
   const startCamera = useCallback(async () => {
+    setIsCameraLoading(true);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -24,100 +35,127 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUploadSuccess, cameraFa
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-      })
+      });
 
-      setStream(mediaStream)
-      setIsCapturing(true)
+      setStream(mediaStream);
+      setIsCapturing(true);
 
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream
+        videoRef.current.srcObject = mediaStream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch((error) => {
+            console.error("Error playing video:", error);
+            setIsCapturing(false);
+            alert("Camera error. Try uploading a file instead.");
+          });
+          setIsCameraLoading(false);
+        };
       }
     } catch (error) {
-      console.error("Error accessing camera:", error)
-      alert("Unable to access camera. Please check permissions or use file upload.")
+      console.error("Error accessing camera:", error);
+      alert("Unable to access camera. Please check permissions or use file upload.");
+      setIsCapturing(false);
+      setIsCameraLoading(false);
     }
-  }, [cameraFacing])
+  }, [cameraFacing]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
-      stream.getTracks().forEach((track) => track.stop())
-      setStream(null)
+      stream.getTracks().forEach((track) => {
+        track.stop();
+        track.enabled = false; // Explicitly disable tracks
+      });
+      setStream(null);
     }
-    setIsCapturing(false)
-  }, [stream])
+    if (videoRef.current) {
+      videoRef.current.srcObject = null; // Clear video source
+    }
+    setIsCapturing(false);
+    setIsCameraLoading(false);
+  }, [stream]);
 
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return
+    if (!videoRef.current || !canvasRef.current) return;
 
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const context = canvas.getContext("2d")
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext("2d");
 
-    if (!context) return
+    if (!context) return;
 
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    context.drawImage(video, 0, 0)
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
 
     canvas.toBlob(
       async (blob) => {
         if (blob) {
-          await uploadImage(blob)
+          await uploadImage(blob);
         }
       },
       "image/jpeg",
-      0.8,
-    )
+      0.8
+    );
 
-    stopCamera()
-  }, [stopCamera])
+    stopCamera();
+  }, [stopCamera]);
 
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const file = event.target.files?.[0];
     if (file) {
-      await uploadImage(file)
+      await uploadImage(file);
     }
-  }, [])
+  }, []);
 
   const uploadImage = async (file: Blob) => {
-    setUploading(true)
+    setUploading(true);
     try {
-      // Create a mock URL for demo purposes
-      // In a real app, you would upload to your server or cloud storage
-      const url = URL.createObjectURL(file)
-
-      // Simulate upload delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      onUploadSuccess(url)
+      // Simulate upload (replace with actual server/cloud storage upload in production)
+      const url = URL.createObjectURL(file);
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate upload delay
+      onUploadSuccess(url);
     } catch (error) {
-      console.error("Upload failed:", error)
-      alert("Failed to upload image. Please try again.")
+      console.error("Upload failed:", error);
+      alert("Failed to upload image. Please try again.");
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
-  // Update camera when facing changes
+  // Debounced camera start to prevent rapid restarts
+  const startCameraDebounced = useCallback(
+    debounce(() => {
+      startCamera();
+    }, 300),
+    [startCamera]
+  );
+
+  // Handle camera facing changes
   React.useEffect(() => {
-    if (isCapturing) {
-      stopCamera()
-      setTimeout(() => startCamera(), 100)
+    if (isCapturing && stream) {
+      stopCamera();
+      startCameraDebounced();
     }
-  }, [cameraFacing, isCapturing, startCamera, stopCamera])
+  }, [cameraFacing, isCapturing, stream, stopCamera, startCameraDebounced]);
 
   if (isCapturing) {
     return (
       <div className="space-y-4">
-        <div className="relative bg-black rounded-lg overflow-hidden">
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-64 object-cover" />
-          <canvas ref={canvasRef} className="hidden" />
-        </div>
+        {isCameraLoading ? (
+          <div className="flex justify-center items-center h-64 bg-black rounded-lg">
+            <p className="text-white">Loading camera...</p>
+          </div>
+        ) : (
+          <div className="relative bg-black rounded-lg overflow-hidden">
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-64 object-cover" />
+            <canvas ref={canvasRef} className="hidden" />
+          </div>
+        )}
 
         <div className="flex gap-3 justify-center">
           <button
             onClick={capturePhoto}
-            disabled={uploading}
+            disabled={uploading || isCameraLoading}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors"
           >
             <Camera className="h-4 w-4" />
@@ -126,6 +164,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUploadSuccess, cameraFa
 
           <button
             onClick={stopCamera}
+            disabled={isCameraLoading}
             className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors"
           >
             <X className="h-4 w-4" />
@@ -133,7 +172,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUploadSuccess, cameraFa
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -160,7 +199,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUploadSuccess, cameraFa
 
       <p className="text-xs text-gray-500">Camera facing: {cameraFacing === "user" ? "Front" : "Back"}</p>
     </div>
-  )
-}
+  );
+};
 
-export default ImageUploader
+export default ImageUploader;
