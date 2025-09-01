@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog"
 
 import { useButtonMouseMove } from "@/app/lib/utils"
-import StatsTab from "../Rota/StatsTab"
+import StatsTab from "./StatsTab"
 import { ChartNoAxesCombined } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"

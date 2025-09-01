@@ -21,7 +21,6 @@ interface WebSocketProviderProps {
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, token }) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-const {showToast}=useToast();
   useEffect(() => {
     if (!token) {
       console.warn('No token found, skipping WebSocket connection');

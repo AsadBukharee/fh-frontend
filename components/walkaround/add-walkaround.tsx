@@ -13,8 +13,16 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useCookies } from 'next-client-cookies';
 import API_URL from '@/app/utils/ENV';
+import WalkaroundQuestions from './WalkaroundQuestions';
+import { useRouter } from 'next/navigation';
 
 interface Profile {
   id: number;
@@ -48,6 +56,29 @@ interface WalkAround {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+// Updated WalkaroundQuestion Component to accept props
+const WalkaroundQuestion: React.FC<{
+  isOpen: boolean;
+  onComplete: () => void;
+  walkaroundId: number | null;
+  vehicleId: number | null;
+}> = ({ isOpen, onComplete, walkaroundId, vehicleId }) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={() => {}} modal>
+      <DialogContent className="w-5xl">
+        <DialogHeader>
+          <DialogTitle>Walkaround Question</DialogTitle>
+        </DialogHeader>
+        <WalkaroundQuestions 
+          walkaroundId={walkaroundId}
+          vehicleId={vehicleId}
+          onComplete={onComplete}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
   const [formData, setFormData] = useState<FormData>({
     walkaround_step: 'one',
@@ -64,10 +95,17 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
     status: 'pending',
   });
   const [errors, setErrors] = useState<Partial<FormData>>({});
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [drivers, setDrivers] = useState<Profile[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [showQuestion, setShowQuestion] = useState(false);
+  
+  // Add state to store walkaround response data
+  const [walkaroundId, setWalkaroundId] = useState<number | null>(null);
+  const [vehicleId, setVehicleId] = useState<number | null>(null);
+  
   const sigCanvas = useRef<SignatureCanvas>(null);
   const cookies = useCookies();
   const token = cookies.get('access_token');
@@ -130,7 +168,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
           setVehicles(
             result.data.map((vehicle: any) => ({
               id: vehicle.id,
-              name: `${vehicle.vehicle_type_name} (${vehicle.registration_number})`,
+              name: ` ${vehicle.registration_number}`,
             })),
           );
         } else {
@@ -172,10 +210,14 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
   };
 
   const saveSignature = () => {
-    if (sigCanvas.current) {
-      const signatureData = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+    if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+      const signatureData = sigCanvas.current
+        .getTrimmedCanvas()
+        .toDataURL("image/png");
       setFormData((prev) => ({ ...prev, signature: signatureData }));
       setErrors((prev) => ({ ...prev, signature: undefined }));
+    } else {
+      setErrors((prev) => ({ ...prev, signature: "Please provide a signature." }));
     }
   };
 
@@ -232,30 +274,50 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
       const result = await response.json();
       console.log('Walkaround created:', result);
 
-      setFormData({
-        walkaround_step: 'one',
-        driver: '',
-        walkaround_assignee: 'none',
-        vehicle: '',
-        date: new Date().toISOString().split('T')[0], // Reset to current date
-        time: new Date().toTimeString().split(' ')[0].slice(0, 5), // Reset to current time
-        milage: '',
-        signature: '',
-        note: '',
-        defects: '',
-        walkaround_duration: '',
-        status: 'pending',
-      });
-      sigCanvas.current?.clear();
-      setOpen(false);
+      // Extract walkaround ID and vehicle ID from the response
+      const createdWalkaroundId = result.data.id; // 19 from your example
+      const createdVehicleId = result.data.vehicle.id; // 3 from your example
+
+      // Set the data for the questions component
+      setWalkaroundId(createdWalkaroundId);
+      setVehicleId(createdVehicleId);
+
+      // Reset loading state first
+      setLoading(false);
+      
+      // Show the question dialog after successful creation
+      setShowQuestion(true);
+      
     } catch (err) {
       setErrors({
         //@ts-expect-error ab thk ha
         form: err instanceof Error ? err.message : 'An error occurred while creating the walkaround.',
       });
-    } finally {
       setLoading(false);
     }
+  };
+
+  const handleQuestionComplete = () => {
+    // Reset form and close everything after question is completed
+    setFormData({
+      walkaround_step: 'one',
+      driver: '',
+      walkaround_assignee: 'none',
+      vehicle: '',
+      date: new Date().toISOString().split('T')[0], // Reset to current date
+      time: new Date().toTimeString().split(' ')[0].slice(0, 5), // Reset to current time
+      milage: '',
+      signature: '',
+      note: '',
+      defects: '',
+      walkaround_duration: '',
+      status: 'pending',
+    });
+    sigCanvas.current?.clear();
+    setShowQuestion(false);
+    router.refresh();
+    setLoading(false);
+    setOpen(false);
   };
 
   const formatName = (name: string): string =>
@@ -265,166 +327,174 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
       .join(' ');
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {
-        //@ts-expect-error ab thk ha
-        errors.form && <div className="text-red-500">{errors.form}</div>
-      }
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {
+          //@ts-expect-error ab thk ha
+          errors.form && <div className="text-red-500">{errors.form}</div>
+        }
 
-      {/* Driver */}
-      <div>
-        <Label>Driver</Label>
-        <Select
-          value={formData.driver}
-          onValueChange={(value) =>
-            setFormData((prev) => ({ ...prev, driver: value }))
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select driver" />
-          </SelectTrigger>
-          <SelectContent>
-            {drivers.map((driver) => (
-              <SelectItem key={driver.id} value={driver.id.toString()}>
-                {`${formatName(driver.full_name)} (${driver.sites
-                  .map((site) => site.name)
-                  .join(', ')})`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.driver && <div className="text-red-500 text-sm">{errors.driver}</div>}
-      </div>
+        {/* Driver */}
+        <div>
+          <Label>Driver</Label>
+          <Select
+            value={formData.driver}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, driver: value }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select driver" />
+            </SelectTrigger>
+            <SelectContent>
+              {drivers.map((driver) => (
+                <SelectItem key={driver.id} value={driver.id.toString()}>
+                  {`${formatName(driver.full_name)} `}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.driver && <div className="text-red-500 text-sm">{errors.driver}</div>}
+        </div>
 
-      {/* Walkaround Assignee */}
-      <div>
-        <Label>Walkaround Assignee</Label>
-        <Select
-          value={formData.walkaround_assignee}
-          onValueChange={(value) =>
-            setFormData((prev) => ({ ...prev, walkaround_assignee: value }))
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select assignee" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            {managers.map((manager) => (
-              <SelectItem key={manager.id} value={manager.id.toString()}>
-                {`${formatName(manager.full_name)} (${manager.sites
-                  .map((site) => site.name)
-                  .join(', ')})`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.walkaround_assignee && (
-          <div className="text-red-500 text-sm">{errors.walkaround_assignee}</div>
-        )}
-      </div>
+        {/* Walkaround Assignee */}
+        <div>
+          <Label>Walkaround Assignee</Label>
+          <Select
+            value={formData.walkaround_assignee}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, walkaround_assignee: value }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              {managers.map((manager) => (
+                <SelectItem key={manager.id} value={manager.id.toString()}>
+                  {`${formatName(manager.full_name)} (${manager.sites
+                    .map((site) => site.name)
+                    .join(', ')})`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.walkaround_assignee && (
+            <div className="text-red-500 text-sm">{errors.walkaround_assignee}</div>
+          )}
+        </div>
 
-      {/* Vehicle */}
-      <div>
-        <Label>Vehicle</Label>
-        <Select
-          value={formData.vehicle}
-          onValueChange={(value) =>
-            setFormData((prev) => ({ ...prev, vehicle: value }))
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select vehicle" />
-          </SelectTrigger>
-          <SelectContent>
-            {vehicles.map((vehicle) => (
-              <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
-                {vehicle.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.vehicle && <div className="text-red-500 text-sm">{errors.vehicle}</div>}
-      </div>
+        {/* Vehicle */}
+        <div>
+          <Label>Vehicle</Label>
+          <Select
+            value={formData.vehicle}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, vehicle: value }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select vehicle" />
+            </SelectTrigger>
+            <SelectContent>
+              {vehicles.map((vehicle) => (
+                <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
+                  {vehicle.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.vehicle && <div className="text-red-500 text-sm">{errors.vehicle}</div>}
+        </div>
 
-      {/* Mileage */}
-      <div>
-        <Label>Mileage</Label>
-        <Input
-          type="number"
-          name="milage"
-          value={formData.milage}
-          onChange={handleFormChange}
-          step="0.1"
-          min="0"
-        />
-        {errors.milage && <div className="text-red-500 text-sm">{errors.milage}</div>}
-      </div>
-
-      {/* Signature */}
-      <div>
-        <Label>Signature</Label>
-        <div className="border rounded-md">
-          <SignatureCanvas
-            ref={sigCanvas}
-            canvasProps={{
-              className: 'w-full h-40',
-            }}
-            onEnd={saveSignature}
+        {/* Mileage */}
+        <div>
+          <Label>Mileage</Label>
+          <Input
+            type="number"
+            name="milage"
+            value={formData.milage}
+            onChange={handleFormChange}
+            step="0.1"
+            min="0"
           />
+          {errors.milage && <div className="text-red-500 text-sm">{errors.milage}</div>}
         </div>
-        <div className="mt-2">
-          <Button type="button" variant="outline" onClick={clearSignature} className="mr-2">
-            Clear Signature
-          </Button>
+
+        {/* Signature */}
+        <div>
+          <Label>Signature</Label>
+          <div className="border rounded-md">
+           <SignatureCanvas
+    ref={sigCanvas}
+    penColor="black"
+    canvasProps={{ className: "w-full h-40 bg-white" }}
+    onEnd={saveSignature}
+  />
+
+          </div>
+          <div className="mt-2">
+            <Button type="button" variant="outline" onClick={clearSignature} className="mr-2">
+              Clear Signature
+            </Button>
+          </div>
+          {errors.signature && <div className="text-red-500 text-sm">{errors.signature}</div>}
         </div>
-        {errors.signature && <div className="text-red-500 text-sm">{errors.signature}</div>}
-      </div>
 
-      {/* Note */}
-      <div>
-        <Label>Note</Label>
-        <Textarea name="note" value={formData.note} onChange={handleFormChange} />
-        {errors.note && <div className="text-red-500 text-sm">{errors.note}</div>}
-      </div>
+        {/* Note */}
+        <div>
+          <Label>Note</Label>
+          <Textarea name="note" value={formData.note} onChange={handleFormChange} />
+          {errors.note && <div className="text-red-500 text-sm">{errors.note}</div>}
+        </div>
 
-      {/* Defects */}
-      <div>
-        <Label>Defects</Label>
-        <Textarea
-          name="defects"
-          value={formData.defects}
-          onChange={handleFormChange}
-        />
-        {errors.defects && <div className="text-red-500 text-sm">{errors.defects}</div>}
-      </div>
+        {/* Defects */}
+        <div>
+          <Label>Defects</Label>
+          <Textarea
+            name="defects"
+            value={formData.defects}
+            onChange={handleFormChange}
+          />
+          {errors.defects && <div className="text-red-500 text-sm">{errors.defects}</div>}
+        </div>
 
-      {/* Status */}
-      <div>
-        <Label>Status</Label>
-        <Select
-          value={formData.status}
-          onValueChange={(value) =>
-            setFormData((prev) => ({ ...prev, status: value }))
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="failed">Failed</SelectItem>
-            <SelectItem value="custom">Custom</SelectItem>
-          </SelectContent>
-        </Select>
-        {errors.status && <div className="text-red-500 text-sm">{errors.status}</div>}
-      </div>
+        {/* Status */}
+        <div>
+          <Label>Status</Label>
+          <Select
+            value={formData.status}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, status: value }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.status && <div className="text-red-500 text-sm">{errors.status}</div>}
+        </div>
 
-      <Button type="submit" disabled={loading}>
-        {loading ? 'Creating...' : 'Create Walkaround'}
-      </Button>
-    </form>
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Creating...' : 'Create Walkaround'}
+        </Button>
+      </form>
+
+      {/* WalkaroundQuestion Dialog */}
+      <WalkaroundQuestion
+        isOpen={showQuestion}
+        onComplete={handleQuestionComplete}
+        walkaroundId={walkaroundId}
+        vehicleId={vehicleId}
+      />
+    </>
   );
 };
 
