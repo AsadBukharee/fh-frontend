@@ -28,7 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/app/Context/ToastContext";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import ImageUploader from "./Media/UploadImage";
+import ImageUploader from "../Media/UploadImage";
 import { configureStore, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import { debounce } from "lodash";
