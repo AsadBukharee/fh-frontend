@@ -51,7 +51,7 @@ import {
 import { useCookies } from "next-client-cookies";
 import API_URL from "@/app/utils/ENV";
 import BadgeList from "../BadgeList";
-import AddPMI from "./ADDPMIDriver";
+
 import { Label } from "../ui/label";
 import EditPMI from "./EditPMIdriver";
 
@@ -105,10 +105,7 @@ export default function PMIDashboard() {
   const debouncedSetSearchTerm = debounce((value: string) => {
     setSearchTerm(value);
   }, 300);
-
-  // Fetch PMI records from API
-  useEffect(() => {
-    const fetchPMIData = async () => {
+ const fetchPMIData = async () => {
       setLoading(true);
       setError(null);
       try {
@@ -137,6 +134,9 @@ export default function PMIDashboard() {
         setLoading(false);
       }
     };
+  // Fetch PMI records from API
+  useEffect(() => {
+   
 
     fetchPMIData();
   }, [yourToken]);
@@ -223,32 +223,7 @@ export default function PMIDashboard() {
     }
   };
 
-  const getDefectSeverity = (defects: string) => {
-    if (defects?.toLowerCase().includes("no defects")) {
-      return (
-        <Badge variant="default" className="bg-green-100 text-green-800">
-          No Issues
-        </Badge>
-      );
-    }
-    if (
-      defects?.toLowerCase().includes("wear") ||
-      defects?.toLowerCase().includes("minor")
-    ) {
-      return (
-        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-          Minor
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="destructive">
-        <AlertTriangle className="w-3 h-3 mr-1" />
-        Attention Required
-      </Badge>
-    );
-  };
-
+ 
   const handleDelete = async (id: number) => {
     setLoading(true);
     setError(null);
@@ -336,12 +311,7 @@ export default function PMIDashboard() {
                 />
               </div>
             </div>
-            <AddPMI
-              vehicles={vehicles}
-              vehiclesLoading={vehiclesLoading}
-              vehiclesError={vehiclesError}
-              onCreate={(newRecord) => setPmiData([...pmiData, newRecord])}
-            />
+         
           </div>
         </CardHeader>
         <CardContent>
@@ -352,8 +322,7 @@ export default function PMIDashboard() {
                   <TableHead>Report Date</TableHead>
                   <TableHead>Vehicle Reg</TableHead>
                   <TableHead>Defects</TableHead>
-                  <TableHead>Severity</TableHead>
-                  <TableHead>Driver ID</TableHead>
+                 
                   <TableHead>Previously Noted</TableHead>
                   <TableHead>Action Required</TableHead>
                   <TableHead>Actions</TableHead>
@@ -375,14 +344,7 @@ export default function PMIDashboard() {
                         <BadgeList value={record.defects} />
                       </div>
                     </TableCell>
-                    <TableCell>{getDefectSeverity(record.defects)}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={record.identified_by_driver ? "default" : "secondary"}
-                      >
-                        {record.identified_by_driver ? "Yes" : "No"}
-                      </Badge>
-                    </TableCell>
+                  
                     <TableCell>
                       <Badge
                         variant={
@@ -471,13 +433,7 @@ export default function PMIDashboard() {
                           </Dialog>
                           <EditPMI
                             record={record}
-                            onEdit={(updatedRecord) =>
-                              setPmiData(
-                                pmiData.map((item) =>
-                                  item.id === updatedRecord.id ? updatedRecord : item
-                                )
-                              )
-                            }
+                            onEdit={()=>fetchPMIData()}
                           />
                           <Dialog>
                             <DialogTrigger asChild>

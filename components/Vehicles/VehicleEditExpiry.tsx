@@ -124,12 +124,15 @@ const ExpiryDates: React.FC<ExpiryDatesProps> = ({
       </Accordion>
 
       {selectedField === "inspection_expiry" ? (
-        <InspectionDialog
-          open={isDialogOpen}
-          onClose={handleDialogClose}
-          expiryDate={newExpiryDate}
-          vehicleId={vehicle_id}
-          onUpdateSuccess={handleUpdateSuccess}
+          <InspectionDialog
+            open={isDialogOpen}
+            onClose={handleDialogClose}
+            vehicleId={vehicle_id}
+            onUpdateSuccess={handleUpdateSuccess}
+            lastPMIDate={fieldMap["inspection_expiry"].value || ""  }
+            vehicleRegistration={"Config issue" }
+            username={"Super Admin" }
+            
         />
       ) : (
         selectedField && (

@@ -479,7 +479,7 @@ const LocationTabs = () => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete the location "{selectedLocation?.name}". This action cannot be undone.
+                  This will permanently delete the location {selectedLocation?.name}. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

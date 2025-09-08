@@ -12,13 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Plus, AlertTriangle, Eraser, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
@@ -26,9 +21,8 @@ import { useCookies } from "next-client-cookies";
 import GradientButton from "@/app/utils/GradientButton";
 import { debounce } from "lodash";
 import FileUploader from "../Media/MediaUpload";
-
-// Lazy load SignatureCanvas to reduce initial bundle size
-const SignatureCanvas = lazy(() => import("react-signature-canvas"));
+import DefectsInput from "../ui/DefectsInput";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 interface Vehicle {
   id: number;
@@ -71,7 +65,6 @@ interface FormData {
   brake_test_report_attached: string;
   maintenance_error_answer: string;
   maintenance_error_note: string;
-  signature: string;
   maintenence_provider_error: string;
   tyre_pressure: Record<string, number | string>;
   tyre_depth: Record<string, number | string>;
@@ -83,7 +76,6 @@ interface FormErrors {
   vehicle?: string;
   status?: string;
   file_url?: string;
-  signature?: string;
   tyre_pressure?: Record<string, string>;
   tyre_depth?: Record<string, string>;
   tyre_date?: Record<string, string>;
@@ -103,7 +95,6 @@ const initialFormData: FormData = {
   brake_test_report_attached: "",
   maintenance_error_answer: "",
   maintenance_error_note: "",
-  signature: "",
   maintenence_provider_error: "",
   tyre_pressure: {
     OSF: "",
@@ -154,11 +145,6 @@ const getSafetyColor = (value: number | string | null | undefined, field: string
   return "bg-gray-100 text-gray-800";
 };
 
-const formatTyreExpiry = (expiry: string): string => {
-  if (!expiry || expiry.length !== 4) return "";
-  return `Week ${expiry.slice(2)}, 20${expiry.slice(0, 2)}`;
-};
-
 const AddPMI: FC = () => {
   const [open, setOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -198,7 +184,7 @@ const AddPMI: FC = () => {
     try {
       const response = await fetch(`${API_URL}/api/vehicles/`, {
         headers: { Authorization: `Bearer ${token}` },
-        cache: "force-cache", // Cache API response
+        cache: "force-cache",
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -256,24 +242,6 @@ const AddPMI: FC = () => {
     []
   );
 
-  const handleSignatureClear = useCallback(() => {
-    signatureCanvasRef.current?.clear();
-    setFormData((prev) => ({ ...prev, signature: "" }));
-    setSignatureSaved(false);
-    setFormErrors((prev) => ({ ...prev, signature: undefined }));
-  }, []);
-
-  const handleSignatureSave = useCallback(() => {
-    const signatureData = signatureCanvasRef.current?.getTrimmedCanvas().toDataURL("image/png");
-    if (signatureData && !signatureCanvasRef.current?.isEmpty()) {
-      setFormData((prev) => ({ ...prev, signature: signatureData }));
-      setSignatureSaved(true);
-      setFormErrors((prev) => ({ ...prev, signature: undefined }));
-    } else {
-      setFormErrors((prev) => ({ ...prev, signature: "Signature is required" }));
-    }
-  }, []);
-
   const handleFileUploadSuccess = useCallback((url: string) => {
     setFormData((prev) => ({ ...prev, file_url: url }));
     setFormErrors((prev) => ({ ...prev, file_url: undefined }));
@@ -282,8 +250,8 @@ const AddPMI: FC = () => {
   const flattenFormData = useCallback((data: FormData): Record<string, any> => {
     const flattened: Record<string, any> = { ...data };
     ["tyre_pressure", "tyre_depth", "tyre_date"].forEach((field) => {
-        //@ts-expect-error ab thk ha
-      Object.entries(data[field]).forEach(([key, value]) => {
+      
+      Object.entries((data as Record<string, any>)[field] || {}).forEach(([key, value]) => {
         flattened[`${field}_${key}`] = value;
       });
       delete flattened[field];
@@ -309,10 +277,6 @@ const AddPMI: FC = () => {
     }
     if (formData.file_url && !/^https?:\/\/[^\s$.?#].[^\s]*$/.test(formData.file_url)) {
       errors.file_url = "Invalid URL format";
-      isValid = false;
-    }
-    if (!formData.signature) {
-      errors.signature = "Signature is required";
       isValid = false;
     }
 
@@ -462,7 +426,6 @@ const AddPMI: FC = () => {
           )}
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-2">General Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -510,43 +473,12 @@ const AddPMI: FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status *
-                  </label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => handleChange("status", value)}
-                    aria-required="true"
-                  >
-                    <SelectTrigger className={cn(formErrors.status && "border-red-500")}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {formErrors.status && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.status}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     File Upload
                   </label>
                   <FileUploader onUploadSuccess={handleFileUploadSuccess} />
                   {formErrors.file_url && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.file_url}</p>
                   )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Correct DTP Code Used
-                  </label>
-                  <Input
-                    value={formData.Correct_DTP_Code_Used}
-                    onChange={(e) => handleChange("Correct_DTP_Code_Used", e.target.value)}
-                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -558,16 +490,10 @@ const AddPMI: FC = () => {
                   />
                 </div>
               </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Defects
-                </label>
-                <Textarea
-                  value={formData.defects}
-                  onChange={(e) => handleChange("defects", e.target.value)}
-                  rows={3}
-                />
-              </div>
+              <DefectsInput
+                value={formData.defects}
+                onChange={(newValue) => handleChange("defects", newValue)}
+              />
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Notes
@@ -605,55 +531,70 @@ const AddPMI: FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Brake Test Not Recorded
                   </label>
-                  <Select
+                  <RadioGroup
                     value={formData.brake_test_not_recorded}
                     onValueChange={(value) => handleChange("brake_test_not_recorded", value)}
+                    className="flex space-x-4"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                      <SelectItem value="NA">NA</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="yes" id="brake_test_not_recorded_yes" />
+                      <Label htmlFor="brake_test_not_recorded_yes">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="no" id="brake_test_not_recorded_no" />
+                      <Label htmlFor="brake_test_not_recorded_no">No</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="NA" id="brake_test_not_recorded_na" />
+                      <Label htmlFor="brake_test_not_recorded_na">NA</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Brake Test Report Attached
                   </label>
-                  <Select
+                  <RadioGroup
                     value={formData.brake_test_report_attached}
                     onValueChange={(value) => handleChange("brake_test_report_attached", value)}
+                    className="flex space-x-4"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                      <SelectItem value="NA">NA</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="yes" id="brake_test_report_attached_yes" />
+                      <Label htmlFor="brake_test_report_attached_yes">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="no" id="brake_test_report_attached_no" />
+                      <Label htmlFor="brake_test_report_attached_no">No</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="NA" id="brake_test_report_attached_na" />
+                      <Label htmlFor="brake_test_report_attached_na">NA</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Maintenance Error Answer
                   </label>
-                  <Select
+                  <RadioGroup
                     value={formData.maintenance_error_answer}
                     onValueChange={(value) => handleChange("maintenance_error_answer", value)}
+                    className="flex space-x-4"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                      <SelectItem value="NA">NA</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="yes" id="maintenance_error_answer_yes" />
+                      <Label htmlFor="maintenance_error_answer_yes">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="no" id="maintenance_error_answer_no" />
+                      <Label htmlFor="maintenance_error_answer_no">No</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="NA" id="maintenance_error_answer_na" />
+                      <Label htmlFor="maintenance_error_answer_na">NA</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -720,49 +661,6 @@ const AddPMI: FC = () => {
                 ))}
               </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Signature *
-              </label>
-              <Suspense fallback={<div>Loading signature canvas...</div>}>
-                <div className="border border-gray-300 rounded-md p-2">
-                  <SignatureCanvas
-                    ref={signatureCanvasRef}
-                    canvasProps={{
-                      className: "w-full h-32",
-                      "aria-label": "Signature canvas",
-                    }}
-                    penColor="black"
-                    backgroundColor="white"
-                  />
-                </div>
-              </Suspense>
-              <div className="mt-2 flex space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={handleSignatureClear}
-                  disabled={loading}
-                >
-                  <Eraser className="mr-2 h-4 w-4" />
-                  Clear Signature
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleSignatureSave}
-                  disabled={loading}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Signature
-                </Button>
-              </div>
-              {signatureSaved && (
-                <p className="text-green-500 text-sm mt-1">Signature saved</p>
-              )}
-              {formErrors.signature && (
-                <p className="text-red-500 text-sm mt-1">{formErrors.signature}</p>
-              )}
-            </div>
           </div>
 
           <div className="mt-6 flex justify-end space-x-2">
@@ -808,7 +706,6 @@ const AddPMI: FC = () => {
                 <li><strong>File URL:</strong> {formData.file_url || "N/A"}</li>
                 <li><strong>Tyre Pressures:</strong> {tyrePositions.map(pos => `${pos}: ${formData.tyre_pressure[pos] || "N/A"} PSI`).join(", ")}</li>
                 <li><strong>Tyre Depths:</strong> {tyrePositions.map(pos => `${pos}: ${formData.tyre_depth[pos] || "N/A"} mm`).join(", ")}</li>
-                <li><strong>Signature:</strong> {formData.signature ? "Provided" : "N/A"}</li>
               </ul>
             </DialogDescription>
           </DialogHeader>

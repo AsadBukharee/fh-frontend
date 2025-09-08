@@ -46,6 +46,7 @@ interface EditPMIProps {
 export default function EditPMI({ record, onEdit }: EditPMIProps) {
   const [editRecord, setEditRecord] = useState<PMIRecord>({ ...record });
   const [error, setError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const cookies = useCookies();
   const yourToken = cookies.get("access_token");
@@ -60,17 +61,19 @@ export default function EditPMI({ record, onEdit }: EditPMIProps) {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${yourToken}`,
+            Authorization: `Bearer ${yourToken}`,
           },
           body: JSON.stringify(editRecord),
         }
       );
       if (!response.ok) {
         const errorData = await response.json();
+        setError(errorData.message || "Failed to update PMI record");
         throw new Error(errorData.message || "Failed to update PMI record");
       }
       const updatedRecord: PMIRecord = await response.json();
       onEdit(updatedRecord);
+      setEditOpen(false); // Close dialog only on success
     } catch (err) {
       setError(
         err instanceof Error
@@ -78,17 +81,23 @@ export default function EditPMI({ record, onEdit }: EditPMIProps) {
           : "Error updating PMI record. Please try again."
       );
       console.error(err);
+      // Do NOT close dialog here to allow user to see the error
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog>
+    <Dialog open={editOpen} onOpenChange={setEditOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-full flex justify-start py-1 px-2 text-gray-700"
+          onClick={() => setEditOpen(true)}
+        >
           <Edit className="w-4 h-4" />
-          <span className="sr-only">Edit</span>
+          <span>Edit</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="h-[500px] overflow-y-auto rounded-2xl shadow-lg">
@@ -167,7 +176,11 @@ export default function EditPMI({ record, onEdit }: EditPMIProps) {
         <DialogFooter className="flex justify-end gap-3">
           <Button
             variant="outline"
-            onClick={() => setEditRecord(null)}
+            onClick={() => {
+              setEditRecord({ ...record }); // Reset to original record
+              setError(null); // Clear any errors
+              setEditOpen(false); // Close dialog
+            }}
             className="rounded-xl"
           >
             Cancel
@@ -177,7 +190,7 @@ export default function EditPMI({ record, onEdit }: EditPMIProps) {
             className="rounded-xl"
             disabled={loading}
           >
-            Save
+            {loading ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
