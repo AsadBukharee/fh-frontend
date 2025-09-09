@@ -372,8 +372,8 @@ export default function MechanicJobsPage() {
                   <TableCell>{job.notes}</TableCell>
                   {
                     role==='mechanic' ? <TableCell>
-                      <Badge className="bg-gray-100 text-gray-700 text-[10px]">
-                        <Eye/>
+                      <Badge className="bg-gray-100 cursor-pointer text-gray-700 ">
+                        <Eye size={20}/>
                       </Badge>
                       </TableCell> : null
                   }

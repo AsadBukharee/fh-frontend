@@ -12,105 +12,122 @@ import { DollarSign, Calendar, Car, MapPin, Filter, Eye, MoreHorizontal } from "
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 
-
 // Define API response type
 interface DashboardData {
-  users: { total_users: number; active_users: number; inactive_users: number }
-  time: { current_date: string; current_week: number; yearly_week: string; current_month: number; current_year: number; days_in_month_so_far: number }
-  vehicles: { running_vehicles: number; total_vehicles: number; vehicles_in_maintenance: number; upcoming_maintenance: number; utilization_rate: number }
-  sites: { total_sites: number; active_sites: number; inactive_sites: number; utilization_rate: number }
-  operations: { trips_today: number; trips_this_week: number; trips_this_month: number; avg_trips_per_day: number }
-  financial: { revenue_today: number; revenue_this_week: number; revenue_this_month: number; avg_daily_revenue: number }
-  system: { active_alerts: number; pending_approvals: number; system_status: string; last_updated: string }
-  fuel_consumption: { total_consumption: number; daily_average: number; weekly_average: number; monthly_so_far: number; avg_efficiency: number; total_distance: number }
+  date: string;
+  dashboard_metrics: {
+    daily_staff_count: number;
+    daily_drivers_count: number;
+    vehicles_onsite: number;
+    daily_salary_count: number;
+    monthly_salary_count: number;
+    daily_man_hours: number;
+    daily_inspections_due: number;
+    inspections_due_next_7_days: number;
+    mots_due_today: number;
+    mots_due_next_7_days: number;
+    paid_holidays_this_month: {
+      hours: number;
+      cost: number;
+    };
+    outstanding_tasks_notifications: number;
+    monthly_jobs_count: number;
+    yearly_job_count: number;
+  };
 }
 
 export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const cookies = useCookies()
 
   // Fetch API data
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        const response = await fetch(`${API_URL}/dashboard/dashboard/`,{
+        const response = await fetch(`${API_URL}/dashboard/dashboard/`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
         })
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
         const data = await response.json()
         setDashboardData(data)
         setLoading(false)
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
+        setError("Failed to load dashboard data. Please try again later.")
         setLoading(false)
       }
     }
     fetchDashboardData()
-  }, [])
+  }, [cookies])
 
   // Top Metrics based on API data
   const topMetrics = dashboardData
     ? [
         {
-          title: "Total Revenue",
-          value: `$${dashboardData.financial.revenue_today.toLocaleString()}`,
-          change: 0, // Placeholder, calculate if historical data available
-          icon: <DollarSign className="w-4 h-4 text-orange-600" />,
-          progress: (dashboardData.financial.revenue_today / dashboardData.financial.revenue_this_week) * 100,
-          progressColor: "bg-orange-500",
-        },
-        {
-          title: "Total Trips",
-          value: dashboardData.operations.trips_today.toString(),
-          change: 0,
-          icon: <Calendar className="w-4 h-4 text-red-600" />,
-          progress: (dashboardData.operations.trips_today / dashboardData.operations.trips_this_week) * 100,
-          progressColor: "bg-red-500",
-        },
-        {
-          title: "Total Vehicles",
-          value: dashboardData.vehicles.total_vehicles.toString(),
+          title: "Vehicles Onsite",
+          value: dashboardData.dashboard_metrics.vehicles_onsite.toString(),
           change: 0,
           icon: <Car className="w-4 h-4 text-purple-600" />,
-          progress: dashboardData.vehicles.utilization_rate,
+          progress: (dashboardData.dashboard_metrics.vehicles_onsite / 10) * 100, // Assuming max 10 vehicles
           progressColor: "bg-purple-500",
         },
         {
-          title: "Total Sites",
-          value: dashboardData.sites.total_sites.toString(),
+          title: "Daily Drivers",
+          value: dashboardData.dashboard_metrics.daily_drivers_count.toString(),
           change: 0,
-          icon: <MapPin className="w-4 h-4 text-purple-800" />,
-          progress: dashboardData.sites.utilization_rate,
-          progressColor: "bg-purple-800",
+          icon: <MapPin className="w-4 h-4 text-orange-600" />,
+          progress: (dashboardData.dashboard_metrics.daily_drivers_count / 5) * 100, // Assuming max 5 drivers
+          progressColor: "bg-orange-500",
+        },
+        {
+          title: "Monthly Jobs",
+          value: dashboardData.dashboard_metrics.monthly_jobs_count.toString(),
+          change: 0,
+          icon: <Calendar className="w-4 h-4 text-red-600" />,
+          progress: (dashboardData.dashboard_metrics.monthly_jobs_count / 10) * 100, // Assuming max 10 jobs
+          progressColor: "bg-red-500",
+        },
+        {
+          title: "Monthly Salary",
+          value: `$${dashboardData.dashboard_metrics.monthly_salary_count.toLocaleString()}`,
+          change: 0,
+          icon: <DollarSign className="w-4 h-4 text-green-600" />,
+          progress: (dashboardData.dashboard_metrics.monthly_salary_count / 20) * 100, // Assuming max $20
+          progressColor: "bg-green-500",
         },
       ]
     : []
 
-  // Pie Chart Data (Vehicle Status Distribution)
+  // Pie Chart Data (Vehicles Onsite vs Offsite)
   const pieData = dashboardData
     ? [
-        { name: "Running", value: dashboardData.vehicles.running_vehicles, color: "#22C55E" },
-        { name: "Maintenance", value: dashboardData.vehicles.vehicles_in_maintenance, color: "#F97316" },
-        { name: "Idle", value: dashboardData.vehicles.total_vehicles - dashboardData.vehicles.running_vehicles - dashboardData.vehicles.vehicles_in_maintenance, color: "#EF4444" },
+        { name: "Onsite", value: dashboardData.dashboard_metrics.vehicles_onsite, color: "#22C55E" },
+        { name: "Offsite", value: Math.max(0, 10 - dashboardData.dashboard_metrics.vehicles_onsite), color: "#EF4444" },
       ]
     : []
 
-  // Bar Chart Data (Placeholder for monthly revenue, since API only has current month)
-  const barData = [
-    { month: "Jan", revenue: 2000 },
-    { month: "Feb", revenue: 3000 },
-    { month: "Mar", revenue: 2500 },
-    { month: "Apr", revenue: 4000 },
-    { month: "May", revenue: 8500 },
-    { month: "Jun", revenue: 4500 },
-    { month: "Jul", revenue: 5000 },
-    { month: "Aug", revenue: dashboardData?.financial.revenue_this_month || 4500 },
-  ]
+  // Bar Chart Data (Monthly Jobs)
+  const barData = dashboardData
+    ? [
+        { month: "Jan", jobs: 3 },
+        { month: "Feb", jobs: 5 },
+        { month: "Mar", jobs: 2 },
+        { month: "Apr", jobs: 4 },
+        { month: "May", jobs: 6 },
+        { month: "Jun", jobs: 3 },
+        { month: "Jul", jobs: 5 },
+        { month: "Aug", jobs: dashboardData.dashboard_metrics.monthly_jobs_count },
+      ]
+    : []
 
-  // Placeholder for recent bookings (API doesn't provide this)
+  // Placeholder for recent bookings
   const recentBookings = [
     {
       id: "#15654",
@@ -122,7 +139,16 @@ export default function Dashboard() {
       amount: "$400",
       status: "Accepted",
     },
-    // ... other bookings
+    {
+      id: "#15655",
+      customer: "John Doe",
+      avatar: "JD",
+      car: "Toyota",
+      date: "08/9/2025",
+      time: "2:00 PM",
+      amount: "$350",
+      status: "Pending",
+    },
   ]
 
   const getStatusColor = (status: string) => {
@@ -134,7 +160,7 @@ export default function Dashboard() {
       case "Rejected":
         return "bg-red-100 text-red-700"
       default:
-        return " text-gray-700"
+        return "text-gray-700"
     }
   }
 
@@ -142,22 +168,25 @@ export default function Dashboard() {
     return (
       <div className="w-full h-full flex items-center justify-center">
         <div className="text-center flex justify-center flex-col py-12">
-          <div className=" w-14 h-14 my-5 border-t-4 border-orange animate-spin rounded-full"></div>
+          <div className="w-14 h-14 my-5 border-t-4 border-orange-500 animate-spin rounded-full"></div>
           <p className="text-gray-600">Loading dashboard data...</p>
-         
         </div>
       </div>
     )
   }
 
-  if (!dashboardData) {
-    return <div className="p-6">Error loading dashboard data</div>
+  if (error || !dashboardData) {
+    return (
+      <div className="p-6">
+        <p className="text-red-600">{error || "Error loading dashboard data"}</p>
+      </div>
+    )
   }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-gray-600">Last updated: {new Date(dashboardData.system.last_updated).toLocaleString()}</p>
+        <p className="text-gray-600">Last updated: {new Date(dashboardData.date).toLocaleString()}</p>
       </div>
 
       {/* Top Metrics */}
@@ -181,15 +210,15 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-gray-600 text-sm">Vehicle Status</CardTitle>
-              <h3 className="text-lg font-semibold">Vehicle distribution</h3>
+              <h3 className="text-lg font-semibold">Vehicles Onsite vs Offsite</h3>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <Calendar className="w-4 h-4" />
-              <span>{dashboardData.time.current_year}</span>
+              <span>{dashboardData.date}</span>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center relative">
               <ResponsiveContainer width={300} height={300}>
                 <PieChart>
                   <Pie
@@ -208,8 +237,8 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold">{dashboardData.vehicles.total_vehicles}</span>
-                <span className="text-sm text-gray-600">Total Vehicles</span>
+                <span className="text-2xl font-bold">{dashboardData.dashboard_metrics.vehicles_onsite}</span>
+                <span className="text-sm text-gray-600">Vehicles Onsite</span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mt-4">
@@ -228,19 +257,19 @@ export default function Dashboard() {
         <Card className="gradient-border cursor-glow rounded-md">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-gray-600 text-sm">Total Revenue</CardTitle>
-              <h3 className="text-lg font-semibold">Monthly revenue overview</h3>
+              <CardTitle className="text-gray-600 text-sm">Monthly Jobs</CardTitle>
+              <h3 className="text-lg font-semibold">Monthly jobs overview</h3>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <Calendar className="w-4 h-4" />
-              <span>{dashboardData.time.current_year}</span>
+              <span>{dashboardData.date}</span>
             </div>
           </CardHeader>
           <CardContent>
             <div className="mb-4">
               <div className="flex items-center space-x-2 text-sm">
                 <span className="text-purple-600">Aug</span>
-                <span className="text-gray-600">Revenue: ${dashboardData.financial.revenue_this_month.toLocaleString()}</span>
+                <span className="text-gray-600">Jobs: {dashboardData.dashboard_metrics.monthly_jobs_count}</span>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={250}>
@@ -248,7 +277,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Bar dataKey="revenue" fill="#8B5CF6" />
+                <Bar dataKey="jobs" fill="#8B5CF6" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

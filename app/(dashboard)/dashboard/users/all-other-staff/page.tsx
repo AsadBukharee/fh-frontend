@@ -74,6 +74,7 @@ import { useCookies } from "next-client-cookies";
 import { useToast } from "@/app/Context/ToastContext";
 import AddDriver from "@/components/add-driver/page";
 import { debounce } from "lodash";
+import Link from "next/link";
 
 // Interfaces
 interface Site {
@@ -164,7 +165,9 @@ const UserRow = React.memo(
         ) : (
           <User className="w-8 h-8 inline-block mr-2" />
         )}
-        {user.display_name}
+        <Link href={`/dashboard/users/all-other-staff/${user.id}`} className="hover:underline">
+          {user.display_name || user.full_name || user.email}
+        </Link>
       </TableCell>
       <TableCell>
         <Badge className={getTypeColor(user.role)}>
@@ -923,7 +926,7 @@ export default function UsersPage() {
       debounce(async (query: string, page: number) => {
         setLoading(true);
         try {
-          const url = `${API_URL}/users/?page=${page}&per_page=${perPage}${
+          const url = `${API_URL}/users/?drivers=false&page=${page}&per_page=${perPage}${
             query ? `&q=${encodeURIComponent(query)}` : ""
           }`;
           const response = await fetch(url, {
@@ -941,7 +944,7 @@ export default function UsersPage() {
           }
           const data = await response.json();
           if (data.success) {
-            setUsers(data.data);
+            setUsers(data?.data?.results);
             setTotalPages(data.total_pages || Math.ceil(data.data.length / perPage));
             setError(null);
           } else {
@@ -1542,7 +1545,7 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {users?.map((user) => (
                 <UserRow
                   key={user.id}
                   user={user}

@@ -299,7 +299,7 @@ const WalkaroundPage = () => {
               >
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                    Vehicle: {walkaround.vehicle.registration_number} ({walkaround.vehicle.vehicles_type_name})
+                    Vehicle: {walkaround.vehicle.registration_number} {" "}
                     {walkaround.parent && (
                       <span className="text-sm text-gray-500 ml-2">(Child of Walkaround #{walkaround.parent})</span>
                     )}
