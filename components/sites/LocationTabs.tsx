@@ -50,6 +50,7 @@ const LocationTabs = () => {
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [sortBy, setSortBy] = useState<"name" | "zipcode" | "custom_order">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  const [showTable, setShowTable] = useState<boolean>(true) // New state for table visibility
   const cookies = useCookies()
   const token = cookies.get("access_token")
 
@@ -61,7 +62,6 @@ const LocationTabs = () => {
         (location.address && location.address.toLowerCase().includes(searchTerm.toLowerCase())),
     )
 
-    // Sort locations
     filtered.sort((a, b) => {
       let aValue = a[sortBy]
       let bValue = b[sortBy]
@@ -117,13 +117,20 @@ const LocationTabs = () => {
     }
   }
 
+  // Handle successful location addition
+  const handleLocationAdded = () => {
+    setShowTable(false) // Hide the table
+    setOpen(false) // Close the dialog
+    fetchLocations() // Refetch locations
+    setShowTable(true) // Show the table again after refetch
+  }
+
   const handleDelete = async (id: number) => {
     try {
-      // Optimistic update
       const originalLocations = [...locations]
       setLocations(locations.filter((location) => location.id !== id))
 
-      const response = await fetch(`{{HOST}}/activity/locations/${id}`, {
+      const response = await fetch(`${API_URL}/activity/locations/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -139,7 +146,6 @@ const LocationTabs = () => {
         setDeleteDialogOpen(false)
         setSelectedLocation(null)
       } else {
-        // Revert optimistic update
         setLocations(originalLocations)
         toast({
           title: "Error",
@@ -148,7 +154,6 @@ const LocationTabs = () => {
         })
       }
     } catch (err) {
-      // Revert optimistic update
       setLocations([...locations])
       toast({
         title: "Error",
@@ -182,7 +187,6 @@ const LocationTabs = () => {
     }
   }
 
-  // Fetch data on component mount
   useEffect(() => {
     if (token) {
       fetchLocations()
@@ -243,12 +247,14 @@ const LocationTabs = () => {
               </Button>
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
-                  <Button  className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
-      style={{
-        background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
-        width: 'auto',
-        height: 'auto',
-      }}>
+                  <Button
+                    className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
+                    style={{
+                      background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
+                      width: 'auto',
+                      height: 'auto',
+                    }}
+                  >
                     <Plus className="w-4 h-4" />
                     Add Location
                   </Button>
@@ -257,7 +263,7 @@ const LocationTabs = () => {
                   <DialogHeader>
                     <DialogTitle className="text-lg font-semibold">Add New Location</DialogTitle>
                   </DialogHeader>
-                  <AddLocation />
+                  <AddLocation onSuccess={handleLocationAdded} />
                 </DialogContent>
               </Dialog>
             </div>
@@ -288,7 +294,7 @@ const LocationTabs = () => {
                 onClick={() => handleSort("zipcode")}
                 className={sortBy === "zipcode" ? "bg-gray-100" : ""}
               >
-                Zipcode {sortBy === "zipcode" && (sortOrder === "asc" ? "↑" : "↓")}
+                Postcode {sortBy === "zipcode" && (sortOrder === "asc" ? "↑" : "↓")}
               </Button>
               <Button
                 variant="outline"
@@ -301,93 +307,95 @@ const LocationTabs = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm  overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50">
-                  <TableHead className="font-semibold">ID</TableHead>
-                  <TableHead className="font-semibold">Name</TableHead>
-                  <TableHead className="font-semibold">Location</TableHead>
-                  <TableHead className="font-semibold">Status</TableHead>
-                  <TableHead className="font-semibold">Order</TableHead>
-                  <TableHead className="font-semibold text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLocations.length > 0 ? (
-                  filteredLocations.map((location) => (
-                    <TableRow key={location.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{location.id}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span className="font-medium">{location.name}</span>
+          {showTable && (
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="font-semibold">ID</TableHead>
+                    <TableHead className="font-semibold">Name</TableHead>
+                    <TableHead className="font-semibold">Location</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Order</TableHead>
+                    <TableHead className="font-semibold text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredLocations.length > 0 ? (
+                    filteredLocations.map((location) => (
+                      <TableRow key={location.id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium">{location.id}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium">{location.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div className="font-medium">{location.zipcode}</div>
+                            {location.address && (
+                              <div className="text-gray-500 truncate max-w-xs">{location.address}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={location.is_maintenance ? "destructive" : "default"}
+                            className={
+                              location.is_maintenance ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                            }
+                          >
+                            {location.is_maintenance ? "Maintenance" : "Active"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full text-sm font-medium">
+                            {location.custom_order}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleView(location)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEdit(location)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDeleteConfirm(location)} className="text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-32 text-center">
+                        <div className="flex flex-col items-center gap-2 text-gray-500">
+                          <MapPin className="w-8 h-8" />
+                          <p className="text-lg font-medium">No locations found</p>
+                          <p className="text-sm">
+                            {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first location"}
+                          </p>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div className="font-medium">{location.zipcode}</div>
-                          {location.address && (
-                            <div className="text-gray-500 truncate max-w-xs">{location.address}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={location.is_maintenance ? "destructive" : "default"}
-                          className={
-                            location.is_maintenance ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                          }
-                        >
-                          {location.is_maintenance ? "Maintenance" : "Active"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full text-sm font-medium">
-                          {location.custom_order}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleView(location)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEdit(location)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDeleteConfirm(location)} className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center">
-                      <div className="flex flex-col items-center gap-2 text-gray-500">
-                        <MapPin className="w-8 h-8" />
-                        <p className="text-lg font-medium">No locations found</p>
-                        <p className="text-sm">
-                          {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first location"}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
           <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
             <DialogContent className="sm:max-w-[500px]">
@@ -416,7 +424,7 @@ const LocationTabs = () => {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Zipcode</label>
+                    <label className="text-sm font-medium text-gray-500">Postcode</label>
                     <p className="text-lg">{selectedLocation.zipcode}</p>
                   </div>
 
@@ -470,7 +478,7 @@ const LocationTabs = () => {
               <DialogHeader>
                 <DialogTitle className="text-lg font-semibold">Edit Location: {selectedLocation?.name}</DialogTitle>
               </DialogHeader>
-              <AddLocation editLocation={selectedLocation} />
+              <AddLocation editLocation={selectedLocation} onSuccess={handleLocationAdded} />
             </DialogContent>
           </Dialog>
 

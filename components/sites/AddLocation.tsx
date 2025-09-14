@@ -318,21 +318,7 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
                 {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="custom_order" className="text-sm font-medium flex items-center gap-1">
-                  <Hash className="h-4 w-4" />
-                  Display Order <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="custom_order"
-                  type="number"
-                  min="1"
-                  value={formData.custom_order}
-                  onChange={(e) => handleInputChange("custom_order", Number.parseInt(e.target.value) || 1)}
-                  className={errors.custom_order ? "border-destructive" : ""}
-                />
-                {errors.custom_order && <p className="text-sm text-destructive">{errors.custom_order}</p>}
-              </div>
+             
             </div>
 
             <div className="space-y-2">

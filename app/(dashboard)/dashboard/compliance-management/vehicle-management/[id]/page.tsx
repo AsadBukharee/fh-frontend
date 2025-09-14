@@ -29,7 +29,7 @@ import {
   Camera,
   Download,
 } from "lucide-react";
-import API_URL from "@/app/utils/ENV";
+import API_URL from "@/app/utils/ENV"; // Environment variable for API URL
 import { Switch } from "@/components/ui/switch";
 import {
   Accordion,
@@ -38,9 +38,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import Image from "next/image";
-import ExpiryDates from "@/components/Vehicles/VehicleEditExpiry";
-import ImageUploader from "@/components/Media/UploadImage";
+import ExpiryDates from "@/components/Vehicles/VehicleEditExpiry"; // Custom component for expiry dates
+import ImageUploader from "@/components/Media/UploadImage"; // Custom component for image uploads
 
+// Interface for vehicle data structure
 interface Vehicle {
   id: number;
   registration_number: string;
@@ -108,7 +109,7 @@ interface Vehicle {
   mot_expiry: string;
   tax_expiry: string;
   insurance_expiry: string;
-  inspection_expire: string;
+  inspection_expiry: string;
   tacho_calibration: string;
   tyre_expiry_front_driver: string | null;
   tyre_expiry_front_passenger: string | null;
@@ -153,7 +154,7 @@ interface Vehicle {
 }
 
 export default function VehicleDetailPage() {
-  const { id } = useParams();
+  const { id } = useParams(); // Get vehicle ID from URL
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -171,6 +172,7 @@ export default function VehicleDetailPage() {
   const cookies = useCookies();
   const token = cookies.get("access_token");
 
+  // Fetch vehicle data on mount or when ID/token changes
   useEffect(() => {
     const fetchVehicle = async () => {
       try {
@@ -208,6 +210,7 @@ export default function VehicleDetailPage() {
     }
   }, [id, token]);
 
+  // Update vehicle price
   const handlePriceUpdate = async () => {
     if (!vehicle || !token) return;
 
@@ -233,6 +236,7 @@ export default function VehicleDetailPage() {
     }
   };
 
+  // Update tyre expiry dates
   const handleTyreExpiryUpdate = async () => {
     if (!vehicle || !token) return;
 
@@ -271,6 +275,7 @@ export default function VehicleDetailPage() {
     }
   };
 
+  // Handle image upload
   const handleImageUpload = async (imageUrl: string) => {
     if (!vehicle || !token) return;
 
@@ -294,10 +299,12 @@ export default function VehicleDetailPage() {
     }
   };
 
+  // Handle input changes for vehicle fields
   const handleInputChange = (field: keyof Vehicle, value: any) => {
     setEditVehicle((prev) => (prev ? { ...prev, [field]: value } : prev));
   };
 
+  // Handle input changes for site_allocated fields
   const handleSiteAllocatedChange = (
     field: keyof Vehicle["site_allocated"],
     value: any
@@ -312,6 +319,7 @@ export default function VehicleDetailPage() {
     );
   };
 
+  // Handle input changes for vehicles_type fields
   const handleVehicleTypeChange = (
     field: keyof Vehicle["vehicles_type"],
     value: any
@@ -323,6 +331,7 @@ export default function VehicleDetailPage() {
     );
   };
 
+  // Submit edited vehicle data
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editVehicle || !token) return;
@@ -369,6 +378,7 @@ export default function VehicleDetailPage() {
     }
   };
 
+  // Get badge colors based on status
   const getStatusBadgeColors = (status: string) => {
     switch (status.toLowerCase()) {
       case "active":
@@ -380,12 +390,14 @@ export default function VehicleDetailPage() {
     }
   };
 
+  // Get badge colors based on roadworthy status
   const getRoadworthyBadgeColors = (isRoadworthy: boolean) => {
     return isRoadworthy
       ? "bg-green-100 text-green-700"
       : "bg-red-100 text-red-700";
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
@@ -400,6 +412,7 @@ export default function VehicleDetailPage() {
     );
   }
 
+  // Error or no vehicle data
   if (error || !vehicle || !editVehicle) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
@@ -413,6 +426,7 @@ export default function VehicleDetailPage() {
 
   return (
     <div className="p-6 bg-white min-h-screen">
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
           Vehicle #{vehicle.id} - {vehicle.registration_number}
@@ -453,6 +467,7 @@ export default function VehicleDetailPage() {
         </div>
       </div>
 
+      {/* Warnings */}
       {vehicle.warnings && vehicle.warnings.length > 0 && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-center justify-between gap-2 text-red-700 font-medium mb-2">
@@ -463,7 +478,7 @@ export default function VehicleDetailPage() {
             <X
               onClick={() =>
                 setVehicle((prev) => {
-                  if (!prev) return prev; // stay null if it was null
+                  if (!prev) return prev;
                   return { ...prev, warnings: [] };
                 })
               }
@@ -479,6 +494,7 @@ export default function VehicleDetailPage() {
         </div>
       )}
 
+      {/* Missing Attributes */}
       {vehicle.missing_attributes && vehicle.missing_attributes.length > 0 && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div className="flex justify-between items-center gap-2 text-yellow-700 font-medium mb-2">
@@ -489,7 +505,7 @@ export default function VehicleDetailPage() {
             <X
               onClick={() =>
                 setVehicle((prev) => {
-                  if (!prev) return prev; // stay null if it was null
+                  if (!prev) return prev;
                   return { ...prev, missing_attributes: [] };
                 })
               }
@@ -509,6 +525,7 @@ export default function VehicleDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column */}
           <div className="space-y-6">
+            {/* Vehicle Overview */}
             <Card className="p-6 bg-blue-50 border-l-6 border-blue-800 rounded">
               <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
                 <Camera className="w-7 h-7 rounded-full text-blue-500" />
@@ -516,7 +533,7 @@ export default function VehicleDetailPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-start">
                   {vehicle.vehicle_picture ? (
                     <img
                       src={vehicle.vehicle_picture || "/placeholder.svg"}
@@ -533,20 +550,19 @@ export default function VehicleDetailPage() {
                   <ImageUploader onUploadSuccess={handleImageUpload} />
                 </div>
 
-                <div className="flex flex-col justify-center  items-center">
+                <div className="flex flex-col justify-center items-start">
                   <div
-                    className={`flex  ${
+                    className={`flex ${
                       isEditingPrice ? "flex-col" : ""
                     } items-center justify-center`}
                   >
                     <div
-                      className={`flex  w-full items-center ${
-                        isEditingPrice ? "text-right" : "items-center "
+                      className={`flex w-full items-center ${
+                        isEditingPrice ? "text-right" : "items-center"
                       } gap-2 text-md px-1`}
                     >
                       <span>Vehicle Cost:</span>
                     </div>
-
                     {isEditingPrice ? (
                       <div className="flex items-center gap-2">
                         <Input
@@ -576,7 +592,7 @@ export default function VehicleDetailPage() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <p className="text-md font-bold text-green-600">
+                        <p className="text-md font-bold pl-2 text-green-600">
                           £{(vehicle.vehicle_cost || 0).toLocaleString()}
                         </p>
                         <Button
@@ -590,57 +606,39 @@ export default function VehicleDetailPage() {
                       </div>
                     )}
                   </div>
-                  <div
-                    className={`flex  ${
-                      isEditingPrice ? "flex-col" : ""
-                    } items-center justify-center`}
-                  >
+                  <div className={`flex  items-center justify-center`}>
                     <div
-                      className={`flex  w-full items-center ${
-                        isEditingPrice ? "text-right" : "items-center "
-                      } gap-2 text-md px-1`}
+                      className={`flex w-full items-center  gap-2 text-md px-1`}
                     >
-                      <span>VAT Amount:</span>
+                      <span>VAT Amount: </span> 
                     </div>
-
-                    {/* {isEditingPrice ? (
                     <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        value={tempPrice}
-                        onChange={(e) => setTempPrice(Number(e.target.value))}
-                        className="w-29"
-                      />
-                      <Button type="button" size="sm" onClick={handlePriceUpdate}>
-                        <Save className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setIsEditingPrice(false)
-                          setTempPrice(vehicle.vehicle_cost || 0)
-                        }}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ) : ( */}
-                    <div className="flex items-center gap-2">
-                      <p className="text-md font-bold text-green-600">
+                      <p className="text-md font-bold pl-2 text-green-600">
                         £11,500
                       </p>
                       <Button type="button" variant="ghost" size="sm">
                         <Edit className="w-4 h-4" />
                       </Button>
                     </div>
-                    {/* )} */}
+                  </div>
+                  <div className={`flex  items-start    justify-start`}>
+                    <div
+                      className={`flex w-full  text-right gap-2 text-md px-1`}
+                    >
+                      <span>Total Amount:</span>
+                    </div>
+                    <div className="flex text-right ">
+                      <p className="text-md font-bold  text-green-600">
+                        £
+                        {((vehicle.vehicle_cost ?? 0) + 11500).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             </Card>
 
+            {/* Assigned Driver */}
             {vehicle.assignee_driver && (
               <Card className="p-6 bg-green-50 border-l-6 border-green-800 rounded">
                 <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
@@ -655,14 +653,12 @@ export default function VehicleDetailPage() {
                       {vehicle.assignee_driver.full_name}
                     </p>
                   </div>
-
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Email</p>
                     <p className="font-medium text-gray-900">
                       {vehicle.assignee_driver.email}
                     </p>
                   </div>
-
                   {vehicle.assignee_driver.role && (
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Role</p>
@@ -671,7 +667,6 @@ export default function VehicleDetailPage() {
                       </Badge>
                     </div>
                   )}
-
                   {vehicle.assignee_driver.shifts_count && (
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Total Shifts</p>
@@ -730,7 +725,6 @@ export default function VehicleDetailPage() {
                     </p>
                   )}
                 </div>
-
                 <div className="bg-gray-50 p-1 rounded">
                   <p className="text-sm text-gray-500 mb-1">Status</p>
                   {isEditing ? (
@@ -748,7 +742,6 @@ export default function VehicleDetailPage() {
                     </Badge>
                   )}
                 </div>
-
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Road Worthy</p>
                   {isEditing ? (
@@ -763,17 +756,14 @@ export default function VehicleDetailPage() {
                     </div>
                   ) : (
                     <Badge
-                      className={`text-sm font-medium ${
+                      className={`text-sm font-medium ${getRoadworthyBadgeColors(
                         vehicle.is_roadworthy
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
+                      )}`}
                     >
                       {vehicle.is_roadworthy ? "Yes" : "No"}
                     </Badge>
                   )}
                 </div>
-
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Walkaround Count</p>
                   {isEditing ? (
@@ -794,7 +784,6 @@ export default function VehicleDetailPage() {
                     </p>
                   )}
                 </div>
-
                 <div className="col-span-2">
                   <p className="text-sm text-gray-500 mb-1">Last Mileage</p>
                   <div className="flex items-center gap-2">
@@ -806,311 +795,6 @@ export default function VehicleDetailPage() {
                 </div>
               </div>
             </Card>
-
-            {/* Site Allocated */}
-            <Card className="p-6 bg-gray-100 border border-gray-200 rounded-lg shadow-sm">
-              <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
-                <MapPin className="w-6 h-6 rounded-full text-red-500" />
-                <span>Site Allocated</span>
-              </div>
-
-              {vehicle.site_allocated.image && (
-                <div className="mb-4">
-                  <img
-                    src={vehicle.site_allocated.image || "/placeholder.svg"}
-                    alt="Site"
-                    width={300}
-                    height={150}
-                    className="rounded-lg object-cover"
-                  />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Site Name</p>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editVehicle.site_allocated?.name}
-                      onChange={(e) =>
-                        handleSiteAllocatedChange("name", e.target.value)
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.name}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Contact Name</p>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editVehicle.site_allocated?.contact_name}
-                      onChange={(e) =>
-                        handleSiteAllocatedChange(
-                          "contact_name",
-                          e.target.value
-                        )
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.contact_name}
-                    </p>
-                  )}
-                </div>
-
-                {vehicle.site_allocated.contact_position && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">
-                      Contact Position
-                    </p>
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.contact_position}
-                    </p>
-                  </div>
-                )}
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Contact Phone</p>
-                  <p className="font-medium text-gray-900">
-                    {vehicle.site_allocated.contact_phone}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Address</p>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editVehicle.site_allocated?.address}
-                      onChange={(e) =>
-                        handleSiteAllocatedChange("address", e.target.value)
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.address || "Not provided"}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Status</p>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editVehicle.site_allocated?.status}
-                      onChange={(e) =>
-                        handleSiteAllocatedChange("status", e.target.value)
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <Badge className="bg-green-100 text-green-700 text-sm font-medium">
-                      {vehicle.site_allocated.status}
-                    </Badge>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Post Code</p>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editVehicle.site_allocated?.postcode}
-                      onChange={(e) =>
-                        handleSiteAllocatedChange("postcode", e.target.value)
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.postcode}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Radius</p>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={editVehicle.site_allocated?.radius_m}
-                      onChange={(e) =>
-                        handleSiteAllocatedChange(
-                          "radius_m",
-                          Number.parseInt(e.target.value)
-                        )
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.radius_m} m
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Latitude</p>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={editVehicle.site_allocated?.latitude}
-                      onChange={(e) =>
-                        handleSiteAllocatedChange(
-                          "latitude",
-                          Number.parseFloat(e.target.value)
-                        )
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.latitude}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Longitude</p>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={editVehicle.site_allocated?.longitude}
-                      onChange={(e) =>
-                        handleSiteAllocatedChange(
-                          "longitude",
-                          Number.parseFloat(e.target.value)
-                        )
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.longitude}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">No. of vehicles</p>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={
-                        editVehicle.site_allocated?.number_of_allocated_vehicles
-                      }
-                      onChange={(e) =>
-                        handleSiteAllocatedChange(
-                          "number_of_allocated_vehicles",
-                          Number.parseInt(e.target.value)
-                        )
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.number_of_allocated_vehicles}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Created By</p>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editVehicle.site_allocated?.created_by}
-                      onChange={(e) =>
-                        handleSiteAllocatedChange("created_by", e.target.value)
-                      }
-                      className="w-full"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-900">
-                      {vehicle.site_allocated.created_by}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {vehicle.site_allocated.staff && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h4 className="font-medium text-gray-700 mb-3">
-                    Staff Information
-                  </h4>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-600">
-                        {vehicle.site_allocated.staff.driver}
-                      </p>
-                      <p className="text-sm text-gray-600">Drivers</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-green-600">
-                        {vehicle.site_allocated.staff.admin}
-                      </p>
-                      <p className="text-sm text-gray-600">Admin</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-orange-600">
-                        {vehicle.site_allocated.staff.mechanic}
-                      </p>
-                      <p className="text-sm text-gray-600">Mechanics</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-purple-600">
-                        {vehicle.site_allocated.staff.total}
-                      </p>
-                      <p className="text-sm text-gray-600">Total</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {vehicle.site_allocated.presence && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h4 className="font-medium text-gray-700 mb-3">
-                    Site Presence
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Early Shift</p>
-                      <p className="font-medium">
-                        {vehicle.site_allocated.presence.early}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Middle Shift</p>
-                      <p className="font-medium">
-                        {vehicle.site_allocated.presence.middle}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Night Shift</p>
-                      <p className="font-medium">
-                        {vehicle.site_allocated.presence.night}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Supervisor</p>
-                      <p className="font-medium">
-                        {vehicle.site_allocated.presence.supervisor}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </Card>
           </div>
 
           {/* Right Column */}
@@ -1121,7 +805,6 @@ export default function VehicleDetailPage() {
                 <ChartLine className="w-6 h-6 text-orange-500" />
                 <span>Quick Stats</span>
               </div>
-
               <div className="space-y-4">
                 <div className="flex items-center bg-gray-50 px-1 py-2 rounded justify-between">
                   <span className="text-sm text-gray-600">Status</span>
@@ -1129,20 +812,16 @@ export default function VehicleDetailPage() {
                     {vehicle.vehicle_status}
                   </Badge>
                 </div>
-
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Road Worthy</span>
                   <Badge
-                    className={`text-sm font-medium ${
+                    className={`text-sm font-medium ${getRoadworthyBadgeColors(
                       vehicle.is_roadworthy
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
+                    )}`}
                   >
                     {vehicle.is_roadworthy ? "Yes" : "No"}
                   </Badge>
                 </div>
-
                 <div className="flex items-center bg-gray-50 px-1 py-2 rounded justify-between">
                   <span className="text-sm text-gray-600">
                     Walkaround Count
@@ -1154,17 +833,20 @@ export default function VehicleDetailPage() {
               </div>
             </Card>
 
+            {/* Expiry Dates */}
             <ExpiryDates
               mot_expiry={vehicle.mot_expiry}
               vehicle_id={vehicle.id}
               tax_expiry={vehicle.tax_expiry}
               insurance_expiry={vehicle.insurance_expiry}
-              inspection_expiry={vehicle.inspection_expire}
+              inspection_expiry={vehicle.inspection_expiry}
               status_indicators={vehicle.status_indicators}
             />
 
+            {/* Accordion for Tyre Info, Documents, and Operation Hours */}
             <Card className="p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
               <Accordion type="single" collapsible>
+                {/* Tyre Information */}
                 <AccordionItem value="tyre-expiry">
                   <AccordionTrigger>
                     <div className="flex items-center gap-2">
@@ -1183,7 +865,6 @@ export default function VehicleDetailPage() {
                       </Button>
                     </div>
                   </AccordionTrigger>
-
                   <AccordionContent>
                     {isEditingTyreExpiry && (
                       <div className="mb-4 p-4 bg-gray-50 rounded-lg">
@@ -1288,7 +969,6 @@ export default function VehicleDetailPage() {
                         </div>
                       </div>
                     )}
-
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       {/* Front Passenger */}
                       <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-orange-50">
@@ -1327,7 +1007,6 @@ export default function VehicleDetailPage() {
                           )}
                         </div>
                       </div>
-
                       {/* Front Driver */}
                       <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-blue-50">
                         <div className="flex items-center gap-2 mb-2">
@@ -1363,7 +1042,6 @@ export default function VehicleDetailPage() {
                           )}
                         </div>
                       </div>
-
                       {/* Rear Outer Driver */}
                       <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-orange-50">
                         <div className="flex items-center gap-2 mb-2">
@@ -1401,7 +1079,6 @@ export default function VehicleDetailPage() {
                           )}
                         </div>
                       </div>
-
                       {/* Rear Outer Passenger */}
                       <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-orange-50">
                         <div className="flex items-center gap-2 mb-2">
@@ -1444,6 +1121,7 @@ export default function VehicleDetailPage() {
                   </AccordionContent>
                 </AccordionItem>
 
+                {/* Vehicle Documents */}
                 <AccordionItem value="documents">
                   <AccordionTrigger>
                     <div className="flex items-center gap-2">
@@ -1453,7 +1131,6 @@ export default function VehicleDetailPage() {
                       </span>
                     </div>
                   </AccordionTrigger>
-
                   <AccordionContent>
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       {[
@@ -1530,6 +1207,7 @@ export default function VehicleDetailPage() {
                   </AccordionContent>
                 </AccordionItem>
 
+                {/* Site Operation Hours */}
                 <AccordionItem value="operation-hours">
                   <AccordionTrigger>
                     <div className="flex items-center gap-2">
@@ -1539,36 +1217,364 @@ export default function VehicleDetailPage() {
                       </span>
                     </div>
                   </AccordionTrigger>
-
                   <AccordionContent>
                     <div className="space-y-3 mt-4">
-                      {vehicle?.site_allocated?.operation_hours?.map((hour) => (
-                        <div
-                          key={hour.id}
-                          className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
-                        >
-                          <span className="font-medium text-gray-700">
-                            {hour.day_label}
-                          </span>
-                          <div className="text-sm">
-                            {hour.is_closed ? (
-                              <Badge className="bg-red-100 text-red-700">
-                                Closed
-                              </Badge>
-                            ) : hour.is_open_24_hours ? (
-                              <Badge className="bg-green-100 text-green-700">
-                                24 Hours
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-600">
-                                {hour.opens_at ?? "N/A"} -{" "}
-                                {hour.closes_at ?? "N/A"}
-                              </span>
-                            )}
+                      {vehicle?.site_allocated?.operation_hours?.length ? (
+                        vehicle.site_allocated.operation_hours.map((hour) => (
+                          <div
+                            key={hour.id}
+                            className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                          >
+                            <span className="font-medium text-gray-700">
+                              {hour.day_label}
+                            </span>
+                            <div className="text-sm">
+                              {hour.is_closed ? (
+                                <Badge className="bg-red-100 text-red-700">
+                                  Closed
+                                </Badge>
+                              ) : hour.is_open_24_hours ? (
+                                <Badge className="bg-green-100 text-green-700">
+                                  24 Hours
+                                </Badge>
+                              ) : (
+                                <span className="text-gray-600">
+                                  {hour.opens_at ?? "N/A"} -{" "}
+                                  {hour.closes_at ?? "N/A"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-gray-600">
+                          No operation hours available
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="site-allocated">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2 text-gray-700 font-medium ">
+                      <MapPin className="w-6 h-6 rounded-full text-red-500" />
+                      <span>Site Allocated</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {vehicle.site_allocated.image && (
+                      <div className="mb-4">
+                        <img
+                          src={
+                            vehicle.site_allocated.image || "/placeholder.svg"
+                          }
+                          alt="Site"
+                          width={300}
+                          height={150}
+                          className="rounded-lg object-cover"
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Site Name</p>
+                        {isEditing ? (
+                          <Input
+                            type="text"
+                            value={editVehicle.site_allocated?.name}
+                            onChange={(e) =>
+                              handleSiteAllocatedChange("name", e.target.value)
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-gray-900">
+                            {vehicle.site_allocated.name}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">
+                          Contact Name
+                        </p>
+                        {isEditing ? (
+                          <Input
+                            type="text"
+                            value={editVehicle.site_allocated?.contact_name}
+                            onChange={(e) =>
+                              handleSiteAllocatedChange(
+                                "contact_name",
+                                e.target.value
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-gray-900">
+                            {vehicle.site_allocated.contact_name}
+                          </p>
+                        )}
+                      </div>
+                      {vehicle.site_allocated.contact_position && (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">
+                            Contact Position
+                          </p>
+                          <p className="font-medium text-gray-900">
+                            {vehicle.site_allocated.contact_position}
+                          </p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">
+                          Contact Phone
+                        </p>
+                        <p className="font-medium text-gray-900">
+                          {vehicle.site_allocated.contact_phone}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Address</p>
+                        {isEditing ? (
+                          <Input
+                            type="text"
+                            value={editVehicle.site_allocated?.address}
+                            onChange={(e) =>
+                              handleSiteAllocatedChange(
+                                "address",
+                                e.target.value
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-gray-900">
+                            {vehicle.site_allocated.address || "Not provided"}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Status</p>
+                        {isEditing ? (
+                          <Input
+                            type="text"
+                            value={editVehicle.site_allocated?.status}
+                            onChange={(e) =>
+                              handleSiteAllocatedChange(
+                                "status",
+                                e.target.value
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <Badge className="bg-green-100 text-green-700 text-sm font-medium">
+                            {vehicle.site_allocated.status}
+                          </Badge>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Post Code</p>
+                        {isEditing ? (
+                          <Input
+                            type="text"
+                            value={editVehicle.site_allocated?.postcode}
+                            onChange={(e) =>
+                              handleSiteAllocatedChange(
+                                "postcode",
+                                e.target.value
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-gray-900">
+                            {vehicle.site_allocated.postcode}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Radius</p>
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            value={editVehicle.site_allocated?.radius_m}
+                            onChange={(e) =>
+                              handleSiteAllocatedChange(
+                                "radius_m",
+                                Number.parseInt(e.target.value)
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-gray-900">
+                            {vehicle.site_allocated.radius_m} m
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Latitude</p>
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            value={editVehicle.site_allocated?.latitude}
+                            onChange={(e) =>
+                              handleSiteAllocatedChange(
+                                "latitude",
+                                Number.parseFloat(e.target.value)
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-gray-900">
+                            {vehicle.site_allocated.latitude}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Longitude</p>
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            value={editVehicle.site_allocated?.longitude}
+                            onChange={(e) =>
+                              handleSiteAllocatedChange(
+                                "longitude",
+                                Number.parseFloat(e.target.value)
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-gray-900">
+                            {vehicle.site_allocated.longitude}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">
+                          No. of vehicles
+                        </p>
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            value={
+                              editVehicle.site_allocated
+                                ?.number_of_allocated_vehicles
+                            }
+                            onChange={(e) =>
+                              handleSiteAllocatedChange(
+                                "number_of_allocated_vehicles",
+                                Number.parseInt(e.target.value)
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-gray-900">
+                            {
+                              vehicle.site_allocated
+                                .number_of_allocated_vehicles
+                            }
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Created By</p>
+                        {isEditing ? (
+                          <Input
+                            type="text"
+                            value={editVehicle.site_allocated?.created_by}
+                            onChange={(e) =>
+                              handleSiteAllocatedChange(
+                                "created_by",
+                                e.target.value
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-gray-900">
+                            {vehicle.site_allocated.created_by}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Staff Information */}
+                    {vehicle.site_allocated.staff && (
+                      <div className="mt-6 pt-6 border-t border-gray-200">
+                        <h4 className="font-medium text-gray-700 mb-3">
+                          Staff Information
+                        </h4>
+                        <div className="grid grid-cols-4 gap-4">
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-blue-600">
+                              {vehicle.site_allocated.staff.driver}
+                            </p>
+                            <p className="text-sm text-gray-600">Drivers</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-green-600">
+                              {vehicle.site_allocated.staff.admin}
+                            </p>
+                            <p className="text-sm text-gray-600">Admin</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-orange-600">
+                              {vehicle.site_allocated.staff.mechanic}
+                            </p>
+                            <p className="text-sm text-gray-600">Mechanics</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-purple-600">
+                              {vehicle.site_allocated.staff.total}
+                            </p>
+                            <p className="text-sm text-gray-600">Total</p>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
+
+                    {/* Site Presence */}
+                    {vehicle.site_allocated.presence && (
+                      <div className="mt-6 pt-6 border-t border-gray-200">
+                        <h4 className="font-medium text-gray-700 mb-3">
+                          Site Presence
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-500">Early Shift</p>
+                            <p className="font-medium">
+                              {vehicle.site_allocated.presence.early}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">
+                              Middle Shift
+                            </p>
+                            <p className="font-medium">
+                              {vehicle.site_allocated.presence.middle}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Night Shift</p>
+                            <p className="font-medium">
+                              {vehicle.site_allocated.presence.night}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Supervisor</p>
+                            <p className="font-medium">
+                              {vehicle.site_allocated.presence.supervisor}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

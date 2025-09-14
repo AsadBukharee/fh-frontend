@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -338,7 +338,6 @@ export default function DriverDetailPage() {
   const handleSaveProfile = async () => {
     setSaving(true)
     try {
-      // Assuming the update endpoint is the same driver profile API with PUT
       const response = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
         method: "PUT",
         headers: {
@@ -551,421 +550,424 @@ export default function DriverDetailPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="contract">Contract</TabsTrigger>
-          <TabsTrigger value="sites">Sites</TabsTrigger>
-        </TabsList>
+      <Accordion type="single" collapsible className="space-y-4">
+        <AccordionItem value="overview">
+          <AccordionTrigger>Overview</AccordionTrigger>
+          <AccordionContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Personal Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="full_name">Full Name</Label>
+                          <Input
+                            id="full_name"
+                            value={editFormData.full_name}
+                            onChange={(e) => handleInputChange("full_name", e.target.value)}
+                            placeholder="Enter full name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="display_name">Display Name</Label>
+                          <Input
+                            id="display_name"
+                            value={editFormData.display_name}
+                            onChange={(e) => handleInputChange("display_name", e.target.value)}
+                            placeholder="Enter display name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Email</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={editFormData.email}
+                            onChange={(e) => handleInputChange("email", e.target.value)}
+                            placeholder="Enter email address"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">Phone</Label>
+                          <Input
+                            id="phone"
+                            value={editFormData.phone}
+                            onChange={(e) => handleInputChange("phone", e.target.value)}
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="address">Address</Label>
+                          <Input
+                            id="address"
+                            value={editFormData.address}
+                            onChange={(e) => handleInputChange("address", e.target.value)}
+                            placeholder="Enter address"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="date_of_birth">Date of Birth</Label>
+                          <Input
+                            id="date_of_birth"
+                            type="date"
+                            value={editFormData.date_of_birth}
+                            onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
+                            placeholder="Enter date of birth"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="contract">Contract</Label>
+                          <Select
+                            value={editFormData.contractId}
+                            onValueChange={(value) => handleInputChange("contractId", value)}
+                            disabled={contractsLoading}
+                          >
+                            <SelectTrigger id="contract">
+                              <SelectValue placeholder="Select a contract" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {contracts.map((contract) => (
+                                <SelectItem key={contract.id} value={contract.id.toString()}>
+                                  {contract.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="sites">Sites</Label>
+                          <Select
+                            value={editFormData.siteIds[0] ?? ""}
+                            onValueChange={(value) => handleInputChange("siteIds", Array.isArray(value) ? value : [value])}
+                            disabled={sitesLoading}
+                          >
+                            <SelectTrigger id="sites">
+                              <SelectValue placeholder="Select sites" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sites.map((site) => (
+                                <SelectItem key={site.id} value={site.id.toString()}>
+                                  {site.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Role</Label>
+                        <p className="font-medium text-muted-foreground">{driverData.user.role} (Read-only)</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
+                        <p className="font-medium">{driverData.user.full_name}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Display Name</Label>
+                        <p className="font-medium">{driverData.user.display_name}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                        <p className="font-medium">{driverData.user.email}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
+                        <p className="font-medium">{driverData.phone}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Address</Label>
+                        <p className="font-medium">{driverData.address}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Date of Birth</Label>
+                        <p className="font-medium">{formatDate(driverData.date_of_birth)}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Role</Label>
+                        <p className="font-medium">{driverData.user.role}</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Personal Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {isEditing ? (
-                  <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Next of Kin
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isEditing ? (
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="full_name">Full Name</Label>
+                        <Label htmlFor="next_of_kin_name">Name</Label>
                         <Input
-                          id="full_name"
-                          value={editFormData.full_name}
-                          onChange={(e) => handleInputChange("full_name", e.target.value)}
-                          placeholder="Enter full name"
+                          id="next_of_kin_name"
+                          value={editFormData.next_of_kin_name}
+                          onChange={(e) => handleInputChange("next_of_kin_name", e.target.value)}
+                          placeholder="Enter next of kin name"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="display_name">Display Name</Label>
+                        <Label htmlFor="next_of_kin_relationship">Relationship</Label>
                         <Input
-                          id="display_name"
-                          value={editFormData.display_name}
-                          onChange={(e) => handleInputChange("display_name", e.target.value)}
-                          placeholder="Enter display name"
+                          id="next_of_kin_relationship"
+                          value={editFormData.next_of_kin_relationship}
+                          onChange={(e) => handleInputChange("next_of_kin_relationship", e.target.value)}
+                          placeholder="Enter relationship"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="next_of_kin_contact">Contact</Label>
                         <Input
-                          id="email"
+                          id="next_of_kin_contact"
+                          value={editFormData.next_of_kin_contact}
+                          onChange={(e) => handleInputChange("next_of_kin_contact", e.target.value)}
+                          placeholder="Enter contact number"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="next_of_kin_email">Email</Label>
+                        <Input
+                          id="next_of_kin_email"
                           type="email"
-                          value={editFormData.email}
-                          onChange={(e) => handleInputChange("email", e.target.value)}
+                          value={editFormData.next_of_kin_email}
+                          onChange={(e) => handleInputChange("next_of_kin_email", e.target.value)}
                           placeholder="Enter email address"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="next_of_kin_address">Address</Label>
                         <Input
-                          id="phone"
-                          value={editFormData.phone}
-                          onChange={(e) => handleInputChange("phone", e.target.value)}
-                          placeholder="Enter phone number"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="address">Address</Label>
-                        <Input
-                          id="address"
-                          value={editFormData.address}
-                          onChange={(e) => handleInputChange("address", e.target.value)}
+                          id="next_of_kin_address"
+                          value={editFormData.next_of_kin_address}
+                          onChange={(e) => handleInputChange("next_of_kin_address", e.target.value)}
                           placeholder="Enter address"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="date_of_birth">Date of Birth</Label>
-                        <Input
-                          id="date_of_birth"
-                          type="date"
-                          value={editFormData.date_of_birth}
-                          onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
-                          placeholder="Enter date of birth"
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Name</Label>
+                        <p className="font-medium">{driverData.next_of_kin_name}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Relationship</Label>
+                        <p className="font-medium">{driverData.next_of_kin_relationship}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Contact</Label>
+                        <p className="font-medium">{driverData.next_of_kin_contact}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                        <p className="font-medium">{driverData.next_of_kin_email || "Not provided"}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-sm font-medium text-muted-foreground">Address</Label>
+                        <p className="font-medium">{driverData.next_of_kin_address}</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Important Dates
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Contract Signing Date</Label>
+                    <p className="font-medium">{formatDate(driverData.user.contract_signing_date)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Rota Start Date</Label>
+                    <p className="font-medium">{formatDate(driverData.user.rota_start_date)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Signup Date</Label>
+                    <p className="font-medium">{formatDate(driverData.signup_date)}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="contract">
+          <AccordionTrigger>Contract</AccordionTrigger>
+          <AccordionContent>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Contract Details
+                </CardTitle>
+                <CardDescription>Contract information and terms</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Assign New Contract</h3>
+                  <div className="flex items-end gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Label htmlFor="assign_contract">Select Contract</Label>
+                      <Select
+                        value={selectedContractId}
+                        onValueChange={setSelectedContractId}
+                        disabled={contractsLoading || assigningContract}
+                      >
+                        <SelectTrigger id="assign_contract">
+                          <SelectValue placeholder="Select a contract to assign" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {contracts.map((contract) => (
+                            <SelectItem key={contract.id} value={contract.id.toString()}>
+                              {contract.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleAssignContract} disabled={assigningContract || !selectedContractId}>
+                      {assigningContract ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Assign Contract
+                    </Button>
+                  </div>
+                </div>
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Contract ID</Label>
+                    <p className="font-medium">{driverData.user.contract?.id || "Not assigned"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Contract Name</Label>
+                    <p className="font-medium">{driverData.user.contract?.name || "Not assigned"}</p>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                  <p className="font-medium">{driverData.user.contract?.description || "No description available"}</p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Signing Date</Label>
+                    <p className="font-medium">
+                      {driverData.user.contract_signing_date
+                        ? formatDate(driverData.user.contract_signing_date)
+                        : "Not assigned"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Paid Holidays</Label>
+                    <p className="font-medium">{driverData.user.paid_holidays} days</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="sites">
+          <AccordionTrigger>Sites</AccordionTrigger>
+          <AccordionContent>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Assigned Sites
+                </CardTitle>
+                <CardDescription>Sites where this driver is authorized to work</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Assign New Sites</h3>
+                  <div className="flex items-end gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Label>Select Sites</Label>
+                      <div className="rounded-md p-2 max-h-60 overflow-y-auto">
+                        {sites.map((site) => (
+                          <div key={site.id} className="flex border-b border-gray-100 items-center space-x-2 p-2">
+                            <input
+                              type="checkbox"
+                              id={`site-${site.id}`}
+                              checked={selectedSiteIds.includes(site.id.toString())}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedSiteIds([...selectedSiteIds, site.id.toString()])
+                                } else {
+                                  setSelectedSiteIds(selectedSiteIds.filter((id) => id !== site.id.toString()))
+                                }
+                              }}
+                              disabled={sitesLoading || assigningSites}
+                            />
+                            <label htmlFor={`site-${site.id}`} className="text-sm">
+                              {site.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Button onClick={handleAssignSites} disabled={assigningSites || selectedSiteIds.length === 0}>
+                      {assigningSites ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Assign Sites
+                    </Button>
+                  </div>
+                </div>
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {driverData.user.site.map((site) => (
+                    <Card key={site.id} className="overflow-hidden">
+                      <div className="aspect-video relative">
+                        <img
+                          src={site.image || "/placeholder.svg"}
+                          alt={site.name}
+                          className="w-full h-full object-cover"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contract">Contract</Label>
-                        <Select
-                          value={editFormData.contractId}
-                          onValueChange={(value) => handleInputChange("contractId", value)}
-                          disabled={contractsLoading}
-                        >
-                          <SelectTrigger id="contract">
-                            <SelectValue placeholder="Select a contract" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contracts.map((contract) => (
-                              <SelectItem key={contract.id} value={contract.id.toString()}>
-                                {contract.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sites">Sites</Label>
-                        <Select
-                        value={editFormData.siteIds[0] ?? ""}
-                          onValueChange={(value) => handleInputChange("siteIds", Array.isArray(value) ? value : [value])}
-                          disabled={sitesLoading}
-                        >
-                          <SelectTrigger id="sites">
-                            <SelectValue placeholder="Select sites" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sites.map((site) => (
-                              <SelectItem key={site.id} value={site.id.toString()}>
-                                {site.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Role</Label>
-                      <p className="font-medium text-muted-foreground">{driverData.user.role} (Read-only)</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
-                      <p className="font-medium">{driverData.user.full_name}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Display Name</Label>
-                      <p className="font-medium">{driverData.user.display_name}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Email</Label>
-                      <p className="font-medium">{driverData.user.email}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
-                      <p className="font-medium">{driverData.phone}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Address</Label>
-                      <p className="font-medium">{driverData.address}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Date of Birth</Label>
-                      <p className="font-medium">{formatDate(driverData.date_of_birth)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Role</Label>
-                      <p className="font-medium">{driverData.user.role}</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Next of Kin
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {isEditing ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="next_of_kin_name">Name</Label>
-                      <Input
-                        id="next_of_kin_name"
-                        value={editFormData.next_of_kin_name}
-                        onChange={(e) => handleInputChange("next_of_kin_name", e.target.value)}
-                        placeholder="Enter next of kin name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="next_of_kin_relationship">Relationship</Label>
-                      <Input
-                        id="next_of_kin_relationship"
-                        value={editFormData.next_of_kin_relationship}
-                        onChange={(e) => handleInputChange("next_of_kin_relationship", e.target.value)}
-                        placeholder="Enter relationship"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="next_of_kin_contact">Contact</Label>
-                      <Input
-                        id="next_of_kin_contact"
-                        value={editFormData.next_of_kin_contact}
-                        onChange={(e) => handleInputChange("next_of_kin_contact", e.target.value)}
-                        placeholder="Enter contact number"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="next_of_kin_email">Email</Label>
-                      <Input
-                        id="next_of_kin_email"
-                        type="email"
-                        value={editFormData.next_of_kin_email}
-                        onChange={(e) => handleInputChange("next_of_kin_email", e.target.value)}
-                        placeholder="Enter email address"
-                      />
-                    </div>
-                    <div className="space-y-2 col-span-2">
-                      <Label htmlFor="next_of_kin_address">Address</Label>
-                      <Input
-                        id="next_of_kin_address"
-                        value={editFormData.next_of_kin_address}
-                        onChange={(e) => handleInputChange("next_of_kin_address", e.target.value)}
-                        placeholder="Enter address"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Name</Label>
-                      <p className="font-medium">{driverData.next_of_kin_name}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Relationship</Label>
-                      <p className="font-medium">{driverData.next_of_kin_relationship}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Contact</Label>
-                      <p className="font-medium">{driverData.next_of_kin_contact}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Email</Label>
-                      <p className="font-medium">{driverData.next_of_kin_email || "Not provided"}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <Label className="text-sm font-medium text-muted-foreground">Address</Label>
-                      <p className="font-medium">{driverData.next_of_kin_address}</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Important Dates
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Contract Signing Date</Label>
-                  <p className="font-medium">{formatDate(driverData.user.contract_signing_date)}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Rota Start Date</Label>
-                  <p className="font-medium">{formatDate(driverData.user.rota_start_date)}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Signup Date</Label>
-                  <p className="font-medium">{formatDate(driverData.signup_date)}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="contract" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Contract Details
-              </CardTitle>
-              <CardDescription>Contract information and terms</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Assign New Contract</h3>
-                <div className="flex items-end gap-4">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="assign_contract">Select Contract</Label>
-                    <Select
-                      value={selectedContractId}
-                      onValueChange={setSelectedContractId}
-                      disabled={contractsLoading || assigningContract}
-                    >
-                      <SelectTrigger id="assign_contract">
-                        <SelectValue placeholder="Select a contract to assign" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {contracts.map((contract) => (
-                          <SelectItem key={contract.id} value={contract.id.toString()}>
-                            {contract.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button onClick={handleAssignContract} disabled={assigningContract || !selectedContractId}>
-                    {assigningContract ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    Assign Contract
-                  </Button>
-                </div>
-              </div>
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Contract ID</Label>
-                  <p className="font-medium">{driverData.user.contract?.id || "Not assigned"}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Contract Name</Label>
-                  <p className="font-medium">{driverData.user.contract?.name || "Not assigned"}</p>
-                </div>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-muted-foreground">Description</Label>
-                <p className="font-medium">{driverData.user.contract?.description || "No description available"}</p>
-              </div>
-              <Separator />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Signing Date</Label>
-                  <p className="font-medium">
-                    {driverData.user.contract_signing_date
-                      ? formatDate(driverData.user.contract_signing_date)
-                      : "Not assigned"}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Paid Holidays</Label>
-                  <p className="font-medium">{driverData.user.paid_holidays} days</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="sites" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Assigned Sites
-              </CardTitle>
-              <CardDescription>Sites where this driver is authorized to work</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Assign New Sites</h3>
-                <div className="flex items-end gap-4">
-                  <div className="flex-1 space-y-2">
-                    <Label>Select Sites</Label>
-                    <div className="rounded-md p-2 max-h-60 overflow-y-auto">
-                      {sites.map((site) => (
-                        <div key={site.id} className="flex border-b border-gray-100 items-center space-x-2 p-2">
-                          <input
-                            type="checkbox"
-                            id={`site-${site.id}`}
-                            checked={selectedSiteIds.includes(site.id.toString())}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedSiteIds([...selectedSiteIds, site.id.toString()])
-                              } else {
-                                setSelectedSiteIds(selectedSiteIds.filter((id) => id !== site.id.toString()))
-                              }
-                            }}
-                            disabled={sitesLoading || assigningSites}
-                          />
-                          <label htmlFor={`site-${site.id}`} className="text-sm">
-                            {site.name}
-                          </label>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold">{site.name}</h3>
+                          <Badge variant={site.status === "active" ? "default" : "secondary"}>{site.status}</Badge>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                  <Button onClick={handleAssignSites} disabled={assigningSites || selectedSiteIds.length === 0}>
-                    {assigningSites ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    Assign Sites
-                  </Button>
+                        <p className="text-sm text-muted-foreground mt-1">Site ID: {site.id}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </div>
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {driverData.user.site.map((site) => (
-                  <Card key={site.id} className="overflow-hidden">
-                    <div className="aspect-video relative">
-                      <img
-                        src={site.image || "/placeholder.svg"}
-                        alt={site.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold">{site.name}</h3>
-                        <Badge variant={site.status === "active" ? "default" : "secondary"}>{site.status}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">Site ID: {site.id}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </CardContent>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   )
 }
