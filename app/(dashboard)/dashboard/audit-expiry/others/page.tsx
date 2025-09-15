@@ -245,7 +245,7 @@ export default function Others() {
                 <Input
                   type="date"
                   value={item.lastCheckDate || ''}
-                  onChange={(e) => updateItem(item.id, 'lastCheckDate', e.target.value || null)}
+                  onChange={(e) => updateItem(item.id, 'lastCheckDate', e.target.value || '')}
                   className="w-40 h-8 text-center text-sm border-gray-300"
                 />
               </div>

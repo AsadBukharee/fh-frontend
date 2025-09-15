@@ -5,82 +5,82 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Clock, Users, ArrowRightLeft } from "lucide-react"
+import { Bell, Search, User } from "lucide-react"
 
 const transportData = {
   early: {
-    timeRange: "00:00 AM - 09:30 AM",
+    timeRange: "06:00 AM - 09:30 AM",
     data: [
-      { location: "Braintree", out: 10, outName: "Imran Khalique", in: 12, inName: "John Smith", spillOver: -2 },
-      { location: "Braintree S", out: 8, outName: "Raja Usman", in: 9, inName: "Matthew Wilson", spillOver: -3 },
-      { location: "Colchester", out: 8, outName: "Shoaib", in: 20, inName: "Harry Potter", spillOver: -2 },
-      { location: "Colchester S", out: 30, outName: "Asad", in: 5, inName: "John Wick", spillOver: 2 },
+      { location: "Braintree", out: 10, in: 12, spillOver: -2 },
+      { location: "Colchester", out: 5, in: 9, spillOver: -3 },
+      { location: "Colchester B", out: 8, in: 20, spillOver: -2 },
+      { location: "Colchester S", out: 20, in: 5, spillOver: +2 },
     ],
-    transfers: [
-      { from: "Braintree", to: "Colchester", count: 6 },
-      { from: "Colchester", to: "Colchester S", count: 5 },
-    ],
+    internalOps: {
+      transfer: 5,
+      jobs: 10,
+    },
   },
   shuttle1: {
     timeRange: "09:30 AM - 12:00 PM",
     data: [
-      { location: "Braintree", out: 15, outName: "Sarah Johnson", in: 8, inName: "Mike Davis", spillOver: 3 },
-      { location: "Braintree S", out: 12, outName: "Ahmed Ali", in: 14, inName: "Lisa Brown", spillOver: -1 },
-      { location: "Colchester", out: 18, outName: "David Wilson", in: 22, inName: "Emma Taylor", spillOver: -4 },
-      { location: "Colchester S", out: 25, outName: "James Lee", in: 10, inName: "Anna White", spillOver: 5 },
+      { location: "Braintree", out: 15, in: 8, spillOver: 3 },
+      { location: "Colchester", out: 12, in: 14, spillOver: -1 },
+      { location: "Colchester B", out: 18, in: 22, spillOver: -4 },
+      { location: "Colchester S", out: 25, in: 10, spillOver: 5 },
     ],
-    transfers: [
-      { from: "Braintree", to: "Colchester", count: 8 },
-      { from: "Colchester", to: "Colchester S", count: 7 },
-    ],
+    internalOps: {
+      transfer: 8,
+      jobs: 15,
+    },
   },
   shuttle2: {
     timeRange: "12:00 PM - 15:00 PM",
     data: [
-      { location: "Braintree", out: 20, outName: "Chris Martin", in: 18, inName: "Sophie Clark", spillOver: 1 },
-      { location: "Braintree S", out: 16, outName: "Omar Hassan", in: 19, inName: "Tom Anderson", spillOver: -2 },
-      { location: "Colchester", out: 14, outName: "Rachel Green", in: 25, inName: "Paul Walker", spillOver: -3 },
-      { location: "Colchester S", out: 28, outName: "Kevin Hart", in: 12, inName: "Maria Garcia", spillOver: 4 },
+      { location: "Braintree", out: 20, in: 18, spillOver: 1 },
+      { location: "Colchester", out: 16, in: 19, spillOver: -2 },
+      { location: "Colchester B", out: 14, in: 25, spillOver: -3 },
+      { location: "Colchester S", out: 28, in: 12, spillOver: 4 },
     ],
-    transfers: [
-      { from: "Braintree", to: "Colchester", count: 9 },
-      { from: "Colchester", to: "Colchester S", count: 6 },
-    ],
+    internalOps: {
+      transfer: 12,
+      jobs: 18,
+    },
   },
   shuttle3: {
     timeRange: "15:00 PM - 18:00 PM",
     data: [
-      { location: "Braintree", out: 22, outName: "Alex Turner", in: 16, inName: "Grace Miller", spillOver: 2 },
-      { location: "Braintree S", out: 18, outName: "Zain Ahmed", in: 21, inName: "Oliver Jones", spillOver: -1 },
-      { location: "Colchester", out: 16, outName: "Nina Patel", in: 28, inName: "Lucas Brown", spillOver: -5 },
-      { location: "Colchester S", out: 32, outName: "Ryan Cooper", in: 14, inName: "Chloe Davis", spillOver: 6 },
+      { location: "Braintree", out: 22, in: 16, spillOver: 2 },
+      { location: "Colchester", out: 18, in: 21, spillOver: -1 },
+      { location: "Colchester B", out: 16, in: 28, spillOver: -5 },
+      { location: "Colchester S", out: 32, in: 14, spillOver: 6 },
     ],
-    transfers: [
-      { from: "Braintree", to: "Colchester", count: 10 },
-      { from: "Colchester", to: "Colchester S", count: 8 },
-    ],
+    internalOps: {
+      transfer: 15,
+      jobs: 22,
+    },
   },
   night: {
     timeRange: "18:00 PM - 00:00 AM",
     data: [
-      { location: "Braintree", out: 8, outName: "Mark Johnson", in: 12, inName: "Kate Wilson", spillOver: -1 },
-      { location: "Braintree S", out: 6, outName: "Ali Khan", in: 9, inName: "Ben Parker", spillOver: -2 },
-      { location: "Colchester", out: 10, outName: "Sam Roberts", in: 15, inName: "Lily Evans", spillOver: -3 },
-      { location: "Colchester S", out: 18, outName: "Max Steel", in: 8, inName: "Ruby Rose", spillOver: 3 },
+      { location: "Braintree", out: 8, in: 12, spillOver: -1 },
+      { location: "Colchester", out: 6, in: 9, spillOver: -2 },
+      { location: "Colchester B", out: 10, in: 15, spillOver: -3 },
+      { location: "Colchester S", out: 18, in: 8, spillOver: 3 },
     ],
-    transfers: [
-      { from: "Braintree", to: "Colchester", count: 4 },
-      { from: "Colchester", to: "Colchester S", count: 3 },
-    ],
+    internalOps: {
+      transfer: 6,
+      jobs: 12,
+    },
   },
 }
 
 const tabs = [
-  { id: "early", label: "Early", icon: Users },
-  { id: "shuttle1", label: "1st Shuttle", icon: Users },
-  { id: "shuttle2", label: "2nd Shuttle", icon: Users },
-  { id: "shuttle3", label: "3rd Shuttle", icon: Users },
-  { id: "night", label: "Night", icon: Users },
+  { id: "early", label: "Early", color: "border-red-200 text-red-600" },
+  { id: "shuttle1", label: "1st Shuttle", color: "border-green-200 text-green-600" },
+  { id: "shuttle2", label: "2nd Shuttle", color: "border-pink-200 text-pink-600" },
+  { id: "shuttle3", label: "3rd Shuttle", color: "border-orange-200 text-orange-600" },
+  { id: "night", label: "Night", color: "border-purple-200 text-purple-600" },
 ]
 
 export default function TransportDashboard() {
@@ -92,156 +92,163 @@ export default function TransportDashboard() {
   const getTotalSpillOver = () => currentData.data.reduce((sum, item) => sum + item.spillOver, 0)
 
   return (
-    <div className="min-h-screen bg-white p-6">
-      <div className="max-w-full mx-auto space-y-6">
-        {/* Header */}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">SU Transport Data</h1>
-            <p className="text-sm text-gray-500 flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              Last updated: 07:23 PM
-            </p>
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">SU Number Screen</h1>
+              <p className="text-sm text-gray-500 flex items-center gap-1">Last updated: 8:17:29 PM</p>
+            </div>
           </div>
-          <Badge variant="secondary" className="bg-pink-100 text-pink-700 border-pink-200">
-            10 S
-          </Badge>
+         
         </div>
+      </div>
 
+      <div className="p-6">
         {/* Navigation Tabs */}
-        <div className="flex gap-2 bg-white p-1 ">
-          {tabs.map((tab) => {
-            const Icon = tab.icon
-            return (
-              <Button
-                key={tab.id}
-                variant={activeTab === tab.id ? "default" : "ghost"}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center shadow  clip-tab ${
-                  activeTab === tab.id
-                    ? "bg-white text-orange hover:bg-gray-50"
-                    : "text-gray-600 bg-gray-100 hover:text-gray-900"
-                }`}
-              >
-
-              
-                {tab.label}
-              </Button>
-            )
-          })}
+        <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-6">
+                  {tabs.map((tab) => (
+                    <Badge
+                      key={tab.id}
+                      variant={activeTab === tab.id ? "default" : "outline"}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center cursor-pointer gap-2 ${
+                          tab.id === "early"
+                            ? "bg-red-500/50 border-red-500 text-red-600"
+                            : tab.id === "shuttle1"
+                              ? "bg-green-500/50 text-green-600 border-green-500 "
+                              : tab.id === "shuttle2"
+                                ? "bg-pink-500/50 border-pink-500 text-pink-600 "
+                                : tab.id === "shuttle3"
+                                  ? "bg-orange-500/50 border-orange-500 text-orange-600"
+                                  : "bg-purple-500/50 text-purple-600 border-purple-500"
+                        } ${
+                        activeTab === tab.id
+                          ? "bg-white"
+                          : " "
+                      }`}
+                    >
+                     
+                      {tab.label}
+                    </Badge>
+                  ))}
+                </div>
         </div>
 
         {/* Main Content */}
-        <Card className="p-3">
-          <div className="space-y-3">
-            {/* Section Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {activeTab === "early"
-                    ? "Early Run"
-                    : activeTab === "shuttle1"
-                      ? "1st Shuttle Run"
-                      : activeTab === "shuttle2"
-                        ? "2nd Shuttle Run"
-                        : activeTab === "shuttle3"
-                          ? "3rd Shuttle Run"
-                          : "Night Run"}
-                </h2>
-                <p className="text-sm text-gray-500">Van early run data</p>
-              </div>
-              <Badge variant="outline" className="text-orange-600 border-orange-200">
-                {currentData.timeRange}
-              </Badge>
+        <div className="space-y-6">
+          {/* Section Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                {activeTab === "early"
+                  ? "Early Run"
+                  : activeTab === "shuttle1"
+                    ? "1st Shuttle Run"
+                    : activeTab === "shuttle2"
+                      ? "2nd Shuttle Run"
+                      : activeTab === "shuttle3"
+                        ? "3rd Shuttle Run"
+                        : "Night Run"}
+              </h2>
+              <p className="text-sm text-gray-500">Van early run data</p>
             </div>
+            <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
+              {currentData.timeRange}
+            </Badge>
+          </div>
 
-            {/* Data Table */}
-            <div className="rounded-md ">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-left">Location</TableHead>
-                    <TableHead className="text-center">Out(s)</TableHead>
-                    <TableHead className="text-center">In(from)</TableHead>
-                    <TableHead className="text-center">Spill Over</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentData.data.map((row, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{row.location}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge className="bg-pink-100 text-pink-800 px-2 py-1 rounded text-sm font-medium inline-block">
-                          {row.outName} ({row.out})
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-medium inline-block">
-                          {row.inName} ({row.in})
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div
-                          className={`px-2 py-1 rounded text-sm font-medium inline-block ${
-                            row.spillOver > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {row.spillOver > 0 ? "+" : ""}
-                          {row.spillOver}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {/* Total Row */}
-                  <TableRow className="bg-muted/50">
-                    <TableCell className="font-bold">Total</TableCell>
+          {/* Data Table */}
+          <Card className="overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50">
+                  <TableHead className="text-left font-semibold text-gray-900">Locations</TableHead>
+                  <TableHead className="text-center font-semibold text-gray-900">OUT</TableHead>
+                  <TableHead className="text-center font-semibold text-gray-900">IN</TableHead>
+                  <TableHead className="text-center font-semibold text-gray-900">Spill Over</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentData.data.map((row, index) => (
+                  <TableRow key={index} className="hover:bg-gray-50">
+                    <TableCell className="font-medium text-gray-900">{row.location}</TableCell>
                     <TableCell className="text-center">
-                      <div className="bg-pink-200 text-pink-900 px-2 py-1 rounded text-sm font-bold inline-block">
-                        {getTotalOut()}
+                      <div className="bg-pink-100 text-pink-800 px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px]">
+                        {row.out}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="bg-green-200 text-green-900 px-2 py-1 rounded text-sm font-bold inline-block">
-                        {getTotalIn()}
+                      <div className="bg-green-100 text-green-800 px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px]">
+                        {row.in}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <div
-                        className={`px-2 py-1 rounded text-sm font-bold inline-block ${
-                          getTotalSpillOver() > 0 ? "bg-green-200 text-green-900" : "bg-red-200 text-red-900"
+                        className={`px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px] ${
+                          row.spillOver > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {getTotalSpillOver() > 0 ? "+" : ""}
-                        {getTotalSpillOver()}
+                        {row.spillOver > 0 ? "+" : ""}
+                        {row.spillOver}
                       </div>
                     </TableCell>
                   </TableRow>
-                </TableBody>
-              </Table>
+                ))}
+                {/* Total Row */}
+                <TableRow className="bg-gray-100 font-semibold">
+                  <TableCell className="font-bold text-gray-900">Total</TableCell>
+                  <TableCell className="text-center">
+                    <div className="bg-pink-200 text-pink-900 px-3 py-1 rounded-md text-sm font-bold inline-block min-w-[40px]">
+                      {getTotalOut()}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="bg-green-200 text-green-900 px-3 py-1 rounded-md text-sm font-bold inline-block min-w-[40px]">
+                      {getTotalIn()}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div
+                      className={`px-3 py-1 rounded-md text-sm font-bold inline-block min-w-[40px] ${
+                        getTotalSpillOver() > 0 ? "bg-green-200 text-green-900" : "bg-red-200 text-red-900"
+                      }`}
+                    >
+                      {getTotalSpillOver() > 0 ? "+" : ""}
+                      {getTotalSpillOver()}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* Internal Operations */}
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Internal Operations</h3>
+              <p className="text-sm text-gray-500">Van early run data</p>
             </div>
 
-            {/* Internal Transfers */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <ArrowRightLeft className="w-5 h-5" />
-                Internal Transfers
-              </h3>
-              <p className="text-sm text-gray-500">Van early run data</p>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {currentData.transfers.map((transfer, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <span className="text-sm font-medium text-gray-900">{transfer.from}</span>
-                    <Badge variant="outline" className="text-orange-600 border-orange-200">
-                      {transfer.count} Transfer
-                    </Badge>
-                    <span className="text-sm font-medium text-gray-900">{transfer.to}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-4 max-w-md">
+              <Card className="p-4 bg-orange-50 border-orange-200">
+                <div className="text-center">
+                  <div className="text-sm text-gray-600 mb-1">Transfer</div>
+                  <div className="text-2xl font-bold text-orange-600">{currentData.internalOps.transfer}</div>
+                </div>
+              </Card>
+              <Card className="p-4 bg-red-50 border-red-200">
+                <div className="text-center">
+                  <div className="text-sm text-gray-600 mb-1">Jobs</div>
+                  <div className="text-2xl font-bold text-red-600">{currentData.internalOps.jobs}</div>
+                </div>
+              </Card>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   )

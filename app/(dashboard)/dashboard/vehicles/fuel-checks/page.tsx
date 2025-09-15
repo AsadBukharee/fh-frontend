@@ -21,7 +21,7 @@ export default function FuelCheck() {
             value="parent"
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 "
           >
-            Today' Fuel Usage
+            Today&apos; Fuel Usage
           </TabsTrigger>
           <TabsTrigger
             value="child"
