@@ -191,7 +191,7 @@ export default function SiteGrid() {
           {sites.map((site) => (
             <Card
               key={site.id}
-              className="rounded-xl shadow-sm border w-[320px] h-[420px] bg-white border-gray-200 overflow-hidden p-2"
+              className="rounded-xl shadow-sm border w-[350px] h-[420px] bg-white border-gray-200 overflow-hidden p-2"
             >
               <div className="p-4 pb-0">
                 <div className="flex justify-between items-start">

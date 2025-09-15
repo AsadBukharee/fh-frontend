@@ -365,12 +365,13 @@ export default function VehiclesPage() {
                       </Tooltip>
                     </div>
                   )}
-                  <Button
-                    variant="outline"
-                    className="mt-4 w-full bg-orange-100 text-orange-700 hover:bg-orange-200 text-sm"
-                  >
-                    More Details
-                  </Button>
+                <Link
+  href={`/dashboard/vehicles/list/${vehicle.id}`}
+  className="mt-4 inline-flex items-center justify-center w-full px-4 py-2 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-md text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-300"
+>
+  More Details
+</Link>
+
                 </CardContent>
               </Card>
             ))}

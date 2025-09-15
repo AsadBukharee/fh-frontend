@@ -21,6 +21,7 @@ import {
   MapPin,
   Wrench,
 } from "lucide-react"
+import Link from "next/link"
 
 interface Vehicle {
   id: number
@@ -584,7 +585,7 @@ export default function VehicleDashboard() {
                         index % 2 === 0 ? "bg-background" : "bg-muted/10"
                       }`}
                     >
-                      <TableCell className="font-medium text-card-foreground">{vehicle.registration_number}</TableCell>
+                      <TableCell className="font-medium text-card-foreground"><Link href={`/dashboard/compliance-management/vehicle-management/${vehicle.id}`}>{vehicle.registration_number}</Link></TableCell>
                       <TableCell className="text-sm">{vehicle.vehicle_type_name}</TableCell>
                       <TableCell className="text-sm">
                         {vehicle.assignee_driver ? (

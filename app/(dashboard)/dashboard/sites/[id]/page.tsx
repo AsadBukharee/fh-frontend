@@ -533,7 +533,7 @@ export default function SiteDetails() {
                       className="w-full border-gray-300"
                     />
                   ) : (
-                    <p className="font-semibold text-gray-800">{site.longitude.toFixed(4)}</p>
+                    <p className="font-semibold text-gray-800">{site.longitude?.toFixed(4)}</p>
                   )}
                 </div>
                 <div>
@@ -547,7 +547,7 @@ export default function SiteDetails() {
                       className="w-full border-gray-300"
                     />
                   ) : (
-                    <p className="font-semibold text-gray-800">{site.latitude.toFixed(4)}</p>
+                    <p className="font-semibold text-gray-800">{site.latitude?.toFixed(4)}</p>
                   )}
                 </div>
                 <div>
