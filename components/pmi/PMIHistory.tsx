@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import BadgeList from "../BadgeList";
-
 // API configuration
 const API_CONFIG = {
   baseUrl: "https://api.example.com", // Replace with actual API host
@@ -42,12 +41,10 @@ const API_CONFIG = {
     vehicles: "/api/vehicles/", // New endpoint for fetching vehicles
   },
 };
-
 // Type definitions
 interface TyreData {
   [key: string]: string | number | null | undefined;
 }
-
 // New Vehicle type
 interface Vehicle {
   id?: number | string;
@@ -55,7 +52,6 @@ interface Vehicle {
   registration_number?: string;
   vehicles_type?: { id: string | number };
 }
-
 interface PmiRow {
   id: number | string;
   vehicle_reg: string;
@@ -82,8 +78,13 @@ interface PmiRow {
   tyre_pressure: TyreData;
   tyre_depth: TyreData;
   tyre_dates: TyreData;
+  driver_info?: {
+    defects: string;
+    status: string;
+    notes: string;
+    pmi_report_date: string;
+  };
 }
-
 // ActionMenu component (unchanged)
 const ActionMenu: FC<{
   row: PmiRow;
@@ -130,8 +131,7 @@ const ActionMenu: FC<{
     </DropdownMenuContent>
   </DropdownMenu>
 );
-
-// StatusCell component (unchanged)
+// StatusCell component (updated with text type)
 const StatusCell: FC<{
   status: string | number | null | undefined;
   rowId: number | string;
@@ -139,7 +139,7 @@ const StatusCell: FC<{
   column: string;
   onUpdate: (id: number | string, field: string, column: string, value: string | number) => void;
   isEditable: boolean;
-  type: "number" | "status" | "date";
+  type: "number" | "status" | "date" | "text";
 }> = ({ status, rowId, field, column, onUpdate, isEditable, type }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(status ?? "");
@@ -151,37 +151,37 @@ const StatusCell: FC<{
     return <span>{status ?? "N/A"}</span>;
   }
   if (isEditing) {
-    if (type === "number" || type === "date") {
+    if (type === "status") {
       return (
-        <Input
-          type={type}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={(e) => e.key === "Enter" && handleSave()}
-          className="w-20"
-          autoFocus
-        />
+        <Select
+          value={value.toString()}
+          onValueChange={(val) => {
+            setValue(val);
+            onUpdate(rowId, field, column, val);
+            setIsEditing(false);
+          }}
+        >
+          <SelectTrigger className="w-20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Yes">Yes</SelectItem>
+            <SelectItem value="No">No</SelectItem>
+            <SelectItem value="NA">NA</SelectItem>
+          </SelectContent>
+        </Select>
       );
     }
     return (
-      <Select
-        value={value.toString()}
-        onValueChange={(val) => {
-          setValue(val);
-          onUpdate(rowId, field, column, val);
-          setIsEditing(false);
-        }}
-      >
-        <SelectTrigger className="w-20">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="Yes">Yes</SelectItem>
-          <SelectItem value="No">No</SelectItem>
-          <SelectItem value="NA">NA</SelectItem>
-        </SelectContent>
-      </Select>
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => e.key === "Enter" && handleSave()}
+        className="w-20"
+        autoFocus
+      />
     );
   }
   return (
@@ -193,7 +193,6 @@ const StatusCell: FC<{
     </span>
   );
 };
-
 const getSafetyColor = (value: string | number | null | undefined, field: string): string => {
   if (value === null || value === undefined || value === "") return "";
   if (field === "tyre_pressure") {
@@ -210,7 +209,6 @@ const getSafetyColor = (value: string | number | null | undefined, field: string
   }
   return "";
 };
-
 const PMIHistory: FC = () => {
   const [pmiData, setPmiData] = useState<PmiRow[]>([]);
   const [activeTab, setActiveTab] = useState<"All Data" | "Tyre Depth" | "Tyre Dates" | "Others">("All Data");
@@ -228,14 +226,12 @@ const PMIHistory: FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");
   const token = useCookies().get("access_token");
-
   const tabs = [
     { label: "All Data", icon: Database },
     { label: "Tyre Depth", icon: Scale },
     { label: "Tyre Dates", icon: CalendarDays },
     { label: "Others", icon: Settings },
   ] as const;
-
   const safeSetPmiData = (newData: unknown) => {
     if (Array.isArray(newData)) {
       setPmiData(newData as PmiRow[]);
@@ -245,59 +241,62 @@ const PMIHistory: FC = () => {
       setError("Invalid data format received");
     }
   };
-
   const transformApiResponse = (apiData: any[]): PmiRow[] => {
     const flatData: PmiRow[] = [];
     apiData.forEach((item) => {
-      Object.values(item).forEach((records: any) => {
-        if (Array.isArray(records)) {
-          records.forEach((record: any) => {
-            if (!record.id || !record.vehicle_reg) {
-              console.warn("Skipping invalid record:", record);
-              return;
+      Object.entries(item).forEach(([vehicle_reg, vehicleRecords]: [string, any]) => {
+        if (!vehicleRecords.pmi_analysis) return;
+        vehicleRecords.pmi_analysis.forEach((record: any) => {
+          if (!record.id || !record.vehicle_reg) {
+            console.warn("Skipping invalid record:", record);
+            return;
+          }
+          const tyrePressure: TyreData = {};
+          const tyreDepth: TyreData = {};
+          const tyreDates: TyreData = {};
+          Object.keys(record).forEach((key) => {
+            if (key.startsWith("tyre_pressure_")) {
+              const tyreKey = key.replace("tyre_pressure_", "");
+              tyrePressure[tyreKey] = record[key];
+            } else if (key.startsWith("tyre_depth_")) {
+              const tyreKey = key.replace("tyre_depth_", "");
+              tyreDepth[tyreKey] = record[key];
+            } else if (key.startsWith("tyre_date_")) {
+              const tyreKey = key.replace("tyre_date_", "");
+              tyreDates[tyreKey] = record[key];
             }
-            const tyrePressure: TyreData = {};
-            const tyreDepth: TyreData = {};
-            const tyreDates: TyreData = {};
-            Object.keys(record).forEach((key) => {
-              if (key.startsWith("tyre_pressure_")) {
-                const tyreKey = key.replace("tyre_pressure_", "");
-                tyrePressure[tyreKey] = record[key];
-              } else if (key.startsWith("tyre_depth_")) {
-                const tyreKey = key.replace("tyre_depth_", "");
-                tyreDepth[tyreKey] = record[key];
-              } else if (key.startsWith("tyre_date_")) {
-                const tyreKey = key.replace("tyre_date_", "");
-                tyreDates[tyreKey] = record[key];
-              }
-            });
-            flatData.push({
-              ...record,
-              tyre_pressure: tyrePressure,
-              tyre_depth: tyreDepth,
-              tyre_dates: tyreDates,
-            } as PmiRow);
           });
-        }
+          const matchingDriver = vehicleRecords.pmi_drivers?.find((d: any) => d.pmi === record.id);
+          const driverInfo = matchingDriver ? {
+            defects: matchingDriver.defects,
+            status: matchingDriver.status,
+            notes: matchingDriver.notes,
+            pmi_report_date: matchingDriver.pmi_report_date,
+          } : undefined;
+          flatData.push({
+            ...record,
+            tyre_pressure: tyrePressure,
+            tyre_depth: tyreDepth,
+            tyre_dates: tyreDates,
+            driver_info: driverInfo,
+          } as PmiRow);
+        });
       });
     });
     return flatData;
   };
-
   const flattenTyreFields = (row: Partial<PmiRow>): Record<string, any> => {
     const flattened: Record<string, any> = { ...row };
     ["tyre_pressure", "tyre_depth", "tyre_dates"].forEach((field) => {
-  const value = (row as any)[field];  // 👈 bypass strict typing
-  if (value && typeof value === "object") {
-    Object.entries(value).forEach(([key, val]) => {
-      flattened[`${field}_${key}`] = val;
+      const value = (row as any)[field];
+      if (value && typeof value === "object") {
+        Object.entries(value).forEach(([key, val]) => {
+          flattened[`${field}_${key}`] = val;
+        });
+      }
     });
-  }
-});
-
     return flattened;
   };
-
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     const defaultHeaders = {
       "Content-Type": "application/json",
@@ -308,7 +307,6 @@ const PMIHistory: FC = () => {
       headers: { ...defaultHeaders, ...options.headers },
     });
   };
-
   // New function to fetch vehicles
   const fetchVehicles = async () => {
     try {
@@ -329,7 +327,6 @@ const PMIHistory: FC = () => {
       setError("Failed to load vehicle list");
     }
   };
-
   const fetchPmiData = async (vehicleId?: string) => {
     setLoading(true);
     try {
@@ -342,7 +339,6 @@ const PMIHistory: FC = () => {
         throw new Error(`API request failed with status ${response.status}`);
       }
       const apiResponse = await response.json();
-      console.log("API Response:", apiResponse);
       if (!apiResponse.success || !Array.isArray(apiResponse.data)) {
         console.error("API response is invalid:", apiResponse);
         safeSetPmiData([]);
@@ -358,14 +354,12 @@ const PMIHistory: FC = () => {
       setLoading(false);
     }
   };
-
   const handleRefresh = () => {
     setSearchTerm("");
     setCurrentPage(1);
     setSelectedVehicle("all"); // Reset vehicle filter on refresh
     fetchPmiData();
   };
-
   const handleStatusUpdate = async (
     id: number | string,
     field: string,
@@ -376,15 +370,12 @@ const PMIHistory: FC = () => {
       const endpoint = API_CONFIG.endpoints.update.replace("{id}", id.toString());
       const updatedRow = pmiData.find((row) => row.id === id);
       if (!updatedRow) return;
-
       const isTyreField =
         field === "tyre_pressure" || field === "tyre_depth" || field === "tyre_dates";
-
       let updatedData: PmiRow | (PmiRow & Record<string, unknown>) = {
         ...updatedRow,
         ...flattenTyreFields(updatedRow),
       };
-
       if (isTyreField) {
         const currentNested = (updatedRow as any)[field] as TyreData;
         updatedData = {
@@ -397,7 +388,6 @@ const PMIHistory: FC = () => {
           [field]: value as any,
         } as PmiRow;
       }
-
       const flattenedData = flattenTyreFields(updatedData);
       const response = await apiCall(endpoint, {
         method: "PATCH",
@@ -406,7 +396,6 @@ const PMIHistory: FC = () => {
       if (!response.ok) {
         throw new Error("Failed to update PMI record");
       }
-
       setPmiData((prev) =>
         prev.map((row) => {
           if (row.id !== id) return row;
@@ -422,20 +411,22 @@ const PMIHistory: FC = () => {
       setError("Failed to update PMI record");
     }
   };
-
   const handleEdit = (row: PmiRow) => {
     setSelectedRow(row);
-    setEditForm(row);
+    setEditForm({
+      ...row,
+      tyre_pressure: { ...row.tyre_pressure },
+      tyre_depth: { ...row.tyre_depth },
+      tyre_dates: { ...row.tyre_dates },
+    });
     setIsEditing(true);
     setShowModal(true);
   };
-
   const handleView = (row: PmiRow) => {
     setSelectedRow(row);
     setIsEditing(false);
     setShowModal(true);
   };
-
   const handleUpdate = async () => {
     if (!selectedRow) return;
     try {
@@ -458,7 +449,6 @@ const PMIHistory: FC = () => {
       setError("Failed to update PMI record");
     }
   };
-
   const handleDelete = async (id: number | string) => {
     try {
       const endpoint = API_CONFIG.endpoints.delete.replace("{id}", id.toString());
@@ -472,7 +462,6 @@ const PMIHistory: FC = () => {
       setError("Failed to delete PMI record");
     }
   };
-
   const handleDownload = async (id: number | string) => {
     try {
       const endpoint = API_CONFIG.endpoints.download.replace("{id}", id.toString());
@@ -492,7 +481,6 @@ const PMIHistory: FC = () => {
       setError("Failed to download PMI record");
     }
   };
-
   const handleApprove = async (id: number | string) => {
     try {
       const endpoint = API_CONFIG.endpoints.update.replace("{id}", id.toString());
@@ -511,7 +499,6 @@ const PMIHistory: FC = () => {
       setError("Failed to approve PMI record");
     }
   };
-
   const handleReject = async (id: number | string) => {
     try {
       const endpoint = API_CONFIG.endpoints.update.replace("{id}", id.toString());
@@ -530,25 +517,21 @@ const PMIHistory: FC = () => {
       setError("Failed to reject PMI record");
     }
   };
-
   // Fetch vehicles and PMI data on component mount
   useEffect(() => {
     fetchVehicles();
     fetchPmiData();
   }, []);
-
   // Fetch PMI data when selected vehicle changes
   useEffect(() => {
     fetchPmiData(selectedVehicle);
   }, [selectedVehicle]);
-
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
-
   const tyreColumns = useMemo(() => {
     if (!Array.isArray(pmiData) || pmiData.length === 0) {
       return ["OSF", "NSF", "OSR_Outer", "NSR_Outer", "OSR_Inner", "NSR_Inner"];
@@ -558,12 +541,14 @@ const PMIHistory: FC = () => {
     );
     return firstValidRow ? Object.keys(firstValidRow.tyre_pressure) : [];
   }, [pmiData]);
-
   const formatDateForInput = (date: string | null | undefined) => {
     if (!date) return "";
     return date.split("T")[0];
   };
-
+  const isExpired = (expiry: string | null) => {
+    if (!expiry) return false;
+    return new Date(expiry) < new Date();
+  };
   const filteredData = useMemo(() => {
     if (!searchTerm) return pmiData;
     return pmiData.filter((row) =>
@@ -572,7 +557,6 @@ const PMIHistory: FC = () => {
       )
     );
   }, [pmiData, searchTerm]);
-
   const handleSort = (key: keyof PmiRow) => {
     setSortConfig((prev) => {
       if (!prev || prev.key !== key) {
@@ -581,12 +565,15 @@ const PMIHistory: FC = () => {
       return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
     });
   };
-
   const sortedData = useMemo(() => {
     if (!sortConfig) return filteredData;
     return [...filteredData].sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+      if (sortConfig.key === "tyre_pressure" || sortConfig.key === "tyre_depth" || sortConfig.key === "tyre_dates") {
+        aValue = (a[sortConfig.key] as TyreData)?.["OSF"] ?? null;
+        bValue = (b[sortConfig.key] as TyreData)?.["OSF"] ?? null;
+      }
       if (aValue == null && bValue == null) return 0;
       if (aValue == null) return sortConfig.direction === "asc" ? -1 : 1;
       if (bValue == null) return sortConfig.direction === "asc" ? 1 : -1;
@@ -600,11 +587,9 @@ const PMIHistory: FC = () => {
         : Number(bValue) - Number(aValue);
     });
   }, [filteredData, sortConfig]);
-
   const totalPages = Math.ceil(sortedData.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const paginatedData = sortedData.slice(startIndex, startIndex + rowsPerPage);
-
   const getPageNumbers = () => {
     const maxPagesToShow = 5;
     const pages: number[] = [];
@@ -618,7 +603,6 @@ const PMIHistory: FC = () => {
     }
     return pages;
   };
-
   const getStatusBadge = (status: string) => {
     const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
     switch (status.toUpperCase()) {
@@ -648,7 +632,6 @@ const PMIHistory: FC = () => {
         );
     }
   };
-
   return (
     <div className="min-h-screen bg-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -778,6 +761,7 @@ const PMIHistory: FC = () => {
                         Tyre Depth (mm)
                       </TableHead>
                       <TableHead>Defects</TableHead>
+                      <TableHead>Driver Defects</TableHead>
                       <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                     <TableRow>
@@ -794,6 +778,7 @@ const PMIHistory: FC = () => {
                           {col}
                         </TableHead>
                       ))}
+                      <TableHead></TableHead>
                       <TableHead></TableHead>
                       <TableHead></TableHead>
                     </TableRow>
@@ -961,6 +946,9 @@ const PMIHistory: FC = () => {
                           <TableCell>
                             <BadgeList value={row.defects || "N/A"} />
                           </TableCell>
+                          <TableCell>
+                            <BadgeList value={row.driver_info?.defects || "N/A"} />
+                          </TableCell>
                           <TableCell className="text-center">
                             <ActionMenu
                               row={row}
@@ -1030,7 +1018,7 @@ const PMIHistory: FC = () => {
                                 column={col}
                                 onUpdate={handleStatusUpdate}
                                 isEditable={true}
-                                type="date"
+                                type="text"
                               />
                             </TableCell>
                           ))}
@@ -1458,10 +1446,8 @@ const PMIHistory: FC = () => {
                           Tyre Date {col}
                         </label>
                         <Input
-                          type="date"
-                          value={formatDateForInput(
-                            (editForm.tyre_dates?.[col] as string | null | undefined) ?? ""
-                          )}
+                          type="text"
+                          value={editForm.tyre_dates?.[col] ?? ""}
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
@@ -1475,6 +1461,24 @@ const PMIHistory: FC = () => {
                         />
                       </div>
                     ))}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Driver Defects
+                      </label>
+                      <Textarea
+                        value={editForm.driver_info?.defects || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            driver_info: {
+                              ...editForm.driver_info,
+                              defects: e.target.value,
+                            },
+                          })
+                        }
+                        className="w-full"
+                      />
+                    </div>
                     <div className="flex justify-end space-x-2 mt-6">
                       <Button
                         variant="outline"
@@ -1513,7 +1517,7 @@ const PMIHistory: FC = () => {
                           PMI Expiry
                         </label>
                         <div className="text-sm text-gray-900">
-                          {selectedRow.pmi_expiry ?? "N/A"}
+                          {selectedRow.pmi_expiry ?? "N/A"}{isExpired(selectedRow.pmi_expiry) && <span className="text-red-600"> (Expired)</span>}
                         </div>
                       </div>
                       <div>
@@ -1605,6 +1609,38 @@ const PMIHistory: FC = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Driver Defects
+                      </label>
+                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
+                        {selectedRow.driver_info?.defects || "N/A"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Driver Status
+                      </label>
+                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
+                        {getStatusBadge(selectedRow.driver_info?.status || "N/A")}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Driver Notes
+                      </label>
+                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
+                        {selectedRow.driver_info?.notes || "N/A"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Driver Report Date
+                      </label>
+                      <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
+                        {selectedRow.driver_info?.pmi_report_date || "N/A"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Tyre Pressure
                       </label>
                       <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
@@ -1664,5 +1700,4 @@ const PMIHistory: FC = () => {
     </div>
   );
 };
-
 export default PMIHistory;

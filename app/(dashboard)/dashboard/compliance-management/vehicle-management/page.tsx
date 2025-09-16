@@ -1,446 +1,416 @@
+
 "use client"
-import { useRef, useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChevronLeft, ChevronRight, Search, Filter, Loader2, Calendar, Wrench, Download, Shield, Settings, Circle } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  Filter,
-  Loader2,
-  Car,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  User,
-  MapPin,
-  Wrench,
-} from "lucide-react"
-import Link from "next/link"
+import { parse, differenceInDays } from "date-fns"
+import API_URL from "@/app/utils/ENV"
+import { useCookies } from "next-client-cookies"
 
-interface Vehicle {
-  id: number
-  assignee_driver: {
-    id: number
-    full_name: string
-    email: string
-    avatar?: string
-  } | null
-  vehicles_type: {
-    id: number
-    name: string
-    description: string
-  }
-  site_allocated: {
-    id: number
-    name: string
-    status: string
-  } | null
-  warnings: string[]
-  missing_attributes: string[]
-  last_mileage: string | null
-  registration_number: string
-  vehicle_status: string
-  is_roadworthy: boolean
-  inspection_expire: string
-  inspection_appointment: string
-  mot_expiry: string
-  mot_booked_date: string | null
-  tax_expiry: string
-  insurance_expiry: string
-  tacho_calibration_expiry: string
-  vehicle_cost: number
-  vehicle_picture: string
-  assignee_driver_name?: string
-  vehicle_type_name: string
-  site_name?: string
-  status_indicators: {
-    mot_expiring: boolean
-    tax_expiring: boolean
-    insurance_expiring: boolean
-    inspection_due: boolean
+interface ApiResponse {
+  success: boolean
+  message: string
+  data: {
+    mot: Array<{
+      vehicle_reg: string
+      mot_expiry: string
+      next_mot_booked_from: string | null
+      next_mot_booked_date: string | null
+      time_mot_booked: string
+      last_inspection_date: string
+      next_inspection_booked_before: string
+    }>
+    pmi: Array<{
+      vehicle_reg: string
+      next_inspection_book_date: string
+    }>
+    tacho: Array<{
+      vehicle_reg: string
+      last_download: string | null
+      next_download: string | null
+    }>
+    tyre: Array<{
+      vehicle_reg: string
+      last_check: string | null
+      next_check: string | null
+    }>
+    insurance: Array<{
+      vehicle_reg: string
+      expiry: string
+    }>
+    calibrations: Array<{
+      vehicle_reg: string
+      expiry: string
+    }>
   }
 }
 
-const realApiData = {
-  success: true,
-  message: "Success",
-  data: [
-    {
-      id: 6,
-      assignee_driver: {
-        id: 6,
-        email: "asadbukharee@gmail.com",
-        full_name: "Syed Asad Abbas",
-        display_name: "Syed Asad Abbas",
-        avatar:
-          "http://91.99.235.94:9000/media-public/uploads/064e55c9-1733-4ef5-8283-11e71e06b6f3/scaled_1000061228.jpg",
-      },
-      vehicles_type: {
-        id: 2,
-        name: "16-Seater MK8",
-        description: "Mark 8",
-      },
-      site_allocated: null,
-      warnings: [
-        "🚨 MOT has expired",
-        "🚨 Road tax has expired",
-        "🚨 Insurance has expired",
-        "📍 Vehicle not allocated to any site",
-        "🚨 Tachograph calibration has expired",
-      ],
-      missing_attributes: [
-        "Last mileage reading",
-        "Front driver tyre expiry",
-        "Front passenger tyre expiry",
-        "Rear outer driver tyre expiry",
-        "Rear outer passenger tyre expiry",
-      ],
-      last_mileage: null,
-      registration_number: "VAN644",
-      vehicle_status: "available",
-      is_roadworthy: true,
-      inspection_expire: "2025-11-20",
-      inspection_appointment: "2025-09-20",
-      mot_expiry: "2025-08-29",
-      mot_booked_date: null,
-      tax_expiry: "2025-08-30",
-      insurance_expiry: "2025-08-14",
-      tacho_calibration_expiry: "2025-08-22",
-      vehicle_cost: 15000,
-      vehicle_picture:
-        "http://91.99.235.94:9000/media-public/uploads/f81b6ceb-7a4a-4cb0-adcd-c72e7a1c2e1b/20250701_0047_image.png",
-      assignee_driver_name: "Syed Asad Abbas",
-      vehicle_type_name: "16-Seater MK8",
-      status_indicators: {
-        mot_expiring: true,
-        tax_expiring: true,
-        insurance_expiring: true,
-        inspection_due: false,
-      },
-    },
-    {
-      id: 5,
-      assignee_driver: {
-        id: 11,
-        email: "khalidsadiq@gmail.com",
-        full_name: "Khalid Sadiq",
-        display_name: "Khalid Sadiq",
-        avatar: null,
-      },
-      vehicles_type: {
-        id: 2,
-        name: "16-Seater MK8",
-        description: "Mark 8",
-      },
-      site_allocated: {
-        id: 1,
-        name: "Bolton Central",
-        status: "active",
-      },
-      warnings: [
-        "🚨 MOT has expired",
-        "🚨 Road tax has expired",
-        "🚨 Insurance has expired",
-        "🚨 Tachograph calibration has expired",
-      ],
-      missing_attributes: [
-        "MOT certificate",
-        "Front driver tyre expiry",
-        "Front passenger tyre expiry",
-        "Rear outer driver tyre expiry",
-        "Rear outer passenger tyre expiry",
-      ],
-      last_mileage: "12758.00",
-      registration_number: "VAN644hhj",
-      vehicle_status: "assigned",
-      is_roadworthy: true,
-      inspection_expire: "2025-11-20",
-      inspection_appointment: "2025-09-20",
-      mot_expiry: "2025-08-29",
-      mot_booked_date: null,
-      tax_expiry: "2025-08-30",
-      insurance_expiry: "2025-08-14",
-      tacho_calibration_expiry: "2025-08-22",
-      vehicle_cost: 15000,
-      vehicle_picture: "https://jayctours.com.my/wp-content/uploads/2021/02/295055e5-f536-43bf-8773-5c107d12b05c.jpg",
-      assignee_driver_name: "Khalid Sadiq",
-      vehicle_type_name: "16-Seater MK8",
-      site_name: "Bolton Central",
-      status_indicators: {
-        mot_expiring: true,
-        tax_expiring: true,
-        insurance_expiring: true,
-        inspection_due: false,
-      },
-    },
-    {
-      id: 4,
-      assignee_driver: null,
-      vehicles_type: {
-        id: 2,
-        name: "16-Seater MK8",
-        description: "Mark 8",
-      },
-      site_allocated: null,
-      warnings: [
-        "🚨 Insurance has expired",
-        "🚨 Vehicle inspection has expired",
-        "🚨 Front driver tyre has expired",
-        "🚨 Front passenger tyre has expired",
-        "🚨 Rear outer driver tyre has expired",
-        "🚨 Rear outer passenger tyre has expired",
-        "📍 Vehicle not allocated to any site",
-        "⚠️ Tachograph download overdue by 4 days",
-        "🚨 Tachograph calibration has expired",
-      ],
-      missing_attributes: ["MOT certificate"],
-      last_mileage: "5909.70",
-      registration_number: "GTR SKYLINE",
-      vehicle_status: "assigned",
-      is_roadworthy: true,
-      inspection_expire: "2025-08-21",
-      inspection_appointment: "2025-08-22",
-      mot_expiry: "2026-08-20",
-      mot_booked_date: null,
-      tax_expiry: "2026-09-07",
-      insurance_expiry: "2025-08-18",
-      tacho_calibration_expiry: "2025-08-30",
-      vehicle_cost: 55000,
-      vehicle_picture: "https://jayctours.com.my/wp-content/uploads/2021/02/295055e5-f536-43bf-8773-5c107d12b05c.jpg",
-      vehicle_type_name: "16-Seater MK8",
-      status_indicators: {
-        mot_expiring: false,
-        tax_expiring: false,
-        insurance_expiring: true,
-        inspection_due: true,
-      },
-    },
-    {
-      id: 3,
-      assignee_driver: null,
-      vehicles_type: {
-        id: 1,
-        name: "16-Seater MK7",
-        description: "Mark 7",
-      },
-      site_allocated: null,
-      warnings: [
-        "🚨 MOT has expired",
-        "🚨 Road tax has expired",
-        "🚨 Insurance has expired",
-        "🚨 Vehicle inspection has expired",
-        "🚨 Front driver tyre has expired",
-        "🚨 Front passenger tyre has expired",
-        "🚨 Rear outer driver tyre has expired",
-        "🚨 Rear outer passenger tyre has expired",
-        "⚠️ Front driver tyre pressure is low",
-        "📍 Vehicle not allocated to any site",
-        "🚨 Tachograph calibration has expired",
-      ],
-      missing_attributes: ["MOT certificate"],
-      last_mileage: "1123.00",
-      registration_number: "REG1337",
-      vehicle_status: "available",
-      is_roadworthy: true,
-      inspection_expire: "2025-08-29",
-      inspection_appointment: "2025-08-23",
-      mot_expiry: "2025-08-14",
-      mot_booked_date: null,
-      tax_expiry: "2025-08-15",
-      insurance_expiry: "2025-08-15",
-      tacho_calibration_expiry: "2025-08-30",
-      vehicle_cost: 120000,
-      vehicle_picture: "https://jayctours.com.my/wp-content/uploads/2021/02/295055e5-f536-43bf-8773-5c107d12b05c.jpg",
-      vehicle_type_name: "16-Seater MK7",
-      status_indicators: {
-        mot_expiring: true,
-        tax_expiring: true,
-        insurance_expiring: true,
-        inspection_due: true,
-      },
-    },
-    {
-      id: 2,
-      assignee_driver: null,
-      vehicles_type: {
-        id: 1,
-        name: "16-Seater MK7",
-        description: "Mark 7",
-      },
-      site_allocated: null,
-      warnings: [
-        "🚨 MOT has expired",
-        "🚨 Road tax has expired",
-        "🚨 Insurance has expired",
-        "⚠️ Vehicle inspection due in 14 days",
-        "🚨 Front driver tyre has expired",
-        "🚨 Front passenger tyre has expired",
-        "🚨 Rear outer driver tyre has expired",
-        "🚨 Rear outer passenger tyre has expired",
-        "📍 Vehicle not allocated to any site",
-        "🚨 Tachograph calibration has expired",
-      ],
-      missing_attributes: ["MOT certificate"],
-      last_mileage: "12358.00",
-      registration_number: "VAN644",
-      vehicle_status: "available",
-      is_roadworthy: true,
-      inspection_expire: "2025-09-29",
-      inspection_appointment: "2025-09-20",
-      mot_expiry: "2025-08-29",
-      mot_booked_date: null,
-      tax_expiry: "2025-08-30",
-      insurance_expiry: "2025-08-14",
-      tacho_calibration_expiry: "2025-08-22",
-      vehicle_cost: 15000,
-      vehicle_picture: "https://jayctours.com.my/wp-content/uploads/2021/02/295055e5-f536-43bf-8773-5c107d12b05c.jpg",
-      vehicle_type_name: "16-Seater MK7",
-      status_indicators: {
-        mot_expiring: true,
-        tax_expiring: true,
-        insurance_expiring: true,
-        inspection_due: true,
-      },
-    },
-    {
-      id: 1,
-      assignee_driver: null,
-      vehicles_type: {
-        id: 2,
-        name: "16-Seater MK8",
-        description: "Mark 8",
-      },
-      site_allocated: null,
-      warnings: [
-        "🚨 MOT has expired",
-        "🚨 Road tax has expired",
-        "🚨 Insurance has expired",
-        "🚨 Front driver tyre has expired",
-        "🚨 Front passenger tyre has expired",
-        "🚨 Rear outer driver tyre has expired",
-        "🚨 Rear outer passenger tyre has expired",
-        "📍 Vehicle not allocated to any site",
-        "🚨 Tachograph calibration has expired",
-      ],
-      missing_attributes: ["MOT certificate"],
-      last_mileage: "12358.00",
-      registration_number: "VAN644",
-      vehicle_status: "available",
-      is_roadworthy: true,
-      inspection_expire: "2025-11-20",
-      inspection_appointment: "2025-09-20",
-      mot_expiry: "2025-08-29",
-      mot_booked_date: null,
-      tax_expiry: "2025-08-30",
-      insurance_expiry: "2025-08-14",
-      tacho_calibration_expiry: "2025-08-22",
-      vehicle_cost: 15000,
-      vehicle_picture: "https://jayctours.com.my/wp-content/uploads/2021/02/295055e5-f536-43bf-8773-5c107d12b05c.jpg",
-      vehicle_type_name: "16-Seater MK8",
-      status_indicators: {
-        mot_expiring: true,
-        tax_expiring: true,
-        insurance_expiring: true,
-        inspection_due: false,
-      },
-    },
-  ],
-  stats: {
-    available: 4,
-    unavailable: 0,
-    assigned: 2,
-    disabled: 0,
-    total: 6,
-  },
+interface Vehicle {
+  vehicle_reg: string
+  type?: string // For vehicle type filtering
+  // MOT fields
+  mot_expiry?: string
+  next_mot_booked_from?: string | null
+  next_mot_booked_date?: string | null
+  time_mot_booked?: string
+  last_inspection_date?: string
+  next_inspection_booked_before?: string
+  // PMI fields
+  next_inspection_book_date?: string
+  // Tacho fields
+  last_download?: string | null
+  next_download?: string | null
+  // Tyre fields
+  last_check?: string | null
+  next_check?: string | null
+  // Insurance/Calibrations common
+  expiry?: string
 }
 
 export default function VehicleDashboard() {
-  const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
-  const [vehicles, setVehicles] = useState<Vehicle[]>(realApiData.data as Vehicle[])
-  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>(realApiData.data as Vehicle[])
+  const [fullApiData, setFullApiData] = useState<ApiResponse | null>(null)
+  const [filteredData, setFilteredData] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState("All Data")
+  const [vehicleType, setVehicleType] = useState("All Vehicles")
+  const cookies=useCookies()
   const perPage = 10
 
   const filterOptions = [
-    "All Data",
-    "MOT",
-    "PMI Inspection",
-    "Vehicle Tacho Download",
-    "Tyre Maintenance Check",
-    "Insurance & Docs",
-    "Calibrations",
+    { key: "All Data", label: "All Data", icon: null },
+    { key: "MOT", label: "MOT", icon: Calendar },
+    { key: "PMI Inspection", label: "PMI Inspection", icon: Wrench },
+    { key: "Vehicle Tacho Download", label: "Vehicle Tacho Download", icon: Download },
+    { key: "Tyre Maintenance Check", label: "Tyre Maintenance Check", icon: Circle },
+    { key: "Insurance & Check", label: "Insurance & Check", icon: Shield },
+    { key: "Calibrations", label: "Calibrations", icon: Settings },
   ]
 
-  const vehicleCategories = ["All Vehicles", "16-Seater MK7", "16-Seater MK8"]
-  const vehicleStatuses = ["All Status", "Available", "Assigned"]
-
-  const filterVehicles = useCallback((vehicles: Vehicle[], filter: string) => {
-    switch (filter) {
-      case "MOT":
-        return vehicles.filter((v) => v.status_indicators.mot_expiring)
-      case "PMI Inspection":
-        return vehicles.filter((v) => v.status_indicators.inspection_due)
-      case "Insurance & Docs":
-        return vehicles.filter((v) => v.status_indicators.insurance_expiring)
-      case "Vehicle Tacho Download":
-      case "Tyre Maintenance Check":
-      case "Calibrations":
-        return vehicles.filter((v) => v.warnings.some((w) => w.includes("Tachograph") || w.includes("tyre")))
-      default:
-        return vehicles
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/api/vehicles/compliance/`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${cookies.get("access_token")}`, },
+      })
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+      const data: ApiResponse = await response.json()
+      setFullApiData(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error fetching vehicle data")
+    } finally {
+      setLoading(false)
     }
-  }, [])
+  }, [cookies])
 
   useEffect(() => {
-    const filtered = filterVehicles(vehicles, activeFilter)
-    const searchFiltered = searchQuery
-      ? filtered.filter((v) => v.registration_number.toLowerCase().includes(searchQuery.toLowerCase()))
-      : filtered
-    setFilteredVehicles(searchFiltered)
-    setTotalPages(Math.ceil(searchFiltered.length / perPage))
-  }, [vehicles, activeFilter, searchQuery, filterVehicles])
+    fetchData()
+  }, [fetchData])
 
-  const getComplianceStatus = (vehicle: Vehicle) => {
-    const criticalWarnings = vehicle.warnings.filter((w) => w.includes("🚨")).length
-    const warningCount = vehicle.warnings.filter((w) => w.includes("⚠️")).length
+  const getDataForActiveFilter = useCallback((): Vehicle[] => {
+    if (!fullApiData) return [] as Vehicle[]
 
-    if (criticalWarnings > 0) return "Critical"
-    if (warningCount > 0) return "Warning"
-    return "Compliant"
+    // Deduplicate entries by selecting the latest mot_expiry or first occurrence
+    const deduplicateByLatest = <T extends { vehicle_reg: string; mot_expiry?: string }>(
+      items: T[]
+    ): T[] => {
+      const map = new Map<string, T>()
+      items.forEach((item) => {
+        const existing = map.get(item.vehicle_reg)
+        if (
+          !existing ||
+          (item.mot_expiry &&
+            existing.mot_expiry &&
+            parse(item.mot_expiry, "dd/MM/yyyy", new Date()) >
+              parse(existing.mot_expiry, "dd/MM/yyyy", new Date()))
+        ) {
+          map.set(item.vehicle_reg, item)
+        }
+      })
+      return Array.from(map.values())
+    }
+
+    switch (activeFilter) {
+      case "All Data":
+        const allVehicles = new Set<string>()
+        Object.values(fullApiData.data).forEach((dataArray) => {
+          dataArray.forEach((item) => allVehicles.add(item.vehicle_reg))
+        })
+        // Mock vehicle type; replace with API data if available
+        return Array.from(allVehicles).map((reg) => ({
+          vehicle_reg: reg,
+          type: reg.includes("VAN") ? "16-Seater MK7" : "16-Seater MK8",
+        })) as Vehicle[]
+      case "MOT":
+        return deduplicateByLatest(fullApiData.data.mot).map((i) => ({ ...i })) as Vehicle[]
+      case "PMI Inspection":
+        return deduplicateByLatest(fullApiData.data.pmi).map((i) => ({ ...i })) as Vehicle[]
+      case "Vehicle Tacho Download":
+        return deduplicateByLatest(fullApiData.data.tacho).map((i) => ({ ...i })) as Vehicle[]
+      case "Tyre Maintenance Check":
+        return deduplicateByLatest(fullApiData.data.tyre).map((i) => ({ ...i })) as Vehicle[]
+      case "Insurance & Check":
+        return deduplicateByLatest(fullApiData.data.insurance).map((i) => ({ ...i })) as Vehicle[]
+      case "Calibrations":
+        return deduplicateByLatest(fullApiData.data.calibrations).map((i) => ({ ...i })) as Vehicle[]
+      default:
+        return [] as Vehicle[]
+    }
+  }, [fullApiData, activeFilter])
+
+  useEffect(() => {
+    let data = getDataForActiveFilter()
+    if (searchQuery) {
+      data = data.filter((d) => d.vehicle_reg.toLowerCase().includes(searchQuery.toLowerCase()))
+    }
+    if (vehicleType !== "All Vehicles") {
+      data = data.filter((d) => d.type === vehicleType)
+    }
+    setFilteredData(data)
+    setTotalPages(Math.ceil(data.length / perPage))
+    setCurrentPage(1)
+  }, [getDataForActiveFilter, searchQuery, vehicleType, perPage])
+
+  const getStatusBadge = (status?: string | null, expiry?: string) => {
+    if (!status && !expiry) return <span className="text-gray-400">-</span>
+
+    if (expiry) {
+      try {
+        const expiryDate = parse(expiry, "dd/MM/yyyy", new Date())
+        const today = new Date()
+        const daysDiff = differenceInDays(today, expiryDate)
+        if (daysDiff > 0) {
+          return (
+            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+              Expired {daysDiff} days ago
+            </span>
+          )
+        }
+      } catch {
+        // Fallback if date parsing fails
+        return <span className="text-gray-900">{expiry}</span>
+      }
+    }
+
+    if (typeof status === "string" && status.includes("Expired")) {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+          {status}
+        </span>
+      )
+    }
+    if (status === "Booked") {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+          Booked
+        </span>
+      )
+    }
+    if (status === "TBC") {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800">
+          TBC
+        </span>
+      )
+    }
+    return <span className="text-gray-900">{status}</span>
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Critical":
-        return "bg-destructive text-destructive-foreground"
-      case "Warning":
-        return "bg-accent text-accent-foreground"
-      case "Compliant":
-        return "bg-chart-4 text-white"
+  
+
+
+
+  const renderTableHeaders = () => {
+    switch (activeFilter) {
+      case "All Data":
+        return (
+          <>
+            <tr className="border-b border-gray-200">
+              <th className="text-left p-3 text-sm font-medium text-gray-900 bg-gray-50 sticky left-0 z-10">Vehicle Reg</th>
+              <th className="text-center p-3 text-sm font-medium text-white bg-orange-500/30 border-r border-orange-600" colSpan={6}>MOT</th>
+              <th className="text-center p-3 text-sm font-medium text-white bg-pink-400 border-r border-pink-500/30" colSpan={1}>PMI Inspections</th>
+              <th className="text-center p-3 text-sm font-medium text-white bg-blue-500/30 border-r border-blue-600" colSpan={2}>Tacho Download</th>
+              <th className="text-center p-3 text-sm font-medium text-white bg-purple-500/30 border-r border-purple-600" colSpan={2}>Tyre Maintenance</th>
+              <th className="text-center p-3 text-sm font-medium text-white bg-green-500/30 border-r border-green-600" colSpan={1}>Insurance</th>
+              <th className="text-center p-3 text-sm font-medium text-white bg-yellow-500/30" colSpan={1}>Calibrations</th>
+            </tr>
+            <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="text-left p-3 text-xs font-medium text-gray-600 sticky left-0 z-10 bg-gray-50"></th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[120px]">MOT Expiry</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[140px]">Next MOT Booked From</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[140px]">Next MOT Booked Date</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[120px]">Time MOT Booked</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[130px]">Last Inspec Date</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[160px]">Next Inspec Status</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[150px]">Next PMI Book Date</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[130px]">Last Download</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[130px]">Next Download</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[120px]">Last Check</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[120px]">Next Check</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 border-r border-gray-200 min-w-[130px]">Insurance Expiry</th>
+              <th className="text-left p-2 text-xs font-medium text-gray-900 min-w-[140px]">Calibration Expiry</th>
+            </tr>
+          </>
+        )
+      case "MOT":
+        return (
+          <tr className="border-b border-gray-200 bg-orange-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle Reg</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">MOT Expiry</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next MOT Booked From</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next MOT Booked Date</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Time MOT Booked</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Last Inspection Date</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next Inspection Status</th>
+          </tr>
+        )
+      case "PMI Inspection":
+        return (
+          <tr className="border-b border-gray-200 bg-pink-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle Reg</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next Inspection Book Date</th>
+          </tr>
+        )
+      case "Vehicle Tacho Download":
+        return (
+          <tr className="border-b border-gray-200 bg-blue-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle Reg</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Last Download</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next Download</th>
+          </tr>
+        )
+      case "Tyre Maintenance Check":
+        return (
+          <tr className="border-b border-gray-200 bg-purple-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle Reg</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Last Check</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next Check</th>
+          </tr>
+        )
+      case "Insurance & Check":
+        return (
+          <tr className="border-b border-gray-200 bg-green-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle Reg</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Insurance Expiry</th>
+          </tr>
+        )
+      case "Calibrations":
+        return (
+          <tr className="border-b border-gray-200 bg-yellow-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle Reg</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Calibration Expiry</th>
+          </tr>
+        )
       default:
-        return "bg-secondary text-secondary-foreground"
+        return null
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Critical":
-        return <AlertTriangle className="w-3 h-3" />
-      case "Warning":
-        return <Clock className="w-3 h-3" />
-      case "Compliant":
-        return <CheckCircle className="w-3 h-3" />
+  const getVehicleData = (vehicleReg: string) => {
+    if (!fullApiData) return null
+    return {
+      mot: fullApiData.data.mot.find((item) => item.vehicle_reg === vehicleReg),
+      pmi: fullApiData.data.pmi.find((item) => item.vehicle_reg === vehicleReg),
+      tacho: fullApiData.data.tacho.find((item) => item.vehicle_reg === vehicleReg),
+      tyre: fullApiData.data.tyre.find((item) => item.vehicle_reg === vehicleReg),
+      insurance: fullApiData.data.insurance.find((item) => item.vehicle_reg === vehicleReg),
+      calibrations: fullApiData.data.calibrations.find((item) => item.vehicle_reg === vehicleReg),
+    }
+  }
+
+  const renderTableRow = (item: Vehicle, index: number) => {
+    switch (activeFilter) {
+      case "All Data":
+        const vehicleData = getVehicleData(item.vehicle_reg)
+        const motData = vehicleData?.mot
+        const isExpired = motData?.next_inspection_booked_before?.includes("Expired")
+        const isBooked = motData?.next_inspection_booked_before === "Booked"
+
+        return (
+          <tr
+            key={`${item.vehicle_reg}-${index}`}
+            className={`border-b border-gray-100 hover:bg-gray-50 transition-colors `}
+          >
+            <td className="p-3 font-medium text-gray-900 border-r border-gray-200 sticky left-0 z-10 bg-white">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    isExpired ? "bg-red-500/30" : isBooked ? "bg-green-500/30" : "bg-orange-500/30"
+                  }`}
+                ></div>
+                {item.vehicle_reg}
+              </div>
+            </td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{motData?.mot_expiry || "-"}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{motData?.next_mot_booked_from || "-"}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{motData?.next_mot_booked_date || "-"}</td>
+            <td className="p-2 text-sm border-r border-gray-200">{getStatusBadge(motData?.time_mot_booked)}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{motData?.last_inspection_date || "-"}</td>
+            <td className="p-2 text-sm border-r border-gray-200">{getStatusBadge(motData?.next_inspection_booked_before, motData?.mot_expiry)}</td>
+            <td className="p-2 text-sm border-r border-gray-200">{getStatusBadge(vehicleData?.pmi?.next_inspection_book_date)}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.tacho?.last_download || "-"}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.tacho?.next_download || "-"}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.tyre?.last_check || "-"}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.tyre?.next_check || "-"}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.insurance?.expiry || "-"}</td>
+            <td className="p-2 text-sm text-gray-900">{vehicleData?.calibrations?.expiry || "-"}</td>
+          </tr>
+        )
+      case "MOT":
+        return (
+          <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-orange-50">
+            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 text-sm text-gray-900">{item.mot_expiry}</td>
+            <td className="p-3 text-sm text-gray-900">{item.next_mot_booked_from || "-"}</td>
+            <td className="p-3 text-sm text-gray-900">{item.next_mot_booked_date || "-"}</td>
+            <td className="p-3 text-sm">{getStatusBadge(item.time_mot_booked)}</td>
+            <td className="p-3 text-sm text-gray-900">{item.last_inspection_date}</td>
+            <td className="p-3 text-sm">{getStatusBadge(item.next_inspection_booked_before, item.mot_expiry)}</td>
+          </tr>
+        )
+      case "PMI Inspection":
+        return (
+          <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-pink-50">
+            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 text-sm">{getStatusBadge(item.next_inspection_book_date)}</td>
+          </tr>
+        )
+      case "Vehicle Tacho Download":
+        return (
+          <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-blue-50">
+            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 text-sm text-gray-900">{item.last_download || "-"}</td>
+            <td className="p-3 text-sm text-gray-900">{item.next_download || "-"}</td>
+          </tr>
+        )
+      case "Tyre Maintenance Check":
+        return (
+          <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-purple-50">
+            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 text-sm text-gray-900">{item.last_check || "-"}</td>
+            <td className="p-3 text-sm text-gray-900">{item.next_check || "-"}</td>
+          </tr>
+        )
+      case "Insurance & Check":
+        return (
+          <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-green-50">
+            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 text-sm text-gray-900">{item.expiry}</td>
+          </tr>
+        )
+      case "Calibrations":
+        return (
+          <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-yellow-50">
+            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 text-sm text-gray-900">{item.expiry}</td>
+          </tr>
+        )
       default:
         return null
     }
@@ -451,264 +421,164 @@ export default function VehicleDashboard() {
 
   const getRowRange = () => {
     const start = (currentPage - 1) * perPage + 1
-    const end = Math.min(currentPage * perPage, filteredVehicles.length)
+    const end = Math.min(currentPage * perPage, filteredData.length)
     return `${start}-${end}`
   }
 
-  const paginatedVehicles = filteredVehicles.slice((currentPage - 1) * perPage, currentPage * perPage)
-
-  const stats = {
-    total: realApiData.stats.total,
-    available: realApiData.stats.available,
-    assigned: realApiData.stats.assigned,
-    critical: vehicles.filter((v) => v.warnings.some((w) => w.includes("🚨"))).length,
-  }
+  const paginatedData = filteredData.slice((currentPage - 1) * perPage, currentPage * perPage)
 
   return (
-    <div className="min-h-screen bg-background p-6 space-y-6">
-      {/* Header Section */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-card-foreground font-[family-name:var(--font-heading)]">
-          Fleet Management Dashboard
-        </h1>
-        <p className="text-muted-foreground">Monitor vehicle compliance, MOT schedules, and inspection dates</p>
+    <div className="min-h-screen bg-gray-50 p-6 space-y-6">
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Vehicle Maintenance & Compliance Overview</h1>
+        <p className="text-gray-600">Monitor and manage vehicle compliance across all categories</p>
       </div>
-
-       {/* Search and Filters */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="w-4 z-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search vehicles..."
-                  className="pl-10 w-64"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    All Vehicles <Filter className="w-4 h-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {vehicleCategories.map((category) => (
-                    <DropdownMenuItem key={category}>{category}</DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    All Status <Filter className="w-4 h-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {vehicleStatuses.map((status) => (
-                    <DropdownMenuItem key={status}>{status}</DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-      {/* Filters and Search */}
-      <Card>
-        <CardContent >
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center ">
-            {/* Filter Tabs */}
-            <div className="flex overflow-x-auto space-x-1 p-1 rounded-lg">
-              {filterOptions.map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter(filter)}
-                 ref={(el: HTMLButtonElement | null) => {
-  buttonRefs.current[filter] = el;
-}}
-
-                  className={`px-4 py-2 text-sm clip-tab font-medium transition-all duration-200 whitespace-nowrap ${
-                    activeFilter === filter
-                      ? "bg-orange/70 text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background"
+ 
+      {/* Filters */}
+      <div className="">
+        <div className="flex flex-wrap gap-1">
+          {filterOptions.map((filter) => {
+            const Icon = filter.icon
+            const isActive = activeFilter === filter.key
+            return (
+              <button
+                key={filter.key}
+                onClick={() => setActiveFilter(filter.key)}
+                className={`flex items-center gap-2 px-4 clip-tab py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                  isActive ? "bg-orange-500 text-white shadow-sm" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+              >
+                {Icon && <Icon className="w-4 h-4" />}
+                {filter.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      {/* Search and Vehicle Type Filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search className="w-4 h-4 z-1 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Search vehicles..."
+            className="pl-9 w-64"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="bg-white border-gray-300">
+              {vehicleType} <Filter className="w-4 h-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => setVehicleType("All Vehicles")}>All Vehicles</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setVehicleType("16-Seater MK7")}>16-Seater MK7</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setVehicleType("16-Seater MK8")}>16-Seater MK8</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+   
+      {/* Data Table */}
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+        {loading ? (
+          <div className="flex justify-center py-12 text-gray-500/30">
+            <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading vehicle data...
+          </div>
+        ) : error ? (
+          <div className="text-red-500/30 text-center py-12">
+            <div className="text-lg font-medium mb-2">Error Loading Data</div>
+            <div className="text-sm">{error}</div>
+            <Button onClick={fetchData} className="mt-4">
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>{renderTableHeaders()}</thead>
+              <tbody>
+                {paginatedData.length > 0 ? (
+                  paginatedData.map((item, index) => renderTableRow(item, index))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={activeFilter === "All Data" ? 14 : activeFilter === "MOT" ? 7 : 3}
+                      className="text-center py-12 text-gray-500/30"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="text-lg font-medium">No vehicles found</div>
+                        <div className="text-sm">
+                          No vehicles match the current filter:{" "}
+                          <span className="font-medium text-orange-600">{activeFilter}</span>
+                        </div>
+                        <Button
+                          onClick={() => setActiveFilter("All Data")}
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                        >
+                          Show All Vehicles
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {/* Pagination */}
+      {!loading && !error && filteredData.length > 0 && (
+        <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200">
+          <div className="text-sm text-gray-500/30">
+            Showing {getRowRange()} of {filteredData.length} vehicles
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+              className="bg-white border-gray-300"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </Button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const page = Math.max(1, Math.min(currentPage - 2 + i, totalPages - 4 + i))
+              if (page < 1 || page > totalPages) return null
+              return (
+                <Button
+                  key={page}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  className={`${
+                    currentPage === page
+                      ? "bg-orange-500/30 text-white border-orange-500/30"
+                      : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  {filter}
-                </button>
-              ))}
-            </div>
-
-         
+                  {page}
+                </Button>
+              )
+            }).filter(Boolean)}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className="bg-white border-gray-300"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Data Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex justify-center py-8 text-muted-foreground">
-              <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading...
-            </div>
-          ) : error ? (
-            <div className="text-destructive text-center py-8">{error}</div>
-          ) : filteredVehicles.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No vehicles found.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    {[
-                      "Vehicle Reg",
-                      "Vehicle Type",
-                      "Driver",
-                      "Site",
-                      "Status",
-                      "Compliance",
-                      "MOT Expiry",
-                      "Tax Expiry",
-                      "Insurance Expiry",
-                      "Inspection",
-                      "Mileage",
-                      "Warnings",
-                    ].map((header) => (
-                      <TableHead key={header} className="text-xs font-semibold text-card-foreground">
-                        {header}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedVehicles.map((vehicle, index) => (
-                    <TableRow
-                      key={vehicle.id}
-                      className={`hover:bg-muted/30 transition-colors ${
-                        index % 2 === 0 ? "bg-background" : "bg-muted/10"
-                      }`}
-                    >
-                      <TableCell className="font-medium text-card-foreground"><Link href={`/dashboard/compliance-management/vehicle-management/${vehicle.id}`}>{vehicle.registration_number}</Link></TableCell>
-                      <TableCell className="text-sm">{vehicle.vehicle_type_name}</TableCell>
-                      <TableCell className="text-sm">
-                        {vehicle.assignee_driver ? (
-                          <div className="flex items-center gap-2">
-                            <User className="w-3 h-3" />
-                            {vehicle.assignee_driver.full_name}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Unassigned</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {vehicle.site_allocated ? (
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-3 h-3" />
-                            {vehicle.site_allocated.name}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">No site</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={`${vehicle.vehicle_status === "available" ? "bg-chart-4 text-white" : "bg-accent text-accent-foreground"}`}
-                        >
-                          {vehicle.vehicle_status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${getStatusColor(getComplianceStatus(vehicle))} flex items-center gap-1`}>
-                          {getStatusIcon(getComplianceStatus(vehicle))}
-                          {getComplianceStatus(vehicle)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">{vehicle.mot_expiry}</TableCell>
-                      <TableCell className="text-sm">{vehicle.tax_expiry}</TableCell>
-                      <TableCell className="text-sm">{vehicle.insurance_expiry}</TableCell>
-                      <TableCell className="text-sm">{vehicle.inspection_expire}</TableCell>
-                      <TableCell className="text-sm">
-                        {vehicle.last_mileage ? `${vehicle.last_mileage} mi` : "N/A"}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center gap-1 cursor-help">
-                                <Wrench className="w-3 h-3 text-muted-foreground" />
-                                <span className="text-destructive font-medium">{vehicle.warnings.length}</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs p-3">
-                              <div className="space-y-1">
-                                <p className="font-semibold text-sm">Active Warnings:</p>
-                                {vehicle.warnings.length > 0 ? (
-                                  <ul className="text-xs space-y-1">
-                                    {vehicle.warnings.map((warning, idx) => (
-                                      <li key={idx} className="flex items-start gap-1">
-                                        <span className="text-destructive">•</span>
-                                        <span>{warning}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-xs text-muted-foreground">No warnings</p>
-                                )}
-                                {vehicle.missing_attributes.length > 0 && (
-                                  <>
-                                    <p className="font-semibold text-sm mt-2">Missing Attributes:</p>
-                                    <ul className="text-xs space-y-1">
-                                      {vehicle.missing_attributes.map((attr, idx) => (
-                                        <li key={idx} className="flex items-start gap-1">
-                                          <span className="text-amber-500">•</span>
-                                          <span>{attr}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </>
-                                )}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Pagination */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex justify-between items-center text-sm text-muted-foreground">
-            <span>
-              Showing {getRowRange()} of {filteredVehicles.length} vehicles
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}>
-                <ChevronLeft className="w-4 h-4" /> Previous
-              </Button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => currentPage + i - 2)
-                .filter((page) => page > 0 && page <= totalPages)
-                .map((page) => (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? "default" : "outline"}
-                    size="sm"
-                    className="w-8"
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button>
-                ))}
-              <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage === totalPages}>
-                Next <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   )
 }

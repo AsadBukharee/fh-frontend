@@ -12,9 +12,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { User, Calendar, FileText, Building2, Mail, CheckCircle, XCircle, Edit, Save, X, AlertTriangle } from "lucide-react"
+import { User, Calendar, FileText, Building2, Mail, CheckCircle, XCircle, Edit, Save, X, AlertTriangle, File } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 
+// Existing interfaces remain unchanged
 interface DriverData {
   id: number
   user: {
@@ -86,12 +87,42 @@ interface Site {
   image: string
 }
 
+// New interface for Professional Competency
+interface CompetencyModule {
+  id: number
+  module_name: string
+  description: string
+  expiry_date: string
+}
+
+interface ProfessionalCompetency {
+  id: number
+  driver: number
+  document_name: string
+  document_type: string
+  has_expiry: boolean
+  description: string
+  expiry_date: string | null
+  has_document: boolean
+  has_back_side: boolean
+  urls: string[]
+  request_status: string
+  has_description: boolean
+  next_five_modules: CompetencyModule[]
+  modules: CompetencyModule[]
+  created_at: string
+  updated_at: string
+}
+
 export default function DriverDetailPage() {
   const { id } = useParams()
   const cookies = useCookies()
   const [driverData, setDriverData] = useState<DriverData | null>(null)
+  const [competencyData, setCompetencyData] = useState<ProfessionalCompetency[]>([]) // New state for competency data
   const [loading, setLoading] = useState(true)
+  const [competencyLoading, setCompetencyLoading] = useState(true) // New state for competency loading
   const [error, setError] = useState<string | null>(null)
+  const [competencyError, setCompetencyError] = useState<string | null>(null) // New state for competency error
   const [isEditing, setIsEditing] = useState(false)
   const [editFormData, setEditFormData] = useState({
     full_name: "",
@@ -123,6 +154,7 @@ export default function DriverDetailPage() {
     console.log(`${type}: ${message}`)
   }
 
+  // Existing fetchData function remains unchanged
   const fetchData = async () => {
     try {
       const response = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
@@ -167,12 +199,44 @@ export default function DriverDetailPage() {
     }
   }
 
+  // New function to fetch professional competency data
+  const fetchCompetencyData = async () => {
+    setCompetencyLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/api/profiles/professional-competency/?driver_id=${id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch professional competency data")
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setCompetencyData(result.data)
+      } else {
+        throw new Error(result.message || "Failed to load professional competency data")
+      }
+    } catch (error) {
+      console.error("Error fetching professional competency data:", error)
+      setCompetencyError(error instanceof Error ? error.message : "An error occurred")
+    } finally {
+      setCompetencyLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (id) {
       fetchData()
+      fetchCompetencyData() // Fetch competency data on mount
     }
   }, [id, cookies])
 
+  // Existing useEffect for contracts and sites remains unchanged
   useEffect(() => {
     const fetchContracts = async () => {
       setContractsLoading(true)
@@ -233,6 +297,7 @@ export default function DriverDetailPage() {
     fetchSites()
   }, [cookies])
 
+  // Existing handleAssignContract, handleAssignSites, handleEditToggle, handleInputChange, and handleSaveProfile functions remain unchanged
   const handleAssignContract = async () => {
     if (!selectedContractId) {
       showToast("Please select a contract to assign.", "error")
@@ -407,27 +472,14 @@ export default function DriverDetailPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
-  if (error || !driverData) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-destructive">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">{error || "Driver not found"}</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  // New function to format dates
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A"
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
   }
 
   const getInitials = (name: string) => {
@@ -438,12 +490,27 @@ export default function DriverDetailPage() {
       .toUpperCase()
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
+  if (loading || competencyLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (error || !driverData || competencyError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-destructive">Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">{error || competencyError || "Driver not found"}</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -963,6 +1030,116 @@ export default function DriverDetailPage() {
                     </Card>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* New Accordion Item for Professional Competency */}
+        <AccordionItem value="professional-competency">
+          <AccordionTrigger>Professional Competency</AccordionTrigger>
+          <AccordionContent>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <File className="h-5 w-5" />
+                  Professional Competency Details
+                </CardTitle>
+                <CardDescription>Documents and certifications related to professional competency</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {competencyData.length === 0 ? (
+                  <p className="text-muted-foreground">No professional competency records found.</p>
+                ) : (
+                  competencyData.map((competency) => (
+                    <div key={competency.id} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Document Name</Label>
+                          <p className="font-medium">{competency.document_name}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Document Type</Label>
+                          <p className="font-medium">{competency.document_type}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                          <Badge
+                            variant={
+                              competency.request_status === "pending"
+                                ? "secondary"
+                                : competency.request_status === "approved"
+                                ? "default"
+                                : "destructive"
+                            }
+                          >
+                            {competency.request_status.charAt(0).toUpperCase() + competency.request_status.slice(1)}
+                          </Badge>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Expiry Date</Label>
+                          <p className="font-medium">{formatDate(competency.expiry_date)}</p>
+                        </div>
+                        {competency.has_description && (
+                          <div className="col-span-2">
+                            <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                            <p className="font-medium">{competency.description}</p>
+                          </div>
+                        )}
+                      </div>
+                      {competency.has_document && competency.urls.length > 0 && (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Document Links</Label>
+                          <div className="flex flex-col gap-2">
+                            {competency.urls.map((url, index) => (
+                              <a
+                                key={index}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                {competency.has_back_side && index === 0
+                                  ? "Front Side"
+                                  : competency.has_back_side && index === 1
+                                  ? "Back Side"
+                                  : `Document ${index + 1}`}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {competency.modules.length > 0 && (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Modules</Label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            {competency.modules.map((module) => (
+                              <Card key={module.id}>
+                                <CardContent className="p-4">
+                                  <div className="space-y-2">
+                                    <div>
+                                      <Label className="text-sm font-medium text-muted-foreground">Module Name</Label>
+                                      <p className="font-medium">{module.module_name}</p>
+                                    </div>
+                                    <div>
+                                      <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                                      <p className="font-medium">{module.description}</p>
+                                    </div>
+                                    <div>
+                                      <Label className="text-sm font-medium text-muted-foreground">Expiry Date</Label>
+                                      <p className="font-medium">{formatDate(module.expiry_date)}</p>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <Separator />
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </AccordionContent>
