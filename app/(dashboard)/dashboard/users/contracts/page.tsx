@@ -11,7 +11,7 @@ import {
   Save,
   Trash2,
   Clock,
-  Euro,
+  PoundSterling,
   FileText,
   Building2,
   Plus,
@@ -186,7 +186,7 @@ const ShiftCard = memo(
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-500">Rate per Hour</label>
                   <div className="relative">
-                    <Euro className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       type="number"
                       step="0.01"
@@ -273,7 +273,7 @@ const ShiftCard = memo(
                   </div>
                 </div>
                 <Badge className="bg-green-50 text-green-700 border-green-200">
-                  €{shift.rate_per_hours?.toFixed(2) || "0.00"}
+                  £{shift.rate_per_hours?.toFixed(2) || "0.00"}
                 </Badge>
               </div>
               {isTemplate && (
@@ -349,7 +349,7 @@ const ShiftCard = memo(
                     style={{ backgroundColor: shift.colors }}
                   />
                   <span className="text-xs text-gray-500">
-                    Updated {new Date(shift.updated_at).toLocaleDateString()}
+                    Updated {new Date(shift.updated_at).toLocaleDateString("en-GB")}
                   </span>
                 </div>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -878,9 +878,9 @@ const ShiftManagement = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Avg. Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">€{averageRate.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-gray-900">£{averageRate.toFixed(2)}</p>
                 </div>
-                <Euro className="h-8 w-8 text-purple-600" />
+                <PoundSterling className="h-8 w-8 text-purple-600" />
               </div>
             </CardContent>
           </Card>
@@ -1040,7 +1040,7 @@ const ShiftManagement = () => {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-500">Rate per Hour</label>
                 <div className="relative">
-                  <Euro className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     type="number"
                     step="0.01"

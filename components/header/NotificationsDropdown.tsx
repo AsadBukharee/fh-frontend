@@ -8,7 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell } from "lucide-react";
+import { Bell, RefreshCw } from "lucide-react";
 import { NotificationItem } from "./NotificationItem";
 import { ApiResponse, Notification } from "@/app/lib/types";
 import { useButtonMouseMove } from "@/app/lib/utils";
@@ -27,10 +27,8 @@ export function NotificationsDropdown() {
   const handleMouseMove = useButtonMouseMove();
   const apiUrl =API_URL
   const token=useCookies().get("access_token")
-
-  // Fetch notifications
-  useEffect(() => {
-    setIsLoading(true);
+ const fetchNotifications = async () => {
+      setIsLoading(true);
     fetch(`${apiUrl}/api/notification-inbox/?page=${page}`, {
       method: "GET",
       headers: {
@@ -54,6 +52,11 @@ export function NotificationsDropdown() {
         setIsLoading(false);
         console.error(err);
       });
+  }
+  // Fetch notifications
+  useEffect(() => {
+    fetchNotifications();
+ 
   }, [page]);
 
   const filteredNotifications =
@@ -90,7 +93,11 @@ export function NotificationsDropdown() {
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">Notifications</h3>
-            <Badge variant="secondary">{filteredNotifications.length}</Badge>
+            <div className=" flex gap-3">
+              <RefreshCw className="w-5 h-5 text-gray-400 hover:text-gray-700 cursor-pointer"  onClick={()=>fetchNotifications()} />
+              <Badge variant="secondary">{filteredNotifications.length}</Badge>
+
+            </div>
           </div>
           {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
           <div className="flex flex-wrap gap-2">

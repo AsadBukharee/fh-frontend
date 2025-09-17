@@ -31,6 +31,7 @@ import {
   BookUser,
   CalendarCheck,
   RefreshCw,
+  MapPin,
   LogIn,
   Activity,
   UserCheck,
@@ -43,6 +44,8 @@ import {
   SquareCheckBig,
   CalendarClock,
   Map,
+  ListChecks,
+  List,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -78,6 +81,7 @@ const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } =
   Headset,
   RefreshCw,
   Map,
+  MapPin,
   LogIn,
   Activity,
   UserCheck,
@@ -89,6 +93,8 @@ const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } =
   MoreHorizontal,
   SquareCheckBig,
   CalendarClock,
+  ListNumbers: List, // Fallback for ListNumbers
+  ListChecks,
 }
 
 interface MenuItem {
@@ -96,7 +102,8 @@ interface MenuItem {
   label: string
   href: string
   active: boolean
-  children?: Omit<MenuItem, "icon" | "active">[]
+  tooltip?: string
+  children?: Omit<MenuItem, "active">[]
 }
 
 interface ApiMenuItem {
@@ -105,6 +112,7 @@ interface ApiMenuItem {
   name: string
   tooltip: string
   children: ApiMenuItem[] | null | undefined
+  isSelected?: boolean
 }
 
 interface SidebarProps {
@@ -112,32 +120,20 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-// Memoized function to map API menu to MenuItem
+// Normalize href to avoid duplicate /dashboard
+const normalizeHref = (href: string) => {
+  return href.startsWith("/dashboard") ? href : `/dashboard${href}`
+}
+
+// Recursive function to map API menu to MenuItem
 const mapApiMenuToMenuItem = (apiMenu: ApiMenuItem): MenuItem => ({
-  icon: ICON_MAP[apiMenu.icon],
+  icon: ICON_MAP[apiMenu.icon] || File, // Fallback to File icon
   label: apiMenu.name,
   href: apiMenu.nav,
-  active: false,
+  active: apiMenu.isSelected || false,
+  tooltip: apiMenu.tooltip,
   children: Array.isArray(apiMenu.children)
-    ? apiMenu.children.map((child) => ({
-        label: child.name,
-        href: child.nav,
-        icon: ICON_MAP[child.icon],
-        children: Array.isArray(child.children)
-          ? child.children.map((grandchild) => ({
-              label: grandchild.name,
-              href: grandchild.nav,
-              icon: ICON_MAP[grandchild.icon],
-              children: Array.isArray(grandchild.children)
-                ? grandchild.children.map((greatGrandchild) => ({
-                    label: greatGrandchild.name,
-                    href: greatGrandchild.nav,
-                    icon: ICON_MAP[greatGrandchild.icon],
-                  }))
-                : undefined,
-            }))
-          : undefined,
-      }))
+    ? apiMenu.children.map(mapApiMenuToMenuItem)
     : undefined,
 })
 
@@ -154,9 +150,11 @@ const MenuItem = memo(
     isCollapsed: boolean
     pathname: string
   }) => {
-    const [isOpen, setIsOpen] = useState(false)
+    const isActive = pathname === normalizeHref(item.href)
     const hasChildren = item.children && item.children.length > 0
-    const isActive = pathname === `/dashboard${item.href}`
+    // Open collapsible if any child matches the current pathname
+const isOpenInitially = hasChildren && item.children?.some((child) => pathname.includes(child.href));
+    const [isOpen, setIsOpen] = useState(isOpenInitially)
 
     const buttonStyles = useMemo(
       () => ({
@@ -173,10 +171,17 @@ const MenuItem = memo(
       [isActive],
     )
 
+    // Hide sub-items in collapsed mode
+    if (isCollapsed && level > 0) {
+      return null
+    }
+
     if (isCollapsed && level === 0) {
       return (
-        <Link href={`/dashboard${item.href}`} className="block">
-          <div className={`${baseClasses} justify-center p-3`}>{item.icon && <item.icon className="w-5 h-5" />}</div>
+        <Link href={normalizeHref(item.href)} className="block">
+          <div className={`${baseClasses} justify-center p-3`} title={item.tooltip || item.label}>
+            {item.icon && <item.icon className="w-5 h-5" />}
+          </div>
         </Link>
       )
     }
@@ -186,7 +191,7 @@ const MenuItem = memo(
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
             <div className={`${baseClasses} justify-between px-3 py-2`} style={buttonStyles}>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3" title={item.tooltip || item.label}>
                 {item.icon && <item.icon className="w-5 h-5" />}
                 <span className="text-sm font-medium">{item.label}</span>
               </div>
@@ -211,8 +216,8 @@ const MenuItem = memo(
     }
 
     return (
-      <Link href={`/dashboard${item.href}`} className="block">
-        <div className={`${baseClasses} space-x-3 px-3 py-2`} style={buttonStyles}>
+      <Link href={normalizeHref(item.href)} className="block">
+        <div className={`${baseClasses} space-x-3 px-3 py-2`} style={buttonStyles} title={item.tooltip || item.label}>
           {item.icon && <item.icon className="w-5 h-5" />}
           <span className="text-sm font-medium">{item.label}</span>
         </div>
@@ -235,8 +240,9 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   // Memoize the fetch function to prevent unnecessary re-creation
   const fetchMenu = useCallback(async () => {
     if (!role) {
-      setError("No role found in cookies")
+      setError("No role found. Please log in.")
       setIsLoading(false)
+      router.push("/login")
       return
     }
 
@@ -261,27 +267,29 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         throw new Error("Invalid menu items in response")
       }
 
-      // Map API menu items
+      // Map API menu items recursively
       const mappedMenus = data.menu.items.map(mapApiMenuToMenuItem)
       setMenuItems(mappedMenus)
-
-      // Navigate to the first menu item's href if the current path is /dashboard
-      if (mappedMenus.length > 0 && pathname === "/dashboard") {
-        const firstLink = mappedMenus[0].href
-        router.push(`/dashboard${firstLink}`)
-      }
     } catch (error) {
       console.error("Error fetching menu:", error)
       setError("Failed to load menu. Please try again.")
     } finally {
       setIsLoading(false)
     }
-  }, [role, cookies, pathname, router])
+  }, [role, cookies, router])
 
-  // Fetch menu data when role changes
+  // Fetch menu data when role or cookies change
   useEffect(() => {
     fetchMenu()
   }, [fetchMenu])
+
+  // Separate effect for redirecting to first menu item if on /dashboard
+  useEffect(() => {
+    if (menuItems.length > 0 && pathname === "/dashboard") {
+      const firstLink = menuItems[0].href
+      router.push(normalizeHref(firstLink))
+    }
+  }, [menuItems, pathname, router])
 
   // Memoize the toggle button classes
   const toggleButtonClasses = useMemo(
@@ -305,12 +313,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         {!isCollapsed && (
           <div className="flex items-center space-x-2">
-            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" loading="lazy" />
+            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" />
           </div>
         )}
         {isCollapsed && (
           <div className="flex items-center justify-center w-full">
-            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" loading="lazy" />
+            <img src="/logos/logo.png" alt="Foster Hartley Logo" className="w-8 h-8 object-contain" />
           </div>
         )}
         <Button variant="ghost" size="sm" onClick={onToggle} className={toggleButtonClasses}>

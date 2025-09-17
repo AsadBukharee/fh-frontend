@@ -1,497 +1,377 @@
 "use client"
-import type React from "react"
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect } from "react"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, ChevronLeft, ChevronRight, Filter, Download, Loader2, AlertCircle } from "lucide-react"
-import API_URL from "@/app/utils/ENV"
-import { useCookies } from "next-client-cookies"
-import { useToast } from "@/app/Context/ToastContext"
+import { Bell, Search, User, MoreHorizontal, ChevronDown } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select" // Assuming you use Shadcn/UI Select
 
-// Interface for the Number data
-interface NumberData {
-  id: number
-  location: {
-    id: number
-    name: string
-    latitude: string
-    longitude: string
-    zip_code: string
-    address: string
-    city: string
-    state: string
-    country: string
-    created_at: string
-    updated_at: string
-  }
-  location_name: string
-  vehicle: {
-    id: number
-    registration_number: string
-    vehicles_type_name: string
-    site_allocated: {
-      id: number
-      name: string
-      status: string
-      image: string
-    }
-  }
-  vehicle_registration: string
-  in_count: number
-  out_count: number
-  spillover: number
-  created_at: string
-  updated_at: string
+type TimeSlotId = "early" | "shuttle1" | "shuttle2" | "shuttle3" | "night"
+
+interface LocationRow {
+  location: string
+  out: number
+  in: number
+  spillOver: number
 }
 
-// Interface for location data
-interface Location {
-  id: number
+interface DriverRow {
   name: string
-  latitude: string
-  longitude: string
-  zip_code: string
-  address: string
-  city: string
-  state: string
-  country: string
-  created_at: string
-  updated_at: string
+  transfers: number
+  jobs: number
+  total: number
 }
 
-// Interface for pagination
-interface Pagination {
-  count: number
-  next: string | null
-  previous: string | null
-  current_page: number
-  total_pages: number
-  page_size: number
+interface SlotData {
+  timeRange: string
+  data: LocationRow[]
+  internalOps: { drivers: DriverRow[] }
 }
 
-// Interface for filters
-interface Filters {
-  date_from: string
-  location_name: string
-  in_count_min: number
-  spillover_min: number
-  page: number
-  page_size: number
+type TransportData = Record<TimeSlotId, SlotData>
+
+const transportData: TransportData = {
+  early: {
+    timeRange: "06:00 AM - 09:30 AM",
+    data: [
+      { location: "Braintree Bus Station", out: 10, in: 12, spillOver: -2 },
+      { location: "Braintree Bomo Pharmacy", out: 5, in: 9, spillOver: -3 },
+      { location: "Braintree Community Hospital", out: 8, in: 20, spillOver: -2 },
+      { location: "Braintree Police Station", out: 20, in: 5, spillOver: 2 },
+      { location: "Colchester Napier Road", out: 57, in: 54, spillOver: -5 },
+    ],
+    internalOps: {
+      drivers: [
+        { name: "John david", transfers: 35, jobs: 35, total: 200 },
+      ],
+    },
+  },
+  shuttle1: {
+    timeRange: "09:30 AM - 12:00 PM",
+    data: [
+      { location: "Braintree Bus Station", out: 15, in: 8, spillOver: 3 },
+      { location: "Braintree Bomo Pharmacy", out: 12, in: 14, spillOver: -1 },
+      { location: "Braintree Community Hospital", out: 18, in: 22, spillOver: -4 },
+      { location: "Braintree Police Station", out: 25, in: 10, spillOver: 5 },
+      { location: "Colchester Napier Road", out: 45, in: 48, spillOver: -3 },
+    ],
+    internalOps: {
+      drivers: [
+        { name: "John david", transfers: 35, jobs: 35, total: 200 },
+      ],
+    },
+  },
+  shuttle2: {
+    timeRange: "12:00 PM - 15:00 PM",
+    data: [
+      { location: "Braintree Bus Station", out: 20, in: 18, spillOver: 1 },
+      { location: "Braintree Bomo Pharmacy", out: 16, in: 19, spillOver: -2 },
+      { location: "Braintree Community Hospital", out: 14, in: 25, spillOver: -3 },
+      { location: "Braintree Police Station", out: 28, in: 12, spillOver: 4 },
+      { location: "Colchester Napier Road", out: 52, in: 50, spillOver: -2 },
+    ],
+    internalOps: {
+      drivers: [
+        { name: "John david", transfers: 35, jobs: 35, total: 200 },
+      ],
+    },
+  },
+  shuttle3: {
+    timeRange: "15:00 PM - 18:00 PM",
+    data: [
+      { location: "Braintree Bus Station", out: 22, in: 16, spillOver: 2 },
+      { location: "Braintree Bomo Pharmacy", out: 18, in: 21, spillOver: -1 },
+      { location: "Braintree Community Hospital", out: 16, in: 28, spillOver: -5 },
+      { location: "Braintree Police Station", out: 32, in: 14, spillOver: 6 },
+      { location: "Colchester Napier Road", out: 48, in: 52, spillOver: -4 },
+    ],
+    internalOps: {
+      drivers: [
+        { name: "John david", transfers: 35, jobs: 35, total: 200 },
+      ],
+    },
+  },
+  night: {
+    timeRange: "18:00 PM - 00:00 AM",
+    data: [
+      { location: "Braintree Bus Station", out: 8, in: 12, spillOver: -1 },
+      { location: "Braintree Bomo Pharmacy", out: 6, in: 9, spillOver: -2 },
+      { location: "Braintree Community Hospital", out: 10, in: 15, spillOver: -3 },
+      { location: "Braintree Police Station", out: 18, in: 8, spillOver: 3 },
+      { location: "Colchester Napier Road", out: 35, in: 40, spillOver: -5 },
+    ],
+    internalOps: {
+      drivers: [
+        { name: "John david", transfers: 35, jobs: 35, total: 200 },
+      ],
+    },
+  },
 }
 
-export default function NumbersPage() {
-  const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
-  const [numbers, setNumbers] = useState<NumberData[]>([])
-  const [locations, setLocations] = useState<Location[]>([])
-  const [locationsLoading, setLocationsLoading] = useState(false)
-  const [pagination, setPagination] = useState<Pagination>({
-    count: 0,
-    next: null,
-    previous: null,
-    current_page: 1,
-    total_pages: 1,
-    page_size: 5,
+const tabs: { id: TimeSlotId; label: string; color: string }[] = [
+  { id: "early", label: "Early", color: "bg-pink-100 text-pink-600 border-pink-200" },
+  { id: "shuttle1", label: "1st Shuttle", color: "bg-green-100 text-green-600 border-green-200" },
+  { id: "shuttle2", label: "2nd Shuttle", color: "bg-purple-100 text-purple-600 border-purple-200" },
+  { id: "shuttle3", label: "3rd Shuttle", color: "bg-orange-100 text-orange-600 border-orange-200" },
+  { id: "night", label: "Night", color: "bg-blue-100 text-blue-600 border-blue-200" },
+]
+
+export default function TransportDashboard() {
+  const [activeTab, setActiveTab] = useState<TimeSlotId>("early")
+  const [selectedLocation, setSelectedLocation] = useState<string>("all")
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>("all")
+  const [selectedDriver, setSelectedDriver] = useState<string>("all")
+  const [selectedDate, setSelectedDate] = useState<string>("all")
+
+  const currentData = transportData[activeTab]
+  const locations: string[] = Array.from(
+    new Set(transportData[activeTab].data.map((item: LocationRow) => item.location))
+  )
+  const timeRanges: string[] = Object.values(transportData).map((data: SlotData) => data.timeRange)
+  const drivers: string[] = Array.from(
+    new Set(
+      transportData[activeTab].internalOps.drivers.map((driver: DriverRow) => driver.name)
+    )
+  )
+  const dates = ["2025-09-16", "2025-09-17", "2025-09-18"] // Example dates; adjust as needed
+
+  const filteredData = currentData.data.filter((row: LocationRow) => {
+    const matchesLocation = selectedLocation === "all" || row.location === selectedLocation
+    const matchesTimeRange = selectedTimeRange === "all" || currentData.timeRange === selectedTimeRange
+    return matchesLocation && matchesTimeRange
   })
-  const [filters, setFilters] = useState<Filters>({
-    date_from: "2024-01-01",
-    location_name: "",
-    in_count_min: 10,
-    spillover_min: 2,
-    page: 1,
-    page_size: 5,
-  })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const { showToast } = useToast()
-  const cookies = useCookies()
 
-  const fetchNumbers = useCallback(async () => {
-    const token = cookies.get("access_token")
-    if (!token) {
-      setError("No access token found. Please log in.")
-      showToast("No access token found. Please log in.", "error")
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    try {
-      const query = new URLSearchParams({
-        ...filters,
-        in_count_min: filters.in_count_min.toString(),
-        spillover_min: filters.spillover_min.toString(),
-        page: filters.page.toString(),
-        page_size: filters.page_size.toString(),
-        ...(searchQuery && { q: encodeURIComponent(searchQuery) }),
-      }).toString()
+  const filteredDrivers = currentData.internalOps.drivers.filter((driver: DriverRow) => 
+    selectedDriver === "all" || driver.name === selectedDriver
+  )
 
-      const response = await fetch(`${API_URL}/api/su/?${query}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
-      }
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`)
-      }
-      const data = await response.json()
-      if (data.success && data.data && Array.isArray(data.data.results) && data.data.pagination) {
-        setNumbers(data.data.results)
-        setPagination(data.data.pagination)
-        setError(null)
-      } else {
-        setNumbers([])
-        setPagination({
-          count: 0,
-          next: null,
-          previous: null,
-          current_page: 1,
-          total_pages: 1,
-          page_size: 5,
-        })
-        setError(data.message || "No data returned from the server")
-        showToast(data.message || "No data returned from the server", "error")
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching numbers"
-      setNumbers([])
-      setError(errorMessage)
-      showToast(errorMessage, "error")
-    } finally {
-      setLoading(false)
-    }
-  }, [cookies, showToast, filters, searchQuery])
-
-  const fetchLocations = useCallback(async () => {
-    const token = cookies.get("access_token")
-    if (!token) {
-      setLocations([])
-      setFilters((prev) => ({
-        ...prev,
-        location_name: "",
-        page: 1,
-      }))
-      showToast("No access token found. Please log in.", "error")
-      setLocationsLoading(false)
-      return
-    }
-    setLocationsLoading(true)
-    try {
-      const response = await fetch(`${API_URL}/api/locations/`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
-      }
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`)
-      }
-      const data = await response.json()
-      if (data.success && Array.isArray(data.data)) {
-        setLocations(data.data)
-        if (data.data.length > 0) {
-          setFilters((prev) => ({
-            ...prev,
-            location_name: data.data[0].name,
-            page: 1,
-          }))
-        } else {
-          setFilters((prev) => ({
-            ...prev,
-            location_name: "",
-            page: 1,
-          }))
-        }
-      } else {
-        setLocations([])
-        setFilters((prev) => ({
-          ...prev,
-          location_name: "",
-          page: 1,
-        }))
-        showToast(data.message || "No locations returned from the server", "error")
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching locations"
-      setLocations([])
-      setFilters((prev) => ({
-        ...prev,
-        location_name: "",
-        page: 1,
-      }))
-      showToast(errorMessage, "error")
-    } finally {
-      setLocationsLoading(false)
-    }
-  }, [cookies, showToast])
-
-  useEffect(() => {
-    fetchLocations()
-  }, [fetchLocations])
-
-  useEffect(() => {
-    fetchNumbers()
-  }, [fetchNumbers, filters])
-
-  const handleFilterChange = (name: string, value: string | number) => {
-    setFilters((prev) => ({
-      ...prev,
-      [name]: value,
-      page: 1,
-    }))
-  }
-
-  const handlePageChange = (newPage: number) => {
-    setFilters((prev) => ({ ...prev, page: newPage }))
-  }
-
-  const handleMouseMove = (key: string) => (e: React.MouseEvent) => {
-    const button = buttonRefs.current[key]
-    if (button) {
-      const rect = button.getBoundingClientRect()
-      const x = ((e.clientX - rect.left) / rect.width) * 100
-      const y = ((e.clientY - rect.top) / rect.height) * 100
-      button.style.setProperty("--mouse-x", `${x}%`)
-      button.style.setProperty("--mouse-y", `${y}%`)
-    }
-  }
+  const getTotalOut = () => filteredData.reduce((sum, item) => sum + item.out, 0)
+  const getTotalIn = () => filteredData.reduce((sum, item) => sum + item.in, 0)
+  const getTotalSpillOver = () => filteredData.reduce((sum, item) => sum + item.spillOver, 0)
 
   return (
-    <div className="p-6 bg-white">
-      <header className="bg-white p-4">
-        <div className="container mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">SU Numbers Dashboard</h1>
-            <p className="text-sm text-gray-500">View and filter vehicle movement data</p>
-          </div>
-          <div className="space-x-2 h-[40px] flex">
-            <button className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
-              <Filter className="w-4 h-4" />
-              Filter
-            </button>
-            <button className="px-4 border rounded flex border-gray-50 shadow justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-            <button
-              onClick={fetchNumbers}
-              disabled={loading}
-              className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100"
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-      </header>
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-          <Label htmlFor="date_from" className="block text-sm font-medium text-gray-700">
-            Date From
-          </Label>
-          <Input
-            id="date_from"
-            name="date_from"
-            type="date"
-            value={filters.date_from}
-            onChange={(e) => handleFilterChange("date_from", e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-          />
-        </div>
-        <div>
-          <Label htmlFor="location_name" className="block text-sm font-medium text-gray-700">
-            Location Name
-          </Label>
-          {locationsLoading ? (
-            <div className="flex items-center gap-2 p-3 border rounded-lg">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm text-gray-500">Loading locations...</span>
+    <div className="min-h-screen bg-white p-6">
+      {/* Header */}
+      <div className="flex items-center mb-6 justify-between">
+        <div className=" items-center gap-4">
+            <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">SU Data Management</h1>
             </div>
-          ) : (
-            <Select
-              name="location_name"
-              value={filters.location_name || ""}
-              onValueChange={(value) => handleFilterChange("location_name", value)}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select a location" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations && locations.length > 0 ? (
-                  locations.map((location) => (
-                    <SelectItem key={location.id} value={location.name}>
-                      {location.address} {location.city}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <div className="px-4 py-2 text-sm text-gray-500">No locations available</div>
-                )}
-              </SelectContent>
-            </Select>
-          )}
+         <div className="">
+         <span className="text-sm text-gray-500">Last updated 10:31 PM</span>
+
+         </div>
+        
         </div>
-        <div>
-          <Label htmlFor="in_count_min" className="block text-sm font-medium text-gray-700">
-            Min In Count
-          </Label>
-          <Input
-            id="in_count_min"
-            name="in_count_min"
-            type="number"
-            value={filters.in_count_min}
-            onChange={(e) => handleFilterChange("in_count_min", Number(e.target.value))}
-            placeholder="Enter min in count"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-          />
-        </div>
-        <div>
-          <Label htmlFor="spillover_min" className="block text-sm font-medium text-gray-700">
-            Min Spillover
-          </Label>
-          <Input
-            id="spillover_min"
-            name="spillover_min"
-            type="number"
-            value={filters.spillover_min}
-            onChange={(e) => handleFilterChange("spillover_min", Number(e.target.value))}
-            placeholder="Enter min spillover"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-          />
-        </div>
+        
       </div>
-      <div className="mb-6">
-        <div
-          className="relative w-80 gradient-border cursor-glow"
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect()
-            const x = ((e.clientX - rect.left) / rect.width) * 100
-            const y = ((e.clientY - rect.top) / rect.height) * 100
-            e.currentTarget.style.setProperty("--mouse-x", `${x}%`)
-            e.currentTarget.style.setProperty("--mouse-y", `${y}%`)
-          }}
-        >
-          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
-          <Input
-            placeholder="Search numbers"
-            className="pl-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+
+      {/* Navigation Tabs */}
+     <div className=" flex items-center mb-6 justify-between">
+     <div className="flex gap-2">
+        {tabs.map((tab) => (
+          <Badge
+            key={tab.id}
+            onClick={() => {
+              setActiveTab(tab.id)
+              setSelectedLocation("all")
+              setSelectedTimeRange("all")
+              setSelectedDriver("all")
+              setSelectedDate("all")
+            }}
+            className={`px-4 py-1 rounded-2xl text-sm font-medium  border transition-colors ${
+              activeTab === tab.id ? tab.color : "text-gray-500 hover:text-gray-700 bg-white border-gray-200"
+            }`}
+          >
+            {tab.label}
+          </Badge>
+        ))}
       </div>
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" />
-          <span>Loading numbers...</span>
+      <div className="flex items-center ">
+        <Badge variant="secondary" className="bg-pink-600/20  text-pink-600 px-4 py-1 rounded-2xl text-sm font-medium  border-pink-600 hover:bg-pink-600">Reports</Badge>
+      </div>
+     </div>
+
+    
+      {/* Section Header */}
+      <div className="mb-4">
+       <div className=" mb-2">
+       <h2 className="text-lg font-semibold text-gray-900">Reports</h2>
+       <p className="text-sm text-gray-500">{currentData.timeRange} data</p>
+       </div>
+          {/* Filter Row */}
+      <div className="flex items-center gap-4 mb-6 text-sm text-gray-600">
+        <Select onValueChange={setSelectedLocation} value={selectedLocation}>
+          <SelectTrigger className="w-[180px] border-gray-300">
+            <SelectValue placeholder="Select Location" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Locations</SelectItem>
+            {locations.map((loc) => (
+              <SelectItem key={loc} value={loc}>
+                {loc}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select onValueChange={setSelectedTimeRange} value={selectedTimeRange}>
+          <SelectTrigger className="w-[180px] border-gray-300">
+            <SelectValue placeholder="Select Time Range" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Time Ranges</SelectItem>
+            {timeRanges.map((range) => (
+              <SelectItem key={range} value={range}>
+                {range}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select onValueChange={setSelectedDriver} value={selectedDriver}>
+          <SelectTrigger className="w-[180px] border-gray-300">
+            <SelectValue placeholder="Select Driver" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Drivers</SelectItem>
+            {drivers.map((driver) => (
+              <SelectItem key={driver} value={driver}>
+                {driver}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select onValueChange={setSelectedDate} value={selectedDate}>
+          <SelectTrigger className="w-[180px] border-gray-300">
+            <SelectValue placeholder="Select Date" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Dates</SelectItem>
+            {dates.map((date) => (
+              <SelectItem key={date} value={date}>
+                {date}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      </div>
+
+      {/* Data Table */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50 border-b">
+              <TableHead className="text-left font-semibold text-gray-700 py-3">Locations</TableHead>
+              <TableHead className="text-center font-semibold text-gray-700">OUT</TableHead>
+              <TableHead className="text-center font-semibold text-gray-700">IN</TableHead>
+              <TableHead className="text-center font-semibold text-gray-700">Spill Over</TableHead>
+              <TableHead className="text-center font-semibold text-gray-700">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredData.map((row, index) => (
+              <TableRow key={index} className="hover:bg-gray-50 border-b">
+                <TableCell className="font-medium text-gray-900 py-3">{row.location}</TableCell>
+                <TableCell className="text-center">
+                  <Badge variant="secondary" className="bg-[#FFC1CC] text-[#FF2E63]">
+                    {row.out}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge variant="secondary" className="bg-[#C1E1C5] text-[#2E7D32]">
+                    {row.in}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge
+                    variant="secondary"
+                    className={`${
+                      row.spillOver > 0 ? "bg-[#C1E1C5] text-[#2E7D32]" : "bg-[#FFC1CC] text-[#FF2E63]"
+                    }`}
+                  >
+                    {row.spillOver > 0 ? `+${row.spillOver}` : row.spillOver}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center">
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            <TableRow className="bg-gray-50 font-semibold border-t-2">
+              <TableCell className="font-bold text-gray-900 py-3">Total</TableCell>
+              <TableCell className="text-center">
+                <Badge variant="secondary" className="bg-[#FF9DB3] text-[#FF2E63] font-bold">
+                  {getTotalOut()}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-center">
+                <Badge variant="secondary" className="bg-[#AEDBB2] text-[#2E7D32] font-bold">
+                  {getTotalIn()}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-center">
+                <Badge
+                  variant="secondary"
+                  className={`${
+                    getTotalSpillOver() > 0 ? "bg-[#AEDBB2] text-[#2E7D32]" : "bg-[#FF9DB3] text-[#FF2E63]"
+                  } font-bold`}
+                >
+                  {getTotalSpillOver() > 0 ? `+${getTotalSpillOver()}` : getTotalSpillOver()}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-center"></TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Internal Operations */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Internal Operations</h3>
+          <p className="text-sm text-gray-500">{currentData.timeRange} data</p>
         </div>
-      ) : error ? (
-        <div className="flex items-center justify-center py-12 text-red-600">
-          <AlertCircle className="w-5 h-5 mr-2" />
-          {error}
-        </div>
-      ) : (
-        <div className="bg-white rounded-md border border-gray-200 gradient-border cursor-glow">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-b border-gray-200">
-                <TableHead className="text-gray-600 font-medium">ID</TableHead>
-                <TableHead className="text-gray-600 font-medium">Location</TableHead>
-                <TableHead className="text-gray-600 font-medium">Vehicle</TableHead>
-                <TableHead className="text-gray-600 font-medium">In Bound</TableHead>
-                <TableHead className="text-gray-600 font-medium">Out Bound</TableHead>
-                <TableHead className="text-gray-600 font-medium">Spillover</TableHead>
-                <TableHead className="text-gray-600 font-medium">Created At</TableHead>
+              <TableRow className="bg-gray-50 border-b">
+                <TableHead className="text-left font-semibold text-gray-700 py-3">Drivers</TableHead>
+                <TableHead className="text-center font-semibold text-gray-700">Transfers</TableHead>
+                <TableHead className="text-center font-semibold text-gray-700">Jobs</TableHead>
+                <TableHead className="text-center font-semibold text-gray-700">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {numbers && numbers.length > 0 ? (
-                numbers.map((number) => (
-                  <TableRow key={number.id} className="border-b border-gray-100">
-                    <TableCell className="font-medium">{number.id}</TableCell>
-                    <TableCell>{number.location_name}</TableCell>
-                    <TableCell>{number.vehicle_registration}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-green-100 text-green-700">{number.in_count}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className="bg-orange-100 text-orange-700">{number.out_count}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className="bg-blue-100 text-blue-700">{number.spillover}</Badge>
-                    </TableCell>
-                    <TableCell>{new Date(number.created_at).toLocaleString()}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-gray-500 py-4">
-                    No data available
+              {filteredDrivers.map((driver, index) => (
+                <TableRow key={index} className="hover:bg-gray-50 border-b border-gray-100">
+                  <TableCell className="font-medium text-gray-900 py-3">{driver.name}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="secondary" className="bg-[#FFD54F] text-[#F57C00]">
+                      {driver.transfers}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="text-gray-900 font-medium">{driver.jobs}</span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="secondary" className="bg-[#FFC1CC] text-[#FF2E63]">
+                      {driver.total}
+                    </Badge>
                   </TableCell>
                 </TableRow>
-              )}
+              ))}
             </TableBody>
           </Table>
-        </div>
-      )}
-      <div className="flex items-center justify-between mt-6">
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">Page</span>
-          <Badge variant="outline" className="bg-gray-100">
-            {pagination.current_page}
-          </Badge>
-          <span className="text-sm text-gray-600">of {pagination.total_pages}</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            ref={(el) => {
-              buttonRefs.current["prev"] = el
-            }}
-            variant="ghost"
-            size="sm"
-            className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-            onMouseMove={handleMouseMove("prev")}
-            onClick={() => handlePageChange(pagination.current_page - 1)}
-            disabled={pagination.current_page === 1 || loading}
-          >
-            <ChevronLeft className="w-4 h-4 mr-1 relative z-10" />
-            <span className="relative z-10">Previous</span>
-          </Button>
-          <Button
-            ref={(el) => {
-              buttonRefs.current["page1"] = el
-            }}
-            size="sm"
-            className="bg-red-600 hover:bg-red-700 text-white ripple cursor-glow"
-            onMouseMove={handleMouseMove("page1")}
-          >
-            <span className="relative z-10">{pagination.current_page}</span>
-          </Button>
-          <Button
-            ref={(el) => {
-              buttonRefs.current["next"] = el
-            }}
-            variant="ghost"
-            size="sm"
-            className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-            onMouseMove={handleMouseMove("next")}
-            onClick={() => handlePageChange(pagination.current_page + 1)}
-            disabled={pagination.current_page === pagination.total_pages || loading}
-          >
-            <span className="relative z-10">Next</span>
-            <ChevronRight className="w-4 h-4 ml-1 relative z-10" />
-          </Button>
         </div>
       </div>
     </div>

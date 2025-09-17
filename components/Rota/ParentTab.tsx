@@ -124,7 +124,9 @@ interface DayStats {
   Total: number;
   D: number;
   S: number;
-  
+  E: number;
+  M: number;
+  N: number;
 }
 
 interface WeekStats {
@@ -135,13 +137,13 @@ interface WeekStats {
     start_date: string;
     end_date: string;
   };
-  monday: { total_staff: number; total_drivers: number };
-  tuesday: { total_staff: number; total_drivers: number };
-  wednesday: { total_staff: number; total_drivers: number };
-  thursday: { total_staff: number; total_drivers: number };
-  friday: { total_staff: number; total_drivers: number };
-  saturday: { total_staff: number; total_drivers: number };
-  sunday: { total_staff: number; total_drivers: number };
+  monday: DayStats;
+  tuesday: DayStats;
+  wednesday: DayStats;
+  thursday: DayStats;
+  friday: DayStats;
+  saturday: DayStats;
+  sunday: DayStats;
 }
 
 // Day Stats Popover Component
@@ -166,7 +168,7 @@ const DayStatsPopover = memo(({
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_URL}/api/rota/stats/${weekNumber}/daily_stats/`, {
+      const response = await fetch(`${API_URL}/api/rota/stats/${weekNumber}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -180,11 +182,14 @@ const DayStatsPopover = memo(({
 
       const data: WeekStats = await response.json();
       const dayKey = day.day.toLowerCase() as keyof Omit<WeekStats, 'week_reference'>;
+      const dayStats = data[dayKey] as DayStats;
       setStats({
-        Total: data[dayKey].total_staff + data[dayKey].total_drivers,
-        D: data[dayKey].total_drivers,
-        S: data[dayKey].total_staff,
-       
+        Total: dayStats.Total,
+        D: dayStats.D,
+        S: dayStats.S,
+        E: dayStats.E,
+        M: dayStats.M,
+        N: dayStats.N,
       });
     } catch (error) {
       console.error("Error fetching day stats:", error);
@@ -240,6 +245,18 @@ const DayStatsPopover = memo(({
                 <div className="flex justify-between">
                   <span className="text-gray-600">Staff (S):</span>
                   <span className="font-medium">{stats.S}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Early (E):</span>
+                  <span className="font-medium">{stats.E}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Mid (M):</span>
+                  <span className="font-medium">{stats.M}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Night (N):</span>
+                  <span className="font-medium">{stats.N}</span>
                 </div>
               
               

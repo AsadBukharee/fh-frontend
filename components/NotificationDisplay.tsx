@@ -143,7 +143,7 @@ const NotificationDisplay: React.FC = () => {
                 <strong className="text-blue-600">{notif.title}</strong>
                 <p className="text-sm">{notif.body}</p>
                 <p className="text-xs text-gray-500">
-                  {new Date(notif.created_at).toLocaleString()} • Source: {notif.data.source}
+                  {new Date(notif.created_at).toLocaleDateString("en-GB")} • Source: {notif.data.source}
                 </p>
               </div>
               {!notif.is_read && (
