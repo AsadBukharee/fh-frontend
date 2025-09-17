@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, ChevronRight, Search, Filter, Loader2, Calendar, Wrench, Download, Shield, Settings, Circle } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { parse, differenceInDays } from "date-fns"
+import { parse, differenceInDays, format } from "date-fns"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 
@@ -81,6 +81,40 @@ export default function VehicleDashboard() {
   const [vehicleType, setVehicleType] = useState("All Vehicles")
   const cookies=useCookies()
   const perPage = 10
+
+  // Date helpers
+  const parseFlexibleDate = (input?: string | null): Date | null => {
+    if (!input) return null
+    const trimmed = String(input).trim()
+    // If already dd/MM/yyyy and valid
+    try {
+      const dmy = parse(trimmed, "dd/MM/yyyy", new Date())
+      if (!isNaN(dmy.getTime()) && /\d{2}\/\d{2}\/\d{4}/.test(trimmed)) return dmy
+    } catch {}
+    // Try other common formats
+    const candidateFormats = [
+      "yyyy-MM-dd'T'HH:mm:ssXXX",
+      "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+      "yyyy-MM-dd'T'HH:mm:ss'Z'",
+      "yyyy-MM-dd",
+      "dd-MM-yyyy",
+      "MM/dd/yyyy",
+    ]
+    for (const fmt of candidateFormats) {
+      try {
+        const dt = parse(trimmed, fmt, new Date())
+        if (!isNaN(dt.getTime())) return dt
+      } catch {}
+    }
+    // Fallback: Date constructor
+    const dt = new Date(trimmed)
+    return isNaN(dt.getTime()) ? null : dt
+  }
+
+  const formatDateDmy = (input?: string | null): string => {
+    const dt = parseFlexibleDate(input)
+    return dt ? format(dt, "dd/MM/yyyy") : input ?? "-"
+  }
 
   const filterOptions = [
     { key: "All Data", label: "All Data", icon: null },
@@ -182,7 +216,9 @@ export default function VehicleDashboard() {
 
     if (expiry) {
       try {
-        const expiryDate = parse(expiry, "dd/MM/yyyy", new Date())
+        // attempt flexible parsing for expiry
+        const parsed = parseFlexibleDate(expiry)
+        const expiryDate = parsed ?? parse(expiry, "dd/MM/yyyy", new Date())
         const today = new Date()
         const daysDiff = differenceInDays(today, expiryDate)
         if (daysDiff > 0) {
@@ -194,7 +230,7 @@ export default function VehicleDashboard() {
         }
       } catch {
         // Fallback if date parsing fails
-        return <span className="text-gray-900">{expiry}</span>
+        return <span className="text-gray-900">{formatDateDmy(expiry)}</span>
       }
     }
 
@@ -347,30 +383,30 @@ export default function VehicleDashboard() {
                 {item.vehicle_reg}
               </div>
             </td>
-            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{motData?.mot_expiry || "-"}</td>
-            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{motData?.next_mot_booked_from || "-"}</td>
-            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{motData?.next_mot_booked_date || "-"}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{formatDateDmy(motData?.mot_expiry)}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{formatDateDmy(motData?.next_mot_booked_from)}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{formatDateDmy(motData?.next_mot_booked_date)}</td>
             <td className="p-2 text-sm border-r border-gray-200">{getStatusBadge(motData?.time_mot_booked)}</td>
-            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{motData?.last_inspection_date || "-"}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{formatDateDmy(motData?.last_inspection_date)}</td>
             <td className="p-2 text-sm border-r border-gray-200">{getStatusBadge(motData?.next_inspection_booked_before, motData?.mot_expiry)}</td>
-            <td className="p-2 text-sm border-r border-gray-200">{getStatusBadge(vehicleData?.pmi?.next_inspection_book_date)}</td>
-            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.tacho?.last_download || "-"}</td>
-            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.tacho?.next_download || "-"}</td>
-            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.tyre?.last_check || "-"}</td>
-            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.tyre?.next_check || "-"}</td>
-            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{vehicleData?.insurance?.expiry || "-"}</td>
-            <td className="p-2 text-sm text-gray-900">{vehicleData?.calibrations?.expiry || "-"}</td>
+            <td className="p-2 text-sm border-r border-gray-200">{getStatusBadge(formatDateDmy(vehicleData?.pmi?.next_inspection_book_date))}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{formatDateDmy(vehicleData?.tacho?.last_download)}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{formatDateDmy(vehicleData?.tacho?.next_download)}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{formatDateDmy(vehicleData?.tyre?.last_check)}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{formatDateDmy(vehicleData?.tyre?.next_check)}</td>
+            <td className="p-2 text-sm text-gray-900 border-r border-gray-200">{formatDateDmy(vehicleData?.insurance?.expiry)}</td>
+            <td className="p-2 text-sm text-gray-900">{formatDateDmy(vehicleData?.calibrations?.expiry)}</td>
           </tr>
         )
       case "MOT":
         return (
           <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-orange-50">
             <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
-            <td className="p-3 text-sm text-gray-900">{item.mot_expiry}</td>
-            <td className="p-3 text-sm text-gray-900">{item.next_mot_booked_from || "-"}</td>
-            <td className="p-3 text-sm text-gray-900">{item.next_mot_booked_date || "-"}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.mot_expiry)}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.next_mot_booked_from)}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.next_mot_booked_date)}</td>
             <td className="p-3 text-sm">{getStatusBadge(item.time_mot_booked)}</td>
-            <td className="p-3 text-sm text-gray-900">{item.last_inspection_date}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.last_inspection_date)}</td>
             <td className="p-3 text-sm">{getStatusBadge(item.next_inspection_booked_before, item.mot_expiry)}</td>
           </tr>
         )
@@ -378,37 +414,37 @@ export default function VehicleDashboard() {
         return (
           <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-pink-50">
             <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
-            <td className="p-3 text-sm">{getStatusBadge(item.next_inspection_book_date)}</td>
+            <td className="p-3 text-sm">{getStatusBadge(formatDateDmy(item.next_inspection_book_date))}</td>
           </tr>
         )
       case "Vehicle Tacho Download":
         return (
           <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-blue-50">
             <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
-            <td className="p-3 text-sm text-gray-900">{item.last_download || "-"}</td>
-            <td className="p-3 text-sm text-gray-900">{item.next_download || "-"}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.last_download)}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.next_download)}</td>
           </tr>
         )
       case "Tyre Maintenance Check":
         return (
           <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-purple-50">
             <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
-            <td className="p-3 text-sm text-gray-900">{item.last_check || "-"}</td>
-            <td className="p-3 text-sm text-gray-900">{item.next_check || "-"}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.last_check)}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.next_check)}</td>
           </tr>
         )
       case "Insurance & Check":
         return (
           <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-green-50">
             <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
-            <td className="p-3 text-sm text-gray-900">{item.expiry}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.expiry)}</td>
           </tr>
         )
       case "Calibrations":
         return (
           <tr key={`${item.vehicle_reg}-${index}`} className="border-b border-gray-100 hover:bg-yellow-50">
             <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
-            <td className="p-3 text-sm text-gray-900">{item.expiry}</td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.expiry)}</td>
           </tr>
         )
       default:

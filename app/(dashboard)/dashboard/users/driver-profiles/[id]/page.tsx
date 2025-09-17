@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { User, Calendar, FileText, Building2, Mail, CheckCircle, XCircle, Edit, Save, X, AlertTriangle, File } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
+import { formatDmy } from "@/lib/utils"
 
 // Existing interfaces remain unchanged
 interface DriverData {
@@ -473,14 +474,7 @@ export default function DriverDetailPage() {
   }
 
   // New function to format dates
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "N/A"
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-  }
+  const formatDate = (dateString: string | null) => formatDmy(dateString)
 
   const getInitials = (name: string) => {
     return name

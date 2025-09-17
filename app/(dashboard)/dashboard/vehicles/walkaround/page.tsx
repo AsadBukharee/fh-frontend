@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import GradientButton from "@/app/utils/GradientButton";
 import WalkaroundDetailsDialog from "@/components/walkaround/walkaround_detail";
 import { format } from "date-fns";
+import { formatDmy } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -221,7 +222,7 @@ const WalkaroundPage = () => {
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
-                      {dateFrom ? format(dateFrom, "PPP") : "Pick start date"}
+                      {dateFrom ? formatDmy(dateFrom) : "Pick start date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -236,7 +237,7 @@ const WalkaroundPage = () => {
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
-                      {dateTo ? format(dateTo, "PPP") : "Pick end date"}
+                      {dateTo ? formatDmy(dateTo) : "Pick end date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -325,7 +326,7 @@ const WalkaroundPage = () => {
                       </p>
                       <p className="flex items-center gap-2 justify-center">
                         <CalendarDays className="w-4 h-4 text-gray-500" />
-                        {format(new Date(walkaround.date), "dd.MM.yy")}
+                        {format(new Date(walkaround.date), "dd/MM/yyyy")}
                       </p>
                       <p className="flex items-center gap-2 justify-center">
                         <Clock className="w-4 h-4 text-gray-500" />

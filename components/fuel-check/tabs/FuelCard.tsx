@@ -1,5 +1,7 @@
 "use client"
 
+import { formatDmy } from "@/lib/utils"
+
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -74,7 +76,7 @@ const ViewCardDialog: React.FC<ViewCardDialogProps> = ({ isOpen, onClose, card }
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Expiry Date:</span>
-            <span className="col-span-3">{new Date(card.expiry_date).toLocaleDateString()}</span>
+            <span className="col-span-3">{formatDmy(card.expiry_date)}</span>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">PIN:</span>
@@ -702,7 +704,7 @@ export default function CardManagement() {
                     <TableCell className="font-medium">{card.id}</TableCell>
                     <TableCell>{card.title || "N/A"}</TableCell>
                     <TableCell>{card.card_number}</TableCell>
-                    <TableCell>{new Date(card.expiry_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDmy(card.expiry_date)}</TableCell>
                     <TableCell className="text-center">{card.pin}</TableCell>
                     <TableCell className="text-center">
                       <Badge >

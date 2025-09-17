@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/popover";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { formatDmy } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useToast } from "@/app/Context/ToastContext";
@@ -138,7 +139,7 @@ const StartRota: React.FC<StartRotaProps> = ({ users }) => {
             >
               <CalendarIcon className="mr-2 h-4 w-4 text-gray-500" />
               {startDate ? (
-                format(startDate, "PPP")
+                formatDmy(startDate)
               ) : (
                 <span className="text-gray-500">Pick a start date</span>
               )}

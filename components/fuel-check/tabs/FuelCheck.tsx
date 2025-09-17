@@ -1,5 +1,7 @@
 "use client"
 
+import { formatDmy } from "@/lib/utils"
+
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -99,7 +101,7 @@ const ViewFuelLogDialog: React.FC<ViewFuelLogDialogProps> = ({ isOpen, onClose, 
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Date:</span>
-            <span className="col-span-3">{new Date(log.date).toLocaleDateString()}</span>
+            <span className="col-span-3">{formatDmy(log.date)}</span>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Time:</span>
@@ -690,7 +692,7 @@ export default function FuelChecksManagement() {
                   <TableRow key={log.id} className="hover:bg-muted/20">
                     <TableCell className="font-medium">{log.id}</TableCell>
                     <TableCell>{log.vehicle?.registration_number || "N/A"}</TableCell>
-                    <TableCell>{new Date(log.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDmy(log.date)}</TableCell>
                     <TableCell>{log.time}</TableCell>
                     <TableCell className="text-center">{log.amount.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{log.cost.toFixed(2)}</TableCell>

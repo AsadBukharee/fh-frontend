@@ -198,7 +198,7 @@ const VehicleInspectionPage = () => {
   }, [walkaroundId, cookies])
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-PK', { timeZone: 'Asia/Karachi' })
+    return new Date(dateString).toLocaleDateString('en-GB')
   }
 
   const getInspectionStatus = (isDefected: boolean): "Required" | "Completed" => {

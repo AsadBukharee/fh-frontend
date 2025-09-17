@@ -54,6 +54,7 @@ import BadgeList from "../BadgeList";
 
 import { Label } from "../ui/label";
 import EditPMI from "./EditPMIdriver";
+import { formatDmy } from "@/lib/utils";
 
 
 interface PMIRecord {
@@ -332,9 +333,7 @@ export default function PMIDashboard() {
                 {filteredData.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">
-                      {record.pmi_report_date
-                        ? new Date(record.pmi_report_date).toLocaleDateString()
-                        : "N/A"}
+                      {record.pmi_report_date ? formatDmy(record.pmi_report_date) : "N/A"}
                     </TableCell>
                     <TableCell>
                       <Badge className="shrink-0">{record.vehicle_reg}</Badge>
@@ -415,11 +414,7 @@ export default function PMIDashboard() {
                                   <div>
                                     <Label>PMI Expiry</Label>
                                     <p>
-                                      {viewRecord.pmi_expiry
-                                        ? new Date(
-                                            viewRecord.pmi_expiry
-                                          ).toLocaleDateString()
-                                        : "N/A"}
+                                      {viewRecord.pmi_expiry ? formatDmy(viewRecord.pmi_expiry) : "N/A"}
                                     </p>
                                   </div>
                                 </div>

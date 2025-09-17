@@ -19,7 +19,7 @@ const ReminderConfirmationStep: React.FC<ReminderConfirmationStepProps> = ({
       <p className="text-sm font-medium text-green-800">Reminder Saved</p>
       <p className="text-sm text-green-700 mt-2">
         Reminder set for {reminderType} upload for {vehicleRegistration} on{" "}
-        {new Date(reminderDateTime).toLocaleString()}.
+        {new Date(reminderDateTime).toLocaleDateString("en-GB")}.
       </p>
     </div>
     <Button onClick={handleClose} className="w-full">

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import GradientButton from "@/app/utils/GradientButton";
 import WalkaroundDetailsDialog from "@/components/walkaround/walkaround_detail";
 import { format } from "date-fns";
+import { formatDmy } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -308,7 +309,7 @@ const WalkaroundPage = () => {
                       className="w-[150px] justify-start text-left font-normal"
                       aria-label="Select start date"
                     >
-                      {dateFrom ? format(dateFrom, "PPP") : "Pick start date"}
+                      {dateFrom ? formatDmy(dateFrom) : "Pick start date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -334,7 +335,7 @@ const WalkaroundPage = () => {
                       className="w-[150px] justify-start text-left font-normal"
                       aria-label="Select end date"
                     >
-                      {dateTo ? format(dateTo, "PPP") : "Pick end date"}
+                      {dateTo ? formatDmy(dateTo) : "Pick end date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -412,7 +413,7 @@ const WalkaroundPage = () => {
                         <h3 className="text-sm font-semibold">Step <span className=" text-gray-500">{root.walkaround_step}</span></h3>
                         <p className="text-sm font-semibold">Driver: <span className=" text-gray-500">{root.conducted_by || "N/A"}</span></p>
                         <p className="text-sm font-semibold">Status: <Badge className={`${getStatusClasses(root.status)}`}>{root.status.charAt(0).toUpperCase() + root.status.slice(1)}</Badge></p>
-                        <p className="text-sm font-semibold">Date: <span className=" text-gray-500">{format(new Date(root.date), "dd.MM.yy")}</span></p>
+                        <p className="text-sm font-semibold">Date: <span className=" text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span></p>
                         <p className="text-sm font-semibold">Time: <span className=" text-gray-500">{root.time}</span></p>
                         <Button
                           variant="outline"
@@ -436,7 +437,7 @@ const WalkaroundPage = () => {
                           <h3 className="text-sm font-semibold">Step <span className=" text-gray-500">{child.walkaround_step}</span> </h3>
                           <p className="text-sm font-semibold ">Driver: <span className=" text-gray-500">{child.conducted_by || "N/A"}</span></p>
                           <p className="text-sm font-semibold ">Status: <Badge className={`${getStatusClasses(child.status)}`}>{child.status.charAt(0).toUpperCase() + child.status.slice(1)}</Badge></p>
-                          <p className="text-sm font-semibold ">Date: <span className=" text-gray-500">{format(new Date(child.date), "dd.MM.yy")}</span></p>
+                          <p className="text-sm font-semibold ">Date: <span className=" text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span></p>
                           <p className="text-sm font-semibold ">Time: <span className=" text-gray-500">{child.time}</span></p>
                           <Button
                             variant="outline"

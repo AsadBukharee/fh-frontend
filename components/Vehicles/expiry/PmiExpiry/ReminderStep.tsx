@@ -31,7 +31,7 @@ const ReminderStep: React.FC<ReminderStepProps> = ({
         </p>
         <p className="text-xs text-blue-600 mt-1">
           Vehicle Registration: {vehicleRegistration}
-          {step === "brakeReminder" && ` - Failed brake test on ${new Date().toLocaleDateString()}`}
+          {step === "brakeReminder" && ` - Failed brake test on ${new Date().toLocaleDateString("en-GB")}`}
         </p>
       </div>
       <div>

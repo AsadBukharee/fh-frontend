@@ -171,7 +171,7 @@ const ProgressInMechanic = ({
                       <Calendar className="w-4 h-4 text-gray-500" />
                       <div>
                         <p className="text-sm text-gray-500">Created</p>
-                        <p className="font-medium">{new Date(jobData.timestamp).toLocaleString()}</p>
+                        <p className="font-medium">{new Date(jobData.timestamp).toLocaleDateString("en-GB")}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -143,7 +143,20 @@ const transformToApi = (items: AuditItem[]) => {
 export default function Others() {
   const [auditItems, setAuditItems] = useState<AuditItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [editableFields, setEditableFields] = useState<{ [key: string]: { days: boolean; date: boolean } }>({})
+  const [uploading, setUploading] = useState<{ [key: string]: boolean }>({})
   const token = useCookies().get("access_token")
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  // Initialize editable state for each item
+  useEffect(() => {
+    setEditableFields(
+      auditItems.reduce((acc, item) => ({
+        ...acc,
+        [item.id]: { days: false, date: false }
+      }), {})
+    )
+  }, [auditItems])
 
   // Load data
   useEffect(() => {
@@ -186,6 +199,51 @@ export default function Others() {
     )
   }
 
+  // Handle double click/tap
+  const handleDoubleClick = (id: string, field: 'days' | 'date') => {
+    if (clickTimeout.current) {
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setEditableFields((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], [field]: true }
+      }))
+    } else {
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+      }, 300)
+    }
+  }
+
+  // Handle file upload
+  const handleFileUpload = async (id: string, file: File) => {
+    setUploading((prev) => ({ ...prev, [id]: true }))
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    try {
+      const res = await fetch(`${API}upload/${id}/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      })
+      const json = await res.json()
+      if (json.success && json.directory) {
+        setAuditItems((items) =>
+          items.map((item) =>
+            item.id === id ? { ...item, directory: json.directory } : item
+          )
+        )
+      }
+    } catch (err) {
+      console.error("Error uploading file:", err)
+    } finally {
+      setUploading((prev) => ({ ...prev, [id]: false }))
+    }
+  }
+
   // Save data
   const handleSave = async () => {
     setLoading(true)
@@ -201,6 +259,13 @@ export default function Others() {
       })
       const json = await res.json()
       console.log("Saved successfully:", json)
+      // Reset editable fields after save
+      setEditableFields(
+        auditItems.reduce((acc, item) => ({
+          ...acc,
+          [item.id]: { days: false, date: false }
+        }), {})
+      )
     } catch (err) {
       console.error("Error saving audit items:", err)
     } finally {
@@ -218,7 +283,7 @@ export default function Others() {
       <div className="mx-auto bg-white mb-2">
         <div className="bg-green-200 px-6 py-4">
           <h1 className="text-lg font-semibold text-gray-800">Others</h1>
-          <p className="text-sm text-gray-600 mt-1">Enter number of days and last check date for each audit alert</p>
+          <p className="text-sm text-gray-600 mt-1">Double-tap fields to edit and click directory to upload files</p>
         </div>
 
         {/* Header row */}
@@ -242,23 +307,51 @@ export default function Others() {
 
               {/* Last Check Date */}
               <div className="col-span-3 flex justify-center">
-                <Input
-                  type="date"
-                  value={item.lastCheckDate || ''}
-                  onChange={(e) => updateItem(item.id, 'lastCheckDate', e.target.value || '')}
-                  className="w-40 h-8 text-center text-sm border-gray-300"
-                />
+                {editableFields[item.id]?.date ? (
+                  <Input
+                    type="date"
+                    value={item.lastCheckDate || ''}
+                    onChange={(e) => updateItem(item.id, 'lastCheckDate', e.target.value || '')}
+                    className="w-40 h-8 text-center text-sm border-gray-300"
+                    onBlur={() => setEditableFields((prev) => ({
+                      ...prev,
+                      [item.id]: { ...prev[item.id], date: false }
+                    }))}
+                    autoFocus
+                  />
+                ) : (
+                  <div
+                    className="w-40 h-8 flex items-center justify-center text-sm text-gray-700 cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleDoubleClick(item.id, 'date')}
+                  >
+                    {item.lastCheckDate || '-'}
+                  </div>
+                )}
               </div>
 
               {/* Days */}
               <div className="col-span-2 flex justify-center">
-                <Input
-                  type="number"
-                  value={item.days}
-                  onChange={(e) => updateItem(item.id, 'days', Number.parseInt(e.target.value) || 0)}
-                  className="w-16 h-8 text-center text-sm border-gray-300"
-                  min="0"
-                />
+                {editableFields[item.id]?.days ? (
+                  <Input
+                    type="number"
+                    value={item.days}
+                    onChange={(e) => updateItem(item.id, 'days', Number.parseInt(e.target.value) || 0)}
+                    className="w-16 h-8 text-center text-sm border-gray-300"
+                    min="0"
+                    onBlur={() => setEditableFields((prev) => ({
+                      ...prev,
+                      [item.id]: { ...prev[item.id], days: false }
+                    }))}
+                    autoFocus
+                  />
+                ) : (
+                  <div
+                    className="w-16 h-8 flex items-center justify-center text-sm text-gray-700 cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleDoubleClick(item.id, 'days')}
+                  >
+                    {item.days}
+                  </div>
+                )}
               </div>
 
               {/* Status */}
@@ -284,7 +377,9 @@ export default function Others() {
 
               {/* Directory */}
               <div className="col-span-2 text-center">
-                {item.directory ? (
+                {uploading[item.id] ? (
+                  <span className="text-sm text-gray-500">Uploading...</span>
+                ) : item.directory ? (
                   <Link
                     href={item.directory}
                     className="text-blue-600 hover:underline text-sm"
@@ -292,7 +387,14 @@ export default function Others() {
                     Open
                   </Link>
                 ) : (
-                  <span className="text-sm text-gray-500">-</span>
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload(item.id, e.target.files[0])}
+                    />
+                    <span className="text-sm text-blue-600 hover:underline">Upload</span>
+                  </label>
                 )}
               </div>
             </div>

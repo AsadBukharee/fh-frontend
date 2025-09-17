@@ -1,4 +1,6 @@
 "use client"
+
+import { formatDmy } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { TooltipProvider } from "../ui/tooltip"
 import { Plus, RefreshCcw, Search, Eye, Pencil, Trash2, MoreHorizontal, MapPin, AlertTriangle } from "lucide-react"
@@ -461,11 +463,11 @@ const LocationTabs = () => {
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                     <div>
                       <label className="text-sm font-medium text-gray-500">Created</label>
-                      <p className="text-sm">{new Date(selectedLocation.created_at).toLocaleDateString()}</p>
+                      <p className="text-sm">{formatDmy(selectedLocation.created_at)}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">Updated</label>
-                      <p className="text-sm">{new Date(selectedLocation.updated_at).toLocaleDateString()}</p>
+                      <p className="text-sm">{formatDmy(selectedLocation.updated_at)}</p>
                     </div>
                   </div>
                 </div>

@@ -79,10 +79,10 @@ interface PmiRow {
   tyre_depth: TyreData;
   tyre_dates: TyreData;
   driver_info?: {
-    defects: string;
-    status: string;
-    notes: string;
-    pmi_report_date: string;
+    defects?: string;
+    status?: string;
+    notes?: string;
+    pmi_report_date?: string;
   };
 }
 // ActionMenu component (unchanged)

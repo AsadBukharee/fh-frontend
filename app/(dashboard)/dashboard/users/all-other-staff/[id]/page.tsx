@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { User, Calendar, Shield, FileText, Building2, Mail, CheckCircle, XCircle, Edit, Save, X } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
+import { formatDmy } from "@/lib/utils"
 
 interface DriverData {
   id: number
@@ -364,13 +365,7 @@ export default function DriverDetailPage() {
       .toUpperCase()
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-  }
+  const formatDate = (dateString: string) => formatDmy(dateString)
 
   const getPermissionStats = () => {
     const role = driverData.aggregated_permissions.roles[0]

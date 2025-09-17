@@ -479,7 +479,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
   const weeks = groupDaysByWeek(days);
 
   const getDayName = (date: Date) => {
-    return date.toLocaleDateString("en-US", { weekday: "long" });
+    return date.toLocaleDateString("en-GB", { weekday: "long" });
   };
 
   const getRoleColor = (role: string | null | undefined) => {

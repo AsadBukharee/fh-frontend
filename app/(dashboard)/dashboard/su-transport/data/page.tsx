@@ -7,105 +7,103 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 
-const transportData = {
+type TabKey = "early" | "shuttle1" | "shuttle2" | "shuttle3" | "night"
+type DataRow = { location: string; out: number; in: number; spillOver: number }
+type InternalOps = { transfer: number; jobs: number }
+type TransportTab = { timeRange: string; data: DataRow[]; internalOps: InternalOps }
+type TransportData = Record<TabKey, TransportTab>
+
+const transportData: TransportData = {
   early: {
     timeRange: "06:00 AM - 09:30 AM",
-    data: [
-      { location: "Braintree", out: 10, in: 12, spillOver: -2 },
-      { location: "Colchester", out: 5, in: 9, spillOver: -3 },
-      { location: "Colchester B", out: 8, in: 20, spillOver: -2 },
-      { location: "Colchester S", out: 20, in: 5, spillOver: +2 },
-    ],
-    internalOps: { transfer: 0, jobs: 0 }, // Default values
+    data: [],
+    internalOps: { transfer: 0, jobs: 0 },
   },
   shuttle1: {
     timeRange: "09:30 AM - 12:00 PM",
-    data: [
-      { location: "Braintree", out: 15, in: 8, spillOver: 3 },
-      { location: "Colchester", out: 12, in: 14, spillOver: -1 },
-      { location: "Colchester B", out: 18, in: 22, spillOver: -4 },
-      { location: "Colchester S", out: 25, in: 10, spillOver: 5 },
-    ],
+    data: [],
     internalOps: { transfer: 0, jobs: 0 },
   },
   shuttle2: {
     timeRange: "12:00 PM - 15:00 PM",
-    data: [
-      { location: "Braintree", out: 20, in: 18, spillOver: 1 },
-      { location: "Colchester", out: 16, in: 19, spillOver: -2 },
-      { location: "Colchester B", out: 14, in: 25, spillOver: -3 },
-      { location: "Colchester S", out: 28, in: 12, spillOver: 4 },
-    ],
+    data: [],
     internalOps: { transfer: 0, jobs: 0 },
   },
   shuttle3: {
     timeRange: "15:00 PM - 18:00 PM",
-    data: [
-      { location: "Braintree", out: 22, in: 16, spillOver: 2 },
-      { location: "Colchester", out: 18, in: 21, spillOver: -1 },
-      { location: "Colchester B", out: 16, in: 28, spillOver: -5 },
-      { location: "Colchester S", out: 32, in: 14, spillOver: 6 },
-    ],
+    data: [],
     internalOps: { transfer: 0, jobs: 0 },
   },
   night: {
     timeRange: "18:00 PM - 00:00 AM",
-    data: [
-      { location: "Braintree", out: 8, in: 12, spillOver: -1 },
-      { location: "Colchester", out: 6, in: 9, spillOver: -2 },
-      { location: "Colchester B", out: 10, in: 15, spillOver: -3 },
-      { location: "Colchester S", out: 18, in: 8, spillOver: 3 },
-    ],
+    data: [],
     internalOps: { transfer: 0, jobs: 0 },
   },
 }
 
-const tabs = [
+const tabs: { id: TabKey; label: string; apiRunType: string; color: string }[] = [
   { id: "early", label: "Early", apiRunType: "Early", color: "border-red-200 text-red-600" },
-  { id: "shuttle1", label: "1st Shuttle", apiRunType: "1st Shuttle Run", color: "border-green-200 text-green-600" },
-  { id: "shuttle2", label: "2nd Shuttle", apiRunType: "2nd Shuttle Run", color: "border-pink-200 text-pink-600" },
-  { id: "shuttle3", label: "3rd Shuttle", apiRunType: "3rd Shuttle Run", color: "border-orange-200 text-orange-600" },
+  { id: "shuttle1", label: "First Shuttle", apiRunType: "First Shuttle", color: "border-green-200 text-green-600" },
+  { id: "shuttle2", label: "Second Shuttle", apiRunType: "Second Shuttle", color: "border-pink-200 text-pink-600" },
+  { id: "shuttle3", label: "Third Shuttle", apiRunType: "Third Shuttle", color: "border-orange-200 text-orange-600" },
   { id: "night", label: "Night", apiRunType: "Night", color: "border-purple-200 text-purple-600" },
 ]
 
 export default function TransportDashboard() {
-  const [activeTab, setActiveTab] = useState("early")
-  const [apiData, setApiData] = useState(transportData)
-  const currentData = apiData[activeTab as keyof typeof apiData]
+  const [activeTab, setActiveTab] = useState<TabKey>("early")
+  const [apiData, setApiData] = useState<TransportData>(transportData)
   const token = useCookies().get("access_token")
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${API_URL}/activity/operations/overview/`,{
+        const response = await fetch(`${API_URL}/activity/su-run/overview/`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         })
         const result = await response.json()
+
         if (result.success) {
-          // Map API data to internalOps for each run type
-          const updatedData = { ...transportData }
-          result.data.transfer.forEach((item: { run_type: string; count: number }) => {
-            const tab = tabs.find((t) => t.apiRunType === item.run_type)
+          const updatedData: TransportData = { ...transportData }
+
+          result.data.runs.forEach((run: any) => {
+            const tab = tabs.find((t) => run.runName.toLowerCase().includes(t.apiRunType.toLowerCase()))
             if (tab) {
-              updatedData[tab.id as keyof typeof transportData].internalOps.transfer = item.count
+              // Map internal jobs
+              const transfer = run.internalJobsList.find((j: any) => j.name === "Internal Transfer")?.Total || 0
+              const jobs = run.internalJobsList.find((j: any) => j.name === "Internal Jobs")?.Total || 0
+
+              updatedData[tab.id].internalOps = {
+                transfer: Number(transfer),
+                jobs: Number(jobs),
+              }
+
+              // Map data locations
+              updatedData[tab.id].data = run.data.map((loc: any): DataRow => ({
+                location: String(loc.location ?? ""),
+                out: Number(loc.out ?? 0),
+                in: Number(loc.in ?? 0),
+                spillOver: Number(loc.in ?? 0) - Number(loc.out ?? 0),
+              }))
+
+              // Update time range
+              updatedData[tab.id].timeRange = `${run.startTime} - ${run.endTime}`
             }
           })
-          result.data.jobs.forEach((item: { run_type: string; count: number }) => {
-            const tab = tabs.find((t) => t.apiRunType === item.run_type)
-            if (tab) {
-              updatedData[tab.id as keyof typeof transportData].internalOps.jobs = item.count
-            }
-          })
+
           setApiData(updatedData)
         }
       } catch (error) {
         console.error("Error fetching API data:", error)
       }
     }
+
     fetchData()
-  }, [])
+  }, [token])
+
+  const currentData = apiData[activeTab]
 
   const getTotalOut = () => currentData.data.reduce((sum, item) => sum + item.out, 0)
   const getTotalIn = () => currentData.data.reduce((sum, item) => sum + item.in, 0)
@@ -118,7 +116,7 @@ export default function TransportDashboard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">SU Number Screen</h1>
+              <h1 className="text-2xl font-bold text-gray-900">SU Number Screen Management</h1>
               <p className="text-sm text-gray-500 flex items-center gap-1">
                 Last updated: {new Date().toLocaleTimeString()}
               </p>
@@ -135,8 +133,8 @@ export default function TransportDashboard() {
               key={tab.id}
               variant={activeTab === tab.id ? "default" : "outline"}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center cursor-pointer gap-2 ${
-                tab.id === "early"
+              className={`flex items-center cursor-pointer gap-2 
+                ${tab.id === "early"
                   ? "bg-red-500/50 border-red-500 text-red-600"
                   : tab.id === "shuttle1"
                     ? "bg-green-500/50 text-green-600 border-green-500"
@@ -144,8 +142,8 @@ export default function TransportDashboard() {
                       ? "bg-pink-500/50 border-pink-500 text-pink-600"
                       : tab.id === "shuttle3"
                         ? "bg-orange-500/50 border-orange-500 text-orange-600"
-                        : "bg-purple-500/50 text-purple-600 border-purple-500"
-              } ${activeTab === tab.id ? "bg-white" : ""}`}
+                        : "bg-purple-500/50 text-purple-600 border-purple-500"}
+                ${activeTab === tab.id ? "bg-white" : ""}`}
             >
               {tab.label}
             </Badge>
@@ -257,3 +255,5 @@ export default function TransportDashboard() {
     </div>
   )
 }
+
+

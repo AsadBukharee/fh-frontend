@@ -299,7 +299,7 @@ export default function SiteGrid() {
                 <p className="mt-1">Created By: {site.created_by}</p>
                 <p className="mt-1">
                   Last Updated:{" "}
-                  {new Date(site.updated_at).toLocaleString("en-US", {
+                  {new Date(site.updated_at).toLocaleString("en-GB", {
                     month: "numeric",
                     day: "numeric",
                     year: "numeric",

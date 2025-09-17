@@ -391,7 +391,7 @@ export default function MechanicJobsPage() {
                     }
                   </TableCell>
                   <TableCell>
-                    {new Date(job.timestamp).toLocaleDateString()}
+                    {new Date(job.timestamp).toLocaleDateString("en-GB")}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>

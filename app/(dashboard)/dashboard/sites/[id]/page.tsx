@@ -19,6 +19,7 @@ import {
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { format, parse } from "date-fns";
+import { formatDmy } from "@/lib/utils";
 import {
   BarChart,
   Bar,
@@ -621,14 +622,7 @@ export default function SiteDetails() {
                   {status}
                 </Badge>
                 <span>
-                  Last Updated: {new Date(site.updated_at).toLocaleString("en-US", {
-                    month: "numeric",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  })}
+                  Last Updated: {new Date(site.updated_at).toLocaleDateString("en-GB")}
                 </span>
               </div>
             </Card>
@@ -674,14 +668,7 @@ export default function SiteDetails() {
                 ))}
               </ul>
               <p className="text-xs text-gray-500 mt-2">
-                Last Updated: {new Date(site.updated_at).toLocaleString("en-US", {
-                  month: "numeric",
-                  day: "numeric",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
+                Last Updated: {new Date(site.updated_at).toLocaleDateString("en-GB")}
               </p>
             </Card>
             <Card className="p-4 rounded-lg bg-white border border-gray-200">
@@ -775,9 +762,7 @@ export default function SiteDetails() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-700">Latest Update</span>
-                  <span className="text-sm text-gray-700">
-                    {new Date(site.updated_at).toLocaleDateString()}
-                  </span>
+                  <span className="text-sm text-gray-700">{formatDmy(site.updated_at)}</span>
                 </div>
               </div>
             </Card>

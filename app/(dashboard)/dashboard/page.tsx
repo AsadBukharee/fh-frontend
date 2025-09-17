@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
-import { DollarSign, Calendar, Car, MapPin, Filter, Eye, MoreHorizontal } from "lucide-react"
+import { PoundSterling, Calendar, Car, MapPin, Filter, Eye, MoreHorizontal } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 
@@ -96,10 +96,10 @@ export default function Dashboard() {
         },
         {
           title: "Monthly Salary",
-          value: `$${dashboardData.dashboard_metrics.monthly_salary_count.toLocaleString()}`,
+          value: `£${dashboardData.dashboard_metrics.monthly_salary_count.toLocaleString("en-GB")}`,
           change: 0,
-          icon: <DollarSign className="w-4 h-4 text-green-600" />,
-          progress: (dashboardData.dashboard_metrics.monthly_salary_count / 20) * 100, // Assuming max $20
+          icon: <PoundSterling className="w-4 h-4 text-green-600" />,
+          progress: (dashboardData.dashboard_metrics.monthly_salary_count / 20) * 100, // Assuming max £20
           progressColor: "bg-green-500",
         },
       ]
@@ -136,7 +136,7 @@ export default function Dashboard() {
       car: "Honda",
       date: "07/9/2025",
       time: "10:30 AM",
-      amount: "$400",
+      amount: "£400",
       status: "Accepted",
     },
     {
@@ -146,7 +146,7 @@ export default function Dashboard() {
       car: "Toyota",
       date: "08/9/2025",
       time: "2:00 PM",
-      amount: "$350",
+      amount: "£350",
       status: "Pending",
     },
   ]
@@ -186,7 +186,7 @@ export default function Dashboard() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-gray-600">Last updated: {new Date(dashboardData.date).toLocaleString()}</p>
+        <p className="text-gray-600">Last updated: {new Date(dashboardData.date).toLocaleDateString("en-GB")}</p>
       </div>
 
       {/* Top Metrics */}
