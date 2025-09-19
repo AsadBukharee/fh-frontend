@@ -1,93 +1,91 @@
-"use client"
-import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Bell, Search, User, MoreHorizontal, ChevronDown } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+"use client";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { MoreHorizontal } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { format } from "date-fns"
-import { Calendar as CalendarIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
-import API_URL from "@/app/utils/ENV"
-import { useCookies } from "next-client-cookies"
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import API_URL from "@/app/utils/ENV";
+import { useCookies } from "next-client-cookies";
 
 // Define types for API responses
 interface ApiRun {
-  runName: string
-  startTime: string
-  endTime: string
-  data: any[]
-  internalJobsList: { name: string; Total: string }[]
+  runName: string;
+  startTime: string;
+  endTime: string;
+  data: any[];
+  internalJobsList: { name: string; Total: string }[];
 }
 
 interface ApiResponse {
-  success: boolean
-  message: string
+  success: boolean;
+  message: string;
   data: {
-    runs: ApiRun[]
-    count: number
-    page: number
-    page_size: number
-    total_pages: number
+    runs: ApiRun[];
+    count: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
     filters: {
-      start_date: string
-      end_date: string
-      driver: string
-      location: string
-      direction: string
-    }
-  }
+      start_date: string;
+      end_date: string;
+      driver: string;
+      location: string;
+      direction: string;
+    };
+  };
 }
 
 interface Location {
-  id: number
-  name: string
+  id: number;
+  name: string;
 }
 
 interface Driver {
-  id: number
-  full_name: string
-  avatar: string | null
-  email: string
+  id: number;
+  full_name: string;
+  avatar: string | null;
+  email: string;
 }
 
 // Define types for your data structure
-type TimeSlotId = "early" | "shuttle1" | "shuttle2" | "shuttle3" | "night"
+type TimeSlotId = "early" | "shuttle1" | "shuttle2" | "shuttle3" | "night";
 
 interface LocationRow {
-  location: string
-  out: number
-  in: number
-  spillOver: number
+  location: string;
+  out: number;
+  in: number;
+  spillover: number;
 }
 
 interface DriverRow {
-  name: string
-  transfers: number
-  jobs: number
-  total: number
+  name: string;
+  transfers: number;
+  jobs: number;
+  total: number;
 }
 
 interface SlotData {
-  timeRange: string
-  data: LocationRow[]
-  internalOps: { drivers: DriverRow[] }
+  timeRange: string;
+  data: LocationRow[];
+  internalOps: { drivers: DriverRow[] };
 }
 
-type TransportData = Record<TimeSlotId, SlotData>
+type TransportData = Record<TimeSlotId, SlotData>;
 
 // Fallback data
 const fallbackTransportData: TransportData = {
@@ -96,7 +94,7 @@ const fallbackTransportData: TransportData = {
   shuttle2: { timeRange: "2:01 PM - 4:30 PM", data: [], internalOps: { drivers: [] } },
   shuttle3: { timeRange: "4:31 PM - 6:59 PM", data: [], internalOps: { drivers: [] } },
   night: { timeRange: "7:00 PM - 4:59 AM", data: [], internalOps: { drivers: [] } },
-}
+};
 
 // Fallback static lists for locations and drivers
 const fallbackLocations: Location[] = [
@@ -105,12 +103,12 @@ const fallbackLocations: Location[] = [
   { id: 17, name: "Braintree Community Hospital" },
   { id: 18, name: "Braintree Police Station" },
   { id: 26, name: "Colchester Napier Road" },
-]
+];
 const fallbackDrivers: Driver[] = [
   { id: 1, full_name: "John David", avatar: null, email: "john.david@example.com" },
   { id: 2, full_name: "Jane Smith", avatar: null, email: "jane.smith@example.com" },
   { id: 3, full_name: "Mike Johnson", avatar: null, email: "mike.johnson@example.com" },
-]
+];
 
 // Map API run names to time slot IDs
 const runNameToId: Record<string, TimeSlotId> = {
@@ -119,7 +117,7 @@ const runNameToId: Record<string, TimeSlotId> = {
   "Second Shuttle": "shuttle2",
   "Third Shuttle": "shuttle3",
   Night: "night",
-}
+};
 
 const tabs: { id: TimeSlotId; label: string; color: string }[] = [
   { id: "early", label: "Early", color: "bg-pink-100 text-pink-600 border-pink-200" },
@@ -127,26 +125,26 @@ const tabs: { id: TimeSlotId; label: string; color: string }[] = [
   { id: "shuttle2", label: "2nd Shuttle", color: "bg-purple-100 text-purple-600 border-purple-200" },
   { id: "shuttle3", label: "3rd Shuttle", color: "bg-orange-100 text-orange-600 border-orange-200" },
   { id: "night", label: "Night", color: "bg-blue-100 text-blue-600 border-blue-200" },
-]
+];
 
 export default function TransportDashboard() {
-  const [activeTab, setActiveTab] = useState<TimeSlotId>("early")
-  const [selectedLocation, setSelectedLocation] = useState<string>("all")
-  const [selectedDriver, setSelectedDriver] = useState<string>("all")
+  const [activeTab, setActiveTab] = useState<TimeSlotId>("early");
+  const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
     to: undefined,
-  })
-  const [direction, setDirection] = useState<string>("all")
-  const [transportData, setTransportData] = useState<TransportData>(fallbackTransportData)
-  const [locations, setLocations] = useState<Location[]>([])
-  const [drivers, setDrivers] = useState<Driver[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [page, setPage] = useState<number>(1)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const cookies = useCookies()
-  const token = cookies.get("access_token")
+  });
+  const [direction, setDirection] = useState<string>("all");
+  const [transportData, setTransportData] = useState<TransportData>(fallbackTransportData);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const cookies = useCookies();
+  const token = cookies.get("access_token");
 
   // Fetch locations
   useEffect(() => {
@@ -157,24 +155,24 @@ export default function TransportDashboard() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-        })
+        });
         if (!response.ok) {
-          throw new Error("Failed to fetch locations")
+          throw new Error("Failed to fetch locations");
         }
-        const data = await response.json()
+        const data = await response.json();
         if (data.success) {
-          setLocations(data.data)
+          setLocations(data.data);
         } else {
-          throw new Error(data.message || "Failed to fetch locations")
+          throw new Error(data.message || "Failed to fetch locations");
         }
       } catch (err) {
-        console.error(err)
-        setLocations(fallbackLocations)
-        setError("Failed to fetch locations. Using fallback data.")
+        console.error(err);
+        setLocations(fallbackLocations);
+        setError("Failed to fetch locations. Using fallback data.");
       }
-    }
-    fetchLocations()
-  }, [token])
+    };
+    fetchLocations();
+  }, [token]);
 
   // Fetch drivers
   useEffect(() => {
@@ -185,33 +183,33 @@ export default function TransportDashboard() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-        })
+        });
         if (!response.ok) {
-          throw new Error("Failed to fetch drivers")
+          throw new Error("Failed to fetch drivers");
         }
-        const data = await response.json()
+        const data = await response.json();
         if (data.success) {
-          setDrivers(data.data)
+          setDrivers(data.data);
         } else {
-          throw new Error(data.message || "Failed to fetch drivers")
+          throw new Error(data.message || "Failed to fetch drivers");
         }
       } catch (err) {
-        console.error(err)
-        setDrivers(fallbackDrivers)
-        setError("Failed to fetch drivers. Using fallback data.")
+        console.error(err);
+        setDrivers(fallbackDrivers);
+        setError("Failed to fetch drivers. Using fallback data.");
       }
-    }
-    fetchDrivers()
-  }, [token])
+    };
+    fetchDrivers();
+  }, [token]);
 
   // Fetch transport data based on filters
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        const today = new Date()
-        const defaultEndDate = today
-        const defaultStartDate = new Date(today.setDate(today.getDate() - 7))
+        const today = new Date();
+        const defaultEndDate = today;
+        const defaultStartDate = new Date(today.setDate(today.getDate() - 7));
 
         const queryParams = new URLSearchParams({
           start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : format(defaultStartDate, "yyyy-MM-dd"),
@@ -221,7 +219,7 @@ export default function TransportDashboard() {
           direction: direction !== "all" ? direction : "out",
           page: page.toString(),
           page_size: "20",
-        })
+        });
 
         const response = await fetch(
           `${API_URL}/activity/su-run/data-screen/?${queryParams}`,
@@ -231,49 +229,49 @@ export default function TransportDashboard() {
               Authorization: `Bearer ${token}`,
             },
           }
-        )
+        );
         if (!response.ok) {
-          throw new Error("Failed to fetch data")
+          throw new Error("Failed to fetch data");
         }
-        const apiData: ApiResponse = await response.json()
+        const apiData: ApiResponse = await response.json();
 
-        const newTransportData: TransportData = { ...fallbackTransportData }
+        const newTransportData: TransportData = { ...fallbackTransportData };
         apiData.data.runs.forEach((run) => {
-          const slotId = runNameToId[run.runName] || "early"
+          const slotId = runNameToId[run.runName] || "early";
           newTransportData[slotId] = {
             timeRange: `${run.startTime} - ${run.endTime}`,
             data: run.data,
             internalOps: {
               drivers: [],
             },
-          }
-        })
-        setTransportData(newTransportData)
-        setTotalPages(apiData.data.total_pages)
-        setError(null)
+          };
+        });
+        setTransportData(newTransportData);
+        setTotalPages(apiData.data.total_pages);
+        setError(null);
       } catch (err) {
-        setError("Error fetching data. Using fallback data.")
-        console.error(err)
+        setError("Error fetching data. Using fallback data.");
+        console.error(err);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
-    fetchData()
-  }, [dateRange.from, dateRange.to, selectedDriver, selectedLocation, direction, page, token])
+    };
+    fetchData();
+  }, [dateRange.from, dateRange.to, selectedDriver, selectedLocation, direction, page, token]);
 
-  const currentData = transportData[activeTab]
+  const currentData = transportData[activeTab];
 
   const filteredData = currentData.data.filter((row: LocationRow) => {
-    return selectedLocation === "all" || row.location === selectedLocation
-  })
+    return selectedLocation === "all" || row.location === selectedLocation;
+  });
 
   const filteredDrivers = currentData.internalOps.drivers.filter((driver: DriverRow) =>
     selectedDriver === "all" || driver.name === selectedDriver
-  )
+  );
 
-  const getTotalOut = () => filteredData.reduce((sum, item) => sum + item.out, 0)
-  const getTotalIn = () => filteredData.reduce((sum, item) => sum + item.in, 0)
-  const getTotalSpillOver = () => filteredData.reduce((sum, item) => sum + item.spillOver, 0)
+  const getTotalOut = () => filteredData.reduce((sum, item) => sum + item.out, 0);
+  const getTotalIn = () => filteredData.reduce((sum, item) => sum + item.in, 0);
+  const getTotalSpillOver = () => filteredData.reduce((sum, item) => sum + item.spillover, 0);
 
   return (
     <div className="min-h-screen bg-white p-6">
@@ -296,12 +294,12 @@ export default function TransportDashboard() {
             <Badge
               key={tab.id}
               onClick={() => {
-                setActiveTab(tab.id)
-                setSelectedLocation("all")
-                setSelectedDriver("all")
-                setDateRange({ from: undefined, to: undefined })
-                setDirection("all")
-                setPage(1)
+                setActiveTab(tab.id);
+                setSelectedLocation("all");
+                setSelectedDriver("all");
+                setDateRange({ from: undefined, to: undefined });
+                setDirection("all");
+                setPage(1);
               }}
               className={`px-4 py-1 rounded-2xl text-sm font-medium border transition-colors ${
                 activeTab === tab.id ? tab.color : "text-gray-500 hover:text-gray-700 bg-white border-gray-200"
@@ -326,6 +324,16 @@ export default function TransportDashboard() {
         </div>
         {/* Filter Row */}
         <div className="flex items-center gap-4 mb-6 text-sm text-gray-600">
+        <Select onValueChange={setDirection} value={direction}>
+            <SelectTrigger className="w-[180px] border-gray-300">
+              <SelectValue placeholder="Select Direction" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Directions</SelectItem>
+              <SelectItem value="in">In</SelectItem>
+              <SelectItem value="out">Out</SelectItem>
+            </SelectContent>
+          </Select>
           <Select onValueChange={setSelectedLocation} value={selectedLocation}>
             <SelectTrigger className="w-[180px] border-gray-300">
               <SelectValue placeholder="Select Location" />
@@ -352,50 +360,59 @@ export default function TransportDashboard() {
               ))}
             </SelectContent>
           </Select>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-[280px] justify-start text-left font-normal",
-                  !dateRange.from && !dateRange.to && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(dateRange.from, "LLL dd, y")
-                  )
-                ) : (
-                  "Pick a date range"
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={(range) => {
-                  setDateRange({ from: range?.from, to: range?.to })
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-          <Select onValueChange={setDirection} value={direction}>
-            <SelectTrigger className="w-[180px] border-gray-300">
-              <SelectValue placeholder="Select Direction" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Directions</SelectItem>
-              <SelectItem value="in">In</SelectItem>
-              <SelectItem value="out">Out</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-4">
+  {/* Start Date Picker */}
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button
+        variant="outline"
+        className={cn(
+          "w-[140px] justify-start text-left font-normal",
+          !dateRange.from && "text-muted-foreground"
+        )}
+      >
+        {dateRange.from ? format(dateRange.from, "LLL dd, yyyy") : "Start Date"}
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-auto p-2">
+      <Calendar
+        mode="single"
+        selected={dateRange.from}
+        onSelect={(date) => setDateRange((prev) => ({ ...prev, from: date }))}
+        initialFocus
+        className="rounded-md"
+        defaultMonth={dateRange.from || new Date()}
+      />
+    </PopoverContent>
+  </Popover>
+
+  {/* End Date Picker */}
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button
+        variant="outline"
+        className={cn(
+          "w-[140px] justify-start text-left font-normal",
+          !dateRange.to && "text-muted-foreground"
+        )}
+      >
+        {dateRange.to ? format(dateRange.to, "LLL dd, yyyy") : "End Date"}
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-auto p-2">
+      <Calendar
+        mode="single"
+        selected={dateRange.to}
+        onSelect={(date) => setDateRange((prev) => ({ ...prev, to: date }))}
+        initialFocus
+        className="rounded-md "
+        defaultMonth={dateRange.to || new Date()}
+      />
+    </PopoverContent>
+  </Popover>
+</div>
+
+      
         </div>
       </div>
 
@@ -458,10 +475,10 @@ export default function TransportDashboard() {
                       <Badge
                         variant="secondary"
                         className={`${
-                          row.spillOver > 0 ? "bg-[#C1E1C5] text-[#2E7D32]" : "bg-[#FFC1CC] text-[#FF2E63]"
+                          row.spillover > 0 ? "bg-[#C1E1C5] text-[#2E7D32]" : "bg-[#FFC1CC] text-[#FF2E63]"
                         }`}
                       >
-                        {row.spillOver > 0 ? `+${row.spillOver}` : row.spillOver}
+                        {row.spillover > 0 ? `+${row.spillover}` : row.spillover}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
@@ -559,5 +576,5 @@ export default function TransportDashboard() {
         </div>
       )}
     </div>
-  )
+  );
 }
