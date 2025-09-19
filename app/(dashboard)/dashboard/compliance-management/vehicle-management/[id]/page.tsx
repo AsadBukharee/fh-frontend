@@ -1,7 +1,5 @@
 "use client";
-
 import type React from "react";
-
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
@@ -161,7 +159,7 @@ interface Vehicle {
 }
 
 export default function VehicleDetailPage() {
-  const { id } = useParams(); // Get vehicle ID from URL
+  const { id } = useParams(); // Get vehicle ID from URL (assumed to be vehicle_reg)
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -190,20 +188,150 @@ export default function VehicleDetailPage() {
             Authorization: `Bearer ${token}`,
           },
         });
-        const data = await res.json();
-        if (data.success) {
-          setVehicle(data.data);
-          setEditVehicle(data.data);
-          setTempPrice(data.data.vehicle_cost || 0);
+        const apiData = await res.json();
+        if (apiData.success) {
+          const vehicleData = apiData.data;
+          const registrationNumber = id as string; // Assuming id is vehicle_reg
+
+          // Aggregate data for the specific vehicle
+          const motData = vehicleData.mot
+            .filter((mot: any) => mot.vehicle_reg === registrationNumber)
+            .reduce(
+              (latest: any, current: any) =>
+                !latest || new Date(current.mot_expiry) > new Date(latest.mot_expiry)
+                  ? current
+                  : latest,
+              null
+            );
+          const insuranceData = vehicleData.insurance
+            .filter((ins: any) => ins.vehicle_reg === registrationNumber)
+            .reduce(
+              (latest: any, current: any) =>
+                !latest || new Date(current.expiry) > new Date(latest.expiry)
+                  ? current
+                  : latest,
+              null
+            );
+          const tyreData = vehicleData.tyre.find(
+            (tyre: any) => tyre.vehicle_reg === registrationNumber
+          );
+          const calibrationData = vehicleData.calibrations
+            .filter((cal: any) => cal.vehicle_reg === registrationNumber)
+            .reduce(
+              (latest: any, current: any) =>
+                !latest || new Date(current.expiry) > new Date(latest.expiry)
+                  ? current
+                  : latest,
+              null
+            );
+          const pmiData = vehicleData.pmi.find(
+            (pmi: any) => pmi.vehicle_reg === registrationNumber
+          );
+          const tachoData = vehicleData.tacho
+            .filter((tacho: any) => tacho.vehicle_reg === registrationNumber)
+            .reduce(
+              (latest: any, current: any) =>
+                !latest || (current.last_download && (!latest.last_download || new Date(current.last_download) > new Date(latest.last_download)))
+                  ? current
+                  : latest,
+              null
+            );
+
+          // Construct vehicle object matching the Vehicle interface
+          const constructedVehicle: Vehicle = {
+            id: Number((Array.isArray(id) ? id[0] : id)?.replace(/\D/g, "") || 0), // Extract number from vehicle_reg or adjust based on API
+            registration_number: registrationNumber,
+            vehicle_status: "active", // Default, adjust if API provides
+            is_roadworthy: true, // Default, adjust if API provides
+            walkaround_count: null, // Default, adjust if API provides
+            last_mileage: null, // Default, adjust if API provides
+            vehicle_cost: 0, // Default, adjust if API provides
+            vehicle_picture: undefined, // Default, adjust if API provides
+            assignee_driver: null, // Default, adjust if API provides
+            vehicles_type: {
+              id: 1,
+              name: "Unknown",
+              description: "Unknown",
+            },
+            site_allocated: null, // Default, adjust if API provides
+            warnings: [], // Derive from data if needed
+            missing_attributes: [
+              !motData ? "MOT Expiry" : "",
+              !insuranceData ? "Insurance Expiry" : "",
+              !pmiData ? "Inspection Expiry" : "",
+              !calibrationData ? "Tacho Calibration" : "",
+            ].filter(Boolean),
+            mot_expiry: motData?.mot_expiry || "N/A",
+            tax_expiry: "N/A", // Not in API response
+            insurance_expiry: insuranceData?.expiry || "N/A",
+            inspection_expiry: pmiData?.next_inspection_book_date || "N/A",
+            tacho_calibration: calibrationData?.expiry || "N/A",
+            tyre_expiry_front_driver: tyreData?.next_check || null,
+            tyre_expiry_front_passenger: tyreData?.next_check || null,
+            tyre_expiry_rear_outer_driver: tyreData?.next_check || null,
+            tyre_expiry_rear_outer_passenger: tyreData?.next_check || null,
+            tyre_pressure_front_driver: undefined,
+            tyre_pressure_front_passenger: undefined,
+            tyre_pressure_rear_outer_driver: undefined,
+            tyre_pressure_rear_outer_passenger: undefined,
+            tyre_depth_front_driver: undefined,
+            tyre_depth_front_passenger: undefined,
+            tyre_depth_rear_outer_driver: undefined,
+            tyre_depth_rear_outer_passenger: undefined,
+            tyre_torque_front_driver: undefined,
+            tyre_torque_front_passenger: undefined,
+            tyre_torque_rear_outer_driver: undefined,
+            tyre_torque_rear_outer_passenger: undefined,
+            log_book: undefined,
+            mot_docs: undefined,
+            pree_mot_check_docs: undefined,
+            inspection: undefined,
+            insurance: undefined,
+            fitness_certificate: undefined,
+            route_permit: undefined,
+            financial: undefined,
+            others: undefined,
+            service_records: undefined,
+            tax: undefined,
+            tacho_download_docs: tachoData?.last_download || undefined,
+            tacho_calibration_docs: undefined,
+            status_indicators: {
+              mot_expiring: motData?.mot_expiry
+                ? new Date(motData.mot_expiry) < new Date()
+                : false,
+              tax_expiring: false,
+              insurance_expiring: insuranceData?.expiry
+                ? new Date(insuranceData.expiry) < new Date()
+                : false,
+              inspection_due: pmiData?.next_inspection_book_date === "TBC",
+            },
+            tyre_expiry_status: {
+              front_driver_expiring: tyreData?.next_check
+                ? new Date(tyreData.next_check) < new Date()
+                : false,
+              front_passenger_expiring: tyreData?.next_check
+                ? new Date(tyreData.next_check) < new Date()
+                : false,
+              rear_outer_driver_expiring: tyreData?.next_check
+                ? new Date(tyreData.next_check) < new Date()
+                : false,
+              rear_outer_passenger_expiring: tyreData?.next_check
+                ? new Date(tyreData.next_check) < new Date()
+                : false,
+            },
+          };
+
+          setVehicle(constructedVehicle);
+          setEditVehicle(constructedVehicle);
+          setTempPrice(constructedVehicle.vehicle_cost || 0);
           setTempTyreExpiry({
-            front_driver: data.data.tyre_expiry_front_driver || "",
-            front_passenger: data.data.tyre_expiry_front_passenger || "",
-            rear_outer_driver: data.data.tyre_expiry_rear_outer_driver || "",
-            rear_outer_passenger:
-              data.data.tyre_expiry_rear_outer_passenger || "",
+            front_driver: constructedVehicle.tyre_expiry_front_driver || "",
+            front_passenger: constructedVehicle.tyre_expiry_front_passenger || "",
+            rear_outer_driver: constructedVehicle.tyre_expiry_rear_outer_driver || "",
+            rear_outer_passenger: constructedVehicle.tyre_expiry_rear_outer_passenger || "",
           });
         } else {
-          setError(data.message || "Failed to fetch vehicle data");
+          setError(apiData.message || "Failed to fetch vehicle data");
         }
       } catch (err) {
         setError("Error fetching vehicle data");
@@ -220,7 +348,6 @@ export default function VehicleDetailPage() {
   // Update vehicle price
   const handlePriceUpdate = async () => {
     if (!vehicle || !token) return;
-
     try {
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PATCH",
@@ -230,7 +357,6 @@ export default function VehicleDetailPage() {
         },
         body: JSON.stringify({ vehicle_cost: tempPrice }),
       });
-
       const updatedData = await res.json();
       if (res.ok && updatedData.success) {
         setVehicle((prev) =>
@@ -249,7 +375,6 @@ export default function VehicleDetailPage() {
   // Update tyre expiry dates
   const handleTyreExpiryUpdate = async () => {
     if (!vehicle || !token) return;
-
     try {
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PATCH",
@@ -258,13 +383,14 @@ export default function VehicleDetailPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          tyre_expiry_front_driver: tempTyreExpiry.front_driver,
-          tyre_expiry_front_passenger: tempTyreExpiry.front_passenger,
-          tyre_expiry_rear_outer_driver: tempTyreExpiry.rear_outer_driver,
-          tyre_expiry_rear_outer_passenger: tempTyreExpiry.rear_outer_passenger,
+          tyre: [
+            {
+              vehicle_reg: vehicle.registration_number,
+              next_check: tempTyreExpiry.front_driver, // Use one field as proxy
+            },
+          ],
         }),
       });
-
       if (res.ok) {
         setVehicle((prev) =>
           prev
@@ -273,8 +399,7 @@ export default function VehicleDetailPage() {
                 tyre_expiry_front_driver: tempTyreExpiry.front_driver,
                 tyre_expiry_front_passenger: tempTyreExpiry.front_passenger,
                 tyre_expiry_rear_outer_driver: tempTyreExpiry.rear_outer_driver,
-                tyre_expiry_rear_outer_passenger:
-                  tempTyreExpiry.rear_outer_passenger,
+                tyre_expiry_rear_outer_passenger: tempTyreExpiry.rear_outer_passenger,
               }
             : prev
         );
@@ -292,7 +417,6 @@ export default function VehicleDetailPage() {
   // Handle image upload
   const handleImageUpload = async (imageUrl: string) => {
     if (!vehicle || !token) return;
-
     try {
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PATCH",
@@ -302,7 +426,6 @@ export default function VehicleDetailPage() {
         },
         body: JSON.stringify({ vehicle_picture: imageUrl }),
       });
-
       if (res.ok) {
         setVehicle((prev) =>
           prev ? { ...prev, vehicle_picture: imageUrl } : prev
@@ -327,15 +450,14 @@ export default function VehicleDetailPage() {
     field: keyof NonNullable<Vehicle["site_allocated"]>,
     value: any
   ) => {
-  setEditVehicle((prev) =>
-  prev && prev.site_allocated
-    ? {
-        ...prev,
-        site_allocated: { ...prev.site_allocated, [field]: value },
-      }
-    : prev
-);
-
+    setEditVehicle((prev) =>
+      prev && prev.site_allocated
+        ? {
+            ...prev,
+            site_allocated: { ...prev.site_allocated, [field]: value },
+          }
+        : prev
+    );
   };
 
   // Handle input changes for vehicles_type fields
@@ -354,23 +476,44 @@ export default function VehicleDetailPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editVehicle || !token) return;
-
     try {
       setLoading(true);
       setError(null);
-
       const vehicleData = {
-        registration_number: editVehicle.registration_number,
-        vehicle_status: editVehicle.vehicle_status,
-        is_roadworthy: editVehicle.is_roadworthy,
-        mot_expiry: editVehicle.mot_expiry,
-        tax_expiry: editVehicle.tax_expiry,
-        insurance_expiry: editVehicle.insurance_expiry,
-        walkaround_count: editVehicle.walkaround_count,
-        vehicles_type: editVehicle.vehicles_type.id, // Send only the ID
-        site_allocated: editVehicle.site_allocated?.id ?? null,
+        mot: [
+          {
+            vehicle_reg: editVehicle.registration_number,
+            mot_expiry: editVehicle.mot_expiry,
+            next_mot_booked_from: null,
+            next_mot_booked_date: null,
+            time_mot_booked: "TBC",
+          },
+        ],
+        insurance: [
+          {
+            vehicle_reg: editVehicle.registration_number,
+            expiry: editVehicle.insurance_expiry,
+          },
+        ],
+        pmi: [
+          {
+            vehicle_reg: editVehicle.registration_number,
+            next_inspection_book_date: editVehicle.inspection_expiry,
+          },
+        ],
+        calibrations: [
+          {
+            vehicle_reg: editVehicle.registration_number,
+            expiry: editVehicle.tacho_calibration,
+          },
+        ],
+        tyre: [
+          {
+            vehicle_reg: editVehicle.registration_number,
+            next_check: editVehicle.tyre_expiry_front_driver, // Use one field as proxy
+          },
+        ],
       };
-
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PUT",
         headers: {
@@ -379,7 +522,6 @@ export default function VehicleDetailPage() {
         },
         body: JSON.stringify(vehicleData),
       });
-
       const updatedData = await res.json();
       if (res.ok && updatedData.success) {
         setVehicle(updatedData.data);
@@ -465,13 +607,13 @@ export default function VehicleDetailPage() {
         <div className="flex gap-2">
           {isEditing ? (
             <>
-              <button
+              <Button
                 onClick={handleSubmit}
                 className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
               >
                 <Save className="w-4 h-4" /> Save
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   setIsEditing(false);
                   setEditVehicle(vehicle);
@@ -479,10 +621,10 @@ export default function VehicleDetailPage() {
                 className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
               >
                 <X className="w-4 h-4" /> Cancel
-              </button>
+              </Button>
             </>
           ) : (
-            <button
+            <Button
               onClick={() => setIsEditing(true)}
               className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
               style={{
@@ -493,11 +635,10 @@ export default function VehicleDetailPage() {
               }}
             >
               <Edit className="w-4 h-4" /> Edit Vehicle
-            </button>
+            </Button>
           )}
         </div>
       </div>
-
       {/* Warnings and Missing Attributes Accordion */}
       <Card className="mb-6 p-6 bg-gray-100 border border-gray-200 rounded-2xl shadow-sm">
         <Accordion type="single" collapsible>
@@ -513,15 +654,6 @@ export default function VehicleDetailPage() {
               <AccordionContent>
                 <div className="flex items-center justify-between gap-2 text-red-700 font-medium mb-2">
                   <span>Warnings</span>
-                  {/* <X
-                    className="cursor-pointer"
-                    onClick={() =>
-                      setVehicle((prev) => {
-                        if (!prev) return prev;
-                        return { ...prev, warnings: [] };
-                      })
-                    }
-                  /> */}
                 </div>
                 <ul className="space-y-1">
                   {vehicle.warnings.map((warning, index) => (
@@ -533,7 +665,6 @@ export default function VehicleDetailPage() {
               </AccordionContent>
             </AccordionItem>
           )}
-
           {/* Missing Attributes */}
           {vehicle.missing_attributes && vehicle.missing_attributes.length > 0 && (
             <AccordionItem value="missing-attributes">
@@ -546,15 +677,6 @@ export default function VehicleDetailPage() {
               <AccordionContent>
                 <div className="flex items-center justify-between gap-2 text-yellow-700 font-medium mb-2">
                   <span>Missing Information</span>
-                  {/* <X
-                    className="cursor-pointer"
-                    onClick={() =>
-                      setVehicle((prev) => {
-                        if (!prev) return prev;
-                        return { ...prev, missing_attributes: [] };
-                      })
-                    }
-                  /> */}
                 </div>
                 <ul className="space-y-1">
                   {vehicle.missing_attributes.map((attr, index) => (
@@ -568,7 +690,6 @@ export default function VehicleDetailPage() {
           )}
         </Accordion>
       </Card>
-
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column */}
@@ -579,12 +700,11 @@ export default function VehicleDetailPage() {
                 <Camera className="w-7 h-7 rounded-full text-blue-500" />
                 <span>Vehicle Overview</span>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col items-start">
                   {vehicle.vehicle_picture ? (
-                    <img
-                      src={vehicle.vehicle_picture || "/placeholder.svg"}
+                    <Image
+                      src={vehicle.vehicle_picture}
                       alt="Vehicle"
                       width={200}
                       height={150}
@@ -597,7 +717,6 @@ export default function VehicleDetailPage() {
                   )}
                   <ImageUploader onUploadSuccess={handleImageUpload} />
                 </div>
-
                 <div className="flex flex-col justify-center items-start">
                   <div
                     className={`flex ${
@@ -684,7 +803,6 @@ export default function VehicleDetailPage() {
                 </div>
               </div>
             </Card>
-
             {/* Assigned Driver */}
             {vehicle.assignee_driver && (
               <Card className="p-6 bg-green-50 border-l-6 border-green-800 rounded">
@@ -692,7 +810,6 @@ export default function VehicleDetailPage() {
                   <Users className="w-7 h-7 rounded-full text-green-500" />
                   <span>Assigned Driver</span>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Full Name</p>
@@ -725,14 +842,12 @@ export default function VehicleDetailPage() {
                 </div>
               </Card>
             )}
-
             {/* Vehicle Type */}
             <Card className="p-6 bg-rose-50 border-l-6 border-red-800 rounded">
               <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
                 <Shapes className="w-7 h-7 rounded-full text-red-500" />
                 <span>Vehicle Type</span>
               </div>
-
               <div className="grid grid-cols-2 gap-1">
                 <div className="flex flex-col items-center p-4 bg-white">
                   <Shapes className="w-12 h-12 text-gray-400 mb-2" />
@@ -746,14 +861,12 @@ export default function VehicleDetailPage() {
                 </div>
               </div>
             </Card>
-
             {/* General Information */}
             <Card className="p-6 bg-gray-100 rounded-lg">
               <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
                 <Info className="w-6 h-6 rounded-full text-red-500" />
                 <span>General Information</span>
               </div>
-
               <div className="grid grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-1 rounded">
                   <p className="text-sm text-gray-500 mb-1">Registration</p>
@@ -841,7 +954,6 @@ export default function VehicleDetailPage() {
               </div>
             </Card>
           </div>
-
           {/* Right Column */}
           <div className="space-y-6">
             {/* Quick Stats */}
@@ -875,7 +987,6 @@ export default function VehicleDetailPage() {
                 </div>
               </div>
             </Card>
-
             {/* Expiry Dates */}
             <ExpiryDates
               mot_expiry={vehicle.mot_expiry}
@@ -885,7 +996,6 @@ export default function VehicleDetailPage() {
               inspection_expiry={vehicle.inspection_expiry}
               status_indicators={vehicle.status_indicators}
             />
-
             {/* Accordion for Tyre Info, Documents, and Operation Hours */}
             <Card className="p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
               <Accordion type="single" collapsible>
@@ -1024,7 +1134,7 @@ export default function VehicleDetailPage() {
                             <Badge className="bg-red-100 text-red-700">Expiring</Badge>
                           )}
                         </div>
-                        <img
+                        <Image
                           src={vehicle.vehicle_picture ? vehicle.vehicle_picture : "/tyre/1 (4).png"}
                           alt="Passenger Side Tyre"
                           width={100}
@@ -1033,13 +1143,11 @@ export default function VehicleDetailPage() {
                         />
                         <div className="mt-2 space-y-1 text-center">
                           <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                            Expiry:{" "}
-                            {vehicle.tyre_expiry_front_passenger || "N/A"}
+                            Expiry: {vehicle.tyre_expiry_front_passenger || "N/A"}
                           </div>
                           {vehicle.tyre_pressure_front_passenger && (
                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
-                              Pressure: {vehicle.tyre_pressure_front_passenger}{" "}
-                              PSI
+                              Pressure: {vehicle.tyre_pressure_front_passenger} PSI
                             </div>
                           )}
                           {vehicle.tyre_depth_front_passenger && (
@@ -1064,7 +1172,7 @@ export default function VehicleDetailPage() {
                             <Badge className="bg-red-100 text-red-700">Expiring</Badge>
                           )}
                         </div>
-                        <img
+                        <Image
                           src={vehicle.vehicle_picture ? vehicle.vehicle_picture : "/tyre/1 (1).png"}
                           alt="Driver Side Tyre"
                           width={100}
@@ -1102,7 +1210,7 @@ export default function VehicleDetailPage() {
                             <Badge className="bg-red-100 text-red-700">Expiring</Badge>
                           )}
                         </div>
-                        <img
+                        <Image
                           src={vehicle.vehicle_picture ? vehicle.vehicle_picture : "/tyre/1 (3).png"}
                           alt="Back Left Side Tyre"
                           width={100}
@@ -1111,13 +1219,11 @@ export default function VehicleDetailPage() {
                         />
                         <div className="mt-2 space-y-1 text-center">
                           <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                            Expiry:{" "}
-                            {vehicle.tyre_expiry_rear_outer_driver || "N/A"}
+                            Expiry: {vehicle.tyre_expiry_rear_outer_driver || "N/A"}
                           </div>
                           {vehicle.tyre_pressure_rear_outer_driver && (
                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
-                              Pressure:{" "}
-                              {vehicle.tyre_pressure_rear_outer_driver} PSI
+                              Pressure: {vehicle.tyre_pressure_rear_outer_driver} PSI
                             </div>
                           )}
                           {vehicle.tyre_depth_rear_outer_driver && (
@@ -1142,7 +1248,7 @@ export default function VehicleDetailPage() {
                             <Badge className="bg-red-100 text-red-700">Expiring</Badge>
                           )}
                         </div>
-                        <img
+                        <Image
                           src={vehicle.vehicle_picture ? vehicle.vehicle_picture : "/tyre/1 (2).png"}
                           alt="Back Right Side Tyre"
                           width={100}
@@ -1151,13 +1257,11 @@ export default function VehicleDetailPage() {
                         />
                         <div className="mt-2 space-y-1 text-center">
                           <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                            Expiry:{" "}
-                            {vehicle.tyre_expiry_rear_outer_passenger || "N/A"}
+                            Expiry: {vehicle.tyre_expiry_rear_outer_passenger || "N/A"}
                           </div>
                           {vehicle.tyre_pressure_rear_outer_passenger && (
                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
-                              Pressure:{" "}
-                              {vehicle.tyre_pressure_rear_outer_passenger} PSI
+                              Pressure: {vehicle.tyre_pressure_rear_outer_passenger} PSI
                             </div>
                           )}
                           {vehicle.tyre_depth_rear_outer_passenger && (
@@ -1167,8 +1271,7 @@ export default function VehicleDetailPage() {
                           )}
                           {vehicle.tyre_torque_rear_outer_passenger && (
                             <div className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-md">
-                              Torque: {vehicle.tyre_torque_rear_outer_passenger}{" "}
-                              Nm
+                              Torque: {vehicle.tyre_torque_rear_outer_passenger} Nm
                             </div>
                           )}
                         </div>
@@ -1176,7 +1279,6 @@ export default function VehicleDetailPage() {
                     </div>
                   </AccordionContent>
                 </AccordionItem>
-
                 {/* Vehicle Documents */}
                 <AccordionItem value="documents">
                   <AccordionTrigger>
@@ -1191,62 +1293,18 @@ export default function VehicleDetailPage() {
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       {[
                         { key: "log_book", label: "Log Book", icon: FileText },
-                        {
-                          key: "mot_docs",
-                          label: "MOT Certificate",
-                          icon: FileText,
-                        },
-                        {
-                          key: "pree_mot_check_docs",
-                          label: "Pre-MOT Check Docs",
-                          icon: FileText,
-                        },
-                        {
-                          key: "inspection",
-                          label: "Inspection Report",
-                          icon: FileText,
-                        },
-                        {
-                          key: "insurance",
-                          label: "Insurance Document",
-                          icon: FileText,
-                        },
-                        {
-                          key: "fitness_certificate",
-                          label: "Fitness Certificate",
-                          icon: FileText,
-                        },
-                        {
-                          key: "route_permit",
-                          label: "Route Permit",
-                          icon: FileText,
-                        },
-                        {
-                          key: "financial",
-                          label: "Financial Document",
-                          icon: FileText,
-                        },
-                        {
-                          key: "service_records",
-                          label: "Service Records",
-                          icon: FileText,
-                        },
+                        { key: "mot_docs", label: "MOT Certificate", icon: FileText },
+                        { key: "pree_mot_check_docs", label: "Pre-MOT Check Docs", icon: FileText },
+                        { key: "inspection", label: "Inspection Report", icon: FileText },
+                        { key: "insurance", label: "Insurance Document", icon: FileText },
+                        { key: "fitness_certificate", label: "Fitness Certificate", icon: FileText },
+                        { key: "route_permit", label: "Route Permit", icon: FileText },
+                        { key: "financial", label: "Financial Document", icon: FileText },
+                        { key: "service_records", label: "Service Records", icon: FileText },
                         { key: "tax", label: "Tax Document", icon: FileText },
-                        {
-                          key: "tacho_download_docs",
-                          label: "Tacho Download",
-                          icon: Download,
-                        },
-                        {
-                          key: "tacho_calibration_docs",
-                          label: "Tacho Calibration",
-                          icon: Download,
-                        },
-                        {
-                          key: "others",
-                          label: "Other Documents",
-                          icon: FileText,
-                        },
+                        { key: "tacho_download_docs", label: "Tacho Download", icon: Download },
+                        { key: "tacho_calibration_docs", label: "Tacho Calibration", icon: Download },
+                        { key: "others", label: "Other Documents", icon: FileText },
                       ].map(({ key, label, icon: Icon }) => {
                         const docUrl = vehicle[key as keyof Vehicle] as string;
                         return docUrl ? (
@@ -1267,7 +1325,6 @@ export default function VehicleDetailPage() {
                     </div>
                   </AccordionContent>
                 </AccordionItem>
-
                 {/* Site Operation Hours */}
                 <AccordionItem value="operation-hours">
                   <AccordionTrigger>
@@ -1300,8 +1357,7 @@ export default function VehicleDetailPage() {
                                 </Badge>
                               ) : (
                                 <span className="text-gray-600">
-                                  {hour.opens_at ?? "N/A"} -{" "}
-                                  {hour.closes_at ?? "N/A"}
+                                  {hour.opens_at ?? "N/A"} - {hour.closes_at ?? "N/A"}
                                 </span>
                               )}
                             </div>
@@ -1327,8 +1383,8 @@ export default function VehicleDetailPage() {
                       <>
                         {vehicle.site_allocated.image && (
                           <div className="mb-4">
-                            <img
-                              src={vehicle.site_allocated.image || "/placeholder.svg"}
+                            <Image
+                              src={vehicle.site_allocated.image}
                               alt="Site"
                               width={300}
                               height={150}
@@ -1336,7 +1392,6 @@ export default function VehicleDetailPage() {
                             />
                           </div>
                         )}
-
                         <div className="grid grid-cols-2 gap-6">
                           <div>
                             <p className="text-sm text-gray-500 mb-1">Site Name</p>
@@ -1364,10 +1419,7 @@ export default function VehicleDetailPage() {
                                 type="text"
                                 value={editVehicle.site_allocated?.contact_name || ""}
                                 onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "contact_name",
-                                    e.target.value
-                                  )
+                                  handleSiteAllocatedChange("contact_name", e.target.value)
                                 }
                                 className="w-full"
                               />
@@ -1402,10 +1454,7 @@ export default function VehicleDetailPage() {
                                 type="text"
                                 value={editVehicle.site_allocated?.address || ""}
                                 onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "address",
-                                    e.target.value
-                                  )
+                                  handleSiteAllocatedChange("address", e.target.value)
                                 }
                                 className="w-full"
                               />
@@ -1422,10 +1471,7 @@ export default function VehicleDetailPage() {
                                 type="text"
                                 value={editVehicle.site_allocated?.status || ""}
                                 onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "status",
-                                    e.target.value
-                                  )
+                                  handleSiteAllocatedChange("status", e.target.value)
                                 }
                                 className="w-full"
                               />
@@ -1442,10 +1488,7 @@ export default function VehicleDetailPage() {
                                 type="text"
                                 value={editVehicle.site_allocated?.postcode || ""}
                                 onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "postcode",
-                                    e.target.value
-                                  )
+                                  handleSiteAllocatedChange("postcode", e.target.value)
                                 }
                                 className="w-full"
                               />
@@ -1462,10 +1505,7 @@ export default function VehicleDetailPage() {
                                 type="number"
                                 value={editVehicle.site_allocated?.radius_m || 0}
                                 onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "radius_m",
-                                    Number.parseInt(e.target.value)
-                                  )
+                                  handleSiteAllocatedChange("radius_m", Number.parseInt(e.target.value))
                                 }
                                 className="w-full"
                               />
@@ -1482,10 +1522,7 @@ export default function VehicleDetailPage() {
                                 type="number"
                                 value={editVehicle.site_allocated?.latitude || 0}
                                 onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "latitude",
-                                    Number.parseFloat(e.target.value)
-                                  )
+                                  handleSiteAllocatedChange("latitude", Number.parseFloat(e.target.value))
                                 }
                                 className="w-full"
                               />
@@ -1502,10 +1539,7 @@ export default function VehicleDetailPage() {
                                 type="number"
                                 value={editVehicle.site_allocated?.longitude || 0}
                                 onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "longitude",
-                                    Number.parseFloat(e.target.value)
-                                  )
+                                  handleSiteAllocatedChange("longitude", Number.parseFloat(e.target.value))
                                 }
                                 className="w-full"
                               />
@@ -1522,24 +1556,15 @@ export default function VehicleDetailPage() {
                             {isEditing ? (
                               <Input
                                 type="number"
-                                value={
-                                  editVehicle.site_allocated
-                                    ?.number_of_allocated_vehicles || 0
-                                }
+                                value={editVehicle.site_allocated?.number_of_allocated_vehicles || 0}
                                 onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "number_of_allocated_vehicles",
-                                    Number.parseInt(e.target.value)
-                                  )
+                                  handleSiteAllocatedChange("number_of_allocated_vehicles", Number.parseInt(e.target.value))
                                 }
                                 className="w-full"
                               />
                             ) : (
                               <p className="font-medium text-gray-900">
-                                {
-                                  vehicle.site_allocated
-                                    .number_of_allocated_vehicles
-                                }
+                                {vehicle.site_allocated.number_of_allocated_vehicles}
                               </p>
                             )}
                           </div>
@@ -1550,10 +1575,7 @@ export default function VehicleDetailPage() {
                                 type="text"
                                 value={editVehicle.site_allocated?.created_by || ""}
                                 onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "created_by",
-                                    e.target.value
-                                  )
+                                  handleSiteAllocatedChange("created_by", e.target.value)
                                 }
                                 className="w-full"
                               />
@@ -1564,7 +1586,6 @@ export default function VehicleDetailPage() {
                             )}
                           </div>
                         </div>
-
                         {/* Staff Information */}
                         {vehicle.site_allocated.staff && (
                           <div className="mt-6 pt-6 border-t border-gray-200">
@@ -1599,7 +1620,6 @@ export default function VehicleDetailPage() {
                             </div>
                           </div>
                         )}
-
                         {/* Site Presence */}
                         {vehicle.site_allocated.presence && (
                           <div className="mt-6 pt-6 border-t border-gray-200">
@@ -1614,9 +1634,7 @@ export default function VehicleDetailPage() {
                                 </p>
                               </div>
                               <div>
-                                <p className="text-sm text-gray-500">
-                                  Middle Shift
-                                </p>
+                                <p className="text-sm text-gray-500">Middle Shift</p>
                                 <p className="font-medium">
                                   {vehicle.site_allocated.presence.middle}
                                 </p>
@@ -1653,8 +1671,8 @@ export default function VehicleDetailPage() {
                         </div>
                         {vehicle.assignee_driver.site[0].image && (
                           <div className="col-span-2">
-                            <img
-                              src={vehicle.assignee_driver.site[0].image || "/placeholder.svg"}
+                            <Image
+                              src={vehicle.assignee_driver.site[0].image}
                               alt="Site"
                               width={300}
                               height={150}

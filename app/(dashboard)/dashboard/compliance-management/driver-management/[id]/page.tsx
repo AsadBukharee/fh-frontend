@@ -142,6 +142,15 @@ export default function DriverDetailPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [isEditingHealth, setIsEditingHealth] = useState(false)
   const [isEditingCompetency, setIsEditingCompetency] = useState(false)
+  const [fullImage, setFullImage] = useState<string | null>(null);
+
+  const handleImageClick = (url: string) => {
+    setFullImage(url);
+  };
+
+  const closeFullImage = () => {
+    setFullImage(null);
+  };
   const [editFormData, setEditFormData] = useState({
     full_name: "",
     display_name: "",
@@ -176,7 +185,14 @@ export default function DriverDetailPage() {
   const showToast = (message: string, type: string) => {
     console.log(`${type}: ${message}`)
   }
+  const isImageUrl = (url: string): boolean => {
+    return /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(url);
+  };
 
+  // Function to determine if a URL is a PDF
+  const isPdfUrl = (url: string): boolean => {
+    return /\.pdf$/i.test(url);
+  };
   const fetchData = async () => {
     try {
       const response = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
@@ -1327,128 +1343,165 @@ export default function DriverDetailPage() {
               </div>
               <CardDescription className="text-gray-600">Documents and certifications related to professional competency</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8">
-              {competencyData.length === 0 ? (
-                <p className="text-gray-600 text-center py-6">No professional competency records found.</p>
-              ) : (
-                (isEditingCompetency ? editCompetencyData : competencyData).map((competency) => (
-                  <div key={competency.id} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Document Name</Label>
-                        <p className="font-medium text-purple-800">{competency.document_name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Document Type</Label>
-                        <p className="font-medium text-purple-800">{competency.document_type}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Status</Label>
-                        {isEditingCompetency ? (
-                          <Select
-                            value={competency.request_status}
-                            onValueChange={(value) => handleCompetencyInputChange(competency.id, "request_status", value)}
-                          >
-                            <SelectTrigger className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="approved">Approved</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="not_approved">Not Approved</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge
-                            className={`px-3 py-1 text-sm font-medium ${
-                              competency.request_status === "pending"
-                                ? "bg-orange-600 hover:bg-orange-700"
-                                : competency.request_status === "approved"
-                                ? "bg-purple-600 hover:bg-purple-700"
-                                : "bg-red-600 hover:bg-red-700"
-                            } text-white rounded-full transition-colors`}
-                          >
-                            {competency.request_status.charAt(0).toUpperCase() + competency.request_status.slice(1)}
-                          </Badge>
-                        )}
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Expiry Date</Label>
-                        {isEditingCompetency ? (
-                          <Input
-                            type="date"
-                            value={competency.expiry_date || ""}
-                            onChange={(e) => handleCompetencyInputChange(competency.id, "expiry_date", e.target.value)}
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        ) : (
-                          <p className="font-medium text-purple-800">{formatDate(competency.expiry_date)}</p>
-                        )}
-                      </div>
-                      {competency.has_description && (
-                        <div className="col-span-2">
-                          <Label className="text-sm font-semibold text-gray-600">Description</Label>
-                          <p className="font-medium text-purple-800">{competency.description}</p>
-                        </div>
-                      )}
+            <CardContent className="space-y-4">
+  {competencyData.length === 0 ? (
+    <p className="text-gray-600 text-center py-4">No professional competency records found.</p>
+  ) : (
+    (isEditingCompetency ? editCompetencyData : competencyData).map((competency) => (
+      <div key={competency.id} className="bg-white p-4 rounded-lg shadow-sm space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-sm font-semibold text-gray-600">Document Name</Label>
+            <p className="font-medium text-purple-800">{competency.document_name}</p>
+          </div>
+          <div>
+            <Label className="text-sm font-semibold text-gray-600">Document Type</Label>
+            <p className="font-medium text-purple-800">{competency.document_type}</p>
+          </div>
+          <div>
+            <Label className="text-sm font-semibold text-gray-600">Status</Label>
+            {isEditingCompetency ? (
+              <Select
+                value={competency.request_status}
+                onValueChange={(value) => handleCompetencyInputChange(competency.id, "request_status", value)}
+              >
+                <SelectTrigger className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="not_approved">Not Approved</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <Badge
+                className={`px-2 py-0.5 text-sm font-medium rounded-full ${
+                  competency.request_status === "pending"
+                    ? "bg-orange-600"
+                    : competency.request_status === "approved"
+                    ? "bg-purple-600"
+                    : "bg-red-600"
+                } text-white`}
+              >
+                {competency.request_status.charAt(0).toUpperCase() + competency.request_status.slice(1)}
+              </Badge>
+            )}
+          </div>
+          <div>
+            <Label className="text-sm font-semibold text-gray-600">Expiry Date</Label>
+            {isEditingCompetency ? (
+              <Input
+                type="date"
+                value={competency.expiry_date || ""}
+                onChange={(e) => handleCompetencyInputChange(competency.id, "expiry_date", e.target.value)}
+                className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
+              />
+            ) : (
+              <p className="font-medium text-purple-800">{formatDate(competency.expiry_date)}</p>
+            )}
+          </div>
+          {competency.has_description && (
+            <div className="col-span-2">
+              <Label className="text-sm font-semibold text-gray-600">Description</Label>
+              <p className="font-medium text-purple-800">{competency.description}</p>
+            </div>
+          )}
+        </div>
+
+        {competency.has_document && competency.urls.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold text-gray-600">Document Links</Label>
+          <div className="flex gap-2 flex-wrap">
+            {competency.urls.map((url, index) => {
+              const label =
+                competency.has_back_side && index === 0
+                  ? "Front Side"
+                  : competency.has_back_side && index === 1
+                  ? "Back Side"
+                  : `Document ${index + 1}`;
+
+              return (
+                <div key={index} className="space-y-1">
+                  {/* Link to open in new tab */}
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors bg-purple-50 p-2 rounded-lg hover:bg-purple-100"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    <span>{label}</span>
+                  </a>
+
+                  {/* Display image */}
+                  {isImageUrl(url) && (
+                    <img
+                      src={url}
+                      alt={label}
+                      className="max-w-[150px] h-[150px] rounded-lg border border-gray-200 cursor-pointer hover:scale-105 transition-transform"
+                      onClick={() => handleImageClick(url)}
+                    />
+                  )}
+
+                  {/* Display PDF */}
+                  {isPdfUrl(url) && (
+                    <embed
+                      src={url}
+                      type="application/pdf"
+                      width="100%"
+                      height="250px"
+                      className="rounded-lg border border-gray-200"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Full-screen overlay */}
+      {fullImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 cursor-pointer"
+          onClick={closeFullImage}
+        >
+          <img src={fullImage} alt="Full View" className="max-w-full max-h-full object-contain" />
+        </div>
+      )}
+
+        {competency.modules.length > 0 && (
+          <div>
+            <Label className="text-sm font-semibold text-gray-600">Modules</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              {competency.modules.map((module) => (
+                <Card key={module.id} className="shadow-md bg-white hover:shadow-lg transition-all rounded-lg border border-purple-200">
+                  <CardContent className="p-4 space-y-2">
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-600">Module Name</Label>
+                      <p className="font-medium text-purple-800">{module.module_name}</p>
                     </div>
-                    {competency.has_document && competency.urls.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Document Links</Label>
-                        <div className="flex flex-col gap-3 mt-2">
-                          {competency.urls.map((url, index) => (
-                            <a
-                              key={index}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors bg-purple-50 p-3 rounded-lg hover:bg-purple-100"
-                            >
-                              <ExternalLink className="h-5 w-5" />
-                              <span>
-                                {competency.has_back_side && index === 0
-                                  ? "Front Side"
-                                  : competency.has_back_side && index === 1
-                                  ? "Back Side"
-                                  : `Document ${index + 1}`}
-                              </span>
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {competency.modules.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Modules</Label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-                          {competency.modules.map((module) => (
-                            <Card key={module.id} className="shadow-md bg-white hover:shadow-lg transition-all rounded-lg border border-purple-200">
-                              <CardContent className="p-5">
-                                <div className="space-y-4">
-                                  <div>
-                                    <Label className="text-sm font-semibold text-gray-600">Module Name</Label>
-                                    <p className="font-medium text-purple-800">{module.module_name}</p>
-                                  </div>
-                                  <div>
-                                    <Label className="text-sm font-semibold text-gray-600">Description</Label>
-                                    <p className="font-medium text-purple-800">{module.description}</p>
-                                  </div>
-                                  <div>
-                                    <Label className="text-sm font-semibold text-gray-600">Expiry Date</Label>
-                                    <p className="font-medium text-purple-800">{formatDate(module.expiry_date)}</p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <Separator className="bg-purple-200" />
-                  </div>
-                ))
-              )}
-            </CardContent>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-600">Description</Label>
+                      <p className="font-medium text-purple-800">{module.description}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-600">Expiry Date</Label>
+                      <p className="font-medium text-purple-800">{formatDate(module.expiry_date)}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+        <Separator className="bg-purple-200" />
+      </div>
+    ))
+  )}
+</CardContent>
+
           </Card>
         </TabsContent>
 
