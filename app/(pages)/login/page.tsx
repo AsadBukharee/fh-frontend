@@ -175,7 +175,7 @@ console.log(data)
           </div>
 
           {/* Google and Facebook with Iconify Icons */}
-          <button
+          {/* <button
             className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 p-3 rounded-lg text-sm hover:bg-gray-100"
             disabled={isLoading} // Disable button during loading
           >
@@ -188,7 +188,7 @@ console.log(data)
           >
             <Icon icon="mdi:facebook" className="text-xl text-[#1877f2]" />
             Sign in with Facebook
-          </button>
+          </button> */}
 
           {/* Sign Up Link */}
           <p className="text-center text-sm mt-5">

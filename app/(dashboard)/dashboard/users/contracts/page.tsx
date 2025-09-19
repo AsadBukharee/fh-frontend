@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, memo } from "react"
@@ -107,6 +106,8 @@ const ShiftCard = memo(
     setEditedTemplate,
     saving,
     assigningTemplate,
+    isSelected,
+    onSelect,
   }: {
     shift: Shift | ShiftTemplate
     isTemplate?: boolean
@@ -121,6 +122,8 @@ const ShiftCard = memo(
     setEditedTemplate: (template: Shift | ShiftTemplate | null) => void
     saving: boolean
     assigningTemplate: number | null
+    isSelected?: boolean
+    onSelect?: (id: number) => void
   }) => {
     const isEditingThis = isEditing === shift.id
     const isAssigning = assigningTemplate === shift.id
@@ -132,9 +135,21 @@ const ShiftCard = memo(
         group relative bg-white rounded-xl shadow-sm border transition-all duration-200
         ${isTemplate ? "border-amber-200 hover:shadow-amber-100" : "border-gray-200 hover:shadow-md"}
         ${isEditingThis ? "ring-2 ring-blue-500 shadow-lg" : "hover:border-gray-300"}
+        ${isSelected ? "ring-2 ring-blue-300" : ""}
       `}
       >
         <div className="absolute top-0 left-0 w-1 h-full rounded-l-xl" style={{ backgroundColor: shift.colors }} />
+        {isTemplate && (
+          <div className="absolute top-4 left-4">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onSelect && onSelect(shift.id)}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              disabled={isEditingThis || saving || isAssigning}
+            />
+          </div>
+        )}
         <div className="p-5 pl-6">
           {isEditingThis && editedTemplate ? (
             <div className="space-y-4">
@@ -410,6 +425,9 @@ const ShiftManagement = () => {
     colors: "#FFB6D1",
     contract: null as number | null,
   })
+  const [selectedTemplates, setSelectedTemplates] = useState<number[]>([])
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState<boolean>(false)
+  const [bulkContractId, setBulkContractId] = useState<number | null>(null)
 
   const cookies = useCookies()
   const { showToast } = useToast()
@@ -602,6 +620,57 @@ const ShiftManagement = () => {
     },
     [shiftTemplates, contracts, cookies, showToast, fetchData]
   )
+
+  const handleToggleTemplate = useCallback((id: number) => {
+    setSelectedTemplates((prev) =>
+      prev.includes(id) ? prev.filter((templateId) => templateId !== id) : [...prev, id]
+    )
+  }, [])
+
+  const handleBulkAssign = useCallback(async () => {
+    if (!bulkContractId && bulkContractId !== null) {
+      showToast("Please select a contract for assignment.", "error")
+      return
+    }
+
+    if (selectedTemplates.length === 0) {
+      showToast("Please select at least one template.", "error")
+      return
+    }
+
+    setSaving(true)
+    try {
+      const assignPromises = selectedTemplates.map((templateId) =>
+        fetch(`${API_URL}/api/staff/shifts/${templateId}/add-to-contract/${bulkContractId}/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+        }).then(async (response) => {
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.message || `Failed to assign template ${templateId}`)
+          }
+          return templateId
+        })
+      )
+
+      await Promise.all(assignPromises)
+
+      await fetchData()
+      const contractName = bulkContractId ? contracts.find((c) => c.id === bulkContractId)?.name : "No Contract"
+      showToast(`Selected templates assigned to ${contractName} successfully.`, "success")
+      setSelectedTemplates([])
+      setIsBulkAssignModalOpen(false)
+      setBulkContractId(null)
+    } catch (err: any) {
+      console.error("Error assigning templates:", err)
+      showToast(err.message || "Failed to assign templates.", "error")
+    } finally {
+      setSaving(false)
+    }
+  }, [selectedTemplates, bulkContractId, contracts, cookies, showToast, fetchData])
 
   const handleEdit = useCallback((item: Shift | ShiftTemplate) => {
     setIsEditing(item.id)
@@ -967,10 +1036,23 @@ const ShiftManagement = () => {
               )}
             </div>
             <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <Settings className="h-5 w-5 text-amber-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Shift Templates</h2>
-                <Badge variant="secondary">{shiftTemplates.length}</Badge>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Settings className="h-5 w-5 text-amber-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Shift Templates</h2>
+                  <Badge variant="secondary">{shiftTemplates.length}</Badge>
+                </div>
+                {shiftTemplates.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsBulkAssignModalOpen(true)}
+                    disabled={selectedTemplates.length === 0 || saving}
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Assign Selected ({selectedTemplates.length})
+                  </Button>
+                )}
               </div>
               <div className="grid gap-4">
                 {shiftTemplates.map((template: ShiftTemplate) => (
@@ -989,6 +1071,8 @@ const ShiftManagement = () => {
                     setEditedTemplate={setEditedTemplate}
                     saving={saving}
                     assigningTemplate={assigningTemplate}
+                    isSelected={selectedTemplates.includes(template.id)}
+                    onSelect={handleToggleTemplate}
                   />
                 ))}
                 {shiftTemplates.length === 0 && (
@@ -1151,6 +1235,57 @@ const ShiftManagement = () => {
               >
                 {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 {saving ? "Creating..." : "Create Contract"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* Bulk Assign Modal */}
+        <Dialog open={isBulkAssignModalOpen} onOpenChange={setIsBulkAssignModalOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Assign Selected Templates</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-500">Select Contract</label>
+                <select
+                  className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  value={bulkContractId ?? ""}
+                  onChange={(e) =>
+                    setBulkContractId(e.target.value ? Number.parseInt(e.target.value) : null)
+                  }
+                  disabled={saving}
+                >
+                  <option value="">No Contract</option>
+                  {contracts.map((contract: Contract) => (
+                    <option key={contract.id} value={contract.id}>
+                      {contract.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-sm text-gray-600">
+                {selectedTemplates.length} template(s) selected for assignment
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsBulkAssignModalOpen(false)
+                  setBulkContractId(null)
+                }}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkAssign}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {saving ? "Assigning..." : "Assign Templates"}
               </Button>
             </DialogFooter>
           </DialogContent>
