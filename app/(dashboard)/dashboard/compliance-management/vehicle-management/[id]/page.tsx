@@ -1,1575 +1,1680 @@
+"use client";
 
-"use client"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
-import { useCookies } from "next-client-cookies"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { User, Calendar, FileText, Building2, Mail, CheckCircle, XCircle, Edit, Save, X, AlertTriangle, File, ExternalLink, Heart } from "lucide-react"
-import API_URL from "@/app/utils/ENV"
-import { formatDmy } from "@/lib/utils"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useCookies } from "next-client-cookies";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  TriangleAlert,
+  Save,
+  Edit,
+  X,
+  MapPin,
+  Shapes,
+  NotebookPen,
+  Info,
+  Baseline as ChartLine,
+  DollarSign,
+  FileText,
+  Gauge,
+  Clock,
+  Users,
+  Camera,
+  Download,
+} from "lucide-react";
+import API_URL from "@/app/utils/ENV"; // Environment variable for API URL
+import { Switch } from "@/components/ui/switch";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import Image from "next/image";
+import ExpiryDates from "@/components/Vehicles/VehicleEditExpiry"; // Custom component for expiry dates
+import ImageUploader from "@/components/Media/UploadImage"; // Custom component for image uploads
 
-interface DriverData {
-  id: number
-  user: {
-    id: number
-    email: string
-    full_name: string
-    display_name: string
-    parent_rota_completed: boolean
-    child_rota_completed: boolean
-    contract_signing_date: string
-    rota_start_date: string
-    paid_holidays: number
-    is_active: boolean
-    contract: {
-      id: number
-      name: string
-      description: string
-    }
-    role: string
-    site: Array<{
-      id: number
-      name: string
-      status: string
-      image: string
-    }>
-    shifts_count: number
-    avatar: string | null
-  }
-  warnings: string[]
-  missing_attributes: string[]
-  source: string
-  next_step: string
-  is_profile_completed: boolean
-  remarks: string
-  profile_status: string
-  have_other_jobs: boolean
-  have_other_jobs_note: string
-  date_of_birth: string
-  phone: string
-  address: string
-  account_no: string
-  sort_code: string
-  post_code: string
-  national_insurance_no: string
-  license_number: string
-  license_issue_number: string
-  next_of_kin_name: string
-  next_of_kin_relationship: string
-  next_of_kin_note: string | null
-  next_of_kin_contact: string
-  next_of_kin_email: string
-  next_of_kin_address: string
-  manager_name: string
-  signup_date: string
-  created_at: string
-  updated_at: string
+// Interface for vehicle data structure
+interface Vehicle {
+  id: number;
+  registration_number: string;
+  vehicle_status: string;
+  is_roadworthy: boolean;
+  walkaround_count: number | null;
+  last_mileage: string | null;
+  vehicle_cost?: number;
+  vehicle_picture?: string;
+  assignee_driver: {
+    id: number;
+    full_name: string;
+    email: string;
+    display_name?: string;
+    role?: string;
+    shifts_count?: number;
+    avatar?: string | null;
+    site?: Array<{
+      id: number;
+      name: string;
+      status: string;
+      image?: string;
+    }>;
+  } | null;
+  vehicles_type: {
+    id: number;
+    name: string;
+    description: string;
+  };
+  site_allocated?: {
+    id: number;
+    name: string;
+    status: string;
+    postcode: string;
+    address: string;
+    contact_name: string;
+    contact_phone: string;
+    contact_email: string;
+    latitude: number;
+    longitude: number;
+    radius_m: number;
+    number_of_allocated_vehicles: number;
+    created_by: string;
+    image?: string;
+    notes?: string;
+    contact_position?: string;
+    operation_hours?: Array<{
+      id: number;
+      day_of_week: number;
+      day_label: string;
+      is_open_24_hours: boolean;
+      is_closed: boolean;
+      opens_at: string | null;
+      closes_at: string | null;
+    }>;
+    presence?: {
+      early: string;
+      middle: string;
+      night: string;
+      supervisor: string;
+    };
+    staff?: {
+      driver: number;
+      admin: number;
+      mechanic: number;
+      total: number;
+    };
+  } | null;
+  warnings: string[];
+  missing_attributes: string[];
+  mot_expiry: string;
+  tax_expiry: string;
+  insurance_expiry: string;
+  inspection_expiry: string;
+  tacho_calibration: string;
+  tyre_expiry_front_driver: string | null;
+  tyre_expiry_front_passenger: string | null;
+  tyre_expiry_rear_outer_driver: string | null;
+  tyre_expiry_rear_outer_passenger: string | null;
+  tyre_pressure_front_driver?: string;
+  tyre_pressure_front_passenger?: string;
+  tyre_pressure_rear_outer_driver?: string;
+  tyre_pressure_rear_outer_passenger?: string;
+  tyre_depth_front_driver?: string;
+  tyre_depth_front_passenger?: string;
+  tyre_depth_rear_outer_driver?: string;
+  tyre_depth_rear_outer_passenger?: string;
+  tyre_torque_front_driver?: string;
+  tyre_torque_front_passenger?: string;
+  tyre_torque_rear_outer_driver?: string;
+  tyre_torque_rear_outer_passenger?: string;
+  log_book?: string;
+  mot_docs?: string;
+  pree_mot_check_docs?: string;
+  inspection?: string;
+  insurance?: string;
+  fitness_certificate?: string;
+  route_permit?: string;
+  financial?: string;
+  others?: string;
+  service_records?: string;
+  tax?: string;
+  tacho_download_docs?: string;
+  tacho_calibration_docs?: string;
+  status_indicators: {
+    mot_expiring: boolean;
+    tax_expiring: boolean;
+    insurance_expiring: boolean;
+    inspection_due: boolean;
+  };
+  tyre_expiry_status: {
+    front_driver_expiring: boolean;
+    front_passenger_expiring: boolean;
+    rear_outer_driver_expiring: boolean;
+    rear_outer_passenger_expiring: boolean;
+  };
 }
 
-interface Contract {
-  id: number
-  name: string
-  description: string
-}
+export default function VehicleDetailPage() {
+  const { id } = useParams(); // Get vehicle ID from URL
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [isEditingTyreExpiry, setIsEditingTyreExpiry] = useState(false);
+  const [tempPrice, setTempPrice] = useState<number>(0);
+  const [tempTyreExpiry, setTempTyreExpiry] = useState({
+    front_driver: "",
+    front_passenger: "",
+    rear_outer_driver: "",
+    rear_outer_passenger: "",
+  });
+  const cookies = useCookies();
+  const token = cookies.get("access_token");
 
-interface Site {
-  id: number
-  name: string
-  status: string
-  image: string
-}
-
-interface CompetencyModule {
-  id: number
-  module_name: string
-  description: string
-  expiry_date: string
-}
-
-interface ProfessionalCompetency {
-  id: number
-  driver: number
-  document_name: string
-  document_type: string
-  has_expiry: boolean
-  description: string
-  expiry_date: string | null
-  has_document: boolean
-  has_back_side: boolean
-  urls: string[]
-  request_status: string
-  has_description: boolean
-  next_five_modules: CompetencyModule[]
-  modules: CompetencyModule[]
-  created_at: string
-  updated_at: string
-}
-
-interface HealthAnswer {
-  id: number
-  question: number
-  question_text: string
-  answered_by: number
-  answer: boolean
-  note: string
-  admin_remarks: string | null
-  created_at: string
-  updated_at: string
-}
-
-export default function DriverDetailPage() {
-  const { id } = useParams()
-  const cookies = useCookies()
-  const [driverData, setDriverData] = useState<DriverData | null>(null)
-  const [competencyData, setCompetencyData] = useState<ProfessionalCompetency[]>([])
-  const [healthData, setHealthData] = useState<HealthAnswer[]>([])
-  const [loading, setLoading] = useState(true)
-  const [competencyLoading, setCompetencyLoading] = useState(true)
-  const [healthLoading, setHealthLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [competencyError, setCompetencyError] = useState<string | null>(null)
-  const [healthError, setHealthError] = useState<string | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [isEditingHealth, setIsEditingHealth] = useState(false)
-  const [isEditingCompetency, setIsEditingCompetency] = useState(false)
-  const [editFormData, setEditFormData] = useState({
-    full_name: "",
-    display_name: "",
-    email: "",
-    paid_holidays: 0,
-    contractId: "",
-    siteIds: [] as string[],
-    phone: "",
-    address: "",
-    date_of_birth: "",
-    next_of_kin_name: "",
-    next_of_kin_relationship: "",
-    next_of_kin_contact: "",
-    next_of_kin_email: "",
-    next_of_kin_address: "",
-  })
-  const [editHealthData, setEditHealthData] = useState<HealthAnswer[]>([])
-  const [editCompetencyData, setEditCompetencyData] = useState<ProfessionalCompetency[]>([])
-  const [saving, setSaving] = useState(false)
-  const [savingHealth, setSavingHealth] = useState(false)
-  const [savingCompetency, setSavingCompetency] = useState(false)
-  const [contracts, setContracts] = useState<Contract[]>([])
-  const [sites, setSites] = useState<Site[]>([])
-  const [contractsLoading, setContractsLoading] = useState(false)
-  const [sitesLoading, setSitesLoading] = useState(false)
-  const [assigningContract, setAssigningContract] = useState(false)
-  const [selectedContractId, setSelectedContractId] = useState<string>("")
-  const [assigningSites, setAssigningSites] = useState(false)
-  const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([])
-  const [activeTab, setActiveTab] = useState("overview")
-
-  const showToast = (message: string, type: string) => {
-    console.log(`${type}: ${message}`)
-  }
-
-  const fetchData = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch driver data")
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        setDriverData(result.data)
-        setEditFormData({
-          full_name: result.data.user.full_name,
-          display_name: result.data.user.display_name,
-          email: result.data.user.email,
-          paid_holidays: result.data.user.paid_holidays,
-          contractId: result.data.user.contract?.id?.toString() || "",
-          siteIds: result.data.user.site.map((site: Site) => site.id.toString()),
-          phone: result.data.phone,
-          address: result.data.address,
-          date_of_birth: result.data.date_of_birth,
-          next_of_kin_name: result.data.next_of_kin_name,
-          next_of_kin_relationship: result.data.next_of_kin_relationship,
-          next_of_kin_contact: result.data.next_of_kin_contact,
-          next_of_kin_email: result.data.next_of_kin_email,
-          next_of_kin_address: result.data.next_of_kin_address,
-        })
-      } else {
-        throw new Error(result.message || "Failed to load driver data")
-      }
-    } catch (error) {
-      console.error("Error fetching driver data:", error)
-      setError(error instanceof Error ? error.message : "An error occurred")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchCompetencyData = async () => {
-    setCompetencyLoading(true)
-    try {
-      const response = await fetch(`${API_URL}/api/profiles/professional-competency/?driver_id=${id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch professional competency data")
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        setCompetencyData(result.data)
-        setEditCompetencyData(result.data)
-      } else {
-        throw new Error(result.message || "Failed to load professional competency data")
-      }
-    } catch (error) {
-      console.error("Error fetching professional competency data:", error)
-      setCompetencyError(error instanceof Error ? error.message : "An error occurred")
-    } finally {
-      setCompetencyLoading(false)
-    }
-  }
-
-  const fetchHealthData = async () => {
-    setHealthLoading(true)
-    try {
-      const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch health answers")
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        setHealthData(result.data)
-        setEditHealthData(result.data)
-      } else {
-        throw new Error(result.message || "Failed to load health answers")
-      }
-    } catch (error) {
-      console.error("Error fetching health answers:", error)
-      setHealthError(error instanceof Error ? error.message : "An error occurred")
-    } finally {
-      setHealthLoading(false)
-    }
-  }
-
+  // Fetch vehicle data on mount or when ID/token changes
   useEffect(() => {
-    if (id) {
-      fetchData()
-      fetchCompetencyData()
-      fetchHealthData()
-    }
-  }, [id, cookies])
-
-  useEffect(() => {
-    const fetchContracts = async () => {
-      setContractsLoading(true)
+    const fetchVehicle = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/staff/contracts/`, {
+        const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get("access_token")}`,
+            Authorization: `Bearer ${token}`,
           },
-        })
-        if (response.status === 401) {
-          showToast("Session expired. Please log in again.", "error")
-          return
-        }
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`)
-        }
-        const data = await response.json()
-        setContracts(data)
-      } catch {
-        showToast("Failed to fetch contracts", "error")
-      } finally {
-        setContractsLoading(false)
-      }
-    }
-
-    const fetchSites = async () => {
-      if (sites.length > 0) return
-      setSitesLoading(true)
-      try {
-        const response = await fetch(`${API_URL}/api/sites/list-names/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get("access_token")}`,
-          },
-        })
-        if (response.status === 401) {
-          showToast("Session expired. Please log in again.", "error")
-          return
-        }
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`)
-        }
-        const data = await response.json()
+        });
+        const data = await res.json();
         if (data.success) {
-          setSites(data.data)
+          setVehicle(data.data);
+          setEditVehicle(data.data);
+          setTempPrice(data.data.vehicle_cost || 0);
+          setTempTyreExpiry({
+            front_driver: data.data.tyre_expiry_front_driver || "",
+            front_passenger: data.data.tyre_expiry_front_passenger || "",
+            rear_outer_driver: data.data.tyre_expiry_rear_outer_driver || "",
+            rear_outer_passenger:
+              data.data.tyre_expiry_rear_outer_passenger || "",
+          });
         } else {
-          showToast(data.message || "Failed to fetch sites", "error")
+          setError(data.message || "Failed to fetch vehicle data");
         }
-      } catch {
-        showToast("Failed to fetch sites", "error")
+      } catch (err) {
+        setError("Error fetching vehicle data");
       } finally {
-        setSitesLoading(false)
+        setLoading(false);
       }
+    };
+
+    if (id && token) {
+      fetchVehicle();
     }
+  }, [id, token]);
 
-    fetchContracts()
-    fetchSites()
-  }, [cookies])
+  // Update vehicle price
+  const handlePriceUpdate = async () => {
+    if (!vehicle || !token) return;
 
-  const handleAssignContract = async () => {
-    if (!selectedContractId) {
-      showToast("Please select a contract to assign.", "error")
-      return
-    }
-
-    setAssigningContract(true)
     try {
-      const response = await fetch(`${API_URL}/api/staff/contracts/${selectedContractId}/assign-users/`, {
-        method: "POST",
+      const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          user_ids: [Number(driverData?.user.id)],
-        }),
-      })
+        body: JSON.stringify({ vehicle_cost: tempPrice }),
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to assign contract")
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        showToast("Contract assigned successfully", "success")
-        fetchData()
-        setSelectedContractId("")
+      const updatedData = await res.json();
+      if (res.ok && updatedData.success) {
+        setVehicle((prev) =>
+          prev ? { ...prev, vehicle_cost: tempPrice } : prev
+        );
+        setIsEditingPrice(false);
       } else {
-        throw new Error(result.message || "Failed to assign contract")
+        setError(updatedData.message || "Failed to update price");
       }
-    } catch (error) {
-      console.error("Error assigning contract:", error)
-      showToast(error instanceof Error ? error.message : "Failed to assign contract", "error")
-    } finally {
-      setAssigningContract(false)
+    } catch (err) {
+      setError("Error updating price");
+      console.error("Error updating price:", err);
     }
-  }
+  };
 
-  const handleAssignSites = async () => {
-    if (!selectedSiteIds || selectedSiteIds.length === 0) {
-      showToast("Please select at least one site to assign.", "error")
-      return
-    }
+  // Update tyre expiry dates
+  const handleTyreExpiryUpdate = async () => {
+    if (!vehicle || !token) return;
 
-    setAssigningSites(true)
     try {
-      const response = await fetch(`${API_URL}/users/${driverData?.user.id}/allocate-sites/`, {
-        method: "POST",
+      const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          site_ids: selectedSiteIds.map(Number),
+          tyre_expiry_front_driver: tempTyreExpiry.front_driver,
+          tyre_expiry_front_passenger: tempTyreExpiry.front_passenger,
+          tyre_expiry_rear_outer_driver: tempTyreExpiry.rear_outer_driver,
+          tyre_expiry_rear_outer_passenger: tempTyreExpiry.rear_outer_passenger,
         }),
-      })
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to assign sites")
-      }
-
-      const result = await response.json()
-      showToast("Sites assigned successfully", "success")
-      fetchData()
-    } catch (error) {
-      console.error("Error assigning sites:", error)
-      showToast(error instanceof Error ? error.message : "Failed to assign sites", "error")
-    } finally {
-      setAssigningSites(false)
-    }
-  }
-
-  const handleEditToggle = () => {
-    if (isEditing) {
-      setEditFormData({
-        full_name: driverData?.user.full_name || "",
-        display_name: driverData?.user.display_name || "",
-        email: driverData?.user.email || "",
-        paid_holidays: driverData?.user.paid_holidays || 0,
-        contractId: driverData?.user.contract?.id?.toString() || "",
-        siteIds: driverData?.user.site.map((site) => site.id.toString()) || [],
-        phone: driverData?.phone || "",
-        address: driverData?.address || "",
-        date_of_birth: driverData?.date_of_birth || "",
-        next_of_kin_name: driverData?.next_of_kin_name || "",
-        next_of_kin_relationship: driverData?.next_of_kin_relationship || "",
-        next_of_kin_contact: driverData?.next_of_kin_contact || "",
-        next_of_kin_email: driverData?.next_of_kin_email || "",
-        next_of_kin_address: driverData?.next_of_kin_address || "",
-      })
-    }
-    setIsEditing(!isEditing)
-  }
-
-  const handleHealthEditToggle = () => {
-    if (isEditingHealth) {
-      setEditHealthData(healthData)
-    }
-    setIsEditingHealth(!isEditingHealth)
-  }
-
-  const handleCompetencyEditToggle = () => {
-    if (isEditingCompetency) {
-      setEditCompetencyData(competencyData)
-    }
-    setIsEditingCompetency(!isEditingCompetency)
-  }
-
-  const handleInputChange = (field: string, value: string | number | string[]) => {
-    setEditFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-  }
-
-  const handleHealthInputChange = (id: number, field: string, value: boolean | string) => {
-    setEditHealthData((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, [field]: value } : item
-      )
-    )
-  }
-
-  const handleCompetencyInputChange = (id: number, field: string, value: string) => {
-    setEditCompetencyData((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, [field]: value } : item
-      )
-    )
-  }
-
-  const handleSaveProfile = async () => {
-    setSaving(true)
-    try {
-      const response = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-        body: JSON.stringify({
-          user: {
-            full_name: editFormData.full_name,
-            display_name: editFormData.display_name,
-            email: editFormData.email,
-            paid_holidays: editFormData.paid_holidays,
-            contract_id: Number(editFormData.contractId),
-            site_ids: editFormData.siteIds.map(Number),
-          },
-          phone: editFormData.phone,
-          address: editFormData.address,
-          date_of_birth: editFormData.date_of_birth,
-          next_of_kin_name: editFormData.next_of_kin_name,
-          next_of_kin_relationship: editFormData.next_of_kin_relationship,
-          next_of_kin_contact: editFormData.next_of_kin_contact,
-          next_of_kin_email: editFormData.next_of_kin_email,
-          next_of_kin_address: editFormData.next_of_kin_address,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update profile")
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        setDriverData((prev) =>
+      if (res.ok) {
+        setVehicle((prev) =>
           prev
             ? {
                 ...prev,
-                user: {
-                  ...prev.user,
-                  full_name: editFormData.full_name,
-                  display_name: editFormData.display_name,
-                  email: editFormData.email,
-                  paid_holidays: editFormData.paid_holidays,
-                  contract: contracts.find((c) => c.id.toString() === editFormData.contractId) || prev.user.contract,
-                  site: sites.filter((s) => editFormData.siteIds.includes(s.id.toString())),
-                },
-                phone: editFormData.phone,
-                address: editFormData.address,
-                date_of_birth: editFormData.date_of_birth,
-                next_of_kin_name: editFormData.next_of_kin_name,
-                next_of_kin_relationship: editFormData.next_of_kin_relationship,
-                next_of_kin_contact: editFormData.next_of_kin_contact,
-                next_of_kin_email: editFormData.next_of_kin_email,
-                next_of_kin_address: editFormData.next_of_kin_address,
+                tyre_expiry_front_driver: tempTyreExpiry.front_driver,
+                tyre_expiry_front_passenger: tempTyreExpiry.front_passenger,
+                tyre_expiry_rear_outer_driver: tempTyreExpiry.rear_outer_driver,
+                tyre_expiry_rear_outer_passenger:
+                  tempTyreExpiry.rear_outer_passenger,
               }
-            : null
-        )
-        setIsEditing(false)
-        showToast("Profile updated successfully", "success")
+            : prev
+        );
+        setIsEditingTyreExpiry(false);
       } else {
-        throw new Error(result.message || "Failed to update profile")
+        const updatedData = await res.json();
+        setError(updatedData.message || "Failed to update tyre expiry");
       }
-    } catch (error) {
-      console.error("Error updating profile:", error)
-      setError(error instanceof Error ? error.message : "Failed to update profile")
-    } finally {
-      setSaving(false)
+    } catch (err) {
+      setError("Error updating tyre expiry");
+      console.error("Error updating tyre expiry:", err);
     }
-  }
+  };
 
-  const handleSaveHealth = async () => {
-    setSavingHealth(true)
+  // Handle image upload
+  const handleImageUpload = async (imageUrl: string) => {
+    if (!vehicle || !token) return;
+
     try {
-      const updates = editHealthData.map((item) => ({
-        id: item.id,
-        answer: item.answer,
-        note: item.note,
-      }))
-      const response = await fetch(`${API_URL}/api/profiles/health-answers/bulk-update/`, {
-        method: "POST",
+      const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ health_answers: updates }),
-      })
+        body: JSON.stringify({ vehicle_picture: imageUrl }),
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to update health answers")
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        setHealthData(editHealthData)
-        setIsEditingHealth(false)
-        showToast("Health answers updated successfully", "success")
-        fetchHealthData() // Refresh data
+      if (res.ok) {
+        setVehicle((prev) =>
+          prev ? { ...prev, vehicle_picture: imageUrl } : prev
+        );
       } else {
-        throw new Error(result.message || "Failed to update health answers")
+        const updatedData = await res.json();
+        setError(updatedData.message || "Failed to update image");
       }
-    } catch (error) {
-      console.error("Error updating health answers:", error)
-      showToast(error instanceof Error ? error.message : "Failed to update health answers", "error")
-    } finally {
-      setSavingHealth(false)
+    } catch (err) {
+      setError("Error updating vehicle image");
+      console.error("Error updating vehicle image:", err);
     }
-  }
+  };
 
-  const handleSaveCompetency = async () => {
-    setSavingCompetency(true)
+  // Handle input changes for vehicle fields
+  const handleInputChange = (field: keyof Vehicle, value: any) => {
+    setEditVehicle((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  // Handle input changes for site_allocated fields
+  const handleSiteAllocatedChange = (
+    field: keyof NonNullable<Vehicle["site_allocated"]>,
+    value: any
+  ) => {
+  setEditVehicle((prev) =>
+  prev && prev.site_allocated
+    ? {
+        ...prev,
+        site_allocated: { ...prev.site_allocated, [field]: value },
+      }
+    : prev
+);
+
+  };
+
+  // Handle input changes for vehicles_type fields
+  const handleVehicleTypeChange = (
+    field: keyof Vehicle["vehicles_type"],
+    value: any
+  ) => {
+    setEditVehicle((prev) =>
+      prev
+        ? { ...prev, vehicles_type: { ...prev.vehicles_type, [field]: value } }
+        : prev
+    );
+  };
+
+  // Submit edited vehicle data
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editVehicle || !token) return;
+
     try {
-      const updates = editCompetencyData.map((item) => ({
-        id: item.id,
-        request_status: item.request_status,
-        expiry_date: item.expiry_date,
-      }))
-      const response = await fetch(`${API_URL}/api/profiles/professional-competency/bulk-update/`, {
-        method: "POST",
+      setLoading(true);
+      setError(null);
+
+      const vehicleData = {
+        registration_number: editVehicle.registration_number,
+        vehicle_status: editVehicle.vehicle_status,
+        is_roadworthy: editVehicle.is_roadworthy,
+        mot_expiry: editVehicle.mot_expiry,
+        tax_expiry: editVehicle.tax_expiry,
+        insurance_expiry: editVehicle.insurance_expiry,
+        walkaround_count: editVehicle.walkaround_count,
+        vehicles_type: editVehicle.vehicles_type.id, // Send only the ID
+        site_allocated: editVehicle.site_allocated?.id ?? null,
+      };
+
+      const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ professional_competencies: updates }),
-      })
+        body: JSON.stringify(vehicleData),
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to update professional competencies")
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        setCompetencyData(editCompetencyData)
-        setIsEditingCompetency(false)
-        showToast("Professional competencies updated successfully", "success")
-        fetchCompetencyData() // Refresh data
+      const updatedData = await res.json();
+      if (res.ok && updatedData.success) {
+        setVehicle(updatedData.data);
+        setEditVehicle(updatedData.data);
+        setIsEditing(false);
       } else {
-        throw new Error(result.message || "Failed to update professional competencies")
+        throw new Error(updatedData.message || `Failed to update vehicle: ${res.statusText}`);
       }
-    } catch (error) {
-      console.error("Error updating professional competencies:", error)
-      showToast(error instanceof Error ? error.message : "Failed to update professional competencies", "error")
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error updating vehicle data"
+      );
     } finally {
-      setSavingCompetency(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const formatDate = (dateString: string | null) => dateString ? formatDmy(dateString) : "Not set"
+  // Get badge colors based on status
+  const getStatusBadgeColors = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "active":
+      case "available":
+        return "bg-green-100 text-green-700";
+      case "inactive":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-  }
+  // Get badge colors based on roadworthy status
+  const getRoadworthyBadgeColors = (isRoadworthy: boolean) => {
+    return isRoadworthy
+      ? "bg-green-100 text-green-700"
+      : "bg-red-100 text-red-700";
+  };
 
-  if (loading || competencyLoading || healthLoading) {
+  // Get badge colors based on expiry status
+  const getExpiryBadgeColors = (isExpiring: boolean) => {
+    return isExpiring
+      ? "bg-red-100 text-red-700"
+      : "bg-green-100 text-green-700";
+  };
+
+  // Loading state
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-purple-600"></div>
+      <div className="p-6 bg-gray-50 min-h-screen">
+        <Skeleton className="h-8 w-1/3 mb-4" />
+        <div className="grid gap-6 md:grid-cols-2">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
       </div>
-    )
+    );
   }
 
-  if (error || !driverData || competencyError || healthError) {
+  // Error or no vehicle data
+  if (error || !vehicle || !editVehicle) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <Card className="w-full max-w-md shadow-xl bg-white rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-2xl text-orange-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-700">{error || competencyError || healthError || "Driver not found"}</p>
-          </CardContent>
-        </Card>
+      <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="flex items-center gap-2 text-red-600 bg-red-50 p-4 rounded-lg">
+          <TriangleAlert className="w-5 h-5" />
+          <span className="font-medium">{error || "Vehicle not found"}</span>
+        </div>
       </div>
-    )
+    );
   }
+
+  const vatRate = 0.2; // Assuming 20% VAT
+  const vatAmount = (vehicle.vehicle_cost || 0) * vatRate;
+  const totalAmount = (vehicle.vehicle_cost || 0) + vatAmount;
 
   return (
-    <div className="container mx-auto p-8 space-y-8 bg-gray-100 min-h-screen">
-      <div className="flex items-start gap-8">
-        <Avatar className="h-28 w-28 ring-4 ring-purple-200">
-          <AvatarImage src={driverData.user.avatar || "/placeholder.svg"} alt={driverData.user.full_name} />
-          <AvatarFallback className="text-xl font-bold bg-purple-100 text-purple-800">
-            {getInitials(driverData.user.full_name)}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="flex-1 space-y-3">
-          <div className="flex items-center gap-4">
-            <h1 className="text-4xl font-bold text-purple-800">{driverData.user.full_name}</h1>
-            <Badge className={`px-3 py-1 text-sm font-medium ${driverData.user.is_active ? "bg-purple-600 hover:bg-purple-700" : "bg-gray-400 hover:bg-gray-500"} text-white rounded-full transition-colors`}>
-              {driverData.user.is_active ? "Active" : "Inactive"}
-            </Badge>
-            <Badge
-              className={`px-3 py-1 text-sm font-medium ${
-                driverData.profile_status === "approved" ? "bg-purple-600 hover:bg-purple-700" : "bg-orange-600 hover:bg-orange-700"
-              } text-white rounded-full transition-colors`}
-            >
-              {driverData.profile_status.charAt(0).toUpperCase() + driverData.profile_status.slice(1)}
-            </Badge>
-          </div>
-
-          <div className="flex items-center gap-6 text-gray-700">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-purple-600" />
-              <span className="text-sm">{driverData.user.role}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-purple-600" />
-              <span className="text-sm">{driverData.user.email}</span>
-            </div>
-          </div>
-          <Accordion type="single" collapsible>
-      <AccordionItem value="item-1">
-        <AccordionTrigger>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
-            <span>Warnings</span>
-            {driverData.warnings?.length > 0 && (
-              <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600">
-                {driverData.warnings.length}
-              </span>
-            )}
-          </div>
-        </AccordionTrigger>
-        <AccordionContent>
-          {driverData.warnings?.length > 0 ? (
-            <div className="space-y-2 mt-2">
-              {driverData.warnings.map((warning: string, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700 shadow-sm"
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
-                  <span>{warning}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground mt-2">
-              No warnings for this driver.
-            </p>
-          )}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-         
-        </div>
-
-        <div className="flex gap-3">
+    <div className="p-6 bg-white min-h-screen">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">
+          Vehicle #{vehicle.id} - {vehicle.registration_number}
+        </h1>
+        <div className="flex gap-2">
           {isEditing ? (
             <>
-              <Button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
+              <button
+                onClick={handleSubmit}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
               >
-                {saving ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                ) : (
-                  <Save className="h-5 w-5 mr-2" />
-                )}
-                Save Changes
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleEditToggle}
-                disabled={saving}
-                className="border-purple-600 text-purple-600 hover:bg-purple-100 rounded-lg transition-all"
+                <Save className="w-4 h-4" /> Save
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditVehicle(vehicle);
+                }}
+                className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
               >
-                <X className="h-5 w-5 mr-2" />
-                Cancel
-              </Button>
+                <X className="w-4 h-4" /> Cancel
+              </button>
             </>
           ) : (
-            <Button
-              onClick={handleEditToggle}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
+              style={{
+                background:
+                  "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+                width: "auto",
+                height: "auto",
+              }}
             >
-              <Edit className="h-5 w-5 mr-2" />
-              Edit Profile
-            </Button>
+              <Edit className="w-4 h-4" /> Edit Vehicle
+            </button>
           )}
         </div>
       </div>
 
-      <div className="flex justify-evenly items-center gap-6">
-        <Card className="w-[220px] shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-gray-600">Total Shifts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-800">{driverData.user.shifts_count}</div>
-          </CardContent>
-        </Card>
+      {/* Warnings and Missing Attributes Accordion */}
+      <Card className="mb-6 p-6 bg-gray-100 border border-gray-200 rounded-2xl shadow-sm">
+        <Accordion type="single" collapsible>
+          {/* Warnings */}
+          {vehicle.warnings && vehicle.warnings.length > 0 && (
+            <AccordionItem value="warnings">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <TriangleAlert className="w-5 h-5 text-red-500" />
+                  <span className="text-lg font-semibold text-gray-800">Warnings</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex items-center justify-between gap-2 text-red-700 font-medium mb-2">
+                  <span>Warnings</span>
+                  {/* <X
+                    className="cursor-pointer"
+                    onClick={() =>
+                      setVehicle((prev) => {
+                        if (!prev) return prev;
+                        return { ...prev, warnings: [] };
+                      })
+                    }
+                  /> */}
+                </div>
+                <ul className="space-y-1">
+                  {vehicle.warnings.map((warning, index) => (
+                    <li key={index} className="text-sm text-red-600">
+                      {warning}
+                    </li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
-        <Card className="w-[220px] shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-gray-600">Paid Holidays</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-800">{driverData.user.paid_holidays}</div>
-          </CardContent>
-        </Card>
+          {/* Missing Attributes */}
+          {vehicle.missing_attributes && vehicle.missing_attributes.length > 0 && (
+            <AccordionItem value="missing-attributes">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <Info className="w-5 h-5 text-yellow-500" />
+                  <span className="text-lg font-semibold text-gray-800">Missing Information</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex items-center justify-between gap-2 text-yellow-700 font-medium mb-2">
+                  <span>Missing Information</span>
+                  {/* <X
+                    className="cursor-pointer"
+                    onClick={() =>
+                      setVehicle((prev) => {
+                        if (!prev) return prev;
+                        return { ...prev, missing_attributes: [] };
+                      })
+                    }
+                  /> */}
+                </div>
+                <ul className="space-y-1">
+                  {vehicle.missing_attributes.map((attr, index) => (
+                    <li key={index} className="text-sm text-yellow-600">
+                      • {attr}
+                    </li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+        </Accordion>
+      </Card>
 
-        <Card className="w-[220px] shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-gray-600">Rota Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              {driverData.user.parent_rota_completed && driverData.user.child_rota_completed ? (
-                <>
-                  <CheckCircle className="h-5 w-5 text-purple-600" />
-                  <span className="text-sm font-semibold text-purple-800">Complete</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-5 w-5 text-orange-600" />
-                  <span className="text-sm font-semibold text-orange-600">Pending</span>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column */}
+          <div className="space-y-6">
+            {/* Vehicle Overview */}
+            <Card className="p-6 bg-blue-50 border-l-6 border-blue-800 rounded">
+              <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
+                <Camera className="w-7 h-7 rounded-full text-blue-500" />
+                <span>Vehicle Overview</span>
+              </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-5 bg-white border border-purple-200 rounded-xl p-2 shadow-sm">
-          <TabsTrigger
-            value="overview"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-purple-100"
-          >
-            Overview
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="contract"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-purple-100"
-          >
-            Contract
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="sites"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-purple-100"
-          >
-            Sites
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="professional-competency"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-purple-100"
-          >
-            Competency
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="health"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-purple-100"
-          >
-            Health
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                  <User className="h-6 w-6" />
-                  Personal Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                {isEditing ? (
-                  <div className="space-y-8">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="full_name" className="text-sm font-semibold text-gray-600">Full Name</Label>
-                        <Input
-                          id="full_name"
-                          value={editFormData.full_name}
-                          onChange={(e) => handleInputChange("full_name", e.target.value)}
-                          placeholder="Enter full name"
-                          className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="display_name" className="text-sm font-semibold text-gray-600">Display Name</Label>
-                        <Input
-                          id="display_name"
-                          value={editFormData.display_name}
-                          onChange={(e) => handleInputChange("display_name", e.target.value)}
-                          placeholder="Enter display name"
-                          className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm font-semibold text-gray-600">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={editFormData.email}
-                          onChange={(e) => handleInputChange("email", e.target.value)}
-                          placeholder="Enter email address"
-                          className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-sm font-semibold text-gray-600">Phone</Label>
-                        <Input
-                          id="phone"
-                          value={editFormData.phone}
-                          onChange={(e) => handleInputChange("phone", e.target.value)}
-                          placeholder="Enter phone number"
-                          className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="address" className="text-sm font-semibold text-gray-600">Address</Label>
-                        <Input
-                          id="address"
-                          value={editFormData.address}
-                          onChange={(e) => handleInputChange("address", e.target.value)}
-                          placeholder="Enter address"
-                          className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="date_of_birth" className="text-sm font-semibold text-gray-600">Date of Birth</Label>
-                        <Input
-                          id="date_of_birth"
-                          type="date"
-                          value={editFormData.date_of_birth}
-                          onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
-                          placeholder="Enter date of birth"
-                          className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contract" className="text-sm font-semibold text-gray-600">Contract</Label>
-                        <Select
-                          value={editFormData.contractId}
-                          onValueChange={(value) => handleInputChange("contractId", value)}
-                          disabled={contractsLoading}
-                        >
-                          <SelectTrigger id="contract" className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
-                            <SelectValue placeholder="Select a contract" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contracts.map((contract) => (
-                              <SelectItem key={contract.id} value={contract.id.toString()}>
-                                {contract.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sites" className="text-sm font-semibold text-gray-600">Sites</Label>
-                        <Select
-                          value={editFormData.siteIds[0] ?? ""}
-                          onValueChange={(value) => handleInputChange("siteIds", Array.isArray(value) ? value : [value])}
-                          disabled={sitesLoading}
-                        >
-                          <SelectTrigger id="sites" className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
-                            <SelectValue placeholder="Select sites" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sites.map((site) => (
-                              <SelectItem key={site.id} value={site.id.toString()}>
-                                {site.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col items-start">
+                  {vehicle.vehicle_picture ? (
+                    <img
+                      src={vehicle.vehicle_picture || "/placeholder.svg"}
+                      alt="Vehicle"
+                      width={200}
+                      height={150}
+                      className="rounded-lg object-cover mb-2"
+                    />
+                  ) : (
+                    <div className="w-[200px] h-[150px] bg-gray-200 rounded-lg flex items-center justify-center mb-2">
+                      <Camera className="w-8 h-8 text-gray-400" />
                     </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Role</Label>
-                      <p className="font-medium text-gray-700">{driverData.user.role} (Read-only)</p>
+                  )}
+                  <ImageUploader onUploadSuccess={handleImageUpload} />
+                </div>
+
+                <div className="flex flex-col justify-center items-start">
+                  <div
+                    className={`flex ${
+                      isEditingPrice ? "flex-col" : ""
+                    } items-center justify-center`}
+                  >
+                    <div
+                      className={`flex w-full items-center ${
+                        isEditingPrice ? "text-right" : "items-center"
+                      } gap-2 text-md px-1`}
+                    >
+                      <span>Vehicle Cost:</span>
+                    </div>
+                    {isEditingPrice ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          value={tempPrice}
+                          onChange={(e) => setTempPrice(Number(e.target.value))}
+                          className="w-29"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handlePriceUpdate}
+                        >
+                          <Save className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setIsEditingPrice(false);
+                            setTempPrice(vehicle.vehicle_cost || 0);
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-md font-bold pl-2 text-green-600">
+                          £{(vehicle.vehicle_cost || 0).toLocaleString()}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsEditingPrice(!isEditingPrice)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className={`flex items-center justify-center`}>
+                    <div
+                      className={`flex w-full items-center gap-2 text-md px-1`}
+                    >
+                      <span>VAT Amount: </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-md font-bold pl-2 text-green-600">
+                        £{vatAmount.toLocaleString()}
+                      </p>
+                      <Button type="button" variant="ghost" size="sm">
+                        <Edit className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Full Name</Label>
-                      <p className="font-medium text-purple-800">{driverData.user.full_name}</p>
+                  <div className={`flex items-start justify-start`}>
+                    <div
+                      className={`flex w-full text-right gap-2 text-md px-1`}
+                    >
+                      <span>Total Amount:</span>
                     </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Display Name</Label>
-                      <p className="font-medium text-purple-800">{driverData.user.display_name}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Email</Label>
-                      <p className="font-medium text-purple-800">{driverData.user.email}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Phone</Label>
-                      <p className="font-medium text-purple-800">{driverData.phone}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Address</Label>
-                      <p className="font-medium text-purple-800">{driverData.address}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Date of Birth</Label>
-                      <p className="font-medium text-purple-800">{formatDate(driverData.date_of_birth)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Role</Label>
-                      <p className="font-medium text-purple-800">{driverData.user.role}</p>
+                    <div className="flex text-right">
+                      <p className="text-md font-bold text-green-600">
+                        £{totalAmount.toLocaleString()}
+                      </p>
                     </div>
                   </div>
-                )}
-              </CardContent>
+                </div>
+              </div>
             </Card>
 
-            <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                  <User className="h-6 w-6" />
-                  Next of Kin
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                {isEditing ? (
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="next_of_kin_name" className="text-sm font-semibold text-gray-600">Name</Label>
-                      <Input
-                        id="next_of_kin_name"
-                        value={editFormData.next_of_kin_name}
-                        onChange={(e) => handleInputChange("next_of_kin_name", e.target.value)}
-                        placeholder="Enter next of kin name"
-                        className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="next_of_kin_relationship" className="text-sm font-semibold text-gray-600">Relationship</Label>
-                      <Input
-                        id="next_of_kin_relationship"
-                        value={editFormData.next_of_kin_relationship}
-                        onChange={(e) => handleInputChange("next_of_kin_relationship", e.target.value)}
-                        placeholder="Enter relationship"
-                        className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="next_of_kin_contact" className="text-sm font-semibold text-gray-600">Contact</Label>
-                      <Input
-                        id="next_of_kin_contact"
-                        value={editFormData.next_of_kin_contact}
-                        onChange={(e) => handleInputChange("next_of_kin_contact", e.target.value)}
-                        placeholder="Enter contact number"
-                        className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="next_of_kin_email" className="text-sm font-semibold text-gray-600">Email</Label>
-                      <Input
-                        id="next_of_kin_email"
-                        type="email"
-                        value={editFormData.next_of_kin_email}
-                        onChange={(e) => handleInputChange("next_of_kin_email", e.target.value)}
-                        placeholder="Enter email address"
-                        className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                      />
-                    </div>
-                    <div className="space-y-2 col-span-2">
-                      <Label htmlFor="next_of_kin_address" className="text-sm font-semibold text-gray-600">Address</Label>
-                      <Input
-                        id="next_of_kin_address"
-                        value={editFormData.next_of_kin_address}
-                        onChange={(e) => handleInputChange("next_of_kin_address", e.target.value)}
-                        placeholder="Enter address"
-                        className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                      />
-                    </div>
+            {/* Assigned Driver */}
+            {vehicle.assignee_driver && (
+              <Card className="p-6 bg-green-50 border-l-6 border-green-800 rounded">
+                <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
+                  <Users className="w-7 h-7 rounded-full text-green-500" />
+                  <span>Assigned Driver</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Full Name</p>
+                    <p className="font-medium text-gray-900">
+                      {vehicle.assignee_driver.full_name}
+                    </p>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Name</Label>
-                      <p className="font-medium text-purple-800">{driverData.next_of_kin_name}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Relationship</Label>
-                      <p className="font-medium text-purple-800">{driverData.next_of_kin_relationship}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Contact</Label>
-                      <p className="font-medium text-purple-800">{driverData.next_of_kin_contact}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Email</Label>
-                      <p className="font-medium text-purple-800">{driverData.next_of_kin_email || "Not provided"}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <Label className="text-sm font-semibold text-gray-600">Address</Label>
-                      <p className="font-medium text-purple-800">{driverData.next_of_kin_address}</p>
-                    </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Email</p>
+                    <p className="font-medium text-gray-900">
+                      {vehicle.assignee_driver.email}
+                    </p>
                   </div>
-                )}
-              </CardContent>
+                  {vehicle.assignee_driver.role && (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Role</p>
+                      <Badge className="bg-blue-100 text-blue-700">
+                        {vehicle.assignee_driver.role}
+                      </Badge>
+                    </div>
+                  )}
+                  {vehicle.assignee_driver.shifts_count && (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Total Shifts</p>
+                      <p className="font-medium text-gray-900">
+                        {vehicle.assignee_driver.shifts_count}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Vehicle Type */}
+            <Card className="p-6 bg-rose-50 border-l-6 border-red-800 rounded">
+              <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
+                <Shapes className="w-7 h-7 rounded-full text-red-500" />
+                <span>Vehicle Type</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1">
+                <div className="flex flex-col items-center p-4 bg-white">
+                  <Shapes className="w-12 h-12 text-gray-400 mb-2" />
+                  <span className="text-sm text-gray-600">16-Seater Mini</span>
+                </div>
+                <div className="flex flex-col items-center p-4 bg-white">
+                  <NotebookPen className="w-12 h-12 text-gray-800 mb-2" />
+                  <Badge className="text-sm font-medium bg-orange-100 text-orange-700">
+                    {vehicle.vehicles_type.name}
+                  </Badge>
+                </div>
+              </div>
             </Card>
 
-            <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                  <Calendar className="h-6 w-6" />
-                  Important Dates
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label className="text-sm font-semibold text-gray-600">Contract Signing Date</Label>
-                  <p className="font-medium text-purple-800">{formatDate(driverData.user.contract_signing_date)}</p>
+            {/* General Information */}
+            <Card className="p-6 bg-gray-100 rounded-lg">
+              <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
+                <Info className="w-6 h-6 rounded-full text-red-500" />
+                <span>General Information</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-gray-50 p-1 rounded">
+                  <p className="text-sm text-gray-500 mb-1">Registration</p>
+                  {isEditing ? (
+                    <Input
+                      type="text"
+                      value={editVehicle.registration_number}
+                      onChange={(e) =>
+                        handleInputChange("registration_number", e.target.value)
+                      }
+                      className="w-full"
+                    />
+                  ) : (
+                    <p className="font-medium text-gray-900">
+                      {vehicle.registration_number}
+                    </p>
+                  )}
+                </div>
+                <div className="bg-gray-50 p-1 rounded">
+                  <p className="text-sm text-gray-500 mb-1">Status</p>
+                  {isEditing ? (
+                    <Input
+                      type="text"
+                      value={editVehicle.vehicle_status}
+                      onChange={(e) =>
+                        handleInputChange("vehicle_status", e.target.value)
+                      }
+                      className="w-full"
+                    />
+                  ) : (
+                    <Badge className={getStatusBadgeColors(vehicle.vehicle_status)}>
+                      {vehicle.vehicle_status}
+                    </Badge>
+                  )}
                 </div>
                 <div>
-                  <Label className="text-sm font-semibold text-gray-600">Rota Start Date</Label>
-                  <p className="font-medium text-purple-800">{formatDate(driverData.user.rota_start_date)}</p>
+                  <p className="text-sm text-gray-500 mb-1">Road Worthy</p>
+                  {isEditing ? (
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={editVehicle.is_roadworthy}
+                        onCheckedChange={(checked) =>
+                          handleInputChange("is_roadworthy", checked)
+                        }
+                      />
+                      <span className="text-sm text-gray-700">Roadworthy</span>
+                    </div>
+                  ) : (
+                    <Badge
+                      className={getRoadworthyBadgeColors(vehicle.is_roadworthy)}
+                    >
+                      {vehicle.is_roadworthy ? "Yes" : "No"}
+                    </Badge>
+                  )}
                 </div>
                 <div>
-                  <Label className="text-sm font-semibold text-gray-600">Signup Date</Label>
-                  <p className="font-medium text-purple-800">{formatDate(driverData.signup_date)}</p>
+                  <p className="text-sm text-gray-500 mb-1">Walkaround Count</p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={editVehicle.walkaround_count || 1}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "walkaround_count",
+                          Number.parseInt(e.target.value)
+                        )
+                      }
+                      className="w-full"
+                    />
+                  ) : (
+                    <p className="font-medium text-gray-900">
+                      {vehicle.walkaround_count || "N/A"}
+                    </p>
+                  )}
                 </div>
-              </CardContent>
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500 mb-1">Last Mileage</p>
+                  <div className="flex items-center gap-2">
+                    <Gauge className="w-4 h-4 text-blue-500" />
+                    <p className="font-medium text-gray-900">
+                      {vehicle.last_mileage ? `${vehicle.last_mileage} miles` : "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </Card>
           </div>
-        </TabsContent>
 
-        <TabsContent value="contract">
-          <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                <FileText className="h-6 w-6" />
-                Contract Details
-              </CardTitle>
-              <CardDescription className="text-gray-600">Manage contract information and terms</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Quick Stats */}
+            <Card className="px-6 py-3 bg-gray-100 rounded-lg">
+              <div className="flex items-center gap-2 text-gray-700 font-medium mb-6">
+                <ChartLine className="w-6 h-6 text-orange-500" />
+                <span>Quick Stats</span>
+              </div>
               <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-purple-800">Assign New Contract</h3>
-                <div className="flex items-end gap-6">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="assign_contract" className="text-sm font-semibold text-gray-600">Select Contract</Label>
-                    <Select
-                      value={selectedContractId}
-                      onValueChange={setSelectedContractId}
-                      disabled={contractsLoading || assigningContract}
-                    >
-                      <SelectTrigger id="assign_contract" className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
-                        <SelectValue placeholder="Select a contract to assign" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {contracts.map((contract) => (
-                          <SelectItem key={contract.id} value={contract.id.toString()}>
-                            {contract.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    onClick={handleAssignContract}
-                    disabled={assigningContract || !selectedContractId}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
+                <div className="flex items-center bg-gray-50 px-1 py-2 rounded justify-between">
+                  <span className="text-sm text-gray-600">Status</span>
+                  <Badge className={getStatusBadgeColors(vehicle.vehicle_status)}>
+                    {vehicle.vehicle_status}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Road Worthy</span>
+                  <Badge
+                    className={getRoadworthyBadgeColors(vehicle.is_roadworthy)}
                   >
-                    {assigningContract ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    ) : (
-                      <Save className="h-5 w-5 mr-2" />
-                    )}
-                    Assign Contract
-                  </Button>
+                    {vehicle.is_roadworthy ? "Yes" : "No"}
+                  </Badge>
+                </div>
+                <div className="flex items-center bg-gray-50 px-1 py-2 rounded justify-between">
+                  <span className="text-sm text-gray-600">
+                    Walkaround Count
+                  </span>
+                  <span className="font-medium text-gray-900">
+                    {vehicle.walkaround_count || "N/A"}
+                  </span>
                 </div>
               </div>
-              <Separator className="bg-purple-200" />
+            </Card>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label className="text-sm font-semibold text-gray-600">Contract ID</Label>
-                  <p className="font-medium text-purple-800">{driverData.user.contract?.id || "Not assigned"}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-600">Contract Name</Label>
-                  <p className="font-medium text-purple-800">{driverData.user.contract?.name || "Not assigned"}</p>
-                </div>
-              </div>
-              <div>
-                <Label className="text-sm font-semibold text-gray-600">Description</Label>
-                <p className="font-medium text-purple-800">{driverData.user.contract?.description || "No description available"}</p>
-              </div>
-              <Separator className="bg-purple-200" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label className="text-sm font-semibold text-gray-600">Signing Date</Label>
-                  <p className="font-medium text-purple-800">
-                    {driverData.user.contract_signing_date
-                      ? formatDate(driverData.user.contract_signing_date)
-                      : "Not assigned"}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-600">Paid Holidays</Label>
-                  <p className="font-medium text-purple-800">{driverData.user.paid_holidays} days</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            {/* Expiry Dates */}
+            <ExpiryDates
+              mot_expiry={vehicle.mot_expiry}
+              vehicle_id={vehicle.id}
+              tax_expiry={vehicle.tax_expiry}
+              insurance_expiry={vehicle.insurance_expiry}
+              inspection_expiry={vehicle.inspection_expiry}
+              status_indicators={vehicle.status_indicators}
+            />
 
-        <TabsContent value="sites">
-          <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                <Building2 className="h-6 w-6" />
-                Assigned Sites
-              </CardTitle>
-              <CardDescription className="text-gray-600">Sites where this driver is authorized to work</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-purple-800">Assign New Sites</h3>
-                <div className="flex items-end gap-6">
-                  <div className="flex-1 space-y-2">
-                    <Label className="text-sm font-semibold text-gray-600">Select Sites</Label>
-                    <div className="rounded-lg p-3 max-h-64 overflow-y-auto border border-purple-200 bg-white">
-                      {sites.map((site) => (
-                        <div key={site.id} className="flex border-b border-purple-100 items-center space-x-3 p-3 hover:bg-purple-50 transition-colors">
-                          <input
-                            type="checkbox"
-                            id={`site-${site.id}`}
-                            checked={selectedSiteIds.includes(site.id.toString())}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedSiteIds([...selectedSiteIds, site.id.toString()])
-                              } else {
-                                setSelectedSiteIds(selectedSiteIds.filter((id) => id !== site.id.toString()))
+            {/* Accordion for Tyre Info, Documents, and Operation Hours */}
+            <Card className="p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
+              <Accordion type="single" collapsible>
+                {/* Tyre Information */}
+                <AccordionItem value="tyre-expiry">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-semibold text-gray-800">
+                        Tyre Information
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsEditingTyreExpiry(!isEditingTyreExpiry);
+                        }}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {isEditingTyreExpiry && (
+                      <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                        <h4 className="font-medium mb-3">
+                          Edit Tyre Expiry Dates
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="front-driver-expiry">
+                              Front Driver
+                            </Label>
+                            <Input
+                              id="front-driver-expiry"
+                              type="date"
+                              value={tempTyreExpiry.front_driver}
+                              onChange={(e) =>
+                                setTempTyreExpiry((prev) => ({
+                                  ...prev,
+                                  front_driver: e.target.value,
+                                }))
                               }
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="front-passenger-expiry">
+                              Front Passenger
+                            </Label>
+                            <Input
+                              id="front-passenger-expiry"
+                              type="date"
+                              value={tempTyreExpiry.front_passenger}
+                              onChange={(e) =>
+                                setTempTyreExpiry((prev) => ({
+                                  ...prev,
+                                  front_passenger: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="rear-driver-expiry">
+                              Rear Outer Driver
+                            </Label>
+                            <Input
+                              id="rear-driver-expiry"
+                              type="date"
+                              value={tempTyreExpiry.rear_outer_driver}
+                              onChange={(e) =>
+                                setTempTyreExpiry((prev) => ({
+                                  ...prev,
+                                  rear_outer_driver: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="rear-passenger-expiry">
+                              Rear Outer Passenger
+                            </Label>
+                            <Input
+                              id="rear-passenger-expiry"
+                              type="date"
+                              value={tempTyreExpiry.rear_outer_passenger}
+                              onChange={(e) =>
+                                setTempTyreExpiry((prev) => ({
+                                  ...prev,
+                                  rear_outer_passenger: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <Button
+                            type="button"
+                            onClick={handleTyreExpiryUpdate}
+                          >
+                            <Save className="w-4 h-4 mr-2" />
+                            Save Changes
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              setIsEditingTyreExpiry(false);
+                              setTempTyreExpiry({
+                                front_driver:
+                                  vehicle.tyre_expiry_front_driver || "",
+                                front_passenger:
+                                  vehicle.tyre_expiry_front_passenger || "",
+                                rear_outer_driver:
+                                  vehicle.tyre_expiry_rear_outer_driver || "",
+                                rear_outer_passenger:
+                                  vehicle.tyre_expiry_rear_outer_passenger ||
+                                  "",
+                              });
                             }}
-                            disabled={sitesLoading || assigningSites}
-                            className="h-5 w-5 text-purple-600 focus:ring-purple-600 rounded"
-                          />
-                          <label htmlFor={`site-${site.id}`} className="text-sm font-medium text-purple-800">
-                            {site.name}
-                          </label>
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Cancel
+                          </Button>
                         </div>
-                      ))}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      {/* Front Passenger */}
+                      <div className={`flex flex-col items-center justify-center p-4 rounded-xl bg-orange-50 ${vehicle.tyre_expiry_status.front_passenger_expiring ? 'border-2 border-red-500' : ''}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-medium text-gray-700">
+                            Front Passenger
+                          </span>
+                          {vehicle.tyre_expiry_status.front_passenger_expiring && (
+                            <Badge className="bg-red-100 text-red-700">Expiring</Badge>
+                          )}
+                        </div>
+                        <img
+                          src={vehicle.vehicle_picture ? vehicle.vehicle_picture : "/tyre/1 (4).png"}
+                          alt="Passenger Side Tyre"
+                          width={100}
+                          height={60}
+                          className="object-contain"
+                        />
+                        <div className="mt-2 space-y-1 text-center">
+                          <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
+                            Expiry:{" "}
+                            {vehicle.tyre_expiry_front_passenger || "N/A"}
+                          </div>
+                          {vehicle.tyre_pressure_front_passenger && (
+                            <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
+                              Pressure: {vehicle.tyre_pressure_front_passenger}{" "}
+                              PSI
+                            </div>
+                          )}
+                          {vehicle.tyre_depth_front_passenger && (
+                            <div className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">
+                              Depth: {vehicle.tyre_depth_front_passenger}mm
+                            </div>
+                          )}
+                          {vehicle.tyre_torque_front_passenger && (
+                            <div className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-md">
+                              Torque: {vehicle.tyre_torque_front_passenger} Nm
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Front Driver */}
+                      <div className={`flex flex-col items-center justify-center p-4 rounded-xl bg-blue-50 ${vehicle.tyre_expiry_status.front_driver_expiring ? 'border-2 border-red-500' : ''}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-medium text-gray-700">
+                            Front Driver
+                          </span>
+                          {vehicle.tyre_expiry_status.front_driver_expiring && (
+                            <Badge className="bg-red-100 text-red-700">Expiring</Badge>
+                          )}
+                        </div>
+                        <img
+                          src={vehicle.vehicle_picture ? vehicle.vehicle_picture : "/tyre/1 (1).png"}
+                          alt="Driver Side Tyre"
+                          width={100}
+                          height={60}
+                          className="object-contain"
+                        />
+                        <div className="mt-2 space-y-1 text-center">
+                          <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
+                            Expiry: {vehicle.tyre_expiry_front_driver || "N/A"}
+                          </div>
+                          {vehicle.tyre_pressure_front_driver && (
+                            <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
+                              Pressure: {vehicle.tyre_pressure_front_driver} PSI
+                            </div>
+                          )}
+                          {vehicle.tyre_depth_front_driver && (
+                            <div className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">
+                              Depth: {vehicle.tyre_depth_front_driver}mm
+                            </div>
+                          )}
+                          {vehicle.tyre_torque_front_driver && (
+                            <div className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-md">
+                              Torque: {vehicle.tyre_torque_front_driver} Nm
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Rear Outer Driver */}
+                      <div className={`flex flex-col items-center justify-center p-4 rounded-xl bg-orange-50 ${vehicle.tyre_expiry_status.rear_outer_driver_expiring ? 'border-2 border-red-500' : ''}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-medium text-gray-700">
+                            Rear Outer Driver
+                          </span>
+                          {vehicle.tyre_expiry_status.rear_outer_driver_expiring && (
+                            <Badge className="bg-red-100 text-red-700">Expiring</Badge>
+                          )}
+                        </div>
+                        <img
+                          src={vehicle.vehicle_picture ? vehicle.vehicle_picture : "/tyre/1 (3).png"}
+                          alt="Back Left Side Tyre"
+                          width={100}
+                          height={60}
+                          className="object-contain"
+                        />
+                        <div className="mt-2 space-y-1 text-center">
+                          <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
+                            Expiry:{" "}
+                            {vehicle.tyre_expiry_rear_outer_driver || "N/A"}
+                          </div>
+                          {vehicle.tyre_pressure_rear_outer_driver && (
+                            <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
+                              Pressure:{" "}
+                              {vehicle.tyre_pressure_rear_outer_driver} PSI
+                            </div>
+                          )}
+                          {vehicle.tyre_depth_rear_outer_driver && (
+                            <div className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">
+                              Depth: {vehicle.tyre_depth_rear_outer_driver}mm
+                            </div>
+                          )}
+                          {vehicle.tyre_torque_rear_outer_driver && (
+                            <div className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-md">
+                              Torque: {vehicle.tyre_torque_rear_outer_driver} Nm
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Rear Outer Passenger */}
+                      <div className={`flex flex-col items-center justify-center p-4 rounded-xl bg-orange-50 ${vehicle.tyre_expiry_status.rear_outer_passenger_expiring ? 'border-2 border-red-500' : ''}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-medium text-gray-700">
+                            Rear Outer Passenger
+                          </span>
+                          {vehicle.tyre_expiry_status.rear_outer_passenger_expiring && (
+                            <Badge className="bg-red-100 text-red-700">Expiring</Badge>
+                          )}
+                        </div>
+                        <img
+                          src={vehicle.vehicle_picture ? vehicle.vehicle_picture : "/tyre/1 (2).png"}
+                          alt="Back Right Side Tyre"
+                          width={100}
+                          height={60}
+                          className="object-contain"
+                        />
+                        <div className="mt-2 space-y-1 text-center">
+                          <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
+                            Expiry:{" "}
+                            {vehicle.tyre_expiry_rear_outer_passenger || "N/A"}
+                          </div>
+                          {vehicle.tyre_pressure_rear_outer_passenger && (
+                            <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
+                              Pressure:{" "}
+                              {vehicle.tyre_pressure_rear_outer_passenger} PSI
+                            </div>
+                          )}
+                          {vehicle.tyre_depth_rear_outer_passenger && (
+                            <div className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">
+                              Depth: {vehicle.tyre_depth_rear_outer_passenger}mm
+                            </div>
+                          )}
+                          {vehicle.tyre_torque_rear_outer_passenger && (
+                            <div className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-md">
+                              Torque: {vehicle.tyre_torque_rear_outer_passenger}{" "}
+                              Nm
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <Button
-                    onClick={handleAssignSites}
-                    disabled={assigningSites || selectedSiteIds.length === 0}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
-                  >
-                    {assigningSites ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Vehicle Documents */}
+                <AccordionItem value="documents">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-blue-500" />
+                      <span className="text-lg font-semibold text-gray-800">
+                        Vehicle Documents
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      {[
+                        { key: "log_book", label: "Log Book", icon: FileText },
+                        {
+                          key: "mot_docs",
+                          label: "MOT Certificate",
+                          icon: FileText,
+                        },
+                        {
+                          key: "pree_mot_check_docs",
+                          label: "Pre-MOT Check Docs",
+                          icon: FileText,
+                        },
+                        {
+                          key: "inspection",
+                          label: "Inspection Report",
+                          icon: FileText,
+                        },
+                        {
+                          key: "insurance",
+                          label: "Insurance Document",
+                          icon: FileText,
+                        },
+                        {
+                          key: "fitness_certificate",
+                          label: "Fitness Certificate",
+                          icon: FileText,
+                        },
+                        {
+                          key: "route_permit",
+                          label: "Route Permit",
+                          icon: FileText,
+                        },
+                        {
+                          key: "financial",
+                          label: "Financial Document",
+                          icon: FileText,
+                        },
+                        {
+                          key: "service_records",
+                          label: "Service Records",
+                          icon: FileText,
+                        },
+                        { key: "tax", label: "Tax Document", icon: FileText },
+                        {
+                          key: "tacho_download_docs",
+                          label: "Tacho Download",
+                          icon: Download,
+                        },
+                        {
+                          key: "tacho_calibration_docs",
+                          label: "Tacho Calibration",
+                          icon: Download,
+                        },
+                        {
+                          key: "others",
+                          label: "Other Documents",
+                          icon: FileText,
+                        },
+                      ].map(({ key, label, icon: Icon }) => {
+                        const docUrl = vehicle[key as keyof Vehicle] as string;
+                        return docUrl ? (
+                          <a
+                            key={key}
+                            href={docUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                          >
+                            <Icon className="w-5 h-5 text-blue-500" />
+                            <span className="text-sm font-medium text-gray-700">
+                              {label}
+                            </span>
+                          </a>
+                        ) : null;
+                      }).filter(Boolean)}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Site Operation Hours */}
+                <AccordionItem value="operation-hours">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-green-500" />
+                      <span className="text-lg font-semibold text-gray-800">
+                        Site Operation Hours
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 mt-4">
+                      {vehicle?.site_allocated?.operation_hours?.length ? (
+                        vehicle.site_allocated.operation_hours.map((hour) => (
+                          <div
+                            key={hour.id}
+                            className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                          >
+                            <span className="font-medium text-gray-700">
+                              {hour.day_label}
+                            </span>
+                            <div className="text-sm">
+                              {hour.is_closed ? (
+                                <Badge className="bg-red-100 text-red-700">
+                                  Closed
+                                </Badge>
+                              ) : hour.is_open_24_hours ? (
+                                <Badge className="bg-green-100 text-green-700">
+                                  24 Hours
+                                </Badge>
+                              ) : (
+                                <span className="text-gray-600">
+                                  {hour.opens_at ?? "N/A"} -{" "}
+                                  {hour.closes_at ?? "N/A"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-gray-600">
+                          No operation hours available
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="site-allocated">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2 text-gray-700 font-medium ">
+                      <MapPin className="w-6 h-6 rounded-full text-red-500" />
+                      <span>Site Allocated</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {vehicle.site_allocated ? (
+                      <>
+                        {vehicle.site_allocated.image && (
+                          <div className="mb-4">
+                            <img
+                              src={vehicle.site_allocated.image || "/placeholder.svg"}
+                              alt="Site"
+                              width={300}
+                              height={150}
+                              className="rounded-lg object-cover"
+                            />
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-6">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Site Name</p>
+                            {isEditing ? (
+                              <Input
+                                type="text"
+                                value={editVehicle.site_allocated?.name || ""}
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange("name", e.target.value)
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <p className="font-medium text-gray-900">
+                                {vehicle.site_allocated.name}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Contact Name
+                            </p>
+                            {isEditing ? (
+                              <Input
+                                type="text"
+                                value={editVehicle.site_allocated?.contact_name || ""}
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange(
+                                    "contact_name",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <p className="font-medium text-gray-900">
+                                {vehicle.site_allocated.contact_name}
+                              </p>
+                            )}
+                          </div>
+                          {vehicle.site_allocated.contact_position && (
+                            <div>
+                              <p className="text-sm text-gray-500 mb-1">
+                                Contact Position
+                              </p>
+                              <p className="font-medium text-gray-900">
+                                {vehicle.site_allocated.contact_position}
+                              </p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Contact Phone
+                            </p>
+                            <p className="font-medium text-gray-900">
+                              {vehicle.site_allocated.contact_phone}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Address</p>
+                            {isEditing ? (
+                              <Input
+                                type="text"
+                                value={editVehicle.site_allocated?.address || ""}
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange(
+                                    "address",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <p className="font-medium text-gray-900">
+                                {vehicle.site_allocated.address || "Not provided"}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Status</p>
+                            {isEditing ? (
+                              <Input
+                                type="text"
+                                value={editVehicle.site_allocated?.status || ""}
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange(
+                                    "status",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <Badge className={getStatusBadgeColors(vehicle.site_allocated.status)}>
+                                {vehicle.site_allocated.status}
+                              </Badge>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Post Code</p>
+                            {isEditing ? (
+                              <Input
+                                type="text"
+                                value={editVehicle.site_allocated?.postcode || ""}
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange(
+                                    "postcode",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <p className="font-medium text-gray-900">
+                                {vehicle.site_allocated.postcode}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Radius</p>
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={editVehicle.site_allocated?.radius_m || 0}
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange(
+                                    "radius_m",
+                                    Number.parseInt(e.target.value)
+                                  )
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <p className="font-medium text-gray-900">
+                                {vehicle.site_allocated.radius_m} m
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Latitude</p>
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={editVehicle.site_allocated?.latitude || 0}
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange(
+                                    "latitude",
+                                    Number.parseFloat(e.target.value)
+                                  )
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <p className="font-medium text-gray-900">
+                                {vehicle.site_allocated.latitude}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Longitude</p>
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={editVehicle.site_allocated?.longitude || 0}
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange(
+                                    "longitude",
+                                    Number.parseFloat(e.target.value)
+                                  )
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <p className="font-medium text-gray-900">
+                                {vehicle.site_allocated.longitude}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">
+                              No. of vehicles
+                            </p>
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={
+                                  editVehicle.site_allocated
+                                    ?.number_of_allocated_vehicles || 0
+                                }
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange(
+                                    "number_of_allocated_vehicles",
+                                    Number.parseInt(e.target.value)
+                                  )
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <p className="font-medium text-gray-900">
+                                {
+                                  vehicle.site_allocated
+                                    .number_of_allocated_vehicles
+                                }
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Created By</p>
+                            {isEditing ? (
+                              <Input
+                                type="text"
+                                value={editVehicle.site_allocated?.created_by || ""}
+                                onChange={(e) =>
+                                  handleSiteAllocatedChange(
+                                    "created_by",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full"
+                              />
+                            ) : (
+                              <p className="font-medium text-gray-900">
+                                {vehicle.site_allocated.created_by}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Staff Information */}
+                        {vehicle.site_allocated.staff && (
+                          <div className="mt-6 pt-6 border-t border-gray-200">
+                            <h4 className="font-medium text-gray-700 mb-3">
+                              Staff Information
+                            </h4>
+                            <div className="grid grid-cols-4 gap-4">
+                              <div className="text-center">
+                                <p className="text-2xl font-bold text-blue-600">
+                                  {vehicle.site_allocated.staff.driver}
+                                </p>
+                                <p className="text-sm text-gray-600">Drivers</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-2xl font-bold text-green-600">
+                                  {vehicle.site_allocated.staff.admin}
+                                </p>
+                                <p className="text-sm text-gray-600">Admin</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-2xl font-bold text-orange-600">
+                                  {vehicle.site_allocated.staff.mechanic}
+                                </p>
+                                <p className="text-sm text-gray-600">Mechanics</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-2xl font-bold text-purple-600">
+                                  {vehicle.site_allocated.staff.total}
+                                </p>
+                                <p className="text-sm text-gray-600">Total</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Site Presence */}
+                        {vehicle.site_allocated.presence && (
+                          <div className="mt-6 pt-6 border-t border-gray-200">
+                            <h4 className="font-medium text-gray-700 mb-3">
+                              Site Presence
+                            </h4>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-sm text-gray-500">Early Shift</p>
+                                <p className="font-medium">
+                                  {vehicle.site_allocated.presence.early}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-500">
+                                  Middle Shift
+                                </p>
+                                <p className="font-medium">
+                                  {vehicle.site_allocated.presence.middle}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-500">Night Shift</p>
+                                <p className="font-medium">
+                                  {vehicle.site_allocated.presence.night}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-500">Supervisor</p>
+                                <p className="font-medium">
+                                  {vehicle.site_allocated.presence.supervisor}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : vehicle.assignee_driver?.site?.length ? (
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Site Name</p>
+                          <p className="font-medium text-gray-900">
+                            {vehicle.assignee_driver.site[0].name}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Status</p>
+                          <Badge className={getStatusBadgeColors(vehicle.assignee_driver.site[0].status)}>
+                            {vehicle.assignee_driver.site[0].status}
+                          </Badge>
+                        </div>
+                        {vehicle.assignee_driver.site[0].image && (
+                          <div className="col-span-2">
+                            <img
+                              src={vehicle.assignee_driver.site[0].image || "/placeholder.svg"}
+                              alt="Site"
+                              width={300}
+                              height={150}
+                              className="rounded-lg object-cover"
+                            />
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <Save className="h-5 w-5 mr-2" />
-                    )}
-                    Assign Sites
-                  </Button>
-                </div>
-              </div>
-              <Separator className="bg-purple-200" />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {driverData.user.site.map((site) => (
-                  <Card key={site.id} className="overflow-hidden shadow-lg bg-white hover:shadow-xl transition-all rounded-xl">
-                    <div className="aspect-video relative">
-                      <img
-                        src={site.image || "/placeholder.svg"}
-                        alt={site.name}
-                        className="w-full h-full object-cover rounded-t-xl"
-                      />
-                    </div>
-                    <CardContent className="p-5">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-lg text-purple-800">{site.name}</h3>
-                        <Badge className={`px-3 py-1 text-sm font-medium ${site.status === "active" ? "bg-purple-600 hover:bg-purple-700" : "bg-gray-400 hover:bg-gray-500"} text-white rounded-full transition-colors`}>
-                          {site.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-2">Site ID: {site.id}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="professional-competency">
-          <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                  <File className="h-6 w-6" />
-                  Professional Competency Details
-                </CardTitle>
-                <div className="flex gap-3">
-                  {isEditingCompetency ? (
-                    <>
-                      <Button
-                        onClick={handleSaveCompetency}
-                        disabled={savingCompetency}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
-                      >
-                        {savingCompetency ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        ) : (
-                          <Save className="h-5 w-5 mr-2" />
-                        )}
-                        Save Changes
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleCompetencyEditToggle}
-                        disabled={savingCompetency}
-                        className="border-purple-600 text-purple-600 hover:bg-purple-100 rounded-lg transition-all"
-                      >
-                        <X className="h-5 w-5 mr-2" />
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={handleCompetencyEditToggle}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
-                    >
-                      <Edit className="h-5 w-5 mr-2" />
-                      Edit Competencies
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <CardDescription className="text-gray-600">Documents and certifications related to professional competency</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {competencyData.length === 0 ? (
-                <p className="text-gray-600 text-center py-6">No professional competency records found.</p>
-              ) : (
-                (isEditingCompetency ? editCompetencyData : competencyData).map((competency) => (
-                  <div key={competency.id} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Document Name</Label>
-                        <p className="font-medium text-purple-800">{competency.document_name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Document Type</Label>
-                        <p className="font-medium text-purple-800">{competency.document_type}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Status</Label>
-                        {isEditingCompetency ? (
-                          <Select
-                            value={competency.request_status}
-                            onValueChange={(value) => handleCompetencyInputChange(competency.id, "request_status", value)}
-                          >
-                            <SelectTrigger className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="approved">Approved</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="not_approved">Not Approved</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge
-                            className={`px-3 py-1 text-sm font-medium ${
-                              competency.request_status === "pending"
-                                ? "bg-orange-600 hover:bg-orange-700"
-                                : competency.request_status === "approved"
-                                ? "bg-purple-600 hover:bg-purple-700"
-                                : "bg-red-600 hover:bg-red-700"
-                            } text-white rounded-full transition-colors`}
-                          >
-                            {competency.request_status.charAt(0).toUpperCase() + competency.request_status.slice(1)}
-                          </Badge>
-                        )}
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Expiry Date</Label>
-                        {isEditingCompetency ? (
-                          <Input
-                            type="date"
-                            value={competency.expiry_date || ""}
-                            onChange={(e) => handleCompetencyInputChange(competency.id, "expiry_date", e.target.value)}
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        ) : (
-                          <p className="font-medium text-purple-800">{formatDate(competency.expiry_date)}</p>
-                        )}
-                      </div>
-                      {competency.has_description && (
-                        <div className="col-span-2">
-                          <Label className="text-sm font-semibold text-gray-600">Description</Label>
-                          <p className="font-medium text-purple-800">{competency.description}</p>
-                        </div>
-                      )}
-                    </div>
-                    {competency.has_document && competency.urls.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Document Links</Label>
-                        <div className="flex flex-col gap-3 mt-2">
-                          {competency.urls.map((url, index) => (
-                            <a
-                              key={index}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors bg-purple-50 p-3 rounded-lg hover:bg-purple-100"
-                            >
-                              <ExternalLink className="h-5 w-5" />
-                              <span>
-                                {competency.has_back_side && index === 0
-                                  ? "Front Side"
-                                  : competency.has_back_side && index === 1
-                                  ? "Back Side"
-                                  : `Document ${index + 1}`}
-                              </span>
-                            </a>
-                          ))}
-                        </div>
+                      <div className="text-sm text-gray-600">
+                        No site allocated to this vehicle.
                       </div>
                     )}
-                    {competency.modules.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Modules</Label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-                          {competency.modules.map((module) => (
-                            <Card key={module.id} className="shadow-md bg-white hover:shadow-lg transition-all rounded-lg border border-purple-200">
-                              <CardContent className="p-5">
-                                <div className="space-y-4">
-                                  <div>
-                                    <Label className="text-sm font-semibold text-gray-600">Module Name</Label>
-                                    <p className="font-medium text-purple-800">{module.module_name}</p>
-                                  </div>
-                                  <div>
-                                    <Label className="text-sm font-semibold text-gray-600">Description</Label>
-                                    <p className="font-medium text-purple-800">{module.description}</p>
-                                  </div>
-                                  <div>
-                                    <Label className="text-sm font-semibold text-gray-600">Expiry Date</Label>
-                                    <p className="font-medium text-purple-800">{formatDate(module.expiry_date)}</p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <Separator className="bg-purple-200" />
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="health">
-          <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                  <Heart className="h-6 w-6" />
-                  Health Information
-                </CardTitle>
-                <div className="flex gap-3">
-                  {isEditingHealth ? (
-                    <>
-                      <Button
-                        onClick={handleSaveHealth}
-                        disabled={savingHealth}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
-                      >
-                        {savingHealth ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        ) : (
-                          <Save className="h-5 w-5 mr-2" />
-                        )}
-                        Save Changes
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleHealthEditToggle}
-                        disabled={savingHealth}
-                        className="border-purple-600 text-purple-600 hover:bg-purple-100 rounded-lg transition-all"
-                      >
-                        <X className="h-5 w-5 mr-2" />
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={handleHealthEditToggle}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
-                    >
-                      <Edit className="h-5 w-5 mr-2" />
-                      Edit Health Answers
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <CardDescription className="text-gray-600">Health-related questions and answers</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {healthData.length === 0 ? (
-                <p className="text-gray-600 text-center py-6">No health answers found.</p>
-              ) : (
-                (isEditingHealth ? editHealthData : healthData).map((health) => (
-                  <div key={health.id} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Question</Label>
-                        <p className="font-medium text-purple-800">{health.question_text}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Answer</Label>
-                        {isEditingHealth ? (
-                          <Select
-                            value={health.answer.toString()}
-                            onValueChange={(value) => handleHealthInputChange(health.id, "answer", value === "true")}
-                          >
-                            <SelectTrigger className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
-                              <SelectValue placeholder="Select answer" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="true">Yes</SelectItem>
-                              <SelectItem value="false">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge
-                            className={`px-3 py-1 text-sm font-medium ${
-                              health.answer ? "bg-purple-600 hover:bg-purple-700" : "bg-orange-600 hover:bg-orange-700"
-                            } text-white rounded-full transition-colors`}
-                          >
-                            {health.answer ? "Yes" : "No"}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="col-span-2">
-                        <Label className="text-sm font-semibold text-gray-600">Note</Label>
-                        {isEditingHealth ? (
-                          <Input
-                            value={health.note}
-                            onChange={(e) => handleHealthInputChange(health.id, "note", e.target.value)}
-                            placeholder="Enter note"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        ) : (
-                          <p className="font-medium text-purple-800">{health.note || "No note provided"}</p>
-                        )}
-                      </div>
-                      {health.admin_remarks && (
-                        <div className="col-span-2">
-                          <Label className="text-sm font-semibold text-gray-600">Admin Remarks</Label>
-                          <p className="font-medium text-purple-800">{health.admin_remarks}</p>
-                        </div>
-                      )}
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Created At</Label>
-                        <p className="font-medium text-purple-800">{formatDate(health.created_at)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Updated At</Label>
-                        <p className="font-medium text-purple-800">{formatDate(health.updated_at)}</p>
-                      </div>
-                    </div>
-                    <Separator className="bg-purple-200" />
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </Card>
+          </div>
+        </div>
+      </form>
     </div>
-  )
+  );
 }
