@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
 import { PoundSterling, Calendar, Car, MapPin, Filter, Eye, MoreHorizontal } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -234,6 +234,19 @@ export default function Dashboard() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      `${value} vehicles`,
+                      `${name} (${((value / 10) * 100).toFixed(1)}%)`
+                    ]}
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "4px",
+                      padding: "8px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute flex flex-col items-center justify-center">
@@ -278,6 +291,17 @@ export default function Dashboard() {
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Bar dataKey="jobs" fill="#8B5CF6" />
+                <Tooltip
+                  formatter={(value: number, name: string) => [`${value} jobs`, "Jobs"]}
+                  labelFormatter={(label: string) => `Month: ${label}`}
+                  contentStyle={{
+                    backgroundColor: "#fff",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "4px",
+                    padding: "8px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                  }}
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -285,7 +309,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Bookings Table */}
-      <Card className="gradient-border cursor-glow rounded-md">
+      {/* <Card className="gradient-border cursor-glow rounded-md">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-gray-600 text-sm">New Bookings</CardTitle>
@@ -345,7 +369,7 @@ export default function Dashboard() {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   )
 }

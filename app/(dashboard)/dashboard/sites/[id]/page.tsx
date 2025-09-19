@@ -61,6 +61,8 @@ interface Presence {
   early: string;
   middle: string;
   night: string;
+  day: string;
+  supervisor: string;
 }
 
 interface Site {
@@ -70,6 +72,7 @@ interface Site {
   notes: string | null;
   postcode: string;
   address: string;
+  max_staff_allowed: number;
   contact_position: string;
   contact_phone: string;
   contact_email: string;
@@ -175,41 +178,10 @@ export default function SiteDetails() {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
 
-  const demoSite = (): Site => ({
-    id: parseInt(siteId || "1"),
-    name: "Manchester Depot",
-    image: "",
-    notes: "Main operating depot for northern region.",
-    postcode: "M1 1AA",
-    address: "1 Example St, Manchester",
-    contact_position: "Site Manager",
-    contact_phone: "+44 161 000 0000",
-    contact_email: "manager@example.com",
-    radius_m: 250,
-    latitude: 53.4808,
-    longitude: -2.2426,
-    number_of_allocated_vehicles: 20,
-    created_by: "admin",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    operation_hours: initializeDefaultOperationHours(),
-    warnings: ["Overdue maintenance on vehicle #12", "Staff capacity nearing limit"],
-    presence: { early: "5", middle: "10", night: "3" },
-    staff: { driver: 15, admin: 2, mechanic: 1, total: 18 },
-  });
-
   const fetchSite = async () => {
     setLoading(true);
     setError(null);
     try {
-      if (!token) {
-        console.warn("No auth token found — using demo data.");
-        const data = demoSite();
-        setSite(data);
-        setEditSite(data);
-        return;
-      }
-
       const res = await fetch(`${API_URL}/api/sites/${siteId}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -219,7 +191,6 @@ export default function SiteDetails() {
       const data = (await res.json()) as Site;
 
       const updatedData: Site = {
-        ...demoSite(),
         ...data,
         operation_hours:
           data.operation_hours && data.operation_hours.length
@@ -230,8 +201,8 @@ export default function SiteDetails() {
               }))
             : initializeDefaultOperationHours(),
         warnings: data.warnings || [],
-        presence: data.presence || demoSite().presence,
-        staff: data.staff || demoSite().staff,
+        presence: data.presence,
+        staff: data.staff,
       };
 
       setSite(updatedData);
@@ -239,9 +210,6 @@ export default function SiteDetails() {
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : String(err));
-      const data = demoSite();
-      setSite(data);
-      setEditSite(data);
     } finally {
       setLoading(false);
     }
@@ -253,6 +221,23 @@ export default function SiteDetails() {
 
   const handleInputChange = (field: keyof Site, value: any) => {
     setEditSite((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const handleStaffChange = (role: keyof Omit<Staff, 'total'>, value: number) => {
+    setEditSite((prev) => {
+      if (!prev) return prev;
+      const updatedStaff = { ...prev.staff, [role]: value };
+      updatedStaff.total = updatedStaff.driver + updatedStaff.admin + updatedStaff.mechanic;
+      return { ...prev, staff: updatedStaff };
+    });
+  };
+
+  const handlePresenceChange = (shift: keyof Presence, value: string) => {
+    setEditSite((prev) => {
+      if (!prev) return prev;
+      const updatedPresence = { ...prev.presence, [shift]: value };
+      return { ...prev, presence: updatedPresence };
+    });
   };
 
   const handleOperationHourChange = (
@@ -315,6 +300,7 @@ export default function SiteDetails() {
         latitude: editSite.latitude,
         longitude: editSite.longitude,
         number_of_allocated_vehicles: editSite.number_of_allocated_vehicles,
+        max_staff_allowed: editSite.max_staff_allowed,
         presence: editSite.presence,
         staff: editSite.staff,
         warnings: editSite.warnings,
@@ -375,10 +361,10 @@ export default function SiteDetails() {
   };
 
   const status = "Active";
-  const complianceStatus = site && site.staff.total > 20 ? "Over Capacity" : "In Compliance";
+  const complianceStatus = site && site.staff.total > site.max_staff_allowed ? "Over Capacity" : "In Compliance";
   const severity = site ? deriveSeverity(site.warnings) : "Medium";
   const staffBreakdown = site ? getStaffBreakdown(site.staff) : [];
-  const utilization = site ? `${Math.round((site.staff.total / 20) * 100)}%` : "0%";
+  const utilization = site ? `${Math.round((site.staff.total / site.max_staff_allowed) * 100)}%` : "0%";
 
   const buildChartData = () => {
     return [
@@ -437,61 +423,7 @@ export default function SiteDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
           {/* Left Column */}
           <div className="space-y-6">
-            <div className="flex font-bold gap-2 text-gray-800">
-              <Truck className="text-orange-600" />
-              <h1>Vehicle Information</h1>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="p-4 rounded-lg bg-gray-50 flex flex-col justify-between">
-                <div className="flex items-center gap-2 font-semibold text-gray-700 mb-2">
-                  <span>Authorized Vehicles</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-4xl font-bold text-gray-800">{site.number_of_allocated_vehicles}</span>
-                  <Truck className="w-12 h-12 opacity-50 text-gray-400" />
-                </div>
-              </Card>
-              <Card className="p-4 rounded-lg bg-gray-50 flex flex-col justify-between">
-                <div className="flex items-center gap-2 font-semibold text-gray-700 mb-2">
-                  <span>Max Staff Allow</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-4xl font-bold text-gray-800">20</span>
-                  <Users className="w-12 h-12 opacity-50 text-gray-400" />
-                </div>
-              </Card>
-            </div>
-            <Card className="p-4 rounded-lg bg-white border border-gray-200">
-              <div className="flex items-center gap-2 text-gray-700 font-semibold mb-4">
-                <Users className="w-5 h-5 text-orange-600" />
-                <span>Current Staff onsite</span>
-              </div>
-              <div className="flex justify-evenly items-center mt-2">
-                {staffBreakdown.map((role, index) => (
-                  <div key={index} className="bg-gray-100 w-[70px] h-[70px] p-2 rounded-md text-center">
-                    <p className="text-lg font-bold text-gray-800">{role.count}</p>
-                    <p className="text-xs text-gray-500">{role.role}</p>
-                  </div>
-                ))}
-              </div>
-              <Separator className="my-4" />
-              <div className="text-lg bg-gray-100 p-4 flex justify-between items-center rounded-lg">
-                <p className="font-medium text-gray-700">Total Staff / Maximum Allowed</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-xl font-bold text-gray-800">{site.staff.total} / 20</p>
-                  <p
-                    className={
-                      utilization.includes("105") || utilization.includes("107")
-                        ? "text-red-600 font-medium"
-                        : "text-gray-700 font-medium"
-                    }
-                  >
-                    {utilization}
-                  </p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-4 rounded-lg bg-white border border-gray-200">
+          <Card className="p-4 rounded-lg bg-white border border-gray-200">
               <div className="flex items-center gap-2 text-gray-700 font-semibold mb-4">
                 <MapPin className="w-5 h-5 text-orange-600" />
                 <span>Site Information</span>
@@ -626,6 +558,82 @@ export default function SiteDetails() {
                 </span>
               </div>
             </Card>
+            {/* <div className="flex font-bold gap-2 text-gray-800">
+              <Truck className="text-orange-600" />
+              <h1>Vehicle Information</h1>
+            </div> */}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="p-4 rounded-lg bg-gray-50 flex flex-col justify-between">
+                <div className="flex items-center gap-2 font-semibold text-gray-700 mb-2">
+                  <span>Authorized Vehicles</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={String(editSite.number_of_allocated_vehicles)}
+                      onChange={(e) => handleInputChange("number_of_allocated_vehicles", parseInt(e.target.value || "0"))}
+                      className="w-1/2 border-gray-300"
+                    />
+                  ) : (
+                    <span className="text-4xl font-bold text-gray-800">{site.number_of_allocated_vehicles}</span>
+                  )}
+                  <Truck className="w-12 h-12 opacity-50 text-gray-400" />
+                </div>
+              </Card>
+              <Card className="p-4 rounded-lg bg-gray-50 flex flex-col justify-between">
+                <div className="flex items-center gap-2 font-semibold text-gray-700 mb-2">
+                  <span>Max Staff Allowed</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={String(editSite.max_staff_allowed)}
+                      onChange={(e) => handleInputChange("max_staff_allowed", parseInt(e.target.value || "0"))}
+                      className="w-1/2 border-gray-300"
+                    />
+                  ) : (
+                    <span className="text-4xl font-bold text-gray-800">{site?.max_staff_allowed || 0}</span>
+                  )}
+                  <Users className="w-12 h-12 opacity-50 text-gray-400" />
+                </div>
+              </Card>
+            </div>
+            <Card className="p-4 rounded-lg bg-white border border-gray-200">
+              <div className="flex items-center gap-2 text-gray-700 font-semibold mb-4">
+                <Users className="w-5 h-5 text-orange-600" />
+                <span>Current Staff onsite</span>
+              </div>
+              
+                <div className="flex justify-evenly items-center mt-2">
+                  {staffBreakdown.map((role, index) => (
+                    <div key={index} className="bg-gray-100 w-[70px] h-[70px] p-2 rounded-md text-center">
+                      <p className="text-lg font-bold text-gray-800">{role.count}</p>
+                      <p className="text-xs text-gray-500">{role.role}</p>
+                    </div>
+                  ))}
+                </div>
+             
+              <Separator className="my-4" />
+              <div className="text-lg bg-gray-100 p-4 flex justify-between items-center rounded-lg">
+                <p className="font-medium text-gray-700">Total Staff / Maximum Allowed</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xl font-bold text-gray-800">{isEditing ? editSite.staff.total : site.staff.total} / {isEditing ? editSite.max_staff_allowed : site.max_staff_allowed}</p>
+                  <p
+                    className={
+                      utilization.includes("105") || utilization.includes("107")
+                        ? "text-red-600 font-medium"
+                        : "text-gray-700 font-medium"
+                    }
+                  >
+                    {utilization}
+                  </p>
+                </div>
+              </div>
+            </Card>
+           
             <Card className="p-4 rounded-lg bg-white border border-gray-200 shadow">
               <h3 className="text-gray-800 font-semibold mb-4 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-orange-600" /> Operational Statistics
@@ -774,15 +782,33 @@ export default function SiteDetails() {
               <div className="space-y-2 text-sm text-gray-700">
                 <div className="flex justify-between">
                   <span>Early Shift</span>
-                  <span>{site.presence.early}</span>
+                
+                    <span>{site.presence.early}</span>
+             
                 </div>
                 <div className="flex justify-between">
                   <span>Middle Shift</span>
-                  <span>{site.presence.middle}</span>
+                 
+                    <span>{site.presence.middle}</span>
+                
+                </div>
+                <div className="flex justify-between">
+                  <span>Day</span>
+                  
+                    <span>{site.presence.day}</span>
+                 
                 </div>
                 <div className="flex justify-between">
                   <span>Night Shift</span>
-                  <span>{site.presence.night}</span>
+                
+                    <span>{site.presence.night}</span>
+                
+                </div>
+                <div className="flex justify-between">
+                  <span>Supervisor</span>
+                 
+                    <span>{site.presence.supervisor}</span>
+                
                 </div>
               </div>
             </Card>

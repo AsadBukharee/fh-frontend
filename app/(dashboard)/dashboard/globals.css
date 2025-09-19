@@ -263,3 +263,10 @@
 .clip-tab {
 clip-path: polygon(0 0, 71% 0, 100% 100%, 100% 100%, 0% 100%);
 }
+
+.triangle-bottomleft {
+  width: 0;
+  height: 0;
+  border-bottom: 30px solid  var(--color-orange-500) ;
+  border-right: 30px solid transparent;
+}

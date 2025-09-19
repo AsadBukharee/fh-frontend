@@ -1,13 +1,20 @@
 "use client"
 
-// components/WalkaroundQuestions.tsx
 import type React from "react"
 import { useState, useEffect } from "react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { Camera, RotateCcw, Check, AlertTriangle, Upload, ChevronDown, ChevronUp } from "lucide-react"
 import ImageUploader from "./UploadImage"
-import { on } from "events"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 // Define interfaces for type safety
 interface InspectionItem {
@@ -38,7 +45,11 @@ interface Answer {
   motion_detected?: boolean
 }
 
-const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: number | null; onComplete: () => void }> = ({ vehicleId, walkaroundId, onComplete }) => {
+const WalkaroundQuestions: React.FC<{
+  vehicleId: number | null
+  walkaroundId: number | null
+  onComplete: () => void
+}> = ({ vehicleId, walkaroundId, onComplete }) => {
   const [inspectionData, setInspectionData] = useState<InspectionItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,10 +58,12 @@ const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: nu
   const [cameraFacing, setCameraFacing] = useState<{ [key: number]: "user" | "environment" }>({})
   const [expandedItems, setExpandedItems] = useState<{ [key: number]: boolean }>({})
   const [submitting, setSubmitting] = useState(false)
+  const [showMechanicDialog, setShowMechanicDialog] = useState(false) // New state for mechanic job dialog
   const cookies = useCookies()
 
   const API_URL_ = `${API_URL}/api/walk-around-questions/`
-  const ANSWER_API_URL = `${API_URL}/api/walk-around-answers/` // Adjust endpoint as needed
+  const ANSWER_API_URL = `${API_URL}/api/walk-around-answers/`
+  const MECHANIC_JOB_API_URL = `${API_URL}/api/mechanic-jobs/` // Adjust endpoint as needed
   const WALKAROUND_ID = walkaroundId
   const VEHICLE_ID = vehicleId
 
@@ -87,7 +100,6 @@ const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: nu
       ...prev,
       [itemId]: url,
     }))
-    // Update answer with the prove URL
     setAnswers((prev) => ({
       ...prev,
       [itemId]: {
@@ -112,16 +124,63 @@ const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: nu
         vehicle: VEHICLE_ID ?? 0,
         user: Number(cookies.get("user_id")) || undefined,
         [field]: value,
-        // Include motion_detected only if is_defected and description exists
         motion_detected:
           field === "is_defected" && value && prev[itemId]?.description ? true : prev[itemId]?.motion_detected,
       },
     }))
   }
 
+  // Handler to create a mechanic job
+  const createMechanicJob = async () => {
+    try {
+      // Aggregate defect descriptions from answers
+      const defectDescriptions = Object.values(answers)
+        .filter((answer) => answer.is_defected && answer.description)
+        .map((answer) => answer.description)
+        .join("; ")
+
+      const payload = {
+        walkaround_id: WALKAROUND_ID,
+        vehicle_id: VEHICLE_ID,
+        description: defectDescriptions || "Mechanic job created from walkaround inspection",
+        status: "pending",
+        // Add other fields as needed (e.g., priority, assigned_mechanic)
+      }
+
+      const response = await fetch(MECHANIC_JOB_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create mechanic job")
+      }
+
+      const result = await response.json()
+      console.log("Mechanic job created:", result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred while creating the mechanic job")
+    }
+  }
+
+  // Handler for mechanic dialog response
+  const handleMechanicDialogResponse = async (createJob: boolean) => {
+    if (createJob) {
+      await createMechanicJob()
+    }
+    setShowMechanicDialog(false)
+    onComplete() // Proceed to completion
+    setAnswers({})
+    setImageUrls({})
+  }
+
   // Handler to submit answers to the API
   const handleSubmitAnswers = async () => {
-    const payload = Object.values(answers).filter((answer) => answer.answer) // Only include answers with text
+    const payload = Object.values(answers).filter((answer) => answer.answer)
     if (payload.length === 0) {
       alert("No answers provided to submit.")
       return
@@ -144,17 +203,14 @@ const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: nu
 
       const result = await response.json()
       if (result.success) {
-        
         alert("Answers submitted successfully!")
-        onComplete() // Notify parent component of completion
-        setAnswers({})
-        setImageUrls({})
+        setSubmitting(false)
+        setShowMechanicDialog(true) // Show mechanic job dialog instead of calling onComplete
       } else {
         throw new Error(result.message || "Submission failed")
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred during submission")
-    } finally {
       setSubmitting(false)
     }
   }
@@ -253,7 +309,6 @@ const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: nu
 
                 {isExpanded && (
                   <div className="px-6 pb-6 space-y-4">
-                    {/* Answer textarea */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Your Answer *</label>
                       <textarea
@@ -265,7 +320,6 @@ const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: nu
                       />
                     </div>
 
-                    {/* Defect checkbox */}
                     <div className="flex items-start space-x-3">
                       <input
                         type="checkbox"
@@ -279,7 +333,6 @@ const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: nu
                       </div>
                     </div>
 
-                    {/* Defect description */}
                     {answers[item.id]?.is_defected && (
                       <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                         <label className="block text-sm font-medium text-orange-800 mb-2">Defect Description *</label>
@@ -293,7 +346,6 @@ const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: nu
                       </div>
                     )}
 
-                    {/* Camera section */}
                     {item.takePicture && (
                       <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
@@ -365,6 +417,29 @@ const WalkaroundQuestions: React.FC<{ vehicleId: number | null; walkaroundId: nu
           </div>
         </div>
       </div>
+
+      {/* Mechanic Job Dialog */}
+      <Dialog open={showMechanicDialog} onOpenChange={setShowMechanicDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Mechanic Job</DialogTitle>
+            <DialogDescription>
+              Do you want to create a mechanic job for this walkaround inspection?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => handleMechanicDialogResponse(false)}
+            >
+              No
+            </Button>
+            <Button onClick={() => handleMechanicDialogResponse(true)}>
+              Yes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

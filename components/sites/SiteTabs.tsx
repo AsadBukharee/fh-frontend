@@ -189,7 +189,8 @@ export default function SiteGrid() {
 
         <div className="flex justify-evenly items-center flex-wrap gap-6">
           {sites.map((site) => (
-            <Card
+            <Link
+            href={`/dashboard/sites/${site.id}`}
               key={site.id}
               className="rounded-xl shadow-sm border w-[350px] h-[420px] bg-white border-gray-200 overflow-hidden p-2"
             >
@@ -311,14 +312,13 @@ export default function SiteGrid() {
               </div>
 
               <div className="px-4 mt-3 flex justify-end pb-4">
-                <Link
-                  href={`/dashboard/sites/${site.id}`}
+                <button
                   className="text-md w-full cursor-pointer py-2 rounded-sm text-orange bg-gray-100 flex items-center justify-center gap-2"
                 >
                   More Details <MoveUpRight size={16} />
-                </Link>
+                </button>
               </div>
-            </Card>
+            </Link>
           ))}
         </div>
       </section>
