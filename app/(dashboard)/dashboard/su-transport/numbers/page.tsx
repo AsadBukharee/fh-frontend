@@ -134,16 +134,16 @@ export default function TransportDashboard() {
               key={tab.id}
               variant={activeTab === tab.id ? "default" : "outline"}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center cursor-pointer gap-2 
+              className={`flex items-center px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer gap-2 
                 ${tab.id === "early"
-                  ? "bg-red-500/50 border-red-500 text-red-600"
+                  ? "bg-red-500/10 border-red-500 text-red-600"
                   : tab.id === "shuttle1"
-                    ? "bg-green-500/50 text-green-600 border-green-500"
+                    ? "bg-green-500/10 text-green-600 border-green-500"
                     : tab.id === "shuttle2"
-                      ? "bg-pink-500/50 border-pink-500 text-pink-600"
+                      ? "bg-pink-500/10 border-pink-500 text-pink-600"
                       : tab.id === "shuttle3"
-                        ? "bg-orange-500/50 border-orange-500 text-orange-600"
-                        : "bg-purple-500/50 text-purple-600 border-purple-500"}
+                        ? "bg-orange-500/10 border-orange-500 text-orange-600"
+                        : "bg-purple-500/10 text-purple-600 border-purple-500"}
                 ${activeTab === tab.id ? "bg-white" : ""}`}
             >
               {tab.label}

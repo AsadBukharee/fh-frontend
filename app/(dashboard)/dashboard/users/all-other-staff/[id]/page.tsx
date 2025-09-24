@@ -388,24 +388,26 @@ export default function DriverDetailPage() {
       <div className="flex items-start gap-6">
         <Avatar className="h-24 w-24">
           <AvatarImage src={driverData.avatar || "/placeholder.svg"} alt={driverData.full_name} />
-          <AvatarFallback className="text-lg font-semibold">{getInitials(driverData.full_name)}</AvatarFallback>
+          <AvatarFallback className="text-lg font-semibold bg-purple-100 text-purple-800">
+            {getInitials(driverData.full_name)}
+          </AvatarFallback>
         </Avatar>
 
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-balance">{driverData.full_name}</h1>
-            <Badge variant={driverData.is_active ? "default" : "secondary"} className="ml-2">
+            <h1 className="text-3xl font-bold text-purple-800 text-balance">{driverData.full_name}</h1>
+            <Badge variant={driverData.is_active ? "default" : "secondary"} className={driverData.is_active ? "bg-gray-500 text-white" : "bg-purple-200 text-purple-800"}>
               {driverData.is_active ? "Active" : "Inactive"}
             </Badge>
           </div>
 
-          <div className="flex items-center gap-4 text-muted-foreground">
+          <div className="flex items-center gap-4 text-gray-500">
             <div className="flex items-center gap-1">
-              <User className="h-4 w-4" />
+              <User className="h-4 w-4 text-gray-500" />
               <span>{driverData.role}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Mail className="h-4 w-4" />
+              <Mail className="h-4 w-4 text-gray-500" />
               <span>{driverData.email}</span>
             </div>
           </div>
@@ -414,21 +416,33 @@ export default function DriverDetailPage() {
         <div className="flex gap-2">
           {isEditing ? (
             <>
-              <Button onClick={handleSaveProfile} disabled={saving}>
+              <Button
+                onClick={handleSaveProfile}
+                disabled={saving}
+                className="bg-purple-600 hover:bg-purple-700 text-white disabled:bg-purple-300 disabled:text-purple-500"
+              >
                 {saving ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-200 mr-2"></div>
                 ) : (
                   <Save className="h-4 w-4 mr-2" />
                 )}
                 Save Changes
               </Button>
-              <Button variant="outline" onClick={handleEditToggle} disabled={saving}>
+              <Button
+                variant="outline"
+                onClick={handleEditToggle}
+                disabled={saving}
+                className="border-purple-600 text-purple-600 hover:bg-purple-100 disabled:border-purple-300 disabled:text-purple-400"
+              >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
             </>
           ) : (
-            <Button className="bg-orange-600" onClick={handleEditToggle}>
+            <Button
+              onClick={handleEditToggle}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
               <Edit className="h-4 w-4 mr-2" />
               Edit Profile
             </Button>
@@ -437,39 +451,39 @@ export default function DriverDetailPage() {
       </div>
 
       <div className="flex justify-evenly items-center gap-4">
-        <Card className="w-[200px]">
+        <Card className="w-[200px] border-purple-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Shifts</CardTitle>
+            <CardTitle className="text-sm font-medium text-purple-600">Total Shifts</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{driverData.shifts_count}</div>
+            <div className="text-2xl font-bold text-gray-500">{driverData.shifts_count}</div>
           </CardContent>
         </Card>
 
-        <Card className="w-[200px]">
+        <Card className="w-[200px] border-purple-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Paid Holidays</CardTitle>
+            <CardTitle className="text-sm font-medium text-purple-600">Paid Holidays</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{driverData.paid_holidays}</div>
+            <div className="text-2xl font-bold text-gray-500">{driverData.paid_holidays}</div>
           </CardContent>
         </Card>
 
-        <Card className="w-[200px]">
+        <Card className="w-[200px] border-purple-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Rota Status</CardTitle>
+            <CardTitle className="text-sm font-medium text-purple-600">Rota Status</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               {driverData.parent_rota_completed && driverData.child_rota_completed ? (
                 <>
                   <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium">Complete</span>
+                  <span className="text-sm font-medium text-purple-800">Complete</span>
                 </>
               ) : (
                 <>
-                  <XCircle className="h-4 w-4 text-orange-600" />
-                  <span className="text-sm font-medium">Pending</span>
+                  <XCircle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm font-medium text-gray-500">Pending</span>
                 </>
               )}
             </div>
@@ -478,19 +492,27 @@ export default function DriverDetailPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="contract">Contract</TabsTrigger>
-          <TabsTrigger value="sites">Sites</TabsTrigger>
-          <TabsTrigger value="permissions">Permissions</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 bg-purple-100">
+          <TabsTrigger value="overview" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="contract" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            Contract
+          </TabsTrigger>
+          <TabsTrigger value="sites" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            Sites
+          </TabsTrigger>
+          <TabsTrigger value="permissions" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            Permissions
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
+            <Card className="border-purple-200">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-purple-800">
+                  <User className="h-5 w-5 text-purple-600" />
                   Personal Information
                 </CardTitle>
               </CardHeader>
@@ -499,51 +521,55 @@ export default function DriverDetailPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="full_name">Full Name</Label>
+                        <Label htmlFor="full_name" className="text-purple-600">Full Name</Label>
                         <Input
                           id="full_name"
                           value={editFormData.full_name}
                           onChange={(e) => handleInputChange("full_name", e.target.value)}
                           placeholder="Enter full name"
+                          className="border-purple-300 focus:ring-purple-500"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="display_name">Display Name</Label>
+                        <Label htmlFor="display_name" className="text-purple-600">Display Name</Label>
                         <Input
                           id="display_name"
                           value={editFormData.display_name}
                           onChange={(e) => handleInputChange("display_name", e.target.value)}
                           placeholder="Enter display name"
+                          className="border-purple-300 focus:ring-purple-500"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email" className="text-purple-600">Email</Label>
                         <Input
                           id="email"
                           type="email"
                           value={editFormData.email}
                           onChange={(e) => handleInputChange("email", e.target.value)}
                           placeholder="Enter email address"
+                          className="border-purple-300 focus:ring-purple-500"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="paid_holidays">Paid Holidays</Label>
+                        <Label htmlFor="paid_holidays" className="text-purple-600">Paid Holidays</Label>
                         <Input
                           id="paid_holidays"
                           type="number"
                           value={editFormData.paid_holidays}
                           onChange={(e) => handleInputChange("paid_holidays", Number.parseInt(e.target.value) || 0)}
                           placeholder="Enter paid holidays"
+                          className="border-purple-300 focus:ring-purple-500"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="contract">Contract</Label>
+                        <Label htmlFor="contract" className="text-purple-600">Contract</Label>
                         <Select
                           value={editFormData.contractId}
                           onValueChange={(value) => handleInputChange("contractId", value)}
                           disabled={contractsLoading}
                         >
-                          <SelectTrigger id="contract">
+                          <SelectTrigger id="contract" className="border-purple-300 focus:ring-purple-500">
                             <SelectValue placeholder="Select a contract" />
                           </SelectTrigger>
                           <SelectContent>
@@ -556,13 +582,13 @@ export default function DriverDetailPage() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="sites">Sites</Label>
+                        <Label htmlFor="sites" className="text-purple-600">Sites</Label>
                         <Select
-                          value={editFormData.siteIds[0]||'' }
+                          value={editFormData.siteIds[0] || ''}
                           onValueChange={(value) => handleInputChange("siteIds", Array.isArray(value) ? value : [value])}
                           disabled={sitesLoading}
                         >
-                          <SelectTrigger id="sites">
+                          <SelectTrigger id="sites" className="border-purple-300 focus:ring-purple-500">
                             <SelectValue placeholder="Select sites" />
                           </SelectTrigger>
                           <SelectContent>
@@ -576,48 +602,48 @@ export default function DriverDetailPage() {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Role</Label>
-                      <p className="font-medium text-muted-foreground">{driverData.role} (Read-only)</p>
+                      <Label className="text-sm font-medium text-purple-600">Role</Label>
+                      <p className="font-medium text-purple-800">{driverData.role} (Read-only)</p>
                     </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
-                      <p className="font-medium">{driverData.full_name}</p>
+                      <Label className="text-sm font-medium text-black">Full Name</Label>
+                      <p className="font-medium text-gray-500">{driverData.full_name}</p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Display Name</Label>
-                      <p className="font-medium">{driverData.display_name}</p>
+                      <Label className="text-sm font-medium text-black">Display Name</Label>
+                      <p className="font-medium text-gray-500">{driverData.display_name}</p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Email</Label>
-                      <p className="font-medium">{driverData.email}</p>
+                      <Label className="text-sm font-medium text-black">Email</Label>
+                      <p className="font-medium text-gray-500">{driverData.email}</p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Role</Label>
-                      <p className="font-medium">{driverData.role}</p>
+                      <Label className="text-sm font-medium text-black">Role</Label>
+                      <p className="font-medium text-gray-500">{driverData.role}</p>
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-purple-200">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-purple-800">
+                  <Calendar className="h-5 w-5 text-purple-600" />
                   Important Dates
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Contract Signing Date</Label>
-                  <p className="font-medium">{formatDate(driverData.contract_signing_date)}</p>
+                  <Label className="text-sm font-medium text-black">Contract Signing Date</Label>
+                  <p className="font-medium text-gray-500">{formatDate(driverData.contract_signing_date)}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Rota Start Date</Label>
-                  <p className="font-medium">{formatDate(driverData.rota_start_date)}</p>
+                  <Label className="text-sm font-medium text-black">Rota Start Date</Label>
+                  <p className="font-medium text-gray-500">{formatDate(driverData.rota_start_date)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -625,26 +651,26 @@ export default function DriverDetailPage() {
         </TabsContent>
 
         <TabsContent value="contract" className="space-y-4">
-          <Card>
+          <Card className="border-purple-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-purple-800">
+                <FileText className="h-5 w-5 text-purple-600" />
                 Contract Details
               </CardTitle>
-              <CardDescription>Contract information and terms</CardDescription>
+              <CardDescription className="text-gray-500">Contract information and terms</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Assign New Contract</h3>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-purple-800">Assign New Contract</h3>
                 <div className="flex items-end gap-4">
                   <div className="flex-1 space-y-2">
-                    <Label htmlFor="assign_contract">Select Contract</Label>
+                    <Label htmlFor="assign_contract" className="text-black">Select Contract</Label>
                     <Select
                       value={selectedContractId}
                       onValueChange={setSelectedContractId}
                       disabled={contractsLoading || assigningContract}
                     >
-                      <SelectTrigger id="assign_contract">
+                      <SelectTrigger id="assign_contract" className="border-purple-300 focus:ring-purple-500">
                         <SelectValue placeholder="Select a contract to assign" />
                       </SelectTrigger>
                       <SelectContent>
@@ -656,9 +682,13 @@ export default function DriverDetailPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button onClick={handleAssignContract} disabled={assigningContract || !selectedContractId}>
+                  <Button
+                    onClick={handleAssignContract}
+                    disabled={assigningContract || !selectedContractId}
+                    className="bg-purple-600 hover:bg-purple-700 text-white disabled:bg-purple-300 disabled:text-purple-500"
+                  >
                     {assigningContract ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-200 mr-2"></div>
                     ) : (
                       <Save className="h-4 w-4 mr-2" />
                     )}
@@ -666,60 +696,58 @@ export default function DriverDetailPage() {
                   </Button>
                 </div>
               </div>
-              <Separator />
-
+              <Separator className="bg-purple-200" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Contract ID</Label>
-                  <p className="font-medium">{driverData.contract?.id || "Not assigned"}</p>
+                  <Label className="text-sm font-medium text-black">Contract ID</Label>
+                  <p className="font-medium text-gray-500">{driverData.contract?.id || "Not assigned"}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Contract Name</Label>
-                  <p className="font-medium">{driverData.contract?.name || "Not assigned"}</p>
+                  <Label className="text-sm font-medium text-black">Contract Name</Label>
+                  <p className="font-medium text-gray-500">{driverData.contract?.name || "Not assigned"}</p>
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">Description</Label>
-                <p className="font-medium">{driverData.contract?.description || "No description available"}</p>
+                <Label className="text-sm font-medium text-black">Description</Label>
+                <p className="font-medium text-gray-500">{driverData.contract?.description || "No description available"}</p>
               </div>
-              <Separator />
+              <Separator className="bg-purple-200" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Signing Date</Label>
-                  <p className="font-medium">
+                  <Label className="text-sm font-medium text-black">Signing Date</Label>
+                  <p className="font-medium text-gray-500">
                     {driverData.contract_signing_date
                       ? formatDate(driverData.contract_signing_date)
                       : "Not assigned"}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Paid Holidays</Label>
-                  <p className="font-medium">{driverData.paid_holidays} days</p>
+                  <Label className="text-sm font-medium text-black">Paid Holidays</Label>
+                  <p className="font-medium text-gray-500">{driverData.paid_holidays} days</p>
                 </div>
               </div>
-             
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="sites" className="space-y-4">
-          <Card>
+          <Card className="border-purple-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-purple-800">
+                <Building2 className="h-5 w-5 text-purple-600" />
                 Assigned Sites
               </CardTitle>
-              <CardDescription>Sites where this driver is authorized to work</CardDescription>
+              <CardDescription className="text-purple-600">Sites where this driver is authorized to work</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Assign New Sites</h3>
+                <h3 className="text-lg font-semibold text-black">Assign New Sites</h3>
                 <div className="flex items-end gap-4">
                   <div className="flex-1 space-y-2">
-                    <Label>Select Sites</Label>
-                    <div className=" rounded-md p-2 max-h-60 overflow-y-auto">
+                    <Label className="text-black">Select Sites</Label>
+                    <div className="border border-purple-200 rounded-md p-2 max-h-60 overflow-y-auto">
                       {sites.map((site) => (
-                        <div key={site.id} className="flex border-b border-gray-100 items-center space-x-2 p-2">
+                        <div key={site.id} className="flex border-b border-purple-100 items-center space-x-2 p-2">
                           <input
                             type="checkbox"
                             id={`site-${site.id}`}
@@ -732,17 +760,22 @@ export default function DriverDetailPage() {
                               }
                             }}
                             disabled={sitesLoading || assigningSites}
+                            className=" text-gray-500"
                           />
-                          <label htmlFor={`site-${site.id}`} className="text-sm">
+                          <label htmlFor={`site-${site.id}`} className="text-sm text-gray-500">
                             {site.name}
                           </label>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <Button onClick={handleAssignSites} disabled={assigningSites || selectedSiteIds.length === 0}>
+                  <Button
+                    onClick={handleAssignSites}
+                    disabled={assigningSites || selectedSiteIds.length === 0}
+                    className="bg-purple-600 hover:bg-purple-700 text-white disabled:bg-purple-300 disabled:text-purple-500"
+                  >
                     {assigningSites ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-200 mr-2"></div>
                     ) : (
                       <Save className="h-4 w-4 mr-2" />
                     )}
@@ -750,11 +783,10 @@ export default function DriverDetailPage() {
                   </Button>
                 </div>
               </div>
-              <Separator />
-
+              <Separator className="bg-purple-200" />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {driverData.site.map((site) => (
-                  <Card key={site.id} className="overflow-hidden">
+                  <Card key={site.id} className="overflow-hidden border-purple-200">
                     <div className="aspect-video relative">
                       <img
                         src={site.image || "/placeholder.svg"}
@@ -764,50 +796,51 @@ export default function DriverDetailPage() {
                     </div>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-semibold">{site.name}</h3>
-                        <Badge variant={site.status === "active" ? "default" : "secondary"}>{site.status}</Badge>
+                        <h3 className="font-semibold text-purple-800">{site.name}</h3>
+                        <Badge variant={site.status === "active" ? "default" : "secondary"} className={site.status === "active" ? "bg-purple-600 text-white" : "bg-purple-200 text-purple-800"}>
+                          {site.status}
+                        </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">Site ID: {site.id}</p>
+                      <p className="text-sm text-purple-600 mt-1">Site ID: {site.id}</p>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-              
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="permissions" className="space-y-4">
-          <Card>
+          <Card className="border-purple-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-purple-800">
+                <Shield className="h-5 w-5 text-purple-600" />
                 Role Permissions
               </CardTitle>
-              <CardDescription>Detailed breakdown of user permissions by resource</CardDescription>
+              <CardDescription className="text-gray-500">Detailed breakdown of user permissions by resource</CardDescription>
             </CardHeader>
             <CardContent>
               {driverData.aggregated_permissions.roles.map((role) => (
                 <div key={role.id} className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold capitalize">{role.name} Role</h3>
-                    <Badge variant="outline">ID: {role.id}</Badge>
+                    <h3 className="text-lg font-semibold capitalize text-black">{role.name} Role</h3>
+                    <Badge variant="outline" className="border-gray-500 text-gray-500">ID: {role.id}</Badge>
                   </div>
                   <div className="grid gap-2">
                     {Object.entries(role.permissions).map(([resource, perms]) => (
-                      <div key={resource} className="flex items-center justify-between p-3 border rounded-lg">
-                        <span className="font-medium capitalize">{resource.replace(/([A-Z])/g, " $1").trim()}</span>
+                      <div key={resource} className="flex items-center justify-between p-3 border rounded-lg border-purple-200">
+                        <span className="font-medium capitalize text-gray-500">{resource.replace(/([A-Z])/g, " $1").trim()}</span>
                         <div className="flex gap-2">
-                          <Badge variant={perms.view ? "default" : "secondary"} className="text-xs">
+                          <Badge variant={perms.view ? "default" : "secondary"} className={perms.view ? "bg-gray-500 text-white" : "bg-purple-200 text-purple-800"}>
                             View
                           </Badge>
-                          <Badge variant={perms.create ? "default" : "secondary"} className="text-xs">
+                          <Badge variant={perms.create ? "default" : "secondary"} className={perms.create ? "bg-gray-500 text-white" : "bg-purple-200 text-purple-800"}>
                             Create
                           </Badge>
-                          <Badge variant={perms.update ? "default" : "secondary"} className="text-xs">
+                          <Badge variant={perms.update ? "default" : "secondary"} className={perms.update ? "bg-gray-500 text-white" : "bg-purple-200 text-purple-800"}>
                             Update
                           </Badge>
-                          <Badge variant={perms.delete ? "default" : "secondary"} className="text-xs">
+                          <Badge variant={perms.delete ? "default" : "secondary"} className={perms.delete ? "bg-gray-500 text-white" : "bg-purple-200 text-purple-800"}>
                             Delete
                           </Badge>
                         </div>

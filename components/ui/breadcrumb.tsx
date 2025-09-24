@@ -44,15 +44,33 @@ const BreadcrumbLink = React.forwardRef<
   React.ComponentPropsWithoutRef<"a"> & {
     asChild?: boolean
   }
->(({ asChild, className, ...props }, ref) => {
+>(({ asChild, className, href, children, ...props }, ref) => {
   const Comp = asChild ? Slot : "a"
+
+  // Transform href: Replace "su" with "SU" (case-insensitive)
+  const transformedHref = href
+    ? href.replace(/\bsu\b/gi, "SU")
+    : href
+
+  // Transform children: Replace "su" with "SU" if children is a string
+  const transformedChildren =
+    typeof children === "string"
+      ? children.replace(/\bsu\b/gi, "SU")
+      : children
+
+  // Debug: Log input and output for verification
+  console.log("BreadcrumbLink - Original href:", href, "Transformed href:", transformedHref);
+  console.log("BreadcrumbLink - Original children:", children, "Transformed children:", transformedChildren);
 
   return (
     <Comp
       ref={ref}
       className={cn("transition-colors hover:text-foreground", className)}
+      href={transformedHref}
       {...props}
-    />
+    >
+      {transformedChildren}
+    </Comp>
   )
 })
 BreadcrumbLink.displayName = "BreadcrumbLink"
@@ -60,16 +78,29 @@ BreadcrumbLink.displayName = "BreadcrumbLink"
 const BreadcrumbPage = React.forwardRef<
   HTMLSpanElement,
   React.ComponentPropsWithoutRef<"span">
->(({ className, ...props }, ref) => (
-  <span
-    ref={ref}
-    role="link"
-    aria-disabled="true"
-    aria-current="page"
-    className={cn("font-normal text-foreground", className)}
-    {...props}
-  />
-))
+>(({ className, children, ...props }, ref) => {
+  // Transform children: Replace "su" with "SU" if children is a string
+  const transformedChildren =
+    typeof children === "string"
+      ? children.replace(/\bsu\b/gi, "SU")
+      : children
+
+  // Debug: Log input and output for verification
+  console.log("BreadcrumbPage - Original children:", children, "Transformed children:", transformedChildren);
+
+  return (
+    <span
+      ref={ref}
+      role="link"
+      aria-disabled="true"
+      aria-current="page"
+      className={cn("font-normal text-foreground", className)}
+      {...props}
+    >
+      {transformedChildren}
+    </span>
+  )
+})
 BreadcrumbPage.displayName = "BreadcrumbPage"
 
 const BreadcrumbSeparator = ({

@@ -140,7 +140,7 @@ const ShiftCard = memo(
       >
         <div className="absolute top-0 left-0 w-1 h-full rounded-l-xl" style={{ backgroundColor: shift.colors }} />
         {isTemplate && (
-          <div className="absolute top-4 left-4">
+          <div className="absolute top-1 left-2">
             <input
               type="checkbox"
               checked={isSelected}
@@ -627,6 +627,14 @@ const ShiftManagement = () => {
     )
   }, [])
 
+  const handleToggleSelectAll = useCallback(() => {
+    const allIds = shiftTemplates.map((t) => t.id)
+    setSelectedTemplates((prev) => {
+      const isAllSelected = allIds.every((id) => prev.includes(id))
+      return isAllSelected ? [] : allIds
+    })
+  }, [shiftTemplates])
+
   const handleBulkAssign = useCallback(async () => {
     if (!bulkContractId && bulkContractId !== null) {
       showToast("Please select a contract for assignment.", "error")
@@ -1042,17 +1050,34 @@ const ShiftManagement = () => {
                   <h2 className="text-lg font-semibold text-gray-900">Shift Templates</h2>
                   <Badge variant="secondary">{shiftTemplates.length}</Badge>
                 </div>
-                {shiftTemplates.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsBulkAssignModalOpen(true)}
-                    disabled={selectedTemplates.length === 0 || saving}
-                  >
-                    <Building2 className="h-4 w-4 mr-2" />
-                    Assign Selected ({selectedTemplates.length})
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {shiftTemplates.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleToggleSelectAll}
+                      disabled={saving}
+                    >
+                      {selectedTemplates.length === shiftTemplates.length ? (
+                        <X className="h-3 w-3 mr-1" />
+                      ) : (
+                        <Check className="h-3 w-3 mr-1" />
+                      )}
+                      {selectedTemplates.length === shiftTemplates.length ? "Deselect All" : "Select All"}
+                    </Button>
+                  )}
+                  {shiftTemplates.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsBulkAssignModalOpen(true)}
+                      disabled={selectedTemplates.length === 0 || saving}
+                    >
+                      <Building2 className="h-4 w-4 mr-2" />
+                      Assign Selected ({selectedTemplates.length})
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="grid gap-4">
                 {shiftTemplates.map((template: ShiftTemplate) => (

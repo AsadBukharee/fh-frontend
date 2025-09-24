@@ -2,7 +2,7 @@
 "use client"
 
 import type React from "react"
-import { useRef, useState, useEffect, useCallback } from "react"
+import { useRef, useState, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +25,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Search,
   MoreHorizontal,
   Eye,
@@ -37,6 +44,7 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  X,
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -44,6 +52,7 @@ import { useToast } from "@/app/Context/ToastContext"
 import Link from "next/link"
 import AddVehicleStepper from "@/components/Vehicles/VehiclesStepper"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import ExportButton from "@/app/utils/ExportButton"
 
 interface Vehicle {
   id: number
@@ -83,13 +92,20 @@ export default function VehiclesPage() {
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
+  const [filters, setFilters] = useState({
+    vehicleStatus: "",
+    isRoadworthy: "",
+    vehicleType: "",
+  })
   const perPage = 10
   const { showToast } = useToast()
   const cookies = useCookies()
@@ -97,7 +113,9 @@ export default function VehiclesPage() {
   const fetchVehicles = useCallback(async () => {
     setLoading(true)
     try {
-      const url = `${API_URL}/api/vehicles/?page=${currentPage}&per_page=${perPage}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`
+      const url = `${API_URL}/api/vehicles/?page=${currentPage}&per_page=${perPage}${
+        searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
+      }`
       const response = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
@@ -113,7 +131,7 @@ export default function VehiclesPage() {
       }
       const data = await response.json()
       if (data.success) {
-        setVehicles(data.data.map((vehicle: any) => ({
+        const mappedVehicles = data.data.map((vehicle: any) => ({
           id: vehicle.id,
           registration_number: vehicle.registration_number,
           vehicle_status: vehicle.vehicle_status,
@@ -130,7 +148,9 @@ export default function VehiclesPage() {
           last_mileage: vehicle.last_mileage,
           vehicle_type_name: vehicle.vehicle_type_name,
           status_indicators: vehicle.status_indicators,
-        })))
+        }))
+        setVehicles(mappedVehicles)
+        setFilteredVehicles(mappedVehicles) // Initialize filteredVehicles with all vehicles
         setTotalPages(data.total_pages || 1)
         setError(null)
       } else {
@@ -149,6 +169,37 @@ export default function VehiclesPage() {
   useEffect(() => {
     fetchVehicles()
   }, [fetchVehicles])
+
+  // Client-side filtering
+  useEffect(() => {
+    let result = [...vehicles]
+
+    // Apply vehicle status filter
+    if (filters.vehicleStatus) {
+      result = result.filter((vehicle) => vehicle.vehicle_status.toLowerCase() === filters.vehicleStatus.toLowerCase())
+    }
+
+    // Apply roadworthy filter
+    if (filters.isRoadworthy) {
+      const isRoadworthy = filters.isRoadworthy === "true"
+      result = result.filter((vehicle) => vehicle.is_roadworthy === isRoadworthy)
+    }
+
+    // Apply vehicle type filter
+    if (filters.vehicleType) {
+      result = result.filter((vehicle) => vehicle.vehicles_type.name === filters.vehicleType)
+    }
+
+    setFilteredVehicles(result)
+    setTotalPages(Math.ceil(result.length / perPage))
+    setCurrentPage(1) // Reset to first page when filters change
+  }, [filters, vehicles, perPage])
+
+  // Paginate filtered vehicles
+  const paginatedVehicles = useMemo(() => {
+    const startIndex = (currentPage - 1) * perPage
+    return filteredVehicles.slice(startIndex, startIndex + perPage)
+  }, [filteredVehicles, currentPage, perPage])
 
   const handleMouseMove = (key: string) => (e: React.MouseEvent) => {
     const button = buttonRefs.current[key]
@@ -230,6 +281,21 @@ export default function VehiclesPage() {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1)
   }
 
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value === "all" ? "" : value }))
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      vehicleStatus: "",
+      isRoadworthy: "",
+      vehicleType: "",
+    })
+    setCurrentPage(1)
+  }
+
+  const uniqueVehicleTypes = Array.from(new Set(vehicles.map((v) => v.vehicles_type.name)))
+
   return (
     <TooltipProvider>
       <div className="p-6 bg-white">
@@ -240,14 +306,14 @@ export default function VehiclesPage() {
               <p className="text-sm text-gray-500">Manage your fleet and track vehicle details</p>
             </div>
             <div className="space-x-2 flex">
-              <button className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
+              <Button
+                onClick={() => setIsFilterDialogOpen(true)}
+                className="px-4 border bg-white border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100"
+              >
                 <Filter className="w-4 h-4" />
                 Filter
-              </button>
-              <button className="px-4 border rounded flex border-gray-50 shadow justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
-                <Download className="w-4 h-4" />
-                Export
-              </button>
+              </Button>
+          <ExportButton data={vehicles} fileName="Vehicles" />
               <button
                 onClick={fetchVehicles}
                 disabled={loading}
@@ -307,7 +373,7 @@ export default function VehiclesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {vehicles.map((vehicle) => (
+            {paginatedVehicles.map((vehicle) => (
               <Card key={vehicle.id} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="relative bg-gray-100 p-4">
                   <img
@@ -365,13 +431,12 @@ export default function VehiclesPage() {
                       </Tooltip>
                     </div>
                   )}
-                <Link
-  href={`/dashboard/vehicles/list/${vehicle.id}`}
-  className="mt-4 inline-flex items-center justify-center w-full px-4 py-2 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-md text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-300"
->
-  More Details
-</Link>
-
+                  <Link
+                    href={`/dashboard/vehicles/list/${vehicle.id}`}
+                    className="mt-4 inline-flex items-center justify-center w-full px-4 py-2 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-md text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  >
+                    More Details
+                  </Link>
                 </CardContent>
               </Card>
             ))}
@@ -437,6 +502,88 @@ export default function VehiclesPage() {
               </DialogDescription>
             </DialogHeader>
             <AddVehicleStepper />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Filter Vehicles</DialogTitle>
+              <DialogDescription>
+                Apply filters to narrow down the vehicle list.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="vehicleStatus" className="text-right">
+                  Status
+                </label>
+                <Select
+                  value={filters.vehicleStatus}
+                  onValueChange={(value) => handleFilterChange("vehicleStatus", value === "all" ? "" : value)}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="unavailable">Unavailable</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="isRoadworthy" className="text-right">
+                  Roadworthy
+                </label>
+                <Select
+                  value={filters.isRoadworthy}
+                  onValueChange={(value) => handleFilterChange("isRoadworthy", value === "all" ? "" : value)}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select roadworthy status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="true">Yes</SelectItem>
+                    <SelectItem value="false">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="vehicleType" className="text-right">
+                  Vehicle Type
+                </label>
+                <Select
+                  value={filters.vehicleType}
+                  onValueChange={(value) => handleFilterChange("vehicleType", value === "all" ? "" : value)}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select vehicle type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    {uniqueVehicleTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={clearFilters}
+                className="flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Clear Filters
+              </Button>
+              <Button onClick={() => setIsFilterDialogOpen(false)}>Apply Filters</Button>
+            </div>
           </DialogContent>
         </Dialog>
 

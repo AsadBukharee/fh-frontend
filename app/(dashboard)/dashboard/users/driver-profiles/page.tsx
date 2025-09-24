@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -54,6 +54,7 @@ import { useCookies } from "next-client-cookies"
 import { useToast } from "@/app/Context/ToastContext"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import Link from "next/link"
+import ExportButton from "@/app/utils/ExportButton"
 
 interface Driver {
   id: number
@@ -169,6 +170,11 @@ export default function DriversPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
+  const [filters, setFilters] = useState({
+    profileStatus: [] as string[],
+    hasContract: null as boolean | null,
+    hasWarnings: null as boolean | null,
+  })
   const { showToast } = useToast()
   const cookies = useCookies()
 
@@ -267,7 +273,16 @@ export default function DriversPage() {
   const fetchDrivers = useCallback(async () => {
     setLoading(true)
     try {
-      const url = `${API_URL}/api/profiles/driver/?page=${currentPage}&per_page=${perPage}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        per_page: perPage.toString(),
+      })
+      if (searchQuery) queryParams.append("q", searchQuery)
+      if (filters.profileStatus.length > 0) queryParams.append("profile_status", filters.profileStatus.join(","))
+      if (filters.hasContract !== null) queryParams.append("has_contract", filters.hasContract.toString())
+      if (filters.hasWarnings !== null) queryParams.append("has_warnings", filters.hasWarnings.toString())
+
+      const url = `${API_URL}/api/profiles/driver/?${queryParams.toString()}`
       const response = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
@@ -297,7 +312,7 @@ export default function DriversPage() {
     } finally {
       setLoading(false)
     }
-  }, [cookies, showToast, currentPage, searchQuery])
+  }, [cookies, showToast, currentPage, searchQuery, filters])
 
   const fetchRoles = useCallback(async () => {
     setRolesLoading(true)
@@ -377,7 +392,6 @@ export default function DriversPage() {
     }
   }
 
-
   const getProfileStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "approved":
@@ -391,14 +405,10 @@ export default function DriversPage() {
     }
   }
 
-
-
   const handleDeleteDriverClick = (driver: Driver) => {
     setDriverToDelete(driver)
     setIsDeleteDialogOpen(true)
   }
-
- 
 
   const handleDeleteDriver = async () => {
     if (!driverToDelete) return
@@ -441,6 +451,23 @@ export default function DriversPage() {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1)
   }
 
+  const handleFilterChange = (filterType: string, value: string | boolean | null) => {
+      setFilters((prev) => {
+        if (filterType === "profileStatus") {
+          const newStatus = prev.profileStatus.includes(value as string)
+            ? prev.profileStatus.filter((status) => status !== value)
+            : [...prev.profileStatus, value as string]
+          return { ...prev, profileStatus: newStatus }
+        } else if (filterType === "hasContract") {
+          return { ...prev, hasContract: value as boolean | null }
+        } else if (filterType === "hasWarnings") {
+          return { ...prev, hasWarnings: value as boolean | null }
+        }
+        return prev
+      })
+      setCurrentPage(1) // Reset to first page when filters change
+    }
+
   return (
     <TooltipProvider>
       <div className="p-6 bg-white">
@@ -451,14 +478,63 @@ export default function DriversPage() {
               <p className="text-sm text-gray-500">Manage your drivers and their profiles</p>
             </div>
             <div className="space-x-2 flex h-[40px]">
-              <button className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
-                <Filter className="w-4 h-4" />
-                Filter
-              </button>
-              <button className="px-4 border rounded flex border-gray-50 shadow justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
-                <Download className="w-4 h-4" />
-                Export
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
+                    <Filter className="w-4 h-4" />
+                    Filter
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-white">
+                  <DropdownMenuLabel>Filter Drivers</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.profileStatus.includes("approved")}
+                    onCheckedChange={() => handleFilterChange("profileStatus", "approved")}
+                  >
+                    Approved
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.profileStatus.includes("review")}
+                    onCheckedChange={() => handleFilterChange("profileStatus", "review")}
+                  >
+                    Review
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.profileStatus.includes("not_approved")}
+                    onCheckedChange={() => handleFilterChange("profileStatus", "not_approved")}
+                  >
+                    Not Approved
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.hasContract === true}
+                    onCheckedChange={() => handleFilterChange("hasContract", filters.hasContract === true ? null : true)}
+                  >
+                    Has Contract
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.hasContract === false}
+                    onCheckedChange={() => handleFilterChange("hasContract", filters.hasContract === false ? null : false)}
+                  >
+                    No Contract
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={filters.hasWarnings === true}
+                    onCheckedChange={() => handleFilterChange("hasWarnings", filters.hasWarnings === true ? null : true)}
+                  >
+                    Has Warnings
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filters.hasWarnings === false}
+                    onCheckedChange={() => handleFilterChange("hasWarnings", filters.hasWarnings === false ? null : false)}
+                  >
+                    No Warnings
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <ExportButton data={drivers} fileName="Driver Managements" />
               <button
                 onClick={fetchDrivers}
                 disabled={loading}
@@ -551,7 +627,6 @@ export default function DriversPage() {
                         <Star className="w-4 h-4 mr-2" />
                         Review
                       </DropdownMenuItem>
-                     
                       <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteDriverClick(driver)}>
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete
@@ -726,7 +801,6 @@ export default function DriversPage() {
           </DialogContent>
         </Dialog>
 
-     
         {/* Delete Driver Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, ChangeEvent } from "react";
@@ -21,7 +20,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertTriangle,
   CheckCircle,
@@ -51,11 +56,9 @@ import {
 import { useCookies } from "next-client-cookies";
 import API_URL from "@/app/utils/ENV";
 import BadgeList from "../BadgeList";
-
 import { Label } from "../ui/label";
 import EditPMI from "./EditPMIdriver";
 import { formatDmy } from "@/lib/utils";
-
 
 interface PMIRecord {
   id: number;
@@ -92,6 +95,9 @@ export default function PMIDashboard() {
   const [filteredData, setFilteredData] = useState<PMIRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewRecord, setViewRecord] = useState<PMIRecord | null>(null);
@@ -106,39 +112,39 @@ export default function PMIDashboard() {
   const debouncedSetSearchTerm = debounce((value: string) => {
     setSearchTerm(value);
   }, 300);
- const fetchPMIData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(`${API_URL}/activity/pmi-driver/`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${yourToken}`,
-          },
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to fetch PMI data");
-        }
-        const data: ApiResponse<PMIRecord[]> = await response.json();
-        setPmiData(data.data);
-        setFilteredData(data.data);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Error fetching PMI data. Please try again later."
-        );
-        console.error(err);
-      } finally {
-        setLoading(false);
+
+  const fetchPMIData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/activity/pmi-driver/`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${yourToken}`,
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch PMI data");
       }
-    };
+      const data: ApiResponse<PMIRecord[]> = await response.json();
+      setPmiData(data.data);
+      setFilteredData(data.data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Error fetching PMI data. Please try again later."
+      );
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch PMI records from API
   useEffect(() => {
-   
-
     fetchPMIData();
   }, [yourToken]);
 
@@ -180,6 +186,7 @@ export default function PMIDashboard() {
   useEffect(() => {
     let filtered = pmiData;
 
+    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (record) =>
@@ -189,12 +196,40 @@ export default function PMIDashboard() {
       );
     }
 
+    // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((record) => record.status === statusFilter);
     }
 
+    // Vehicle type filter
+    if (vehicleTypeFilter !== "all") {
+      filtered = filtered.filter((record) => {
+        const vehicle = vehicles.find((v) => v.id === record.vehicle);
+        return vehicle?.vehicle_type_name === vehicleTypeFilter;
+      });
+    }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      filtered = filtered.filter((record) => {
+        if (!record.pmi_report_date) return false;
+        const reportDate = new Date(record.pmi_report_date);
+        const fromDate = dateFrom ? new Date(dateFrom) : null;
+        const toDate = dateTo ? new Date(dateTo) : null;
+
+        if (fromDate && toDate) {
+          return reportDate >= fromDate && reportDate <= toDate;
+        } else if (fromDate) {
+          return reportDate >= fromDate;
+        } else if (toDate) {
+          return reportDate <= toDate;
+        }
+        return true;
+      });
+    }
+
     setFilteredData(filtered);
-  }, [searchTerm, statusFilter, pmiData]);
+  }, [searchTerm, statusFilter, vehicleTypeFilter, dateFrom, dateTo, pmiData, vehicles]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -224,7 +259,6 @@ export default function PMIDashboard() {
     }
   };
 
- 
   const handleDelete = async (id: number) => {
     setLoading(true);
     setError(null);
@@ -278,6 +312,11 @@ export default function PMIDashboard() {
     );
   }
 
+  // Get unique vehicle types
+  const vehicleTypes = Array.from(
+    new Set(vehicles.map((vehicle) => vehicle.vehicle_type_name))
+  );
+
   return (
     <div className="container mx-auto bg-white p-6 space-y-6">
       {/* Header */}
@@ -298,7 +337,7 @@ export default function PMIDashboard() {
           <CardDescription>
             Showing {filteredData.length} of {pmiData.length} reports
           </CardDescription>
-          <div className="flex flex-col gap-4 md:flex-row">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center">
             <div className="flex-1">
               <div className="relative w-[300px]">
                 <Search className="absolute left-3 top-3 z-4 h-4 w-4 text-muted-foreground" />
@@ -312,7 +351,62 @@ export default function PMIDashboard() {
                 />
               </div>
             </div>
-         
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-2">
+              <div className="w-[200px]">
+                <Label htmlFor="status-filter" className="mb-1 block">Status</Label>
+                <Select
+                  value={statusFilter}
+                  onValueChange={setStatusFilter}
+                >
+                  <SelectTrigger id="status-filter">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="created">Created</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-[200px]">
+                <Label htmlFor="vehicle-type-filter" className="mb-1 block">Vehicle Type</Label>
+                <Select
+                  value={vehicleTypeFilter}
+                  onValueChange={setVehicleTypeFilter}
+                >
+                  <SelectTrigger id="vehicle-type-filter">
+                    <SelectValue placeholder="Select vehicle type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {vehicleTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-[200px]">
+                <Label htmlFor="date-from" className="mb-1 block">From Date</Label>
+                <Input
+                  id="date-from"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="w-[200px]">
+                <Label htmlFor="date-to" className="mb-1 block">To Date</Label>
+                <Input
+                  id="date-to"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -323,7 +417,6 @@ export default function PMIDashboard() {
                   <TableHead>Report Date</TableHead>
                   <TableHead>Vehicle Reg</TableHead>
                   <TableHead>Defects</TableHead>
-                 
                   <TableHead>Previously Noted</TableHead>
                   <TableHead>Action Required</TableHead>
                   <TableHead>Actions</TableHead>
@@ -343,7 +436,6 @@ export default function PMIDashboard() {
                         <BadgeList value={record.defects} />
                       </div>
                     </TableCell>
-                  
                     <TableCell>
                       <Badge
                         variant={
@@ -428,7 +520,7 @@ export default function PMIDashboard() {
                           </Dialog>
                           <EditPMI
                             record={record}
-                            onEdit={()=>fetchPMIData()}
+                            onEdit={() => fetchPMIData()}
                           />
                           <Dialog>
                             <DialogTrigger asChild>

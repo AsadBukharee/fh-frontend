@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo, type FC } from "react";
+import { format, parseISO, isWithinInterval } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +27,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Search,
   CalendarDays,
   Car,
@@ -43,27 +49,35 @@ import {
   X,
   Calendar,
   RefreshCcw,
+  Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import AddPMI from "@/components/pmi/AddPmi";
 import BadgeList from "../BadgeList";
+import ExportButton from "@/app/utils/ExportButton";
 
-// API configuration
 const API_CONFIG = {
-  baseUrl: "https://api.example.com",
+  baseUrl: "{{HOST}}",
   endpoints: {
     pmi: "/activity/pmi/",
     update: "/activity/pmi/{id}/",
     delete: "/activity/pmi/{id}/",
     download: "/activity/pmi/{id}/download/",
+    vehicles: "/api/vehicles/",
   },
 };
 
-// Types
 interface TyreData {
   [key: string]: string | number | null | undefined;
+}
+
+interface Vehicle {
+  id: number;
+  registration_number: string;
+  vehicle_type_name: string;
+  vehicle_status: string;
 }
 
 interface PmiRow {
@@ -119,26 +133,30 @@ interface StatusCellProps {
   type?: "status" | "number" | "date";
 }
 
-const getSafetyColor = (value: number | string | null | undefined, field: keyof PmiRow): string => {
-  if (value === null || value === undefined || isNaN(Number(value))) return "bg-gray-100 text-gray-800";
-
+const getSafetyColor = (
+  value: number | string | null | undefined,
+  field: keyof PmiRow
+): string => {
+  if (value === null || value === undefined || isNaN(Number(value)))
+    return "bg-gray-100 text-gray-800";
   const numValue = Number(value);
-
   if (field === "tyre_depth") {
     if (numValue < 1.5) return "bg-red-100 text-red-800";
-    if (numValue >= 1.5 && numValue <= 2) return "bg-orange-100 text-orange-800";
+    if (numValue >= 1.5 && numValue <= 2)
+      return "bg-orange-100 text-orange-800";
     if (numValue > 2 && numValue <= 8) return "bg-green-100 text-green-800";
     return "bg-gray-100 text-gray-800";
   }
-
   if (field === "tyre_pressure") {
     if (numValue < 25 || numValue > 50) return "bg-red-100 text-red-800";
-    if ((numValue >= 26 && numValue <= 28) || (numValue >= 44 && numValue <= 48))
+    if (
+      (numValue >= 26 && numValue <= 28) ||
+      (numValue >= 44 && numValue <= 48)
+    )
       return "bg-orange-100 text-orange-800";
     if (numValue >= 29 && numValue <= 42) return "bg-green-100 text-green-800";
     return "bg-gray-100 text-gray-800";
   }
-
   return "bg-gray-100 text-gray-800";
 };
 
@@ -193,7 +211,10 @@ const ActionMenu: FC<ActionMenuProps> = ({
           </>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => onDelete(row.id)} className="text-red-600">
+        <DropdownMenuItem
+          onClick={() => onDelete(row.id)}
+          className="text-red-600"
+        >
           <Trash2 className="mr-2 h-4 w-4" />
           Delete
         </DropdownMenuItem>
@@ -223,7 +244,6 @@ const StatusCell: FC<StatusCellProps> = ({
 
   const handleConfirm = async () => {
     if (!isEditable || isUpdating) return;
-
     setIsUpdating(true);
     try {
       await onUpdate(rowId, field, column, value);
@@ -240,7 +260,7 @@ const StatusCell: FC<StatusCellProps> = ({
   };
 
   const inputClass =
-    "w-[80px] text-center border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-2 py-1";
+    "w-[80px] text-center border-0 bg-transparent focus:ring-1 focus:ring-orange-500 rounded px-2 py-1";
 
   if (type === "status") {
     return (
@@ -377,10 +397,146 @@ const StatusCell: FC<StatusCellProps> = ({
   );
 };
 
+const DateRangePicker: FC<{
+  startDate: Date | null;
+  endDate: Date | null;
+  onChange: (range: [Date | null, Date | null]) => void;
+  onClose: () => void;
+}> = ({ startDate, endDate, onChange, onClose }) => {
+  const [tempStartDate, setTempStartDate] = useState<Date | null>(startDate);
+  const [tempEndDate, setTempEndDate] = useState<Date | null>(endDate);
+
+  return (
+    <div className="space-y-4 p-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Start Date
+          </label>
+          <Input
+            type="date"
+            value={tempStartDate ? format(tempStartDate, "yyyy-MM-dd") : ""}
+            onChange={(e) =>
+              setTempStartDate(e.target.value ? parseISO(e.target.value) : null)
+            }
+            className="w-full"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            End Date
+          </label>
+          <Input
+            type="date"
+            value={tempEndDate ? format(tempEndDate, "yyyy-MM-dd") : ""}
+            onChange={(e) =>
+              setTempEndDate(e.target.value ? parseISO(e.target.value) : null)
+            }
+            className="w-full"
+          />
+        </div>
+      </div>
+      <div className="flex justify-end space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setTempStartDate(null);
+            setTempEndDate(null);
+            onChange([null, null]);
+            onClose();
+          }}
+        >
+          Clear
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => {
+            onChange([tempStartDate, tempEndDate]);
+            onClose();
+          }}
+          className="bg-orange-500 hover:bg-orange-600"
+        >
+          Apply
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const TyrePressureFilter: FC<{
+  minPressure: number | null;
+  maxPressure: number | null;
+  onChange: (range: [number | null, number | null]) => void;
+  onClose: () => void;
+}> = ({ minPressure, maxPressure, onChange, onClose }) => {
+  const [tempMinPressure, setTempMinPressure] = useState<number | null>(minPressure);
+  const [tempMaxPressure, setTempMaxPressure] = useState<number | null>(maxPressure);
+
+  return (
+    <div className="space-y-4 p-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Min Pressure (PSI)
+          </label>
+          <Input
+            type="number"
+            value={tempMinPressure ?? ""}
+            onChange={(e) =>
+              setTempMinPressure(e.target.value ? Number(e.target.value) : null)
+            }
+            placeholder="e.g., 25"
+            className="w-full"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Max Pressure (PSI)
+          </label>
+          <Input
+            type="number"
+            value={tempMaxPressure ?? ""}
+            onChange={(e) =>
+              setTempMaxPressure(e.target.value ? Number(e.target.value) : null)
+            }
+            placeholder="e.g., 50"
+            className="w-full"
+          />
+        </div>
+      </div>
+      <div className="flex justify-end space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setTempMinPressure(null);
+            setTempMaxPressure(null);
+            onChange([null, null]);
+            onClose();
+          }}
+        >
+          Clear
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => {
+            onChange([tempMinPressure, tempMaxPressure]);
+            onClose();
+          }}
+          className="bg-orange-500 hover:bg-orange-600"
+        >
+          Apply
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const PMITabs: FC = () => {
   const [pmiData, setPmiData] = useState<PmiRow[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "All Data" | "Tyre Depth" | "Tyre Dates" | "Others"
+    "All Data" | "Tyre Pressure" | "Tyre Depth" | "Tyre Dates" | "Others"
   >("All Data");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -395,16 +551,28 @@ const PMITabs: FC = () => {
     key: keyof PmiRow;
     direction: "asc" | "desc";
   } | null>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([
+    null,
+    null,
+  ]);
+  const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
+  const [tyrePressureRange, setTyrePressureRange] = useState<
+    [number | null, number | null]
+  >([null, null]);
+  const [showTyrePressureFilter, setShowTyrePressureFilter] =
+    useState<boolean>(false);
   const token = useCookies().get("access_token");
 
   const tabs = [
     { label: "All Data", icon: Database },
+    { label: "Tyre Pressure", icon: Gauge },
     { label: "Tyre Depth", icon: Scale },
     { label: "Tyre Dates", icon: CalendarDays },
     { label: "Others", icon: Settings },
   ] as const;
 
-  // Safe state setter to prevent non-array values
   const safeSetPmiData = (newData: unknown) => {
     if (Array.isArray(newData)) {
       setPmiData(newData as PmiRow[]);
@@ -415,14 +583,11 @@ const PMITabs: FC = () => {
     }
   };
 
-  // Transform API response to match PmiRow structure
   const transformApiResponse = (apiData: any[]): PmiRow[] => {
     return apiData.map((item) => {
       const tyrePressure: TyreData = {};
       const tyreDepth: TyreData = {};
       const tyreDates: TyreData = {};
-
-      // Extract tyre-related fields
       Object.keys(item).forEach((key) => {
         if (key.startsWith("tyre_pressure_")) {
           const tyreKey = key.replace("tyre_pressure_", "");
@@ -435,7 +600,6 @@ const PMITabs: FC = () => {
           tyreDates[tyreKey] = item[key];
         }
       });
-
       return {
         ...item,
         tyre_pressure: tyrePressure,
@@ -445,14 +609,12 @@ const PMITabs: FC = () => {
     });
   };
 
-  // Flatten tyre fields for API payload
   const flattenTyreFields = (row: Partial<PmiRow>): Record<string, any> => {
     const flattened: Record<string, any> = { ...row };
     ["tyre_pressure", "tyre_depth", "tyre_dates"].forEach((field) => {
-      //@ts-expect-error ab thk ha
-      if (row[field] && typeof row[field] === "object") {
-        //@ts-expect-error ab thk ha
-        Object.entries(row[field]!).forEach(([key, value]) => {
+      const fieldValue = row[field as keyof PmiRow];
+      if (fieldValue && typeof fieldValue === "object") {
+        Object.entries(fieldValue as TyreData).forEach(([key, value]) => {
           flattened[`${field}_${key}`] = value;
         });
         delete flattened[field];
@@ -461,7 +623,6 @@ const PMITabs: FC = () => {
     return flattened;
   };
 
-  // API Functions
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     const defaultHeaders = {
       "Content-Type": "application/json",
@@ -472,43 +633,68 @@ const PMITabs: FC = () => {
       headers: { ...defaultHeaders, ...options.headers },
     });
   };
- const fetchPmiData = async () => {
-      setLoading(true);
-      try {
-        const response = await apiCall(API_CONFIG.endpoints.pmi);
-        if (!response.ok) {
-          throw new Error(`API request failed with status ${response.status}`);
-        }
-        const apiResponse = await response.json();
-        console.log("API Response:", apiResponse); // For debugging
-        if (!apiResponse.success || !Array.isArray(apiResponse.data)) {
-          console.error("API response is invalid:", apiResponse);
-          safeSetPmiData([]);
-          setError("Invalid API response format");
-          return;
-        }
-        const transformedData = transformApiResponse(apiResponse.data);
-        safeSetPmiData(transformedData);
-      } catch (error) {
-        console.error("Failed to fetch PMI data:", error);
-        setError("Failed to load PMI records");
-      } finally {
-        setLoading(false);
+
+  const fetchPmiData = async () => {
+    setLoading(true);
+    try {
+      const response = await apiCall(API_CONFIG.endpoints.pmi);
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
       }
-    };
+      const apiResponse = await response.json();
+      if (!apiResponse.success || !Array.isArray(apiResponse.data)) {
+        console.error("API response is invalid:", apiResponse);
+        safeSetPmiData([]);
+        setError("Invalid API response format");
+        return;
+      }
+      const transformedData = transformApiResponse(apiResponse.data);
+      safeSetPmiData(transformedData);
+    } catch (error) {
+      console.error("Failed to fetch PMI data:", error);
+      setError("Failed to load PMI records");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchVehicles = async () => {
+    try {
+      const response = await apiCall(API_CONFIG.endpoints.vehicles);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch vehicles: ${response.status}`);
+      }
+      const apiResponse = await response.json();
+      if (apiResponse.success && Array.isArray(apiResponse.data)) {
+        setVehicles(
+          apiResponse.data.map((vehicle: any) => ({
+            id: vehicle.id,
+            registration_number: vehicle.registration_number,
+            vehicle_type_name: vehicle.vehicle_type_name,
+            vehicle_status: vehicle.vehicle_status,
+          })) as Vehicle[]
+        );
+      } else {
+        setError("Invalid vehicle data format");
+      }
+    } catch (error) {
+      console.error("Failed to fetch vehicles:", error);
+      setError("Failed to load vehicle list");
+    }
+  };
+
   useEffect(() => {
-   
     fetchPmiData();
+    fetchVehicles();
   }, []);
 
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(null), 5000); // Clear error after 5 seconds
+      const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
 
-  // Action Handlers
   const handleStatusUpdate = async (
     rowId: number | string,
     field: keyof PmiRow,
@@ -517,16 +703,24 @@ const PMITabs: FC = () => {
   ) => {
     try {
       setLoading(true);
-      const updateData = column ? { [`${field}_${column}`]: value } : { [field]: value };
-      await apiCall(API_CONFIG.endpoints.update.replace("{id}", rowId.toString()), {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-      });
+      const updateData = column
+        ? { [`${field}_${column}`]: value }
+        : { [field]: value };
+      await apiCall(
+        API_CONFIG.endpoints.update.replace("{id}", rowId.toString()),
+        {
+          method: "PUT",
+          body: JSON.stringify(updateData),
+        }
+      );
       safeSetPmiData(
         pmiData.map((row) =>
           row.id === rowId
             ? column
-              ? { ...row, [field]: { ...(row[field] as TyreData), [column]: value } }
+              ? {
+                  ...row,
+                  [field]: { ...(row[field] as TyreData), [column]: value },
+                }
               : { ...row, [field]: value }
             : row
         )
@@ -603,9 +797,12 @@ const PMITabs: FC = () => {
       return;
     try {
       setLoading(true);
-      await apiCall(API_CONFIG.endpoints.delete.replace("{id}", id.toString()), {
-        method: "DELETE",
-      });
+      await apiCall(
+        API_CONFIG.endpoints.delete.replace("{id}", id.toString()),
+        {
+          method: "DELETE",
+        }
+      );
       safeSetPmiData(pmiData.filter((row) => row.id !== id));
     } catch (error) {
       console.error("Failed to delete:", error);
@@ -636,10 +833,13 @@ const PMITabs: FC = () => {
   const handleApprove = async (id: number | string) => {
     try {
       setLoading(true);
-      await apiCall(API_CONFIG.endpoints.update.replace("{id}", id.toString()), {
-        method: "PUT",
-        body: JSON.stringify({ status: "approved" }),
-      });
+      await apiCall(
+        API_CONFIG.endpoints.update.replace("{id}", id.toString()),
+        {
+          method: "PUT",
+          body: JSON.stringify({ status: "approved" }),
+        }
+      );
       safeSetPmiData(
         pmiData.map((row) =>
           row.id === id ? { ...row, status: "approved" } : row
@@ -656,10 +856,13 @@ const PMITabs: FC = () => {
   const handleReject = async (id: number | string) => {
     try {
       setLoading(true);
-      await apiCall(API_CONFIG.endpoints.update.replace("{id}", id.toString()), {
-        method: "PUT",
-        body: JSON.stringify({ status: "rejected" }),
-      });
+      await apiCall(
+        API_CONFIG.endpoints.update.replace("{id}", id.toString()),
+        {
+          method: "PUT",
+          body: JSON.stringify({ status: "rejected" }),
+        }
+      );
       safeSetPmiData(
         pmiData.map((row) =>
           row.id === id ? { ...row, status: "rejected" } : row
@@ -673,22 +876,56 @@ const PMITabs: FC = () => {
     }
   };
 
-  // Filter and Sort
   const filteredData = useMemo(() => {
     if (!Array.isArray(pmiData)) {
       return [];
     }
-    return pmiData.filter(
-      (item) =>
+    return pmiData.filter((item) => {
+      const matchesSearch =
         (item.vehicle_reg?.toLowerCase().includes(searchTerm.toLowerCase()) ??
           false) ||
         (item.analysis_date?.includes(searchTerm) ?? false) ||
         (item.pmi_expiry?.includes(searchTerm) ?? false) ||
         (item.defects?.toLowerCase().includes(searchTerm.toLowerCase()) ??
           false) ||
-        (item.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-    );
-  }, [pmiData, searchTerm]);
+        (item.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+
+      const matchesVehicle = selectedVehicle
+        ? item.vehicle_reg === selectedVehicle
+        : true;
+
+      let matchesDate = true;
+      const [startDate, endDate] = dateRange;
+      if (startDate && endDate && item.analysis_date) {
+        try {
+          const itemDate = parseISO(item.analysis_date);
+          matchesDate = isWithinInterval(itemDate, {
+            start: startDate,
+            end: endDate,
+          });
+        } catch (error) {
+          console.error(
+            "Invalid date format for analysis_date:",
+            item.analysis_date
+          );
+          matchesDate = false;
+        }
+      }
+
+      let matchesTyrePressure = true;
+      const [minPressure, maxPressure] = tyrePressureRange;
+      if (minPressure !== null && maxPressure !== null && item.tyre_pressure) {
+        const pressures = Object.values(item.tyre_pressure)
+          .map(Number)
+          .filter((p) => !isNaN(p));
+        matchesTyrePressure = pressures.some(
+          (pressure) => pressure >= minPressure && pressure <= maxPressure
+        );
+      }
+
+      return matchesSearch && matchesVehicle && matchesDate && matchesTyrePressure;
+    });
+  }, [pmiData, searchTerm, selectedVehicle, dateRange, tyrePressureRange]);
 
   const handleSort = (key: keyof PmiRow) => {
     setSortConfig((prev) => ({
@@ -720,7 +957,6 @@ const PMITabs: FC = () => {
     return firstValidRow ? Object.keys(firstValidRow.tyre_pressure) : [];
   }, [pmiData]);
 
-  // Pagination
   const totalPages = Math.ceil(sortedData.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const paginatedData = useMemo(
@@ -757,14 +993,15 @@ const PMITabs: FC = () => {
     );
   };
 
-  if (loading) return <div className="flex justify-center py-8">Loading...</div>;
+  if (loading)
+    return <div className="flex justify-center py-8">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-white p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-gray-900 mb-1">
-           PMI Analysis - Maintenance
+            PMI Analysis - Maintenance
           </h1>
           <p className="text-sm text-gray-600 mb-6">
             Comprehensive vehicle inspection data with action controls
@@ -799,7 +1036,7 @@ const PMITabs: FC = () => {
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="relative max-w-sm">
-                <Search className="absolute left-3 z-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 z-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   placeholder="Search PMI records..."
                   value={searchTerm}
@@ -808,16 +1045,73 @@ const PMITabs: FC = () => {
                 />
               </div>
               <div className="flex space-x-2 items-center">
-                <RefreshCcw className="w-6 h-6 text-gray-400 mx-4 hover:text-gray-700" onClick={()=>fetchPmiData()} />
-                <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Filter by Date
-                </Button>
-                <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
-                  <Car className="w-4 h-4 mr-2" />
-                  Filter by Vehicle
-                </Button>
-                <AddPMI/>
+                <RefreshCcw
+                  className="w-10 h-10 text-gray-400 mx-4 hover:text-gray-700 cursor-pointer"
+                  onClick={() => fetchPmiData()}
+                />
+                <Popover open={showDateFilter} onOpenChange={setShowDateFilter}>
+                  <PopoverTrigger asChild>
+                    <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Filter by Date
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <DateRangePicker
+                      startDate={dateRange[0]}
+                      endDate={dateRange[1]}
+                      onChange={setDateRange}
+                      onClose={() => setShowDateFilter(false)}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover
+                  open={showTyrePressureFilter}
+                  onOpenChange={setShowTyrePressureFilter}
+                >
+                  <PopoverTrigger asChild>
+                    <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
+                      <Gauge className="w-4 h-4 mr-2" />
+                      Filter by Tyre Pressure
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <TyrePressureFilter
+                      minPressure={tyrePressureRange[0]}
+                      maxPressure={tyrePressureRange[1]}
+                      onChange={setTyrePressureRange}
+                      onClose={() => setShowTyrePressureFilter(false)}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Select
+                  value={selectedVehicle || "all"}
+                  onValueChange={(value) =>
+                    setSelectedVehicle(value === "all" ? null : value)
+                  }
+                >
+                  <SelectTrigger className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
+                    <Car className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Filter by Vehicle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Vehicles</SelectItem>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem
+                        key={vehicle.id}
+                        value={vehicle.id.toString()}
+                      >
+                        {vehicle.registration_number} (
+                        {vehicle.vehicle_type_name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <ExportButton
+                  data={filteredData}
+                  fileName="PMI Maintenance Data"
+                />
+                <AddPMI />
               </div>
             </div>
           </div>
@@ -853,7 +1147,7 @@ const PMITabs: FC = () => {
                       </TableHead>
                       <TableHead
                         colSpan={tyreColumns.length}
-                        className="text-center bg-blue-50 border-l border-r border-blue-200"
+                        className="text-center bg-orange-50 border-l border-r border-orange-200"
                       >
                         Tyre Pressure (PSI)
                       </TableHead>
@@ -871,18 +1165,60 @@ const PMITabs: FC = () => {
                       <TableHead></TableHead>
                       <TableHead></TableHead>
                       {tyreColumns.map((col) => (
-                        <TableHead key={col} className="text-center bg-blue-25">
+                        <TableHead
+                          key={col}
+                          className="text-center bg-orange-25"
+                        >
                           {col}
                         </TableHead>
                       ))}
                       {tyreColumns.map((col) => (
-                        <TableHead key={col} className="text-center bg-green-25">
+                        <TableHead
+                          key={col}
+                          className="text-center bg-green-25"
+                        >
                           {col}
                         </TableHead>
                       ))}
                       <TableHead></TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
                   </>
+                )}
+                {activeTab === "Tyre Pressure" && (
+                  <TableRow>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("analysis_date")}
+                    >
+                      Report Date{" "}
+                      {sortConfig?.key === "analysis_date" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("vehicle_reg")}
+                    >
+                      Vehicle No{" "}
+                      {sortConfig?.key === "vehicle_reg" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("status")}
+                    >
+                      Status{" "}
+                      {sortConfig?.key === "status" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    {tyreColumns.map((col) => (
+                      <TableHead key={col} className="text-center">
+                        {col}
+                      </TableHead>
+                    ))}
+                    <TableHead>Defects</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
                 )}
                 {activeTab === "Tyre Depth" && (
                   <TableRow>
@@ -915,8 +1251,7 @@ const PMITabs: FC = () => {
                         {col}
                       </TableHead>
                     ))}
-                      <TableHead>Defects</TableHead>
-
+                    <TableHead>Defects</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 )}
@@ -951,8 +1286,7 @@ const PMITabs: FC = () => {
                         {col}
                       </TableHead>
                     ))}
-                      <TableHead>Defects</TableHead>
-
+                    <TableHead>Defects</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 )}
@@ -990,12 +1324,9 @@ const PMITabs: FC = () => {
                     </TableHead>
                     <TableHead className="text-center">
                       Maintenance Error Answer
-
                     </TableHead>
-                      <TableHead>Defects</TableHead>
-
+                    <TableHead>Defects</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
-
                   </TableRow>
                 )}
               </TableHeader>
@@ -1035,7 +1366,47 @@ const PMITabs: FC = () => {
                             />
                           </TableCell>
                         ))}
-                        <TableCell><BadgeList value={row.defects || "N/A"} /></TableCell>
+                        <TableCell>
+                          <BadgeList value={row.defects || "N/A"} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <ActionMenu
+                            row={row}
+                            onEdit={handleEdit}
+                            onView={handleView}
+                            onDelete={handleDelete}
+                            onDownload={handleDownload}
+                            onApprove={handleApprove}
+                            onReject={handleReject}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  if (activeTab === "Tyre Pressure") {
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell>{row.analysis_date}</TableCell>
+                        <TableCell className="font-medium">
+                          {row.vehicle_reg}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(row.status)}</TableCell>
+                        {tyreColumns.map((col) => (
+                          <TableCell key={col} className="text-center">
+                            <StatusCell
+                              status={row.tyre_pressure[col]}
+                              rowId={row.id}
+                              field="tyre_pressure"
+                              column={col}
+                              onUpdate={handleStatusUpdate}
+                              isEditable={true}
+                              type="number"
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell>
+                          <BadgeList value={row.defects || "N/A"} />
+                        </TableCell>
                         <TableCell className="text-center">
                           <ActionMenu
                             row={row}
@@ -1058,7 +1429,7 @@ const PMITabs: FC = () => {
                           {row.vehicle_reg}
                         </TableCell>
                         <TableCell>{getStatusBadge(row.status)}</TableCell>
-                        {Object.keys(row.tyre_depth).map((col) => (
+                        {tyreColumns.map((col) => (
                           <TableCell key={col} className="text-center">
                             <StatusCell
                               status={row.tyre_depth[col]}
@@ -1071,7 +1442,9 @@ const PMITabs: FC = () => {
                             />
                           </TableCell>
                         ))}
-                        <TableCell><BadgeList value={row.defects || "N/A"} /></TableCell>
+                        <TableCell>
+                          <BadgeList value={row.defects || "N/A"} />
+                        </TableCell>
                         <TableCell className="text-center">
                           <ActionMenu
                             row={row}
@@ -1094,7 +1467,7 @@ const PMITabs: FC = () => {
                           {row.vehicle_reg}
                         </TableCell>
                         <TableCell>{getStatusBadge(row.status)}</TableCell>
-                        {Object.keys(row.tyre_dates).map((col) => (
+                        {tyreColumns.map((col) => (
                           <TableCell key={col} className="text-center">
                             <StatusCell
                               status={row.tyre_dates?.[col]}
@@ -1107,7 +1480,9 @@ const PMITabs: FC = () => {
                             />
                           </TableCell>
                         ))}
-                        <TableCell><BadgeList value={row.defects || "N/A"} /></TableCell>
+                        <TableCell>
+                          <BadgeList value={row.defects || "N/A"} />
+                        </TableCell>
                         <TableCell className="text-center">
                           <ActionMenu
                             row={row}
@@ -1163,7 +1538,9 @@ const PMITabs: FC = () => {
                             type="status"
                           />
                         </TableCell>
-                        <TableCell className="w-full"><BadgeList value={row.defects || "N/A"} /></TableCell>
+                        <TableCell>
+                          <BadgeList value={row.defects || "N/A"} />
+                        </TableCell>
                         <TableCell className="text-center">
                           <ActionMenu
                             row={row}
@@ -1208,7 +1585,8 @@ const PMITabs: FC = () => {
                   onClick={() => setCurrentPage(pageNum)}
                   className={cn(
                     "w-8 h-8 p-0",
-                    currentPage === pageNum && "bg-orange-500 hover:bg-orange-600"
+                    currentPage === pageNum &&
+                      "bg-orange-500 hover:bg-orange-600"
                   )}
                 >
                   {pageNum}
@@ -1494,7 +1872,13 @@ const PMITabs: FC = () => {
                               },
                             })
                           }
-                          className={cn("w-full", getSafetyColor(editForm.tyre_pressure?.[col], "tyre_pressure"))}
+                          className={cn(
+                            "w-full",
+                            getSafetyColor(
+                              editForm.tyre_pressure?.[col],
+                              "tyre_pressure"
+                            )
+                          )}
                         />
                       </div>
                     ))}
@@ -1515,7 +1899,13 @@ const PMITabs: FC = () => {
                               },
                             })
                           }
-                          className={cn("w-full", getSafetyColor(editForm.tyre_depth?.[col], "tyre_depth"))}
+                          className={cn(
+                            "w-full",
+                            getSafetyColor(
+                              editForm.tyre_depth?.[col],
+                              "tyre_depth"
+                            )
+                          )}
                         />
                       </div>
                     ))}
@@ -1659,14 +2049,19 @@ const PMITabs: FC = () => {
                         Tyre Pressure
                       </label>
                       <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
-                        {Object.entries(selectedRow.tyre_pressure).map(([key, value]) => (
-                          <div
-                            key={key}
-                            className={cn("p-1 rounded", getSafetyColor(value, "tyre_pressure"))}
-                          >
-                            {`${key}: ${value ?? "N/A"}`}
-                          </div>
-                        ))}
+                        {Object.entries(selectedRow.tyre_pressure).map(
+                          ([key, value]) => (
+                            <div
+                              key={key}
+                              className={cn(
+                                "p-1 rounded",
+                                getSafetyColor(value, "tyre_pressure")
+                              )}
+                            >
+                              {`${key}: ${value ?? "N/A"}`}
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                     <div>
@@ -1674,14 +2069,19 @@ const PMITabs: FC = () => {
                         Tyre Depth
                       </label>
                       <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
-                        {Object.entries(selectedRow.tyre_depth).map(([key, value]) => (
-                          <div
-                            key={key}
-                            className={cn("p-1 rounded", getSafetyColor(value, "tyre_depth"))}
-                          >
-                            {`${key}: ${value ?? "N/A"}`}
-                          </div>
-                        ))}
+                        {Object.entries(selectedRow.tyre_depth).map(
+                          ([key, value]) => (
+                            <div
+                              key={key}
+                              className={cn(
+                                "p-1 rounded",
+                                getSafetyColor(value, "tyre_depth")
+                              )}
+                            >
+                              {`${key}: ${value ?? "N/A"}`}
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                     <div>
@@ -1689,9 +2089,11 @@ const PMITabs: FC = () => {
                         Tyre Dates
                       </label>
                       <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
-                        {Object.entries(selectedRow.tyre_dates).map(([key, value]) => (
-                          <div key={key}>{`${key}: ${value ?? "N/A"}`}</div>
-                        ))}
+                        {Object.entries(selectedRow.tyre_dates).map(
+                          ([key, value]) => (
+                            <div key={key}>{`${key}: ${value ?? "N/A"}`}</div>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1701,7 +2103,7 @@ const PMITabs: FC = () => {
                     <>
                       <Button
                         onClick={handleUpdate}
-                        className="bg-blue-500 hover:bg-blue-600"
+                        className="bg-orange-500 hover:bg-orange-600"
                         disabled={loading}
                       >
                         <Check className="w-4 h-4 mr-2" />
@@ -1771,12 +2173,14 @@ const PMITabs: FC = () => {
                             defects: selectedRow.defects,
                             notes: selectedRow.notes,
                             brake_imbalance: selectedRow.brake_imbalance,
-                            brake_imbalance_note: selectedRow.brake_imbalance_note,
+                            brake_imbalance_note:
+                              selectedRow.brake_imbalance_note,
                             maintenance_error_note:
                               selectedRow.maintenance_error_note,
                             Correct_DTP_Code_Used:
                               selectedRow.Correct_DTP_Code_Used,
-                            brake_test_not_recorded: selectedRow.brake_test_not_recorded,
+                            brake_test_not_recorded:
+                              selectedRow.brake_test_not_recorded,
                             brake_test_report_attached:
                               selectedRow.brake_test_report_attached,
                             maintenance_error_answer:

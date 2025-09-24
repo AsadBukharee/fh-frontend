@@ -3,7 +3,7 @@
 import { formatDmy } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { TooltipProvider } from "../ui/tooltip"
-import { Plus, RefreshCcw, Search, Eye, Pencil, Trash2, MoreHorizontal, MapPin, AlertTriangle } from "lucide-react"
+import { Plus, RefreshCcw, Search, Eye, Pencil, Trash2, MoreHorizontal, MapPin, AlertTriangle, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -23,6 +23,7 @@ import { toast } from "../ui/use-toast"
 import { useCookies } from "next-client-cookies"
 import AddLocation from "./AddLocation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import API_URL from "@/app/utils/ENV"
 
 // Define the shape of the location data
@@ -52,17 +53,35 @@ const LocationTabs = () => {
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [sortBy, setSortBy] = useState<"name" | "zipcode" | "custom_order">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
-  const [showTable, setShowTable] = useState<boolean>(true) // New state for table visibility
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "maintenance">("all")
+  const [orderRange, setOrderRange] = useState<{ min: string; max: string }>({ min: "", max: "" })
+  const [showTable, setShowTable] = useState<boolean>(true)
   const cookies = useCookies()
   const token = cookies.get("access_token")
 
   useEffect(() => {
-    const filtered = locations.filter(
-      (location) =>
+    const filtered = locations.filter((location) => {
+      // Search filter
+      const matchesSearch =
         location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         location.zipcode.includes(searchTerm) ||
-        (location.address && location.address.toLowerCase().includes(searchTerm.toLowerCase())),
-    )
+        (location.address && location.address.toLowerCase().includes(searchTerm.toLowerCase()))
+
+      // Status filter
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && !location.is_maintenance) ||
+        (statusFilter === "maintenance" && location.is_maintenance)
+
+      // Custom order range filter
+      const minOrder = orderRange.min ? parseInt(orderRange.min) : null
+      const maxOrder = orderRange.max ? parseInt(orderRange.max) : null
+      const matchesOrder =
+        (!minOrder || location.custom_order >= minOrder) &&
+        (!maxOrder || location.custom_order <= maxOrder)
+
+      return matchesSearch && matchesStatus && matchesOrder
+    })
 
     filtered.sort((a, b) => {
       let aValue = a[sortBy]
@@ -79,7 +98,7 @@ const LocationTabs = () => {
     })
 
     setFilteredLocations(filtered)
-  }, [locations, searchTerm, sortBy, sortOrder])
+  }, [locations, searchTerm, sortBy, sortOrder, statusFilter, orderRange])
 
   // Fetch locations from the API
   const fetchLocations = async () => {
@@ -121,10 +140,10 @@ const LocationTabs = () => {
 
   // Handle successful location addition
   const handleLocationAdded = () => {
-    setShowTable(false) // Hide the table
-    setOpen(false) // Close the dialog
-    fetchLocations() // Refetch locations
-    setShowTable(true) // Show the table again after refetch
+    setShowTable(false)
+    setOpen(false)
+    fetchLocations()
+    setShowTable(true)
   }
 
   const handleDelete = async (id: number) => {
@@ -187,6 +206,12 @@ const LocationTabs = () => {
       setSortBy(column)
       setSortOrder("asc")
     }
+  }
+
+  const handleResetFilters = () => {
+    setSearchTerm("")
+    setStatusFilter("all")
+    setOrderRange({ min: "", max: "" })
   }
 
   useEffect(() => {
@@ -271,7 +296,7 @@ const LocationTabs = () => {
             </div>
           </div>
 
-          <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 z-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
@@ -280,6 +305,41 @@ const LocationTabs = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
+            </div>
+            <div className="flex gap-2 items-center">
+              <Select value={statusFilter} onValueChange={(value: "all" | "active" | "maintenance") => setStatusFilter(value)}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                placeholder="Min Order"
+                value={orderRange.min}
+                onChange={(e) => setOrderRange({ ...orderRange, min: e.target.value })}
+                className="w-[100px]"
+              />
+              <Input
+                type="number"
+                placeholder="Max Order"
+                value={orderRange.max}
+                onChange={(e) => setOrderRange({ ...orderRange, max: e.target.value })}
+                className="w-[100px]"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetFilters}
+                className="flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Reset Filters
+              </Button>
             </div>
             <div className="flex gap-2">
               <Button
@@ -388,7 +448,9 @@ const LocationTabs = () => {
                           <MapPin className="w-8 h-8" />
                           <p className="text-lg font-medium">No locations found</p>
                           <p className="text-sm">
-                            {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first location"}
+                            {searchTerm || statusFilter !== "all" || orderRange.min || orderRange.max
+                              ? "Try adjusting your filters or search terms"
+                              : "Get started by adding your first location"}
                           </p>
                         </div>
                       </TableCell>
