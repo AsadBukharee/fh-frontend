@@ -33,6 +33,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import ExportButton from "@/app/utils/ExportButton"
 
 interface Card {
   id: number
@@ -85,7 +86,7 @@ const ViewCardDialog: React.FC<ViewCardDialogProps> = ({ isOpen, onClose, card }
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Status:</span>
             <span className="col-span-3">
-              <Badge >
+              <Badge>
                 {card.is_active ? "Active" : "Inactive"}
               </Badge>
             </span>
@@ -103,10 +104,10 @@ const ViewCardDialog: React.FC<ViewCardDialogProps> = ({ isOpen, onClose, card }
 
 const detectCardType = (number: string) => {
   const cleaned = number.replace(/\s/g, "")
-  if (cleaned.startsWith("4")) return "visa"
-  if (cleaned.startsWith("5") || cleaned.startsWith("2")) return "mastercard"
-  if (cleaned.startsWith("3")) return "amex"
-  return "unknown"
+  if (cleaned.startsWith("4")) return "Visa"
+  if (cleaned.startsWith("5") || cleaned.startsWith("2")) return "Mastercard"
+  if (cleaned.startsWith("3")) return "Amex"
+  return "Unknown"
 }
 
 const formatCardNumber = (value: string) => {
@@ -122,6 +123,7 @@ const formatExpiryDate = (value: string) => {
   }
   return cleaned
 }
+
 const AddCardDialog: React.FC<AddCardDialogProps> = ({ isOpen, onClose, onAdd }) => {
   const [title, setTitle] = useState("")
   const [cardNumber, setCardNumber] = useState("")
@@ -213,7 +215,6 @@ const AddCardDialog: React.FC<AddCardDialogProps> = ({ isOpen, onClose, onAdd })
     if (!expiryDate.trim()) newErrors.expiryDate = "Expiry date is required"
     if (!pin.trim()) newErrors.pin = "PIN is required"
 
-    // Validate all fields
     validateField("cardNumber", cardNumber)
     validateField("expiryDate", expiryDate)
     validateField("pin", pin)
@@ -320,7 +321,7 @@ const AddCardDialog: React.FC<AddCardDialogProps> = ({ isOpen, onClose, onAdd })
                   placeholder="1234 5678 9012 3456"
                   className={`h-11 pr-12 ${fieldErrors.cardNumber ? "border-destructive" : ""}`}
                 />
-                {cardType !== "unknown" && cardNumber.length > 8 && (
+                {cardType !== "Unknown" && cardNumber.length > 8 && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
                   </div>
@@ -424,6 +425,9 @@ export default function CardManagement() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [statusFilter, setStatusFilter] = useState<string>("")
+  const [cardTypeFilter, setCardTypeFilter] = useState<string>("")
+  const [expiryStartDate, setExpiryStartDate] = useState<string>("")
+  const [expiryEndDate, setExpiryEndDate] = useState<string>("")
   const [cards, setCards] = useState<Card[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -434,7 +438,6 @@ export default function CardManagement() {
   const [showFilters, setShowFilters] = useState(false)
   const cookies = useCookies()
 
-  // Fetch cards
   useEffect(() => {
     const fetchCards = async () => {
       try {
@@ -454,7 +457,7 @@ export default function CardManagement() {
         const data = await response.json()
         if (data.success) {
           setCards(data.data)
-          setTotalCount(data.data.length) // Assuming API returns all cards for simplicity; adjust if paginated
+          setTotalCount(data.data.length)
         } else {
           setError("Failed to fetch cards")
         }
@@ -492,17 +495,33 @@ export default function CardManagement() {
     setTotalCount((prev) => prev + 1)
   }
 
-  const filteredData = cards.filter(
-    (card) =>
+  const filteredData = cards.filter((card) => {
+    const matchesSearch =
       card?.card_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (card?.title && card.title?.toLowerCase().includes(searchTerm.toLowerCase())),
-  )
+      (card?.title && card.title?.toLowerCase().includes(searchTerm.toLowerCase()))
 
-  const totalPages = Math.ceil(totalCount / pageSize)
+    const matchesStatus = statusFilter ? card.is_active.toString() === statusFilter : true
+
+    const matchesCardType = cardTypeFilter
+      ? detectCardType(card.card_number) === cardTypeFilter
+      : true
+
+    const cardExpiryDate = new Date(card.expiry_date)
+    const matchesExpiryRange =
+      (!expiryStartDate || cardExpiryDate >= new Date(expiryStartDate)) &&
+      (!expiryEndDate || cardExpiryDate <= new Date(expiryEndDate))
+
+    return matchesSearch && matchesStatus && matchesCardType && matchesExpiryRange
+  })
+
+  const totalPages = Math.ceil(filteredData.length / pageSize)
 
   const clearAllFilters = () => {
     setSearchTerm("")
     setStatusFilter("")
+    setCardTypeFilter("")
+    setExpiryStartDate("")
+    setExpiryEndDate("")
     setCurrentPage(1)
   }
 
@@ -510,6 +529,8 @@ export default function CardManagement() {
     let count = 0
     if (searchTerm) count++
     if (statusFilter) count++
+    if (cardTypeFilter) count++
+    if (expiryStartDate || expiryEndDate) count++
     return count
   }
 
@@ -577,14 +598,11 @@ export default function CardManagement() {
 
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="outline" className="h-11 gap-2 rounded-lg bg-transparent">
-                        <Download className="h-5 w-5" />
-                        Export
-                      </Button>
+                      <ExportButton data={filteredData} fileName="cards.csv" />
                     </TooltipTrigger>
                     <TooltipContent>Export cards to CSV</TooltipContent>
                   </Tooltip>
-                  
+
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -598,7 +616,6 @@ export default function CardManagement() {
                     </TooltipTrigger>
                     <TooltipContent>Add a new payment card</TooltipContent>
                   </Tooltip>
-
                 </div>
               </div>
             </div>
@@ -624,39 +641,87 @@ export default function CardManagement() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <CreditCard className="h-4 w-4" />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         Card Status
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Status
-                        </label>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
-                              {statusFilter
-                                ? statusFilter === "true"
-                                  ? "Active"
-                                  : "Inactive"
-                                : "Select Status"}
-                              <ChevronDown className="h-4 w-4 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="w-full">
-                            <DropdownMenuItem onClick={() => setStatusFilter("")}>
-                              All Statuses
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setStatusFilter("true")}>
-                              Active
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setStatusFilter("false")}>
-                              Inactive
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      </label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
+                            {statusFilter
+                              ? statusFilter === "true"
+                                ? "Active"
+                                : "Inactive"
+                              : "Select Status"}
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-full">
+                          <DropdownMenuItem onClick={() => setStatusFilter("")}>
+                            All Statuses
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setStatusFilter("true")}>
+                            Active
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setStatusFilter("false")}>
+                            Inactive
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Card Type
+                      </label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
+                            {cardTypeFilter || "Select Card Type"}
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-full">
+                          <DropdownMenuItem onClick={() => setCardTypeFilter("")}>
+                            All Types
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setCardTypeFilter("Visa")}>
+                            Visa
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setCardTypeFilter("Mastercard")}>
+                            Mastercard
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setCardTypeFilter("Amex")}>
+                            Amex
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setCardTypeFilter("Unknown")}>
+                            Unknown
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Expiry Date Range
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          value={expiryStartDate}
+                          onChange={(e) => setExpiryStartDate(e.target.value)}
+                          placeholder="Start Date"
+                          className="h-10"
+                        />
+                        <span className="text-muted-foreground">to</span>
+                        <Input
+                          type="date"
+                          value={expiryEndDate}
+                          onChange={(e) => setExpiryEndDate(e.target.value)}
+                          placeholder="End Date"
+                          className="h-10"
+                        />
                       </div>
                     </div>
                   </div>
@@ -675,6 +740,24 @@ export default function CardManagement() {
                           <Badge variant="secondary" className="gap-1">
                             Status: {statusFilter === "true" ? "Active" : "Inactive"}
                             <X className="h-3 w-3 cursor-pointer" onClick={() => setStatusFilter("")} />
+                          </Badge>
+                        )}
+                        {cardTypeFilter && (
+                          <Badge variant="secondary" className="gap-1">
+                            Card Type: {cardTypeFilter}
+                            <X className="h-3 w-3 cursor-pointer" onClick={() => setCardTypeFilter("")} />
+                          </Badge>
+                        )}
+                        {(expiryStartDate || expiryEndDate) && (
+                          <Badge variant="secondary" className="gap-1">
+                            Expiry: {expiryStartDate || "Any"} - {expiryEndDate || "Any"}
+                            <X
+                              className="h-3 w-3 cursor-pointer"
+                              onClick={() => {
+                                setExpiryStartDate("")
+                                setExpiryEndDate("")
+                              }}
+                            />
                           </Badge>
                         )}
                       </div>
@@ -699,7 +782,7 @@ export default function CardManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredData.map((card) => (
+                {filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((card) => (
                   <TableRow key={card.id} className="hover:bg-muted/20">
                     <TableCell className="font-medium">{card.id}</TableCell>
                     <TableCell>{card.title || "N/A"}</TableCell>
@@ -707,7 +790,7 @@ export default function CardManagement() {
                     <TableCell>{formatDmy(card.expiry_date)}</TableCell>
                     <TableCell className="text-center">{card.pin}</TableCell>
                     <TableCell className="text-center">
-                      <Badge >
+                      <Badge>
                         {card.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>

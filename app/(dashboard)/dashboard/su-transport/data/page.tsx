@@ -16,18 +16,47 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
+import ExportButton from "@/app/utils/ExportButton";
 
 // Define types for API responses
+interface Stop {
+  id: number;
+  su_run: number;
+  location: number;
+  location_name: string;
+  order: number;
+  number: number;
+  spillover: number;
+  mileage: number;
+  arrival_time: string | null;
+  notes: string;
+}
+
+interface StopDetailsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    data: { driver_name: string; number: number; datetime: string; direction: string }[];
+  };
+}
+
 interface ApiRun {
   runName: string;
   startTime: string;
   endTime: string;
-  data: any[];
+  data: LocationRow[];
   internalJobsList: { name: string; Total: string }[];
 }
 
@@ -114,7 +143,7 @@ const fallbackDrivers: Driver[] = [
 const runNameToId: Record<string, TimeSlotId> = {
   Early: "early",
   "First Shuttle": "shuttle1",
-  "Second Shuttle": "shuttle2",
+  "2nd Shuttle Run": "shuttle2",
   "Third Shuttle": "shuttle3",
   Night: "night",
 };
@@ -143,6 +172,10 @@ export default function TransportDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
+  const [selectedStop, setSelectedStop] = useState<{
+    location_name: string;
+    data: { driver_name: string; number: number; datetime: string; direction: string }[];
+  } | null>(null);
   const cookies = useCookies();
   const token = cookies.get("access_token");
 
@@ -216,7 +249,7 @@ export default function TransportDashboard() {
           end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(defaultEndDate, "yyyy-MM-dd"),
           driver: selectedDriver !== "all" ? selectedDriver : "",
           location: selectedLocation !== "all" ? selectedLocation : "",
-          direction: direction !== "all" ? direction : "out",
+          direction: direction !== "all" ? direction : "",
           page: page.toString(),
           page_size: "20",
         });
@@ -242,7 +275,12 @@ export default function TransportDashboard() {
             timeRange: `${run.startTime} - ${run.endTime}`,
             data: run.data,
             internalOps: {
-              drivers: [],
+              drivers: run.internalJobsList.map((job) => ({
+                name: job.name,
+                transfers: parseInt(job.Total),
+                jobs: parseInt(job.Total),
+                total: parseInt(job.Total),
+              })),
             },
           };
         });
@@ -272,6 +310,49 @@ export default function TransportDashboard() {
   const getTotalOut = () => filteredData.reduce((sum, item) => sum + item.out, 0);
   const getTotalIn = () => filteredData.reduce((sum, item) => sum + item.in, 0);
   const getTotalSpillOver = () => filteredData.reduce((sum, item) => sum + item.spillover, 0);
+
+  const handleShowDetails = async (locationName: string) => {
+    try {
+      const queryParams = new URLSearchParams({
+        location_name: locationName,
+        run_type: activeTab === "early" ? "Early" : 
+                  activeTab === "shuttle1" ? "First Shuttle" : 
+                  activeTab === "shuttle2" ? "2nd Shuttle Run" : 
+                  activeTab === "shuttle3" ? "Third Shuttle" : 
+                  "Night",
+        start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : "2025-09-08",
+        end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : "2025-09-08",
+      });
+
+      const response = await fetch(
+        `${API_URL}/activity/su-run/details/?${queryParams}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch stop details");
+      }
+
+      const data: StopDetailsResponse = await response.json();
+      if (data.success) {
+        setSelectedStop({
+          location_name: locationName,
+          data: data.data.data,
+        });
+      } else {
+        throw new Error(data.message || "Failed to fetch stop details");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to fetch stop details.");
+      setSelectedStop(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white p-6">
@@ -310,9 +391,7 @@ export default function TransportDashboard() {
           ))}
         </div>
         <div className="flex items-center">
-          <Badge variant="secondary" className="bg-pink-600/20 text-pink-600 px-4 py-1 rounded-2xl text-sm font-medium border-pink-600 hover:bg-pink-600">
-            Reports
-          </Badge>
+          <ExportButton data={filteredData} fileName="SU data Management" />
         </div>
       </div>
 
@@ -324,7 +403,7 @@ export default function TransportDashboard() {
         </div>
         {/* Filter Row */}
         <div className="flex items-center gap-4 mb-6 text-sm text-gray-600">
-        <Select onValueChange={setDirection} value={direction}>
+          <Select onValueChange={setDirection} value={direction}>
             <SelectTrigger className="w-[180px] border-gray-300">
               <SelectValue placeholder="Select Direction" />
             </SelectTrigger>
@@ -341,7 +420,7 @@ export default function TransportDashboard() {
             <SelectContent>
               <SelectItem value="all">All Locations</SelectItem>
               {locations.map((loc) => (
-                <SelectItem key={loc.id} value={loc.name}>
+                <SelectItem key={loc.id} value={loc.id.toString()}>
                   {loc.name}
                 </SelectItem>
               ))}
@@ -354,65 +433,60 @@ export default function TransportDashboard() {
             <SelectContent>
               <SelectItem value="all">All Drivers</SelectItem>
               {drivers.map((driver) => (
-                <SelectItem key={driver.id} value={driver.full_name}>
+                <SelectItem key={driver.id} value={driver.id.toString()}>
                   {driver.full_name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <div className="flex items-center gap-4">
-  {/* Start Date Picker */}
-  <Popover>
-    <PopoverTrigger asChild>
-      <Button
-        variant="outline"
-        className={cn(
-          "w-[140px] justify-start text-left font-normal",
-          !dateRange.from && "text-muted-foreground"
-        )}
-      >
-        {dateRange.from ? format(dateRange.from, "LLL dd, yyyy") : "Start Date"}
-      </Button>
-    </PopoverTrigger>
-    <PopoverContent className="w-auto p-2">
-      <Calendar
-        mode="single"
-        selected={dateRange.from}
-        onSelect={(date) => setDateRange((prev) => ({ ...prev, from: date }))}
-        initialFocus
-        className="rounded-md"
-        defaultMonth={dateRange.from || new Date()}
-      />
-    </PopoverContent>
-  </Popover>
-
-  {/* End Date Picker */}
-  <Popover>
-    <PopoverTrigger asChild>
-      <Button
-        variant="outline"
-        className={cn(
-          "w-[140px] justify-start text-left font-normal",
-          !dateRange.to && "text-muted-foreground"
-        )}
-      >
-        {dateRange.to ? format(dateRange.to, "LLL dd, yyyy") : "End Date"}
-      </Button>
-    </PopoverTrigger>
-    <PopoverContent className="w-auto p-2">
-      <Calendar
-        mode="single"
-        selected={dateRange.to}
-        onSelect={(date) => setDateRange((prev) => ({ ...prev, to: date }))}
-        initialFocus
-        className="rounded-md "
-        defaultMonth={dateRange.to || new Date()}
-      />
-    </PopoverContent>
-  </Popover>
-</div>
-
-      
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[140px] justify-start text-left font-normal",
+                    !dateRange.from && "text-muted-foreground"
+                  )}
+                >
+                  {dateRange.from ? format(dateRange.from, "LLL dd, yyyy") : "Start Date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2">
+                <Calendar
+                  mode="single"
+                  selected={dateRange.from}
+                  onSelect={(date) => setDateRange((prev) => ({ ...prev, from: date }))}
+                  initialFocus
+                  className="rounded-md"
+                  defaultMonth={dateRange.from || new Date()}
+                />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[140px] justify-start text-left font-normal",
+                    !dateRange.to && "text-muted-foreground"
+                  )}
+                >
+                  {dateRange.to ? format(dateRange.to, "LLL dd, yyyy") : "End Date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2">
+                <Calendar
+                  mode="single"
+                  selected={dateRange.to}
+                  onSelect={(date) => setDateRange((prev) => ({ ...prev, to: date }))}
+                  initialFocus
+                  className="rounded-md"
+                  defaultMonth={dateRange.to || new Date()}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
 
@@ -421,27 +495,7 @@ export default function TransportDashboard() {
       {error && <p className="text-red-500">{error}</p>}
 
       {/* Pagination Controls */}
-      {!isLoading && (
-        <div className="flex justify-between mb-4">
-          <Button
-            disabled={page === 1}
-            onClick={() => setPage((prev) => prev - 1)}
-            variant="outline"
-          >
-            Previous
-          </Button>
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            disabled={page === totalPages}
-            onClick={() => setPage((prev) => prev + 1)}
-            variant="outline"
-          >
-            Next
-          </Button>
-        </div>
-      )}
+   
 
       {/* Data Table */}
       {!isLoading && (
@@ -453,40 +507,98 @@ export default function TransportDashboard() {
                 <TableHead className="text-center font-semibold text-gray-700">OUT</TableHead>
                 <TableHead className="text-center font-semibold text-gray-700">IN</TableHead>
                 <TableHead className="text-center font-semibold text-gray-700">Spill Over</TableHead>
-                <TableHead className="text-center font-semibold text-gray-700">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredData.length > 0 ? (
                 filteredData.map((row, index) => (
-                  <TableRow key={index} className="hover:bg-gray-50 border-b">
-                    <TableCell className="font-medium text-gray-900 py-3">{row.location}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary" className="bg-[#FFC1CC] text-[#FF2E63]">
-                        {row.out}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary" className="bg-[#C1E1C5] text-[#2E7D32]">
-                        {row.in}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        variant="secondary"
-                        className={`${
-                          row.spillover > 0 ? "bg-[#C1E1C5] text-[#2E7D32]" : "bg-[#FFC1CC] text-[#FF2E63]"
-                        }`}
+                  <Dialog key={index}>
+                    <DialogTrigger asChild>
+                      <TableRow
+                        className="hover:bg-gray-50 cursor-pointer border-b"
+                        onClick={() => handleShowDetails(row.location)}
                       >
-                        {row.spillover > 0 ? `+${row.spillover}` : row.spillover}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                        <TableCell className="font-medium text-gray-900 py-3">{row.location}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary" className="bg-[#FFC1CC] text-[#FF2E63]">
+                            {row.out}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary" className="bg-[#C1E1C5] text-[#2E7D32]">
+                            {row.in}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge
+                            variant="secondary"
+                            className={`${
+                              row.spillover > 0 ? "bg-[#C1E1C5] text-[#2E7D32]" : "bg-[#FFC1CC] text-[#FF2E63]"
+                            }`}
+                          >
+                            {row.spillover > 0 ? `+${row.spillover}` : row.spillover}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    </DialogTrigger>
+                    {selectedStop && (
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>{selectedStop.location_name} Details</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-gray-50 border-b">
+                                <TableHead className="text-left font-semibold text-gray-700 py-3">Driver Name</TableHead>
+                                <TableHead className="text-center font-semibold text-gray-700">Number</TableHead>
+                                <TableHead className="text-center font-semibold text-gray-700">DateTime</TableHead>
+                                <TableHead className="text-center font-semibold text-gray-700">Direction</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {selectedStop.data.length > 0 ? (
+                                selectedStop.data.map((item, index) => (
+                                  <TableRow
+                                    key={index}
+                                    className={`hover:bg-gray-50 border-b ${
+                                      item.direction === "in" ? "bg-green-50" : "bg-red-50"
+                                    }`}
+                                  >
+                                    <TableCell className="font-medium text-gray-900 py-3">
+                                      {item.driver_name}
+                                    </TableCell>
+                                    <TableCell className="text-center">{item.number}</TableCell>
+                                    <TableCell className="text-center">
+                                      {new Date(item.datetime).toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={`${
+                                          item.direction === "in"
+                                            ? "bg-green-100 text-green-600"
+                                            : "bg-red-100 text-red-600"
+                                        }`}
+                                      >
+                                        {item.direction}
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={4} className="text-center text-gray-500 py-4">
+                                    No details available for this location.
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </DialogContent>
+                    )}
+                  </Dialog>
                 ))
               ) : (
                 <TableRow>

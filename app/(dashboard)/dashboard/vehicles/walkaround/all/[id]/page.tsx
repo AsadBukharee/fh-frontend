@@ -7,6 +7,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Calendar, Clock, Car, User, MapPin, Gauge } from 'lucide-react'
 import API_URL from '@/app/utils/ENV'
 import { useCookies } from 'next-client-cookies'
 import { useParams } from 'next/navigation'
@@ -37,7 +40,13 @@ interface WalkaroundData {
         id: number
         registration_number: string
         vehicles_type_name: string
-        site_allocated: string | null
+        last_mileage: string
+        site_allocated: {
+          id: number
+          name: string
+          status: string
+          image: string
+        }
       }
       conducted_by: {
         id: number
@@ -52,14 +61,14 @@ interface WalkaroundData {
         full_name: string
         role: string
         avatar: string | null
-      }
+      } | null
       walkaround_step: number
       date: string
       time: string
-      milage: number
-      signature: string
-      note: string
-      defects: string
+      mileage: number | null
+      signature: string | null
+      note: string | null
+      defects: string | null
       walkaround_duration: number | null
       status: string
       created_at: string
@@ -105,21 +114,29 @@ const InspectionItem = ({
   }
 
   return (
-    <Card className="mb-6">
-      <CardHeader className="pb-4">
+    <Card className="mb-6 border-gray-500/20 shadow-sm hover:shadow-md transition-shadow">
+      <CardHeader className="pb-4 bg-gradient-to-r from-orange-500/10 to-rose-500/10">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-medium">{title}</CardTitle>
-          <Badge variant={status === "Required" ? "destructive" : "secondary"}>{status}</Badge>
+          <CardTitle className="text-lg font-semibold text-gray-800">{title}</CardTitle>
+          <Badge 
+            variant={status === "Required" ? "destructive" : "secondary"} 
+            className={status === "Required" ? "bg-rose-500 text-white" : "bg-orange-500 text-white"}
+          >
+            {status}
+          </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6 pt-4">
         <div>
-          <h4 className="text-sm font-medium mb-3">Inspection Results</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Inspection Results</h4>
           <RadioGroup defaultValue={defaultValue} className="flex gap-6" disabled>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="pass" id={`${safeId}-pass`} />
               <Label htmlFor={`${safeId}-pass`} className="text-sm">
-                <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
+                <Badge 
+                  variant="secondary" 
+                  className="bg-orange-500/20 text-orange-800 hover:bg-orange-500/30"
+                >
                   Pass
                 </Badge>
               </Label>
@@ -127,26 +144,33 @@ const InspectionItem = ({
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="fail" id={`${safeId}-fail`} />
               <Label htmlFor={`${safeId}-fail`} className="text-sm">
-                <Badge variant="destructive">Fail</Badge>
+                <Badge variant="destructive" className="bg-rose-500 text-white">Fail</Badge>
               </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="na" id={`${safeId}-na`} />
               <Label htmlFor={`${safeId}-na`} className="text-sm">
-                <Badge variant="outline">N/A</Badge>
+                <Badge variant="outline" className="border-gray-500 text-gray-700">N/A</Badge>
               </Label>
             </div>
           </RadioGroup>
         </div>
         <div>
-          <h4 className="text-sm font-medium mb-2">Comments</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Comments</h4>
           <Textarea
             placeholder="Add any additional notes or observations"
-            className="min-h-[80px] resize-none"
+            className="min-h-[80px] resize-none border-gray-500/30 focus:ring-orange-500"
             value={localComments}
-          readOnly
+            onChange={(e) => setLocalComments(e.target.value)}
+            readOnly={isSaving}
           />
-          
+          <Button 
+            className="mt-3 bg-orange-500 hover:bg-orange-600 text-white"
+            onClick={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Comments'}
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -180,7 +204,6 @@ const VehicleInspectionPage = () => {
         const data: WalkaroundData = await response.json()
         if (data.success) {
           setWalkaroundData(data)
-          // Check for inconsistency in defects field
           if (data.data.walkaround.defects === "no" && data.data.defected_count > 0) {
             console.warn("Inconsistent defect data: defects field says 'no' but defected_count is non-zero")
           }
@@ -198,7 +221,11 @@ const VehicleInspectionPage = () => {
   }, [walkaroundId, cookies])
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB')
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
   }
 
   const getInspectionStatus = (isDefected: boolean): "Required" | "Completed" => {
@@ -222,7 +249,6 @@ const VehicleInspectionPage = () => {
     if (!response.ok) throw new Error('Failed to save comments')
   }
 
-  // Filter answers for the "Lights & Electrical" section
   const lightAndElectricalQuestions = [
     "Lights - Headlights / Side Lights / Main Beam",
     "Lights - Rear / Reverse / Fog / Brake",
@@ -236,49 +262,187 @@ const VehicleInspectionPage = () => {
   const completedCount = filteredAnswers.filter((answer) => !answer.is_defected).length
   const totalCount = filteredAnswers.length
 
-  if (isLoading) return <div className="p-6 text-center">Loading...</div>
-  if (error) return <div className="p-6 text-center text-red-600">{error}</div>
-  if (!walkaroundData) return <div className="p-6 text-center">No data available</div>
+  if (isLoading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-gray-700 text-lg animate-pulse">Loading...</div>
+    </div>
+  )
+  if (error) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-rose-500 text-lg">{error}</div>
+    </div>
+  )
+  if (!walkaroundData) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-gray-700 text-lg">No data available</div>
+    </div>
+  )
 
   return (
-    <div className="max-w-full mx-auto p-6 bg-background">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-4">Vehicle Inspection</h1>
-        {/* <div className="flex gap-2 flex-wrap">
-          <Badge variant="outline" className="bg-orange-100 text-orange-800">Over 18+</Badge>
-          <Badge variant="secondary" className="bg-green-100 text-green-800">Supervised</Badge>
-          <Badge variant="outline">N/A</Badge>
-          <Badge variant="secondary" className="bg-blue-100 text-blue-800">Admin</Badge>
-          <Badge variant="outline">All</Badge>
-        </div> */}
-      </div>
-
-      
-
-      {/* Lights & Electrical Section */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Lights & Electrical</h2>
-          <span className="text-sm text-muted-foreground">{`${completedCount}/${totalCount} Completed`}</span>
+    <div className="max-w-5xl mx-r-auto p-6 bg-gray-50 min-h-screen">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">Vehicle Inspection</h1>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="border-orange-500 text-orange-500">ID: {walkaroundData.data.walkaround.id}</Badge>
+          <Badge variant="outline" className="border-gray-500 text-gray-500">
+            {walkaroundData.data.walkaround.status.charAt(0).toUpperCase() + walkaroundData.data.walkaround.status.slice(1)}
+          </Badge>
         </div>
+      </header>
 
+      <ScrollArea className="h-[calc(100vh-200px)]">
         {filteredAnswers.length === 0 ? (
-          <p>No questions found for Lights & Electrical</p>
+          <Card className="border-gray-500/20 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-orange-500/50 to-rose-500/50">
+              <CardTitle className="text-2xl font-semibold text-gray-800">Walkaround Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-8 pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                    <Car className="h-5 w-5 text-orange-500" /> Vehicle Information
+                  </h3>
+                  <div className="space-y-2 text-gray-600">
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Registration:</span> 
+                      {walkaroundData.data.walkaround.vehicle.registration_number}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Type:</span> 
+                      {walkaroundData.data.walkaround.vehicle.vehicles_type_name}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Last Mileage:</span> 
+                      {walkaroundData.data.walkaround.vehicle.last_mileage}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-orange-500" />
+                      <span className="font-medium">Site:</span> 
+                      {walkaroundData.data.walkaround.vehicle.site_allocated.name} 
+                      <Badge variant="outline" className="ml-2 border-gray-500 text-gray-500">
+                        {walkaroundData.data.walkaround.vehicle.site_allocated.status}
+                      </Badge>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                    <User className="h-5 w-5 text-orange-500" /> Conducted By
+                  </h3>
+                  <div className="space-y-2 text-gray-600">
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Name:</span> 
+                      {walkaroundData.data.walkaround.conducted_by.full_name}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Role:</span> 
+                      {walkaroundData.data.walkaround.conducted_by.role}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Email:</span> 
+                      {walkaroundData.data.walkaround.conducted_by.email}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="bg-gray-500/20" />
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-orange-500" /> Inspection Details
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-600">
+                  <p className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-rose-500" />
+                    <span className="font-medium">Date:</span> 
+                    {formatDate(walkaroundData.data.walkaround.date)}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-rose-500" />
+                    <span className="font-medium">Time:</span> 
+                    {walkaroundData.data.walkaround.time.split('.')[0]}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="font-medium">Step:</span> 
+                    {walkaroundData.data.walkaround.walkaround_step}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="font-medium">Status:</span> 
+                    <Badge 
+                      variant="outline" 
+                      className={walkaroundData.data.walkaround.status === 'pending' 
+                        ? "border-rose-500 text-rose-500" 
+                        : "border-orange-500 text-orange-500"}
+                    >
+                      {walkaroundData.data.walkaround.status.charAt(0).toUpperCase() + 
+                       walkaroundData.data.walkaround.status.slice(1)}
+                    </Badge>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Gauge className="h-4 w-4 text-rose-500" />
+                    <span className="font-medium">Mileage:</span> 
+                    {walkaroundData.data.walkaround.mileage ?? 'N/A'}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="font-medium">Note:</span> 
+                    {walkaroundData.data.walkaround.note ?? 'N/A'}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="font-medium">Defects:</span> 
+                    {walkaroundData.data.walkaround.defects ?? 'None reported'}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-rose-500" />
+                    <span className="font-medium">Duration:</span> 
+                    {walkaroundData.data.walkaround.walkaround_duration ?? 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              {walkaroundData.data.walkaround.vehicle.site_allocated.image && (
+                <>
+                  <Separator className="bg-gray-500/20" />
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-orange-500" /> Site Image
+                    </h3>
+                    <img 
+                      src={walkaroundData.data.walkaround.vehicle.site_allocated.image} 
+                      alt={walkaroundData.data.walkaround.vehicle.site_allocated.name} 
+                      className="max-w-full h-auto rounded-lg shadow-sm"
+                    />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         ) : (
-          filteredAnswers.map((answer) => (
-            <InspectionItem
-              key={answer.id}
-              title={answer.question_text}
-              status={getInspectionStatus(answer.is_defected)}
-              defaultValue={getDefaultValue(answer.is_defected)}
-              comments={answer.description || ""}
-              answerId={answer.id}
-              onSaveComments={handleSaveComments}
-            />
-          ))
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-800">Lights & Electrical</h2>
+              <Badge 
+                variant="outline" 
+                className="border-orange-500 text-orange-500"
+              >
+                {`${completedCount}/${totalCount} Completed`}
+              </Badge>
+            </div>
+            {filteredAnswers.map((answer) => (
+              <InspectionItem
+                key={answer.id}
+                title={answer.question_text}
+                status={getInspectionStatus(answer.is_defected)}
+                defaultValue={getDefaultValue(answer.is_defected)}
+                comments={answer.description || ""}
+                answerId={answer.id}
+                onSaveComments={handleSaveComments}
+              />
+            ))}
+          </div>
         )}
-      </div>
+      </ScrollArea>
     </div>
   )
 }

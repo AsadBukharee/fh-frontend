@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect, useMemo, type FC } from "react";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import BadgeList from "../BadgeList";
+
 // API configuration
 const API_CONFIG = {
   baseUrl: "https://api.example.com", // Replace with actual API host
@@ -38,20 +40,22 @@ const API_CONFIG = {
     update: "/activity/pmi/{id}/",
     delete: "/activity/pmi/{id}/",
     download: "/activity/pmi/{id}/download/",
-    vehicles: "/api/vehicles/", // New endpoint for fetching vehicles
+    vehicles: "/api/vehicles/",
   },
 };
+
 // Type definitions
 interface TyreData {
   [key: string]: string | number | null | undefined;
 }
-// New Vehicle type
+
 interface Vehicle {
   id?: number | string;
   vehicle_reg?: string;
   registration_number?: string;
   vehicles_type?: { id: string | number };
 }
+
 interface PmiRow {
   id: number | string;
   vehicle_reg: string;
@@ -85,7 +89,8 @@ interface PmiRow {
     pmi_report_date?: string;
   };
 }
-// ActionMenu component (unchanged)
+
+// ActionMenu component
 const ActionMenu: FC<{
   row: PmiRow;
   onEdit: (row: PmiRow) => void;
@@ -131,7 +136,8 @@ const ActionMenu: FC<{
     </DropdownMenuContent>
   </DropdownMenu>
 );
-// StatusCell component (updated with text type)
+
+// StatusCell component
 const StatusCell: FC<{
   status: string | number | null | undefined;
   rowId: number | string;
@@ -193,6 +199,7 @@ const StatusCell: FC<{
     </span>
   );
 };
+
 const getSafetyColor = (value: string | number | null | undefined, field: string): string => {
   if (value === null || value === undefined || value === "") return "";
   if (field === "tyre_pressure") {
@@ -209,6 +216,7 @@ const getSafetyColor = (value: string | number | null | undefined, field: string
   }
   return "";
 };
+
 const PMIHistory: FC = () => {
   const [pmiData, setPmiData] = useState<PmiRow[]>([]);
   const [activeTab, setActiveTab] = useState<"All Data" | "Tyre Depth" | "Tyre Dates" | "Others">("All Data");
@@ -222,16 +230,17 @@ const PMIHistory: FC = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editForm, setEditForm] = useState<Partial<PmiRow>>({});
   const [sortConfig, setSortConfig] = useState<{ key: keyof PmiRow; direction: "asc" | "desc" } | null>(null);
-  // New state for vehicle filter
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");
   const token = useCookies().get("access_token");
+
   const tabs = [
     { label: "All Data", icon: Database },
     { label: "Tyre Depth", icon: Scale },
     { label: "Tyre Dates", icon: CalendarDays },
     { label: "Others", icon: Settings },
   ] as const;
+
   const safeSetPmiData = (newData: unknown) => {
     if (Array.isArray(newData)) {
       setPmiData(newData as PmiRow[]);
@@ -241,6 +250,7 @@ const PMIHistory: FC = () => {
       setError("Invalid data format received");
     }
   };
+
   const transformApiResponse = (apiData: any[]): PmiRow[] => {
     const flatData: PmiRow[] = [];
     apiData.forEach((item) => {
@@ -285,6 +295,7 @@ const PMIHistory: FC = () => {
     });
     return flatData;
   };
+
   const flattenTyreFields = (row: Partial<PmiRow>): Record<string, any> => {
     const flattened: Record<string, any> = { ...row };
     ["tyre_pressure", "tyre_depth", "tyre_dates"].forEach((field) => {
@@ -297,6 +308,7 @@ const PMIHistory: FC = () => {
     });
     return flattened;
   };
+
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     const defaultHeaders = {
       "Content-Type": "application/json",
@@ -307,7 +319,7 @@ const PMIHistory: FC = () => {
       headers: { ...defaultHeaders, ...options.headers },
     });
   };
-  // New function to fetch vehicles
+
   const fetchVehicles = async () => {
     try {
       const response = await apiCall(API_CONFIG.endpoints.vehicles);
@@ -321,19 +333,33 @@ const PMIHistory: FC = () => {
         setError(apiResponse.message || "Invalid vehicles response format");
         return;
       }
-      setVehicles(apiResponse.data as Vehicle[]);
+      const uniqueVehicles = Array.from(
+        new Map(
+          apiResponse.data.map((vehicle: any) => [
+            vehicle.id,
+            {
+              id: vehicle.id,
+              registration_number: vehicle.registration_number || `Vehicle-${vehicle.id}`,
+              vehicle_reg: vehicle.vehicle_reg || `Vehicle-${vehicle.id}`,
+              vehicles_type: vehicle.vehicles_type || { id: vehicle.vehicle_type_id || "" },
+            }
+          ])
+        ).values()
+      ).filter((v: any) => v.id !== undefined && v.id !== null) as Vehicle[];
+      setVehicles(uniqueVehicles);
     } catch (error) {
       console.error("Failed to fetch vehicles:", error);
       setError("Failed to load vehicle list");
     }
   };
+
   const fetchPmiData = async (vehicleId?: string) => {
     setLoading(true);
     try {
-      // Updated to handle vehicle filter
-      const endpoint = vehicleId && vehicleId !== "all"
-        ? `${API_CONFIG.endpoints.pmi}${vehicleId}/`
-        : API_CONFIG.endpoints.pmi;
+      const endpoint =
+        vehicleId && vehicleId !== "all"
+          ? `${API_CONFIG.endpoints.pmi}${vehicleId}/`
+          : API_CONFIG.endpoints.pmi;
       const response = await apiCall(endpoint);
       if (!response.ok) {
         throw new Error(`API request failed with status ${response.status}`);
@@ -354,12 +380,14 @@ const PMIHistory: FC = () => {
       setLoading(false);
     }
   };
+
   const handleRefresh = () => {
     setSearchTerm("");
     setCurrentPage(1);
-    setSelectedVehicle("all"); // Reset vehicle filter on refresh
+    setSelectedVehicle("all");
     fetchPmiData();
   };
+
   const handleStatusUpdate = async (
     id: number | string,
     field: string,
@@ -411,6 +439,7 @@ const PMIHistory: FC = () => {
       setError("Failed to update PMI record");
     }
   };
+
   const handleEdit = (row: PmiRow) => {
     setSelectedRow(row);
     setEditForm({
@@ -422,19 +451,25 @@ const PMIHistory: FC = () => {
     setIsEditing(true);
     setShowModal(true);
   };
+
   const handleView = (row: PmiRow) => {
     setSelectedRow(row);
     setIsEditing(false);
     setShowModal(true);
   };
+
   const handleUpdate = async () => {
     if (!selectedRow) return;
     try {
+      setLoading(true);
       const endpoint = API_CONFIG.endpoints.update.replace("{id}", selectedRow.id.toString());
       const flattenedData = flattenTyreFields(editForm);
       const response = await apiCall(endpoint, {
         method: "PATCH",
-        body: JSON.stringify(flattenedData),
+        body: JSON.stringify({
+          ...flattenedData,
+          vehicle: editForm.vehicle,
+        }),
       });
       if (!response.ok) {
         throw new Error("Failed to update PMI record");
@@ -447,8 +482,11 @@ const PMIHistory: FC = () => {
     } catch (error) {
       console.error("Failed to update PMI record:", error);
       setError("Failed to update PMI record");
+    } finally {
+      setLoading(false);
     }
   };
+
   const handleDelete = async (id: number | string) => {
     try {
       const endpoint = API_CONFIG.endpoints.delete.replace("{id}", id.toString());
@@ -462,6 +500,7 @@ const PMIHistory: FC = () => {
       setError("Failed to delete PMI record");
     }
   };
+
   const handleDownload = async (id: number | string) => {
     try {
       const endpoint = API_CONFIG.endpoints.download.replace("{id}", id.toString());
@@ -481,6 +520,7 @@ const PMIHistory: FC = () => {
       setError("Failed to download PMI record");
     }
   };
+
   const handleApprove = async (id: number | string) => {
     try {
       const endpoint = API_CONFIG.endpoints.update.replace("{id}", id.toString());
@@ -499,6 +539,7 @@ const PMIHistory: FC = () => {
       setError("Failed to approve PMI record");
     }
   };
+
   const handleReject = async (id: number | string) => {
     try {
       const endpoint = API_CONFIG.endpoints.update.replace("{id}", id.toString());
@@ -517,21 +558,23 @@ const PMIHistory: FC = () => {
       setError("Failed to reject PMI record");
     }
   };
-  // Fetch vehicles and PMI data on component mount
+
   useEffect(() => {
     fetchVehicles();
     fetchPmiData();
   }, []);
-  // Fetch PMI data when selected vehicle changes
+
   useEffect(() => {
     fetchPmiData(selectedVehicle);
   }, [selectedVehicle]);
+
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
+
   const tyreColumns = useMemo(() => {
     if (!Array.isArray(pmiData) || pmiData.length === 0) {
       return ["OSF", "NSF", "OSR_Outer", "NSR_Outer", "OSR_Inner", "NSR_Inner"];
@@ -541,22 +584,32 @@ const PMIHistory: FC = () => {
     );
     return firstValidRow ? Object.keys(firstValidRow.tyre_pressure) : [];
   }, [pmiData]);
+
   const formatDateForInput = (date: string | null | undefined) => {
     if (!date) return "";
     return date.split("T")[0];
   };
+
   const isExpired = (expiry: string | null) => {
     if (!expiry) return false;
     return new Date(expiry) < new Date();
   };
+
   const filteredData = useMemo(() => {
-    if (!searchTerm) return pmiData;
-    return pmiData.filter((row) =>
-      Object.values(row).some((value) =>
-        value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
-  }, [pmiData, searchTerm]);
+    if (!Array.isArray(pmiData)) {
+      return [];
+    }
+    return pmiData.filter((row) => {
+      const matchesSearch = searchTerm
+        ? Object.values(row).some((value) =>
+            value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+          )
+        : true;
+      const matchesVehicle = selectedVehicle === "all" ? true : row.vehicle.toString() === selectedVehicle;
+      return matchesSearch && matchesVehicle;
+    });
+  }, [pmiData, searchTerm, selectedVehicle]);
+
   const handleSort = (key: keyof PmiRow) => {
     setSortConfig((prev) => {
       if (!prev || prev.key !== key) {
@@ -565,6 +618,7 @@ const PMIHistory: FC = () => {
       return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
     });
   };
+
   const sortedData = useMemo(() => {
     if (!sortConfig) return filteredData;
     return [...filteredData].sort((a, b) => {
@@ -587,9 +641,11 @@ const PMIHistory: FC = () => {
         : Number(bValue) - Number(aValue);
     });
   }, [filteredData, sortConfig]);
+
   const totalPages = Math.ceil(sortedData.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const paginatedData = sortedData.slice(startIndex, startIndex + rowsPerPage);
+
   const getPageNumbers = () => {
     const maxPagesToShow = 5;
     const pages: number[] = [];
@@ -603,6 +659,7 @@ const PMIHistory: FC = () => {
     }
     return pages;
   };
+
   const getStatusBadge = (status: string) => {
     const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
     switch (status.toUpperCase()) {
@@ -632,6 +689,7 @@ const PMIHistory: FC = () => {
         );
     }
   };
+
   return (
     <div className="min-h-screen bg-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -681,14 +739,13 @@ const PMIHistory: FC = () => {
                     className="pl-10"
                   />
                 </div>
-                {/* New vehicle filter dropdown */}
                 <div className="relative max-w-xs">
                   <Car className="absolute left-3 z-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Select
                     value={selectedVehicle}
                     onValueChange={(value) => {
                       setSelectedVehicle(value);
-                      setCurrentPage(1); // Reset to first page when filter changes
+                      setCurrentPage(1);
                     }}
                   >
                     <SelectTrigger className="pl-10 w-[200px]">
@@ -697,13 +754,14 @@ const PMIHistory: FC = () => {
                     <SelectContent>
                       <SelectItem value="all">All Vehicles</SelectItem>
                       {vehicles
-                        .filter((v) => (v.vehicles_type?.id ?? v.id) !== undefined)
+                        .filter((v) => v.id !== undefined && v.id !== null)
                         .map((vehicle) => (
                           <SelectItem
-                            key={String(vehicle.vehicles_type?.id ?? vehicle.id)}
-                            value={String(vehicle.vehicles_type?.id ?? vehicle.id)}
+                            key={String(vehicle.id)}
+                            value={String(vehicle.id)}
                           >
-                            {vehicle.registration_number ?? vehicle.vehicle_reg ?? "Unknown"}
+                            {(vehicle.registration_number ?? vehicle.vehicle_reg ?? `Vehicle-${vehicle.id}`) +
+                              (vehicle.vehicles_type?.id ? ` (${vehicle.vehicles_type.id})` : "")}
                           </SelectItem>
                         ))}
                     </SelectContent>
@@ -1184,18 +1242,32 @@ const PMIHistory: FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Vehicle Registration
+                          Vehicle
                         </label>
-                        <Input
-                          value={editForm.vehicle_reg || ""}
-                          onChange={(e) =>
+                        <Select
+                          value={editForm.vehicle?.toString() || ""}
+                          onValueChange={(value) =>
                             setEditForm({
                               ...editForm,
-                              vehicle_reg: e.target.value,
+                              vehicle: value ? parseInt(value) : undefined,
+                              vehicle_reg: vehicles.find((v) => v.id !== undefined && v.id !== null && v.id.toString() === value)?.registration_number || "",
                             })
                           }
-                          className="w-full"
-                        />
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select Vehicle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vehicles
+                              .filter((v) => v.id !== undefined && v.id !== null)
+                              .map((vehicle) => (
+                                <SelectItem key={String(vehicle.id)} value={String(vehicle.id)}>
+                                  {(vehicle.registration_number ?? vehicle.vehicle_reg ?? `Vehicle-${vehicle.id}`) +
+                                    (vehicle.vehicles_type?.id ? ` (${vehicle.vehicles_type.id})` : "")}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1700,4 +1772,5 @@ const PMIHistory: FC = () => {
     </div>
   );
 };
+
 export default PMIHistory;

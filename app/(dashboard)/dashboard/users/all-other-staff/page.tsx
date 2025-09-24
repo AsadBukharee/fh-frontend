@@ -75,6 +75,7 @@ import { useToast } from "@/app/Context/ToastContext";
 import AddDriver from "@/components/add-driver/page";
 import { debounce } from "lodash";
 import Link from "next/link";
+import ExportButton from "@/app/utils/ExportButton";
 
 // Interfaces
 interface Site {
@@ -130,6 +131,13 @@ interface UserForm {
   contractId?: string;
   siteId?: string;
   is_active: boolean;
+}
+
+interface Filters {
+  role: string;
+  contract: string;
+  site: string;
+  status: string;
 }
 
 // UserRow Component
@@ -879,6 +887,160 @@ const EditUserModal = React.memo(
 );
 EditUserModal.displayName = "EditUserModal";
 
+// FilterModal Component
+const FilterModal = React.memo(
+  ({
+    isFilterModalOpen,
+    setIsFilterModalOpen,
+    filters,
+    setFilters,
+    roles,
+    contracts,
+    sites,
+    applyFilters,
+  }: {
+    isFilterModalOpen: boolean;
+    setIsFilterModalOpen: (open: boolean) => void;
+    filters: Filters;
+    setFilters: (filters: Filters) => void;
+    roles: Role[];
+    contracts: Contract[];
+    sites: Site[];
+    applyFilters: () => void;
+  }) => (
+    <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto z-50 bg-white">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Filter className="w-5 h-5" />
+            Filter Users
+          </DialogTitle>
+          <DialogDescription>
+            Apply filters to narrow down the user list.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <Label htmlFor="filter-role" className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Role
+            </Label>
+            <Select
+              value={filters.role}
+              onValueChange={(value) => setFilters({ ...filters, role: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.slug}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-4">
+            <Label htmlFor="filter-contract" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Contract
+            </Label>
+            <Select
+              value={filters.contract}
+              onValueChange={(value) => setFilters({ ...filters, contract: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Contracts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Contracts</SelectItem>
+                <SelectItem value="none">No Contract</SelectItem>
+                {contracts.map((contract) => (
+                  <SelectItem key={contract.id} value={contract.id.toString()}>
+                    {contract.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-4">
+            <Label htmlFor="filter-site" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Site
+            </Label>
+            <Select
+              value={filters.site}
+              onValueChange={(value) => setFilters({ ...filters, site: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Sites" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sites</SelectItem>
+                <SelectItem value="none">No Site</SelectItem>
+                {sites.map((site) => (
+                  <SelectItem key={site.id} value={site.id.toString()}>
+                    {site.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-4">
+            <Label htmlFor="filter-status" className="flex items-center gap-2">
+              <ToggleLeft className="w-4 h-4" />
+              Status
+            </Label>
+            <Select
+              value={filters.status}
+              onValueChange={(value) => setFilters({ ...filters, status: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">In-Active</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setFilters({ role: "all", contract: "all", site: "all", status: "all" });
+              applyFilters();
+            }}
+          >
+            Clear Filters
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              applyFilters();
+              setIsFilterModalOpen(false);
+            }}
+            className="bg-gradient-to-r from-orange to-magenta hover:from-orange-700 hover:to-magenta-700"
+          >
+            Apply Filters
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+);
+FilterModal.displayName = "FilterModal";
+
 // UsersPage Component
 export default function UsersPage() {
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
@@ -886,11 +1048,13 @@ export default function UsersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
   const [selectedUserType, setSelectedUserType] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
+  const [rawUsers, setRawUsers] = useState<User[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -905,6 +1069,12 @@ export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState<Filters>({
+    role: "all",
+    contract: "all",
+    site: "all",
+    status: "all",
+  });
   const [formData, setFormData] = useState<UserForm>({
     email: "",
     full_name: "",
@@ -920,7 +1090,62 @@ export default function UsersPage() {
   const { showToast } = useToast();
   const cookies = useCookies();
 
-  // Debounced search handler
+  // Frontend filtering function
+  const filterUsers = useCallback(
+    (users: User[], filters: Filters, query: string): User[] => {
+      let filteredUsers = [...users];
+
+      // Apply search query filter
+      if (query) {
+        const lowerQuery = query.toLowerCase();
+        filteredUsers = filteredUsers.filter(
+          (user) =>
+            user.full_name.toLowerCase().includes(lowerQuery) ||
+            user.email.toLowerCase().includes(lowerQuery) ||
+            user.display_name.toLowerCase().includes(lowerQuery),
+        );
+      }
+
+      // Apply role filter
+      if (filters.role !== "all") {
+        filteredUsers = filteredUsers.filter((user) => user.role === filters.role);
+      }
+
+      // Apply contract filter
+      if (filters.contract !== "all") {
+        if (filters.contract === "none") {
+          filteredUsers = filteredUsers.filter((user) => !user.contract);
+        } else {
+          filteredUsers = filteredUsers.filter(
+            (user) => user.contract?.id.toString() === filters.contract,
+          );
+        }
+      }
+
+      // Apply site filter
+      if (filters.site !== "all") {
+        if (filters.site === "none") {
+          filteredUsers = filteredUsers.filter((user) => !user.site || user.site.length === 0);
+        } else {
+          filteredUsers = filteredUsers.filter((user) =>
+            user.site?.some((site) => site.id.toString() === filters.site),
+          );
+        }
+      }
+
+      // Apply status filter
+      if (filters.status !== "all") {
+        filteredUsers = filteredUsers.filter(
+          (user) => user.is_active === (filters.status === "active"),
+        );
+      }
+
+      return filteredUsers;
+    },
+    [],
+  );
+
+  // Debounced fetch users
   const debouncedFetchUsers = useMemo(
     () =>
       debounce(async (query: string, page: number) => {
@@ -944,7 +1169,9 @@ export default function UsersPage() {
           }
           const data = await response.json();
           if (data.success) {
-            setUsers(data?.data?.results);
+            setRawUsers(data?.data?.results);
+            const filteredUsers = filterUsers(data?.data?.results, filters, query);
+            setUsers(filteredUsers);
             setTotalPages(data.total_pages || Math.ceil(data.data.length / perPage));
             setError(null);
           } else {
@@ -960,8 +1187,15 @@ export default function UsersPage() {
           setLoading(false);
         }
       }, 300),
-    [cookies, showToast, perPage],
+    [cookies, showToast, perPage, filters, filterUsers],
   );
+
+  const applyFilters = useCallback(() => {
+    setCurrentPage(1); // Reset to first page when applying filters
+    const filteredUsers = filterUsers(rawUsers, filters, searchQuery);
+    setUsers(filteredUsers);
+    setTotalPages(Math.ceil(filteredUsers.length / perPage) || 1);
+  }, [rawUsers, filters, searchQuery, perPage, filterUsers]);
 
   const fetchUsers = useCallback(() => {
     debouncedFetchUsers(searchQuery, currentPage);
@@ -1005,7 +1239,7 @@ export default function UsersPage() {
   }, [fetchUsers, fetchRoles]);
 
   useEffect(() => {
-    if (isEditModalOpen || isModalOpen) {
+    if (isEditModalOpen || isModalOpen || isFilterModalOpen) {
       const fetchContracts = async () => {
         if (contracts.length > 0) return; // Cache contracts
         setContractsLoading(true);
@@ -1065,7 +1299,7 @@ export default function UsersPage() {
       fetchContracts();
       fetchSites();
     }
-  }, [isEditModalOpen, isModalOpen, cookies, showToast, contracts.length, sites.length]);
+  }, [isEditModalOpen, isModalOpen, isFilterModalOpen, cookies, showToast, contracts.length, sites.length]);
 
   const handleMouseMove = useCallback(
     (key: string) => (e: React.MouseEvent) => {
@@ -1115,21 +1349,24 @@ export default function UsersPage() {
       : "bg-red-100 text-red-700 hover:bg-red-100";
   }, []);
 
-  const handleAddUserClick = useCallback((type: string) => {
-    setSelectedUserType(type);
-    setFormData({
-      email: "",
-      full_name: "",
-      role: roles.find((role) => role.name.toLowerCase() === type.toLowerCase())?.slug || "",
-      contractId: "none",
-      siteId: "none",
-      is_active: true,
-      password: "",
-      password_confirm: "",
-    });
-    setFormErrors({});
-    setIsModalOpen(true);
-  }, [roles]);
+  const handleAddUserClick = useCallback(
+    (type: string) => {
+      setSelectedUserType(type);
+      setFormData({
+        email: "",
+        full_name: "",
+        role: roles.find((role) => role.name.toLowerCase() === type.toLowerCase())?.slug || "",
+        contractId: "none",
+        siteId: "none",
+        is_active: true,
+        password: "",
+        password_confirm: "",
+      });
+      setFormErrors({});
+      setIsModalOpen(true);
+    },
+    [roles],
+  );
 
   const handleEditUserClick = useCallback((user: User) => {
     setSelectedUser(user);
@@ -1377,7 +1614,10 @@ export default function UsersPage() {
               Authorization: `Bearer ${cookies.get("access_token")}`,
             },
             body: JSON.stringify({
-              site_ids: editFormData.siteId && editFormData.siteId !== "none" ? [Number.parseInt(editFormData.siteId)] : [],
+              site_ids:
+                editFormData.siteId && editFormData.siteId !== "none"
+                  ? [Number.parseInt(editFormData.siteId)]
+                  : [],
             }),
           }),
         );
@@ -1465,14 +1705,14 @@ export default function UsersPage() {
             <p className="text-sm text-gray-500">Manage your team members and their permissions</p>
           </div>
           <div className="space-x-2 flex">
-            <button className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
+            <Button
+              onClick={() => setIsFilterModalOpen(true)}
+              className="px-4 border bg-white border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100"
+            >
               <Filter className="w-4 h-4" />
               Filter
-            </button>
-            <button className="px-4 border rounded flex border-gray-50 shadow justify-center items-center gap-2 text-gray-700 hover:bg-gray-100">
-              <Download className="w-4 h-4" />
-              Export
-            </button>
+            </Button>
+            <ExportButton data={users} fileName="Other Staff" />
             <button
               onClick={fetchUsers}
               disabled={loading}
@@ -1514,7 +1754,13 @@ export default function UsersPage() {
             placeholder="Search users"
             className="pl-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              const filteredUsers = filterUsers(rawUsers, filters, e.target.value);
+              setUsers(filteredUsers);
+              setTotalPages(Math.ceil(filteredUsers.length / perPage) || 1);
+              setCurrentPage(1);
+            }}
           />
         </div>
       </div>
@@ -1545,19 +1791,21 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users?.map((user) => (
-                <UserRow
-                  key={user.id}
-                  user={user}
-                  roles={roles}
-                  getTypeColor={getTypeColor}
-                  getStatusColor={getStatusColor}
-                  handleEditUserClick={handleEditUserClick}
-                  handleDeleteUserClick={handleDeleteUserClick}
-                  buttonRefs={buttonRefs}
-                  handleMouseMove={handleMouseMove}
-                />
-              ))}
+              {users
+                ?.slice((currentPage - 1) * perPage, currentPage * perPage)
+                .map((user) => (
+                  <UserRow
+                    key={user.id}
+                    user={user}
+                    roles={roles}
+                    getTypeColor={getTypeColor}
+                    getStatusColor={getStatusColor}
+                    handleEditUserClick={handleEditUserClick}
+                    handleDeleteUserClick={handleDeleteUserClick}
+                    buttonRefs={buttonRefs}
+                    handleMouseMove={handleMouseMove}
+                  />
+                ))}
             </TableBody>
           </Table>
         </div>
@@ -1650,6 +1898,17 @@ export default function UsersPage() {
         editLoading={editLoading}
         getTypeColor={getTypeColor}
         handleEditUserSubmit={handleEditUserSubmit}
+      />
+
+      <FilterModal
+        isFilterModalOpen={isFilterModalOpen}
+        setIsFilterModalOpen={setIsFilterModalOpen}
+        filters={filters}
+        setFilters={setFilters}
+        roles={roles}
+        contracts={contracts}
+        sites={sites}
+        applyFilters={applyFilters}
       />
 
       {newDriverUserId && (

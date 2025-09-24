@@ -1,6 +1,4 @@
-
 "use client"
-
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { useCookies } from "next-client-cookies"
@@ -9,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog" // Added for modal
 import { User, Calendar, FileText, Building2, Mail, CheckCircle, XCircle, Edit, Save, X, AlertTriangle, File, ExternalLink, Heart } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { formatDmy } from "@/lib/utils"
@@ -172,6 +171,10 @@ export default function DriverDetailPage() {
   const [assigningSites, setAssigningSites] = useState(false)
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState("overview")
+  const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null) // Added for PDF viewing
+
+  // Function to check if a URL is a PDF
+  const isPdfUrl = (url: string) => url.toLowerCase().endsWith('.pdf')
 
   const showToast = (message: string, type: string) => {
     console.log(`${type}: ${message}`)
@@ -186,11 +189,9 @@ export default function DriverDetailPage() {
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
       })
-
       if (!response.ok) {
         throw new Error("Failed to fetch driver data")
       }
-
       const result = await response.json()
       if (result.success) {
         setDriverData(result.data)
@@ -231,11 +232,9 @@ export default function DriverDetailPage() {
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
       })
-
       if (!response.ok) {
         throw new Error("Failed to fetch professional competency data")
       }
-
       const result = await response.json()
       if (result.success) {
         setCompetencyData(result.data)
@@ -261,11 +260,9 @@ export default function DriverDetailPage() {
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
       })
-
       if (!response.ok) {
         throw new Error("Failed to fetch health answers")
       }
-
       const result = await response.json()
       if (result.success) {
         setHealthData(result.data)
@@ -314,7 +311,6 @@ export default function DriverDetailPage() {
         setContractsLoading(false)
       }
     }
-
     const fetchSites = async () => {
       if (sites.length > 0) return
       setSitesLoading(true)
@@ -344,7 +340,6 @@ export default function DriverDetailPage() {
         setSitesLoading(false)
       }
     }
-
     fetchContracts()
     fetchSites()
   }, [cookies])
@@ -354,7 +349,6 @@ export default function DriverDetailPage() {
       showToast("Please select a contract to assign.", "error")
       return
     }
-
     setAssigningContract(true)
     try {
       const response = await fetch(`${API_URL}/api/staff/contracts/${selectedContractId}/assign-users/`, {
@@ -367,11 +361,9 @@ export default function DriverDetailPage() {
           user_ids: [Number(driverData?.user.id)],
         }),
       })
-
       if (!response.ok) {
         throw new Error("Failed to assign contract")
       }
-
       const result = await response.json()
       if (result.success) {
         showToast("Contract assigned successfully", "success")
@@ -393,7 +385,6 @@ export default function DriverDetailPage() {
       showToast("Please select at least one site to assign.", "error")
       return
     }
-
     setAssigningSites(true)
     try {
       const response = await fetch(`${API_URL}/users/${driverData?.user.id}/allocate-sites/`, {
@@ -406,11 +397,9 @@ export default function DriverDetailPage() {
           site_ids: selectedSiteIds.map(Number),
         }),
       })
-
       if (!response.ok) {
         throw new Error("Failed to assign sites")
       }
-
       const result = await response.json()
       showToast("Sites assigned successfully", "success")
       fetchData()
@@ -509,11 +498,9 @@ export default function DriverDetailPage() {
           next_of_kin_address: editFormData.next_of_kin_address,
         }),
       })
-
       if (!response.ok) {
         throw new Error("Failed to update profile")
       }
-
       const result = await response.json()
       if (result.success) {
         setDriverData((prev) =>
@@ -569,17 +556,15 @@ export default function DriverDetailPage() {
         },
         body: JSON.stringify({ health_answers: updates }),
       })
-
       if (!response.ok) {
         throw new Error("Failed to update health answers")
       }
-
       const result = await response.json()
       if (result.success) {
         setHealthData(editHealthData)
         setIsEditingHealth(false)
         showToast("Health answers updated successfully", "success")
-        fetchHealthData() // Refresh data
+        fetchHealthData()
       } else {
         throw new Error(result.message || "Failed to update health answers")
       }
@@ -607,17 +592,15 @@ export default function DriverDetailPage() {
         },
         body: JSON.stringify({ professional_competencies: updates }),
       })
-
       if (!response.ok) {
         throw new Error("Failed to update professional competencies")
       }
-
       const result = await response.json()
       if (result.success) {
         setCompetencyData(editCompetencyData)
         setIsEditingCompetency(false)
         showToast("Professional competencies updated successfully", "success")
-        fetchCompetencyData() // Refresh data
+        fetchCompetencyData()
       } else {
         throw new Error(result.message || "Failed to update professional competencies")
       }
@@ -671,7 +654,6 @@ export default function DriverDetailPage() {
             {getInitials(driverData.user.full_name)}
           </AvatarFallback>
         </Avatar>
-
         <div className="flex-1 space-y-3">
           <div className="flex items-center gap-4">
             <h1 className="text-4xl font-bold text-purple-800">{driverData.user.full_name}</h1>
@@ -686,7 +668,6 @@ export default function DriverDetailPage() {
               {driverData.profile_status.charAt(0).toUpperCase() + driverData.profile_status.slice(1)}
             </Badge>
           </div>
-
           <div className="flex items-center gap-6 text-gray-700">
             <div className="flex items-center gap-2">
               <User className="h-5 w-5 text-purple-600" />
@@ -698,42 +679,40 @@ export default function DriverDetailPage() {
             </div>
           </div>
           <Accordion type="single" collapsible>
-      <AccordionItem value="item-1">
-        <AccordionTrigger>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
-            <span>Warnings</span>
-            {driverData.warnings?.length > 0 && (
-              <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600">
-                {driverData.warnings.length}
-              </span>
-            )}
-          </div>
-        </AccordionTrigger>
-        <AccordionContent>
-          {driverData.warnings?.length > 0 ? (
-            <div className="space-y-2 mt-2">
-              {driverData.warnings.map((warning: string, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700 shadow-sm"
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
-                  <span>{warning}</span>
+            <AccordionItem value="item-1">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  <span>Warnings</span>
+                  {driverData.warnings?.length > 0 && (
+                    <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600">
+                      {driverData.warnings.length}
+                    </span>
+                  )}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground mt-2">
-              No warnings for this driver.
-            </p>
-          )}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-         
+              </AccordionTrigger>
+              <AccordionContent>
+                {driverData.warnings?.length > 0 ? (
+                  <div className="space-y-2 mt-2">
+                    {driverData.warnings.map((warning: string, i: number) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700 shadow-sm"
+                      >
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+                        <span>{warning}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    No warnings for this driver.
+                  </p>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
-
         <div className="flex gap-3">
           {isEditing ? (
             <>
@@ -770,7 +749,6 @@ export default function DriverDetailPage() {
           )}
         </div>
       </div>
-
       <div className="flex justify-evenly items-center gap-6">
         <Card className="w-[220px] shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
           <CardHeader className="pb-3">
@@ -780,7 +758,6 @@ export default function DriverDetailPage() {
             <div className="text-3xl font-bold text-purple-800">{driverData.user.shifts_count}</div>
           </CardContent>
         </Card>
-
         <Card className="w-[220px] shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-gray-600">Paid Holidays</CardTitle>
@@ -789,7 +766,6 @@ export default function DriverDetailPage() {
             <div className="text-3xl font-bold text-purple-800">{driverData.user.paid_holidays}</div>
           </CardContent>
         </Card>
-
         <Card className="w-[220px] shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-gray-600">Rota Status</CardTitle>
@@ -811,7 +787,6 @@ export default function DriverDetailPage() {
           </CardContent>
         </Card>
       </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-5 bg-white border border-purple-200 rounded-xl p-2 shadow-sm">
           <TabsTrigger
@@ -850,7 +825,6 @@ export default function DriverDetailPage() {
             <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
         </TabsList>
-
         <TabsContent value="overview">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
@@ -1004,7 +978,6 @@ export default function DriverDetailPage() {
                 )}
               </CardContent>
             </Card>
-
             <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
@@ -1093,7 +1066,6 @@ export default function DriverDetailPage() {
                 )}
               </CardContent>
             </Card>
-
             <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
@@ -1118,7 +1090,6 @@ export default function DriverDetailPage() {
             </Card>
           </div>
         </TabsContent>
-
         <TabsContent value="contract">
           <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
             <CardHeader>
@@ -1166,7 +1137,6 @@ export default function DriverDetailPage() {
                 </div>
               </div>
               <Separator className="bg-purple-200" />
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label className="text-sm font-semibold text-gray-600">Contract ID</Label>
@@ -1199,7 +1169,6 @@ export default function DriverDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
         <TabsContent value="sites">
           <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
             <CardHeader>
@@ -1254,7 +1223,6 @@ export default function DriverDetailPage() {
                 </div>
               </div>
               <Separator className="bg-purple-200" />
-
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {driverData.user.site.map((site) => (
                   <Card key={site.id} className="overflow-hidden shadow-lg bg-white hover:shadow-xl transition-all rounded-xl">
@@ -1280,7 +1248,6 @@ export default function DriverDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
         <TabsContent value="professional-competency">
           <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
             <CardHeader>
@@ -1397,22 +1364,61 @@ export default function DriverDetailPage() {
                         <Label className="text-sm font-semibold text-gray-600">Document Links</Label>
                         <div className="flex flex-col gap-3 mt-2">
                           {competency.urls.map((url, index) => (
-                            <a
-                              key={index}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors bg-purple-50 p-3 rounded-lg hover:bg-purple-100"
-                            >
-                              <ExternalLink className="h-5 w-5" />
-                              <span>
-                                {competency.has_back_side && index === 0
-                                  ? "Front Side"
-                                  : competency.has_back_side && index === 1
-                                  ? "Back Side"
-                                  : `Document ${index + 1}`}
-                              </span>
-                            </a>
+                            <div key={index}>
+                              {isPdfUrl(url) ? (
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <button
+                                      className="flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors bg-purple-50 p-3 rounded-lg hover:bg-purple-100 w-full text-left"
+                                      onClick={() => setSelectedPdfUrl(url)}
+                                    >
+                                      <ExternalLink className="h-5 w-5" />
+                                      <span>
+                                        {competency.has_back_side && index === 0
+                                          ? "Front Side"
+                                          : competency.has_back_side && index === 1
+                                          ? "Back Side"
+                                          : `Document ${index + 1}`}
+                                      </span>
+                                    </button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-4xl w-full">
+                                    <DialogHeader>
+                                      <DialogTitle>
+                                        {competency.has_back_side && index === 0
+                                          ? "Front Side"
+                                          : competency.has_back_side && index === 1
+                                          ? "Back Side"
+                                          : `Document ${index + 1}`}
+                                      </DialogTitle>
+                                    </DialogHeader>
+                                    <div className="w-full bg-red-600 h-[600px]">
+                                      <iframe
+                                        src={selectedPdfUrl || url}
+                                        title="PDF Viewer"
+                                        className="w-full h-full border-0 rounded-lg"
+                                      />
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              ) : (
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors bg-purple-50 p-3 rounded-lg hover:bg-purple-100"
+                                >
+                                  <ExternalLink className="h-5 w-5" />
+                                  <span>
+                                    {competency.has_back_side && index === 0
+                                      ? "Front Side"
+                                      : competency.has_back_side && index === 1
+                                      ? "Back Side"
+                                      : `Document ${index + 1}`}
+                                  </span>
+                                </a>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -1451,7 +1457,6 @@ export default function DriverDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
         <TabsContent value="health">
           <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
             <CardHeader>

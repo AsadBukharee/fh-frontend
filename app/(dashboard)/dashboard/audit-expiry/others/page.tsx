@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
+import { format } from "date-fns"
 
 // Utility function to transform ID to title
 const formatTitle = (id: string) => {
@@ -324,7 +325,8 @@ export default function Others() {
                     className="w-40 h-8 flex items-center justify-center text-sm text-gray-700 cursor-pointer hover:bg-gray-100"
                     onClick={() => handleDoubleClick(item.id, 'date')}
                   >
-                    {item.lastCheckDate || '-'}
+{item.lastCheckDate ? format(new Date(item.lastCheckDate), "dd/MM/yyyy") : "-"}
+
                   </div>
                 )}
               </div>

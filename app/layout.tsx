@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "./Context/ToastContext";
 import { CookiesProvider } from "next-client-cookies/server";
-import { WebSocketProvider } from "@/lib/WebSocketContext";
 import { cookies } from "next/headers"; // ✅ correct import
-import NotificationDisplay from "@/components/NotificationDisplay";
+import NotificationProvider from "@/components/NotificationProvider";
 
 export const metadata: Metadata = {
   title: "Foster Hartley - Vehicle Management",
@@ -28,10 +27,10 @@ export default async function RootLayout({
       <body>
         <CookiesProvider>
           <ToastProvider>
+            <NotificationProvider/>
             
-            <WebSocketProvider token={token}>
               {children}
-            </WebSocketProvider>
+           
           </ToastProvider>
         </CookiesProvider>
       </body>

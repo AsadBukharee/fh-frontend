@@ -1,3 +1,4 @@
+
 "use client"
 
 import { formatDmy } from "@/lib/utils"
@@ -34,6 +35,7 @@ import AddFuelLogDialog from "@/components/fuel-check/AddFuelCheck"
 import { Loader2, AlertCircle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
+import ExportButton from "@/app/utils/ExportButton"
 
 interface FuelLog {
   id: number
@@ -59,11 +61,12 @@ interface FuelLog {
 interface Vehicle {
   id: number
   registration_number: string
+  vehicles_type_name: string
 }
 
 interface Driver {
   id: number
-  name: string // Fallback to ID as string if no name is available
+  full_name: string
 }
 
 interface Card {
@@ -187,15 +190,15 @@ const getStatusColor = (status: string) => {
   }
 }
 
-export default function FuelHistory() {
+export default function FuelChecksManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const [vehicleFilter, setVehicleFilter] = useState("") // No default filter
-  const [driverFilter, setDriverFilter] = useState("") // No default filter
+  const [vehicleFilter, setVehicleFilter] = useState("")
+  const [driverFilter, setDriverFilter] = useState("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
-  const [cardFilter, setCardFilter] = useState("") // No default filter
+  const [cardFilter, setCardFilter] = useState("")
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -203,14 +206,92 @@ export default function FuelHistory() {
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
- 
+  const [editLog, setEditLog] = useState<FuelLog | null>(null)
   const [viewLog, setViewLog] = useState<FuelLog | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const cookies = useCookies()
 
-  // Fetch fuel logs and extract vehicles, drivers, and cards
+  // Fetch drivers
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/profiles/list-names/?type=driver`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+        })
+        const data = await response.json()
+        if (data.success) {
+          setDrivers(data.data)
+        } else {
+          setError("Failed to fetch drivers")
+        }
+      } catch (err) {
+        setError("An error occurred while fetching drivers")
+      }
+    }
+
+    fetchDrivers()
+  }, [cookies])
+
+  // Fetch vehicles
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/vehicles/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+        })
+        const data = await response.json()
+        if (data.success) {
+          setVehicles(
+            data.data.map((vehicle: any) => ({
+              id: vehicle.id,
+              registration_number: vehicle.registration_number,
+              vehicles_type_name: vehicle.vehicle_type_name,
+            })),
+          )
+        } else {
+          setError("Failed to fetch vehicles")
+        }
+      } catch (err) {
+        setError("An error occurred while fetching vehicles")
+      }
+    }
+
+    fetchVehicles()
+  }, [cookies])
+
+  // Fetch cards
+  useEffect(() => {
+    const fetchCards = async () => {
+      try {
+        const response = await fetch(`${API_URL}/activity/card/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+        })
+        const data = await response.json()
+        if (data.success) {
+          setCards(data.data)
+        } else {
+          setError("Failed to fetch cards")
+        }
+      } catch (err) {
+        setError("An error occurred while fetching cards")
+      }
+    }
+
+    fetchCards()
+  }, [cookies])
+
+  // Fetch fuel logs
   useEffect(() => {
     const fetchFuelLogs = async () => {
       try {
@@ -225,7 +306,7 @@ export default function FuelHistory() {
           ...(cardFilter && { card: cardFilter }),
         })
 
-        const response = await fetch(`${API_URL}/activity/fuel-log/?&history=true&${queryParams}`, {
+        const response = await fetch(`${API_URL}/activity/fuel-log/?history=true&${queryParams}`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
@@ -235,49 +316,6 @@ export default function FuelHistory() {
         if (data.success) {
           setFuelLogs(data.data.results)
           setTotalCount(data.data.count)
-
-          // Extract unique vehicles
-          const uniqueVehicles: Vehicle[] = []
-          const vehicleIds = new Set<number>()
-          data.data.results.forEach((log: FuelLog) => {
-            if (log.vehicle && !vehicleIds.has(log.vehicle.id)) {
-              vehicleIds.add(log.vehicle.id)
-              uniqueVehicles.push({
-                id: log.vehicle.id,
-                registration_number: log.vehicle.registration_number,
-              })
-            }
-          })
-          setVehicles(uniqueVehicles)
-
-          // Extract unique drivers (using ID as fallback name)
-          const uniqueDrivers: Driver[] = []
-          const driverIds = new Set<number>()
-          data.data.results.forEach((log: FuelLog) => {
-            if (!driverIds.has(log.driver)) {
-              driverIds.add(log.driver)
-              uniqueDrivers.push({
-                id: log.driver,
-                name: log.driver.toString(), // Fallback to ID as string
-              })
-            }
-          })
-          setDrivers(uniqueDrivers)
-
-          // Extract unique cards
-          const uniqueCards: Card[] = []
-          const cardIds = new Set<number>()
-          data.data.results.forEach((log: FuelLog) => {
-            if (log.card && log.card_data && !cardIds.has(log.card)) {
-              cardIds.add(log.card)
-              uniqueCards.push({
-                id: log.card,
-                title: log.card_data.title,
-                card_number: log.card_data.card_number,
-              })
-            }
-          })
-          setCards(uniqueCards)
         } else {
           setError("Failed to fetch fuel logs")
         }
@@ -291,9 +329,16 @@ export default function FuelHistory() {
     fetchFuelLogs()
   }, [currentPage, pageSize, vehicleFilter, driverFilter, dateFrom, dateTo, cardFilter, cookies])
 
- 
+  const handleAddFuelLog = (newLog: FuelLog) => {
+    setFuelLogs((prev) => [newLog, ...prev])
+    setIsAddDialogOpen(false)
+  }
 
- 
+  const handleEditFuelLog = (updatedLog: FuelLog) => {
+    setFuelLogs((prev) => prev.map((log) => (log.id === updatedLog.id ? updatedLog : log)))
+    setIsAddDialogOpen(false)
+    setEditLog(null)
+  }
 
   const handleDeleteFuelLog = async (id: number) => {
     try {
@@ -407,14 +452,19 @@ export default function FuelHistory() {
 
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="outline" className="h-11 gap-2 rounded-lg bg-transparent">
-                        <Download className="h-5 w-5" />
-                        Export
-                      </Button>
+                     <ExportButton data={fuelLogs} fileName="fuel_logs_History.csv"/>
                     </TooltipTrigger>
                     <TooltipContent>Export fuel logs to CSV</TooltipContent>
                   </Tooltip>
 
+                  <GradientButton
+                    text="Add Fuel Log"
+                    Icon={Plus}
+                    onClick={() => {
+                      setEditLog(null)
+                      setIsAddDialogOpen(true)
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -440,139 +490,129 @@ export default function FuelHistory() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <Calendar className="h-4 w-4" />
-                        Date Range
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            From
-                          </label>
-                          <Input
-                            type="date"
-                            value={dateFrom}
-                            onChange={(e) => setDateFrom(e.target.value)}
-                            className="h-10 rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            To
-                          </label>
-                          <Input
-                            type="date"
-                            value={dateTo}
-                            onChange={(e) => setDateTo(e.target.value)}
-                            className="h-10 rounded-lg"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex items-end justify-between gap-6">
+<div className="flex items-center gap-4">
+    {/* From */}
+  <div className="flex flex-col w-[150px]">
+    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+      From
+    </label>
+    <Input
+      type="date"
+      value={dateFrom}
+      onChange={(e) => setDateFrom(e.target.value)}
+      className="h-10 rounded-lg"
+    />
+  </div>
 
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <Car className="h-4 w-4" />
-                        Vehicle & Driver
-                      </div>
-                      <div className="space-y-3">
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Vehicle
-                          </label>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
-                                {vehicleFilter
-                                  ? vehicles.find((v) => v.id.toString() === vehicleFilter)?.registration_number ||
-                                    "Select Vehicle"
-                                  : "Select Vehicle"}
-                                <ChevronDown className="h-4 w-4 opacity-50" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-full">
-                              <DropdownMenuItem onClick={() => setVehicleFilter("")}>
-                                All Vehicles
-                              </DropdownMenuItem>
-                              {vehicles.map((vehicle) => (
-                                <DropdownMenuItem
-                                  key={vehicle.id}
-                                  onClick={() => setVehicleFilter(vehicle.id.toString())}
-                                >
-                                  {vehicle.registration_number}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Driver
-                          </label>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
-                                {driverFilter
-                                  ? drivers.find((d) => d.id.toString() === driverFilter)?.name || "Select Driver"
-                                  : "Select Driver"}
-                                <ChevronDown className="h-4 w-4 opacity-50" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-full">
-                              <DropdownMenuItem onClick={() => setDriverFilter("")}>
-                                All Drivers
-                              </DropdownMenuItem>
-                              {drivers.map((driver) => (
-                                <DropdownMenuItem
-                                  key={driver.id}
-                                  onClick={() => setDriverFilter(driver.id.toString())}
-                                >
-                                  {driver.name}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    </div>
+  {/* To */}
+  <div className="flex flex-col w-[150px]">
+    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+      To
+    </label>
+    <Input
+      type="date"
+      value={dateTo}
+      onChange={(e) => setDateTo(e.target.value)}
+      className="h-10 rounded-lg"
+    />
+  </div>
+</div>
 
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <CreditCard className="h-4 w-4" />
-                        Payment Card
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Card
-                        </label>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
-                              {cardFilter
-                                ? cards.find((c) => c.id.toString() === cardFilter)?.title || "Select Card"
-                                : "Select Card"}
-                              <ChevronDown className="h-4 w-4 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="w-full">
-                            <DropdownMenuItem onClick={() => setCardFilter("")}>
-                              All Cards
-                            </DropdownMenuItem>
-                            {cards.map((card) => (
-                              <DropdownMenuItem
-                                key={card.id}
-                                onClick={() => setCardFilter(card.id.toString())}
-                              >
-                                {card.title} ({card.card_number})
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </div>
+<div className=" flex items-center gap-4">
+    {/* Vehicle */}
+  <div className="flex flex-col w-[200px]">
+    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+      Vehicle
+    </label>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
+          {vehicleFilter
+            ? vehicles.find((v) => v.id.toString() === vehicleFilter)?.registration_number ||
+              "Select Vehicle"
+            : "Select Vehicle"}
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-full">
+        <DropdownMenuItem onClick={() => setVehicleFilter("")}>
+          All Vehicles
+        </DropdownMenuItem>
+        {vehicles.map((vehicle) => (
+          <DropdownMenuItem
+            key={vehicle.id}
+            onClick={() => setVehicleFilter(vehicle.id.toString())}
+          >
+            {vehicle.registration_number} ({vehicle.vehicles_type_name})
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
+
+  {/* Driver */}
+  <div className="flex flex-col w-[250px]">
+    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+      Driver
+    </label>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
+          {driverFilter
+            ? drivers.find((d) => d.id.toString() === driverFilter)?.full_name || "Select Driver"
+            : "Select Driver"}
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-full">
+        <DropdownMenuItem onClick={() => setDriverFilter("")}>
+          All Drivers
+        </DropdownMenuItem>
+        {drivers.map((driver) => (
+          <DropdownMenuItem
+            key={driver.id}
+            onClick={() => setDriverFilter(driver.id.toString())}
+          >
+            {driver.full_name}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
+
+  {/* Card */}
+  <div className="flex flex-col w-[200px]">
+    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+      Card
+    </label>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
+          {cardFilter
+            ? cards.find((c) => c.id.toString() === cardFilter)?.title || "Select Card"
+            : "Select Card"}
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-full">
+        <DropdownMenuItem onClick={() => setCardFilter("")}>
+          All Cards
+        </DropdownMenuItem>
+        {cards.map((card) => (
+          <DropdownMenuItem
+            key={card.id}
+            onClick={() => setCardFilter(card.id.toString())}
+          >
+            {card.title || "Untitled"} ({card.card_number})
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
+</div>
+</div>
+
 
                   {getActiveFiltersCount() > 0 && (
                     <div className="pt-4 border-t border-border">
@@ -594,7 +634,7 @@ export default function FuelHistory() {
                         )}
                         {driverFilter && (
                           <Badge variant="secondary" className="gap-1">
-                            Driver: {drivers.find((d) => d.id.toString() === driverFilter)?.name || driverFilter}
+                            Driver: {drivers.find((d) => d.id.toString() === driverFilter)?.full_name || driverFilter}
                             <X className="h-3 w-3 cursor-pointer" onClick={() => setDriverFilter("")} />
                           </Badge>
                         )}
@@ -673,7 +713,16 @@ export default function FuelHistory() {
                             <Eye className="h-4 w-4" />
                             View
                           </DropdownMenuItem>
-                       
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditLog(log)
+                              setIsAddDialogOpen(true)
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDeleteFuelLog(log.id)}
                             className="flex items-center gap-2 text-red-600"
@@ -761,7 +810,18 @@ export default function FuelHistory() {
             </div>
           </Card>
 
-        
+          <AddFuelLogDialog
+            isOpen={isAddDialogOpen}
+            onClose={() => {
+              setIsAddDialogOpen(false)
+              setEditLog(null)
+            }}
+            onAdd={editLog ? handleEditFuelLog : handleAddFuelLog}
+            initialData={editLog}
+            vehicles={vehicles}
+            drivers={drivers}
+            cards={cards}
+          />
 
           <ViewFuelLogDialog isOpen={isViewDialogOpen} onClose={() => setIsViewDialogOpen(false)} log={viewLog} />
         </div>
@@ -769,4 +829,3 @@ export default function FuelHistory() {
     </TooltipProvider>
   )
 }
-

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, Clock, MapPin } from "lucide-react"
+import Link from "next/link"
 
 // Sample employee data
 const employeeDetails = {
@@ -278,8 +279,8 @@ export default function EmployeeDetailPage() {
           {filteredLogs.length > 0 ? (
             <div className="space-y-3">
               {filteredLogs.map((log, index) => (
-                <Card key={index} className="p-4 bg-gray-50">
-                  <div className="flex items-center justify-between">
+                <Card  key={index} className="p-4 bg-gray-50">
+                  <Link href={`/dashboard/users/daily-duty-logs/${employeeId}/${index}`} className="flex items-center justify-between">
                     <div className="flex items-center gap-8">
                       {/* Day and Date */}
                       <div className="min-w-[120px]">
@@ -316,7 +317,7 @@ export default function EmployeeDetailPage() {
                         {log.status}
                       </Badge>
                     </div>
-                  </div>
+                  </Link>
                 </Card>
               ))}
             </div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, FC } from "react";
@@ -48,7 +49,120 @@ import {
 import { cn } from "@/lib/utils";
 import { useCookies } from "next-client-cookies";
 import API_URL from "@/app/utils/ENV";
-import AddTyreCheckDialog from "@/components/tyre-check/AddTyreCheck";
+
+// Placeholder for AddTyreCheckDialog (to be replaced with actual implementation)
+interface AddTyreCheckDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (newTyreCheck: TyreCheckRow) => void;
+  tyreColumns: string[];
+  vehicles: Vehicle[];
+}
+
+const AddTyreCheckDialog: FC<AddTyreCheckDialogProps> = ({
+  isOpen,
+  onClose,
+  onAdd,
+  tyreColumns,
+  vehicles,
+}) => {
+  const [formData, setFormData] = useState<Partial<TyreCheckRow>>({
+    tyre_check_date: new Date().toISOString().split("T")[0],
+    depth: {},
+    torque: {},
+    check_date: {},
+    pressure: {},
+  });
+
+  const handleSubmit = () => {
+    const newTyreCheck: TyreCheckRow = {
+      id: Math.max(...vehicles.map((v) => v.id), 0) + 1, // Temporary ID generation
+      tyre_check_date: formData.tyre_check_date || new Date().toISOString().split("T")[0],
+      depth: formData.depth || {},
+      torque: formData.torque || {},
+      check_date: formData.check_date || {},
+      pressure: formData.pressure || {},
+      physical_document: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      vehicles: formData.vehicles || 0,
+      vehicle_type: vehicles.find((v) => v.id === formData.vehicles)?.vehicles_type.id || 0,
+      assignee: null,
+      registration_number: vehicles.find((v) => v.id === formData.vehicles)?.registration_number || "",
+    };
+    onAdd(newTyreCheck);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+        <h2 className="text-xl font-semibold mb-4">Add Tyre Check</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Check Date</label>
+            <Input
+              type="date"
+              value={formData.tyre_check_date || ""}
+              onChange={(e) => setFormData({ ...formData, tyre_check_date: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle</label>
+            <Select
+              value={String(formData.vehicles || "")}
+              onValueChange={(value) =>
+                setFormData({
+                  ...formData,
+                  vehicles: Number(value),
+                  registration_number: vehicles.find((v) => v.id === Number(value))?.registration_number || "",
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Vehicle" />
+              </SelectTrigger>
+              <SelectContent>
+                {vehicles.map((vehicle) => (
+                  <SelectItem key={vehicle.id} value={String(vehicle.id)}>
+                    {vehicle.registration_number}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {tyreColumns.map((col) => (
+            <div key={col}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tyre Pressure {col.replace(/_/g, " ").toUpperCase()} (PSI)
+              </label>
+              <Input
+                type="number"
+                value={formData.pressure?.[col] ?? ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    pressure: { ...formData.pressure, [col]: e.target.value },
+                  })
+                }
+              />
+            </div>
+          ))}
+          <div className="flex space-x-2 pt-4">
+            <Button onClick={handleSubmit} className="bg-orange-500 hover:bg-orange-600">
+              Add
+            </Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // API configuration
 const API_CONFIG = {
@@ -58,6 +172,7 @@ const API_CONFIG = {
     update: "/activity/tyre-check/{id}/",
     delete: "/activity/tyre-check/{id}/",
     download: "/activity/tyre-check/{id}/download/",
+    vehicles: "/api/vehicles/",
   },
 };
 
@@ -78,18 +193,45 @@ interface TyreCheckRow {
   updated_at: string;
   vehicles: number;
   vehicle_type: number;
-  assignee: number;
+  assignee: number | null;
+  registration_number: string;
+}
+
+interface Vehicle {
+  id: number;
+  registration_number: string;
+  vehicle_type_name: string;
+  tyre_pressure_front_driver: string | null;
+  tyre_pressure_front_passenger: string | null;
+  tyre_pressure_rear_outer_driver: string | null;
+  tyre_pressure_rear_outer_passenger: string | null;
+  tyre_depth_front_driver: string | null;
+  tyre_depth_front_passenger: string | null;
+  tyre_depth_rear_outer_driver: string | null;
+  tyre_depth_rear_outer_passenger: string | null;
+  tyre_torque_front_driver: string | null;
+  tyre_torque_front_passenger: string | null;
+  tyre_torque_rear_outer_driver: string | null;
+  tyre_torque_rear_outer_passenger: string | null;
+  tyre_expiry_front_driver: string | null;
+  tyre_expiry_front_passenger: string | null;
+  tyre_expiry_rear_outer_driver: string | null;
+  tyre_expiry_rear_outer_passenger: string | null;
+  vehicles_type: { id: number; name: string };
+  assignee_driver: { id: number } | null;
+  last_tyre_maintenance_check: string | null;
 }
 
 interface ApiResponse {
   success: boolean;
   message: string;
-  data: {
-    results: TyreCheckRow[];
-    count: number;
-    page: number;
-    page_size: number;
-    total_pages: number;
+  data: Vehicle[];
+  stats?: {
+    available: number;
+    unavailable: number;
+    assigned: number;
+    disabled: number;
+    total: number;
   };
 }
 
@@ -270,7 +412,7 @@ const StatusCell: FC<StatusCellProps> = ({
         {isEditing ? (
           <div className="flex items-center gap-1">
             <Input
-              type="text"
+              type="date"
               value={value as string}
               onChange={(e) => handleChange(e.target.value)}
               disabled={isUpdating}
@@ -326,10 +468,14 @@ const StatusCell: FC<StatusCellProps> = ({
 
 const TyreCheck: FC = () => {
   const [tyreData, setTyreData] = useState<TyreCheckRow[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "All Data" | "Tyre Depth" | "Tyre Pressure" | "Tyre Dates"
+    "All Data" | "Tyre Depth" | "Tyre Pressure" | "Tyre Dates" | "Torque"
   >("All Data");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [selectedVehicle, setSelectedVehicle] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [rowsPerPage] = useState<number>(10);
   const [loading, setLoading] = useState<boolean>(false);
@@ -350,6 +496,7 @@ const TyreCheck: FC = () => {
     { label: "Tyre Depth", icon: Scale },
     { label: "Tyre Pressure", icon: Car },
     { label: "Tyre Dates", icon: CalendarDays },
+    { label: "Torque", icon: Settings },
   ] as const;
 
   // Safe state setter
@@ -375,35 +522,72 @@ const TyreCheck: FC = () => {
     });
   };
 
-  const fetchTyreData = async () => {
-    setLoading(true);
+  const fetchVehicles = async () => {
     try {
-      const response = await apiCall(API_CONFIG.endpoints.tyreCheck);
+      setLoading(true);
+      const response = await apiCall(API_CONFIG.endpoints.vehicles);
       if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
+        throw new Error(`Failed to fetch vehicles: ${response.status}`);
       }
       const apiResponse: ApiResponse = await response.json();
-      if (!apiResponse.success || !Array.isArray(apiResponse.data.results)) {
-        console.error("API response is invalid:", apiResponse);
-        safeSetTyreData([]);
-        setError("Invalid API response format");
-        return;
+      if (!apiResponse.success || !Array.isArray(apiResponse.data)) {
+        throw new Error("Invalid API response format");
       }
-      safeSetTyreData(apiResponse.data.results);
+      setVehicles(apiResponse.data);
+      const transformedData: TyreCheckRow[] = apiResponse.data.map((vehicle) => {
+        const row = {
+          id: vehicle.id,
+          tyre_check_date: vehicle.last_tyre_maintenance_check || new Date().toISOString().split("T")[0],
+          depth: {
+            front_driver: vehicle.tyre_depth_front_driver,
+            front_passenger: vehicle.tyre_depth_front_passenger,
+            rear_outer_driver: vehicle.tyre_depth_rear_outer_driver,
+            rear_outer_passenger: vehicle.tyre_depth_rear_outer_passenger,
+          },
+          torque: {
+            front_driver: vehicle.tyre_torque_front_driver,
+            front_passenger: vehicle.tyre_torque_front_passenger,
+            rear_outer_driver: vehicle.tyre_torque_rear_outer_driver,
+            rear_outer_passenger: vehicle.tyre_torque_rear_outer_passenger,
+          },
+          check_date: {
+            front_driver: vehicle.tyre_expiry_front_driver,
+            front_passenger: vehicle.tyre_expiry_front_passenger,
+            rear_outer_driver: vehicle.tyre_expiry_rear_outer_driver,
+            rear_outer_passenger: vehicle.tyre_expiry_rear_outer_passenger,
+          },
+          pressure: {
+            front_driver: vehicle.tyre_pressure_front_driver,
+            front_passenger: vehicle.tyre_pressure_front_passenger,
+            rear_outer_driver: vehicle.tyre_pressure_rear_outer_driver,
+            rear_outer_passenger: vehicle.tyre_pressure_rear_outer_passenger,
+          },
+          physical_document: null, // Map to an appropriate field if available
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          vehicles: vehicle.id,
+          vehicle_type: vehicle.vehicles_type.id,
+          assignee: vehicle.assignee_driver?.id || null,
+          registration_number: vehicle.registration_number,
+        };
+        return row;
+      });
+      console.log("Transformed tyre data:", transformedData);
+      safeSetTyreData(transformedData);
     } catch (error) {
-      console.error("Failed to fetch tyre check data:", error);
-      setError("Failed to load tyre check records");
+      console.error("Failed to fetch vehicles:", error);
+      setError("Failed to load vehicle list");
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddTyreCheck = (newTyreCheck: TyreCheckRow) => {
-    fetchTyreData()
+    safeSetTyreData([...tyreData, newTyreCheck]);
   };
 
   useEffect(() => {
-    fetchTyreData();
+    fetchVehicles();
   }, []);
 
   useEffect(() => {
@@ -455,6 +639,7 @@ const TyreCheck: FC = () => {
       vehicles: row.vehicles,
       vehicle_type: row.vehicle_type,
       assignee: row.assignee,
+      registration_number: row.registration_number,
     });
     setIsEditing(true);
     setShowModal(true);
@@ -539,15 +724,40 @@ const TyreCheck: FC = () => {
   // Filter and Sort
   const filteredData = useMemo(() => {
     if (!Array.isArray(tyreData)) {
+      console.log("tyreData is not an array:", tyreData);
       return [];
     }
-    return tyreData.filter(
-      (item) =>
-        item.tyre_check_date?.includes(searchTerm) ||
-        String(item.vehicles)?.includes(searchTerm) ||
-        String(item.assignee)?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [tyreData, searchTerm]);
+    const filtered = tyreData.filter((item) => {
+      const matchesSearchTerm =
+        (item.tyre_check_date || "").includes(searchTerm) ||
+        (item.registration_number || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(item.vehicles || "").includes(searchTerm) ||
+        String(item.assignee || "").toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesDateRange =
+        (!startDate || new Date(item.tyre_check_date || new Date()).getTime() >= new Date(startDate).getTime()) &&
+        (!endDate || new Date(item.tyre_check_date || new Date()).getTime() <= new Date(endDate).getTime());
+      
+      const matchesVehicle = selectedVehicle === "" || String(item.vehicles) === selectedVehicle;
+
+      console.log(`Item ${item.id}:`, {
+        matchesSearchTerm,
+        matchesDateRange,
+        matchesVehicle,
+        tyre_check_date: item.tyre_check_date,
+        registration_number: item.registration_number,
+        vehicles: item.vehicles,
+        selectedVehicle,
+        searchTerm,
+        startDate,
+        endDate,
+      });
+
+      return matchesSearchTerm && matchesDateRange && matchesVehicle;
+    });
+    console.log("Filtered data length:", filtered.length);
+    return filtered;
+  }, [tyreData, searchTerm, startDate, endDate, selectedVehicle]);
 
   const handleSort = (key: keyof TyreCheckRow) => {
     setSortConfig((prev) => ({
@@ -570,14 +780,13 @@ const TyreCheck: FC = () => {
   }, [filteredData, sortConfig]);
 
   const tyreColumns = useMemo(() => {
-    if (!Array.isArray(tyreData)) {
-      return [];
-    }
-    const firstValidRow = tyreData.find(
-      (row) => row.depth && Object.keys(row.depth).length > 0
-    );
-    return firstValidRow ? Object.keys(firstValidRow.depth) : [];
-  }, [tyreData]);
+    return [
+      "front_driver",
+      "front_passenger",
+      "rear_outer_driver",
+      "rear_outer_passenger",
+    ];
+  }, []);
 
   // Pagination
   const totalPages = Math.ceil(sortedData.length / rowsPerPage);
@@ -603,22 +812,22 @@ const TyreCheck: FC = () => {
     <div className="min-h-screen bg-white p-6">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center">
-         <div className="">
-           <h1 className="text-2xl font-semibold text-gray-900 mb-1">
-            Tyre Check Analysis
-          </h1>
-          <p className="text-sm text-gray-600 mb-6">
-            Comprehensive tyre inspection data with action controls
-          </p>
-         </div>
-          <div className="">
-             <Button
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
-                  onClick={() => setShowAddDialog(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Tyre Check
-                </Button>
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900 mb-1">
+              Tyre Check Analysis
+            </h1>
+            <p className="text-sm text-gray-600 mb-6">
+              Comprehensive tyre inspection data with action controls
+            </p>
+          </div>
+          <div>
+            <Button
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+              onClick={() => setShowAddDialog(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Tyre Check
+            </Button>
           </div>
         </div>
         <div className="flex">
@@ -648,8 +857,8 @@ const TyreCheck: FC = () => {
         )}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="relative max-w-sm">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="relative max-w-sm w-full">
                 <Search className="absolute left-3 z-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   placeholder="Search tyre check records..."
@@ -658,20 +867,64 @@ const TyreCheck: FC = () => {
                   className="pl-10"
                 />
               </div>
-              <div className="flex space-x-2 items-center">
-               
+              <div className="flex space-x-2 items-center flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <CalendarDays className="w-4 h-4 text-gray-400" />
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      placeholder="Start Date"
+                      className="w-[150px]"
+                    />
+                  </div>
+                  <span className="text-gray-500">-</span>
+                  <div className="flex items-center gap-1">
+                    <CalendarDays className="w-4 h-4 text-gray-400" />
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      placeholder="End Date"
+                      className="w-[150px]"
+                    />
+                  </div>
+                </div>
+                <Select
+                  value={selectedVehicle}
+                  onValueChange={(value) => {
+                    console.log("Selected vehicle:", value);
+                    setSelectedVehicle(value);
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Vehicle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=" ">All Vehicles</SelectItem>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={String(vehicle.id)}>
+                        {vehicle.registration_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStartDate("");
+                    setEndDate("");
+                    setSelectedVehicle("");
+                  }}
+                >
+                  Clear Filters
+                </Button>
                 <RefreshCcw
-                  className="w-6 h-6 text-gray-400 mx-4 hover:text-gray-700"
-                  onClick={() => fetchTyreData()}
+                  className="w-6 h-6 text-gray-400 hover:text-gray-700"
+                  onClick={() => fetchVehicles()}
                 />
-                <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
-                  <CalendarDays className="w-4 h-4 mr-2" />
-                  Filter by Date
-                </Button>
-                <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
-                  <Car className="w-4 h-4 mr-2" />
-                  Filter by Vehicle
-                </Button>
               </div>
             </div>
           </div>
@@ -691,10 +944,10 @@ const TyreCheck: FC = () => {
                       </TableHead>
                       <TableHead
                         className="cursor-pointer"
-                        onClick={() => handleSort("vehicles")}
+                        onClick={() => handleSort("registration_number")}
                       >
                         Vehicle No{" "}
-                        {sortConfig?.key === "vehicles" &&
+                        {sortConfig?.key === "registration_number" &&
                           (sortConfig.direction === "asc" ? "↑" : "↓")}
                       </TableHead>
                       <TableHead
@@ -722,17 +975,17 @@ const TyreCheck: FC = () => {
                       <TableHead></TableHead>
                       {tyreColumns.map((col) => (
                         <TableHead key={col} className="text-center bg-orange-25">
-                          {col}
+                          {col.replace(/_/g, " ").toUpperCase()}
                         </TableHead>
                       ))}
                       {tyreColumns.map((col) => (
                         <TableHead key={col} className="text-center bg-green-25">
-                          {col}
+                          {col.replace(/_/g, " ").toUpperCase()}
                         </TableHead>
                       ))}
                       {tyreColumns.map((col) => (
                         <TableHead key={col} className="text-center bg-yellow-25">
-                          {col}
+                          {col.replace(/_/g, " ").toUpperCase()}
                         </TableHead>
                       ))}
                       <TableHead></TableHead>
@@ -751,15 +1004,15 @@ const TyreCheck: FC = () => {
                     </TableHead>
                     <TableHead
                       className="cursor-pointer"
-                      onClick={() => handleSort("vehicles")}
+                      onClick={() => handleSort("registration_number")}
                     >
                       Vehicle No{" "}
-                      {sortConfig?.key === "vehicles" &&
+                      {sortConfig?.key === "registration_number" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
-                        {col}
+                        {col.replace(/_/g, " ").toUpperCase()}
                       </TableHead>
                     ))}
                     <TableHead className="text-center">Actions</TableHead>
@@ -777,15 +1030,15 @@ const TyreCheck: FC = () => {
                     </TableHead>
                     <TableHead
                       className="cursor-pointer"
-                      onClick={() => handleSort("vehicles")}
+                      onClick={() => handleSort("registration_number")}
                     >
                       Vehicle No{" "}
-                      {sortConfig?.key === "vehicles" &&
+                      {sortConfig?.key === "registration_number" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
-                        {col}
+                        {col.replace(/_/g, " ").toUpperCase()}
                       </TableHead>
                     ))}
                     <TableHead className="text-center">Actions</TableHead>
@@ -803,15 +1056,41 @@ const TyreCheck: FC = () => {
                     </TableHead>
                     <TableHead
                       className="cursor-pointer"
-                      onClick={() => handleSort("vehicles")}
+                      onClick={() => handleSort("registration_number")}
                     >
                       Vehicle No{" "}
-                      {sortConfig?.key === "vehicles" &&
+                      {sortConfig?.key === "registration_number" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
-                        {col}
+                        {col.replace(/_/g, " ").toUpperCase()}
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                )}
+                {activeTab === "Torque" && (
+                  <TableRow>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("tyre_check_date")}
+                    >
+                      Check Date{" "}
+                      {sortConfig?.key === "tyre_check_date" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("registration_number")}
+                    >
+                      Vehicle No{" "}
+                      {sortConfig?.key === "registration_number" &&
+                        (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    {tyreColumns.map((col) => (
+                      <TableHead key={col} className="text-center">
+                        {col.replace(/_/g, " ").toUpperCase()}
                       </TableHead>
                     ))}
                     <TableHead className="text-center">Actions</TableHead>
@@ -825,7 +1104,7 @@ const TyreCheck: FC = () => {
                       <TableRow key={row.id}>
                         <TableCell>{row.tyre_check_date}</TableCell>
                         <TableCell className="font-medium">
-                          Vehicle {row.vehicles}
+                          {row.registration_number}
                         </TableCell>
                         {tyreColumns.map((col) => (
                           <TableCell key={col} className="text-center">
@@ -883,7 +1162,7 @@ const TyreCheck: FC = () => {
                       <TableRow key={row.id}>
                         <TableCell>{row.tyre_check_date}</TableCell>
                         <TableCell className="font-medium">
-                          Vehicle {row.vehicles}
+                          {row.registration_number}
                         </TableCell>
                         {tyreColumns.map((col) => (
                           <TableCell key={col} className="text-center">
@@ -915,7 +1194,7 @@ const TyreCheck: FC = () => {
                       <TableRow key={row.id}>
                         <TableCell>{row.tyre_check_date}</TableCell>
                         <TableCell className="font-medium">
-                          Vehicle {row.vehicles}
+                          {row.registration_number}
                         </TableCell>
                         {tyreColumns.map((col) => (
                           <TableCell key={col} className="text-center">
@@ -947,7 +1226,7 @@ const TyreCheck: FC = () => {
                       <TableRow key={row.id}>
                         <TableCell>{row.tyre_check_date}</TableCell>
                         <TableCell className="font-medium">
-                          Vehicle {row.vehicles}
+                          {row.registration_number}
                         </TableCell>
                         {tyreColumns.map((col) => (
                           <TableCell key={col} className="text-center">
@@ -959,6 +1238,38 @@ const TyreCheck: FC = () => {
                               onUpdate={handleStatusUpdate}
                               isEditable={true}
                               type="date"
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-center">
+                          <ActionMenu
+                            row={row}
+                            onEdit={handleEdit}
+                            onView={handleView}
+                            onDelete={handleDelete}
+                            onDownload={handleDownload}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  if (activeTab === "Torque") {
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell>{row.tyre_check_date}</TableCell>
+                        <TableCell className="font-medium">
+                          {row.registration_number}
+                        </TableCell>
+                        {tyreColumns.map((col) => (
+                          <TableCell key={col} className="text-center">
+                            <StatusCell
+                              status={row.torque[col]}
+                              rowId={row.id}
+                              field="torque"
+                              column={col}
+                              onUpdate={handleStatusUpdate}
+                              isEditable={true}
+                              type="number"
                             />
                           </TableCell>
                         ))}
@@ -1075,19 +1386,29 @@ const TyreCheck: FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Vehicle ID
+                          Vehicle
                         </label>
-                        <Input
-                          type="number"
-                          value={editForm.vehicles || ""}
-                          onChange={(e) =>
+                        <Select
+                          value={String(editForm.vehicles || "")}
+                          onValueChange={(value) =>
                             setEditForm({
                               ...editForm,
-                              vehicles: Number(e.target.value),
+                              vehicles: Number(value),
+                              registration_number: vehicles.find((v) => v.id === Number(value))?.registration_number || "",
                             })
                           }
-                          className="w-full"
-                        />
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Vehicle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vehicles.map((vehicle) => (
+                              <SelectItem key={vehicle.id} value={String(vehicle.id)}>
+                                {vehicle.registration_number}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1115,7 +1436,7 @@ const TyreCheck: FC = () => {
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
-                              assignee: Number(e.target.value),
+                              assignee: e.target.value ? Number(e.target.value) : null,
                             })
                           }
                           className="w-full"
@@ -1125,7 +1446,7 @@ const TyreCheck: FC = () => {
                     {tyreColumns.map((col) => (
                       <div key={col}>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Tyre Pressure {col} (PSI)
+                          Tyre Pressure {col.replace(/_/g, " ").toUpperCase()} (PSI)
                         </label>
                         <Input
                           type="number"
@@ -1146,7 +1467,7 @@ const TyreCheck: FC = () => {
                     {tyreColumns.map((col) => (
                       <div key={col}>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Tyre Depth {col} (mm)
+                          Tyre Depth {col.replace(/_/g, " ").toUpperCase()} (mm)
                         </label>
                         <Input
                           type="number"
@@ -1167,7 +1488,7 @@ const TyreCheck: FC = () => {
                     {tyreColumns.map((col) => (
                       <div key={col}>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Torque {col} (Nm)
+                          Torque {col.replace(/_/g, " ").toUpperCase()} (Nm)
                         </label>
                         <Input
                           type="number"
@@ -1188,9 +1509,10 @@ const TyreCheck: FC = () => {
                     {tyreColumns.map((col) => (
                       <div key={col}>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Check Date {col}
+                          Check Date {col.replace(/_/g, " ").toUpperCase()}
                         </label>
                         <Input
+                          type="date"
                           value={editForm.check_date?.[col] ?? ""}
                           onChange={(e) =>
                             setEditForm({
@@ -1219,10 +1541,10 @@ const TyreCheck: FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Vehicle ID
+                          Vehicle
                         </label>
                         <div className="text-sm text-gray-900">
-                          {selectedRow.vehicles}
+                          {selectedRow.registration_number}
                         </div>
                       </div>
                       <div>
@@ -1230,7 +1552,7 @@ const TyreCheck: FC = () => {
                           Vehicle Type
                         </label>
                         <div className="text-sm text-gray-900">
-                          {selectedRow.vehicle_type}
+                          {vehicles.find((v) => v.id === selectedRow.vehicles)?.vehicle_type_name || selectedRow.vehicle_type}
                         </div>
                       </div>
                       <div>
@@ -1238,7 +1560,7 @@ const TyreCheck: FC = () => {
                           Assignee
                         </label>
                         <div className="text-sm text-gray-900">
-                          {selectedRow.assignee}
+                          {selectedRow.assignee || "N/A"}
                         </div>
                       </div>
                     </div>
@@ -1252,7 +1574,7 @@ const TyreCheck: FC = () => {
                             key={key}
                             className={cn("p-1 rounded", getSafetyColor(value, "pressure"))}
                           >
-                            {`${key}: ${value ?? "N/A"}`}
+                            {`${key.replace(/_/g, " ").toUpperCase()}: ${value ?? "N/A"}`}
                           </div>
                         ))}
                       </div>
@@ -1267,7 +1589,7 @@ const TyreCheck: FC = () => {
                             key={key}
                             className={cn("p-1 rounded", getSafetyColor(value, "depth"))}
                           >
-                            {`${key}: ${value ?? "N/A"}`}
+                            {`${key.replace(/_/g, " ").toUpperCase()}: ${value ?? "N/A"}`}
                           </div>
                         ))}
                       </div>
@@ -1282,7 +1604,7 @@ const TyreCheck: FC = () => {
                             key={key}
                             className={cn("p-1 rounded", getSafetyColor(value, "torque"))}
                           >
-                            {`${key}: ${value ?? "N/A"}`}
+                            {`${key.replace(/_/g, " ").toUpperCase()}: ${value ?? "N/A"}`}
                           </div>
                         ))}
                       </div>
@@ -1293,7 +1615,7 @@ const TyreCheck: FC = () => {
                       </label>
                       <div className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
                         {Object.entries(selectedRow.check_date).map(([key, value]) => (
-                          <div key={key}>{`${key}: ${value ?? "N/A"}`}</div>
+                          <div key={key}>{`${key.replace(/_/g, " ").toUpperCase()}: ${value ?? "N/A"}`}</div>
                         ))}
                       </div>
                     </div>
@@ -1357,6 +1679,7 @@ const TyreCheck: FC = () => {
                             vehicles: selectedRow.vehicles,
                             vehicle_type: selectedRow.vehicle_type,
                             assignee: selectedRow.assignee,
+                            registration_number: selectedRow.registration_number,
                           });
                         }}
                         disabled={loading}
@@ -1383,6 +1706,7 @@ const TyreCheck: FC = () => {
           onClose={() => setShowAddDialog(false)}
           onAdd={handleAddTyreCheck}
           tyreColumns={tyreColumns}
+          vehicles={vehicles}
         />
       </div>
     </div>

@@ -19,6 +19,7 @@ import {
   Settings,
   BookOpen,
   Bell,
+  
   ShieldCheck,
   ClipboardCheck,
   Stethoscope,
@@ -46,6 +47,7 @@ import {
   Map,
   ListChecks,
   List,
+  Waypoints
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -68,6 +70,7 @@ const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } =
   TowerControl,
   File,
   ClipboardList,
+  Waypoints,
   CheckSquare,
   Clock,
   Settings,
@@ -93,8 +96,9 @@ const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } =
   MoreHorizontal,
   SquareCheckBig,
   CalendarClock,
-  ListNumbers: List, // Fallback for ListNumbers
+   List, // Fallback for ListNumbers
   ListChecks,
+  ListNumbers: List, // Fallback for ListNumbers
 }
 
 interface MenuItem {

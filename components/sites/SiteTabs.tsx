@@ -18,6 +18,14 @@ import {
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useToast } from "@/app/Context/ToastContext";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 // Define interfaces
 interface OperationHour {
@@ -69,21 +77,23 @@ interface Site {
 
 export default function SiteGrid() {
   const [sites, setSites] = useState<Site[]>([]);
+  const [filteredSites, setFilteredSites] = useState<Site[]>([]);
   const [open, setOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [shiftFilter, setShiftFilter] = useState<string>("all");
+  const [vehicleFilter, setVehicleFilter] = useState<string>("");
   const cookies = useCookies();
   const token = cookies.get("access_token");
-  const { showToast } = useToast(); // Placeholder: Ensure you have a toast hook or remove this
+  const { showToast } = useToast();
 
   // Fetch sites data from API
   const fetchSites = async () => {
     if (!token) {
       setError("No access token found. Please log in.");
       setLoading(false);
-      showToast(
-        "No access token found. Please log in.","error",
-      );
+      showToast("No access token found. Please log in.", "error");
       return;
     }
     setLoading(true);
@@ -92,39 +102,60 @@ export default function SiteGrid() {
       const response = await fetch(`${API_URL}/api/sites/`, {
         headers: {
           Authorization: `Bearer ${token}`,
-         
         },
       });
       if (response.status === 401) {
         setError("Session expired. Please log in again.");
         setLoading(false);
-        showToast(
-         "Session expired. Please log in again.","error"
-          
-       );
-        // Optionally redirect to login
-        // window.location.href = '/login';
+        showToast("Session expired. Please log in again.", "error");
         return;
       }
       if (!response.ok) throw new Error(`Failed to fetch sites: ${response.status}`);
       const data: Site[] = await response.json();
-      console.log("Fetched sites:", data); // Debug API response
-      setSites([...data]); // Ensure new array reference for state update
-      showToast( 
-     "Sites refreshed successfully","success"
-     );
+      console.log("Fetched sites:", data);
+      setSites([...data]);
+      setFilteredSites([...data]); // Initialize filtered sites
+      showToast("Sites refreshed successfully", "success");
     } catch (err: unknown) {
       console.error("Fetch error:", err);
       const errorMessage = err instanceof Error ? err.message : "An error occurred";
       setError(errorMessage);
-      showToast(
-       errorMessage, "error",
-  
-      );
+      showToast(errorMessage, "error");
     } finally {
       setLoading(false);
     }
   };
+
+  // Apply filters whenever filter states or sites change
+  useEffect(() => {
+    let filtered = [...sites];
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((site) =>
+        statusFilter === "active"
+          ? !site.notes?.includes("Temporarily reduced")
+          : site.notes?.includes("Temporarily reduced")
+      );
+    }
+
+    // Filter by shift presence
+    if (shiftFilter !== "all") {
+      filtered = filtered.filter((site) => site.presence[shiftFilter as keyof Presence]);
+    }
+
+    // Filter by number of vehicles
+    if (vehicleFilter) {
+      const vehicleNum = parseInt(vehicleFilter);
+      if (!isNaN(vehicleNum)) {
+        filtered = filtered.filter(
+          (site) => site.number_of_allocated_vehicles >= vehicleNum
+        );
+      }
+    }
+
+    setFilteredSites(filtered);
+  }, [sites, statusFilter, shiftFilter, vehicleFilter]);
 
   useEffect(() => {
     fetchSites();
@@ -187,10 +218,51 @@ export default function SiteGrid() {
           </div>
         </div>
 
+        {/* Filter Section */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col w-full sm:w-1/3">
+            <label className="text-sm font-medium text-gray-700">Status</label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="onHold">On Hold</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col w-full sm:w-1/3">
+            <label className="text-sm font-medium text-gray-700">Shift Presence</label>
+            <Select value={shiftFilter} onValueChange={setShiftFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select shift" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="early">Early</SelectItem>
+                <SelectItem value="middle">Middle</SelectItem>
+                <SelectItem value="night">Night</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col w-full sm:w-1/3">
+            <label className="text-sm font-medium text-gray-700">Min Vehicles</label>
+            <Input
+              type="number"
+              value={vehicleFilter}
+              onChange={(e) => setVehicleFilter(e.target.value)}
+              placeholder="Enter min number of vehicles"
+              className="w-full"
+            />
+          </div>
+        </div>
+
         <div className="flex justify-evenly items-center flex-wrap gap-6">
-          {sites.map((site) => (
+          {filteredSites.map((site) => (
             <Link
-            href={`/dashboard/sites/${site.id}`}
+              href={`/dashboard/sites/${site.id}`}
               key={site.id}
               className="rounded-xl shadow-sm border w-[350px] h-[420px] bg-white border-gray-200 overflow-hidden p-2"
             >
@@ -209,22 +281,20 @@ export default function SiteGrid() {
                     >
                       {site.notes?.includes("Temporarily reduced") ? "On Hold" : "Active"}
                     </Badge>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                    <div className="flex items-center cursor-pointer bg-rose w-6 justify-center rounded-full h-6 gap-1">
-
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center cursor-pointer bg-rose w-6 justify-center rounded-full h-6 gap-1">
                           <span className="text-white text-xs font-medium">{site.warnings.length}</span>
-                    </div>
-
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-white border-0 text-black">
-                          <ul className="list-disc border-0 pl-4">
-                            {site.warnings.map((warning, index) => (
-                              <li key={index}>{warning}</li>
-                            ))}
-                          </ul>
-                        </TooltipContent>
-                      </Tooltip>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-white border-0 text-black">
+                        <ul className="list-disc border-0 pl-4">
+                          {site.warnings.map((warning, index) => (
+                            <li key={index}>{warning}</li>
+                          ))}
+                        </ul>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </div>

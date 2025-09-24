@@ -412,7 +412,7 @@ const AddPMI: FC = () => {
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <GradientButton text="Add PMI" Icon={Plus} />
+          <GradientButton text="Add" Icon={Plus} />
         </DialogTrigger>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>

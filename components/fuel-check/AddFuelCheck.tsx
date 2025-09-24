@@ -17,12 +17,10 @@ interface Vehicle {
   id: number;
   registration_number: string;
 }
-
 interface Driver {
-  id: number;
-  name: string;
+  id: number
+  full_name: string
 }
-
 interface Card {
   id: number;
   title: string;
@@ -277,7 +275,7 @@ export default function AddFuelLogDialog({
                 {drivers.length > 0 ? (
                   drivers.map((driver) => (
                     <SelectItem key={driver.id} value={driver.id.toString()}>
-                      {driver.name}
+                      {driver.full_name}
                     </SelectItem>
                   ))
                 ) : (
