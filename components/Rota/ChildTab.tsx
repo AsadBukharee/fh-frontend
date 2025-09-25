@@ -43,7 +43,7 @@ import {
 } from "recharts";
 import React from "react";
 
-// Interfaces
+// Interfaces (unchanged from your code)
 interface Shift {
   id: number;
   date: string;
@@ -94,17 +94,14 @@ interface User {
   shifts: ShiftList[];
   child_rota_completed?: boolean;
 }
-
 interface ShiftTableProps {
   year: number;
   month: number;
 }
-
 interface DailyStats {
   date: string;
   users_working: number;
 }
-
 interface ApiResponse {
   rota_by_user: Array<{
     user: User;
@@ -117,7 +114,7 @@ interface ApiResponse {
   total_rota_entries: number;
 }
 
-// Map hex color to ShiftCard color
+// Map hex color to ShiftCard color (unchanged)
 const hexToColorName = (
   hex: string
 ): "purple" | "green" | "orange" | "red" | "cyan" => {
@@ -135,7 +132,7 @@ const hexToColorName = (
   return colorMapping[hex.toUpperCase()] || "purple";
 };
 
-// Week colors for 4-week cycle
+// Week colors for 4-week cycle (unchanged)
 const WEEK_COLORS = {
   "Week 1": "#3b82f6", // Blue
   "Week 2": "#10b981", // Green
@@ -154,16 +151,16 @@ const generateMonths = () => {
       1
     );
     months.push({
-      value: `${date.getFullYear()}-${date.getMonth()}`,
+      value: `${date.getFullYear()}-${date.getMonth() + 1}`, // Use 1-based month for value
       label: format(date, "MMMM yyyy"),
       year: date.getFullYear(),
-      month: date.getMonth(),
+      month: date.getMonth() + 1, // Store 1-based month
     });
   }
   return months;
 };
 
-// Chart colors
+// Chart colors (unchanged)
 const CHART_COLORS = {
   primary: "#3b82f6",
   secondary: "#10b981",
@@ -174,7 +171,6 @@ const CHART_COLORS = {
   pink: "#ec4899",
   indigo: "#6366f1",
 };
-
 const PIE_COLORS = [
   "#3b82f6",
   "#10b981",
@@ -191,10 +187,9 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  console.log(setSearchTerm);
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>(
-    `${year}-${month}`
+    `${year}-${month}` // Initialize with 1-based month
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -204,19 +199,14 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     dailyStats: DailyStats[];
     salaryData: Record<string, Record<string, number>>;
   } | null>(null);
-  console.log(stats);
   const cookies = useCookies();
   const months = generateMonths();
 
   // Get current month data
   const currentMonthData =
     months.find((m) => m.value === selectedMonth) || months[6];
-  const startDate = new Date(currentMonthData.year, currentMonthData.month, 1);
-  const endDate = new Date(
-    currentMonthData.year,
-    currentMonthData.month + 1,
-    0
-  );
+  const startDate = new Date(currentMonthData.year, currentMonthData.month - 1, 1); // Convert to 0-based for Date
+  const endDate = new Date(currentMonthData.year, currentMonthData.month, 0); // Last day of the month
 
   // Fetch shifts data with query parameters
   const fetchData = async () => {
@@ -224,8 +214,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     setError(null);
     try {
       const [yearStr, monthStr] = selectedMonth.split("-");
-      console.log(yearStr);
-      const monthNumber = Number.parseInt(monthStr) + 1; // Convert from 0-based to 1-based month
+      const monthNumber = Number.parseInt(monthStr); // Use 1-based month as-is
       const queryParams = new URLSearchParams();
       queryParams.append("month", monthNumber.toString());
       if (selectedUser) {
@@ -313,7 +302,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
       setLoading(false);
     }
   };
-  console.log(shifts);
+
   useEffect(() => {
     fetchData();
   }, [selectedMonth, selectedUser, cookies]);
@@ -760,31 +749,33 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
       {/* Shift Schedule */}
       <Card>
         <CardHeader className="flex justify-between flex-row w-full items-center">
-         <div className="">
-           <CardTitle className="text-lg">Shift Schedule</CardTitle>
-          <CardDescription>
-            {selectedUser
-              ? `Showing shifts for ${
-                  childRotaUsers.find((u) => u.id === selectedUser)?.full_name
-                } - ${currentMonthData.label}`
-              : `Showing all shifts for ${currentMonthData.label}`}
-          </CardDescription>
-         </div>
-       <div className="">
-           <CardTitle className="text-lg">Shift Week Labels</CardTitle>
-          <CardDescription>
-             {Object.entries(WEEK_COLORS).map(([week, color]) => (
-        <div
-          key={week}
-          className=" rounded-lg text-black flex items-center font-medium"
-         
-        >
-          <div className="w-2 h-2 mr-1"  style={{ backgroundColor: color }}></div>
-          {week}
-        </div>
-      ))}
-          </CardDescription>
-       </div>
+          <div>
+            <CardTitle className="text-lg">Shift Schedule</CardTitle>
+            <CardDescription>
+              {selectedUser
+                ? `Showing shifts for ${
+                    childRotaUsers.find((u) => u.id === selectedUser)?.full_name
+                  } - ${currentMonthData.label}`
+                : `Showing all shifts for ${currentMonthData.label}`}
+            </CardDescription>
+          </div>
+          <div>
+            <CardTitle className="text-lg">Shift Week Labels</CardTitle>
+            <CardDescription>
+              {Object.entries(WEEK_COLORS).map(([week, color]) => (
+                <div
+                  key={week}
+                  className="rounded-lg text-black flex items-center font-medium"
+                >
+                  <div
+                    className="w-2 h-2 mr-1"
+                    style={{ backgroundColor: color }}
+                  ></div>
+                  {week}
+                </div>
+              ))}
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto rounded-lg border">
