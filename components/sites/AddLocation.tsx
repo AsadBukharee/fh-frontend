@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, MapPin, Building2, Hash, CheckCircle } from "lucide-react"
 import { useCookies } from "next-client-cookies"
+import API_URL from "@/app/utils/ENV"
 
 interface LocationPayload {
   name: string
@@ -204,7 +205,7 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
     setSubmitting(true)
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+      const baseUrl = API_URL
       const url = editLocation ? `${baseUrl}/activity/locations/${editLocation.id}` : `${baseUrl}/activity/locations/`
 
       const method = editLocation ? "PUT" : "POST"

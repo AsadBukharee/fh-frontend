@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
-import { PoundSterling, Calendar, Car, MapPin, Filter, Eye, MoreHorizontal } from "lucide-react"
+import { PoundSterling, Calendar, Car, MapPin, Filter, Eye, MoreHorizontal, Landmark } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
+import { format } from "date-fns"
 
 // Define API response type
 interface DashboardData {
@@ -98,7 +99,7 @@ export default function Dashboard() {
           title: "Monthly Salary",
           value: `£${dashboardData.dashboard_metrics.monthly_salary_count.toLocaleString("en-GB")}`,
           change: 0,
-          icon: <PoundSterling className="w-4 h-4 text-green-600" />,
+          icon: <Landmark className="w-4 h-4 text-green-600" />,
           progress: (dashboardData.dashboard_metrics.monthly_salary_count / 20) * 100, // Assuming max £20
           progressColor: "bg-green-500",
         },
@@ -209,12 +210,12 @@ export default function Dashboard() {
         <Card className="gradient-border cursor-glow rounded-md">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-gray-600 text-sm">Vehicle Status</CardTitle>
-              <h3 className="text-lg font-semibold">Vehicles Onsite vs Offsite</h3>
+              <CardTitle className="text-gray-600 text-lg">Vehicles Onsite vs Offsite</CardTitle>
+              {/* <h3 className="text-lg font-semibold"></h3> */}
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <Calendar className="w-4 h-4" />
-              <span>{dashboardData.date}</span>
+              <span>{format(new Date(dashboardData.date), "dd/MM/yyyy")}</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -270,12 +271,12 @@ export default function Dashboard() {
         <Card className="gradient-border cursor-glow rounded-md">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-gray-600 text-sm">Monthly Jobs</CardTitle>
-              <h3 className="text-lg font-semibold">Monthly jobs overview</h3>
+              <CardTitle className="text-gray-600 text-lg">Monthly Jobs Overview</CardTitle>
+              {/* <h3 className="text-lg font-semibold"></h3> */}
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <Calendar className="w-4 h-4" />
-              <span>{dashboardData.date}</span>
+              <span>{format(new Date(dashboardData.date), "dd/MM/yyyy")}</span>
             </div>
           </CardHeader>
           <CardContent>

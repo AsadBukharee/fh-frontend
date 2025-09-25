@@ -18,7 +18,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Car } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Car, AlertCircle } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -92,6 +93,10 @@ interface Site {
   name: string;
 }
 
+interface ValidationErrors {
+  [key: string]: string;
+}
+
 interface VehicleState {
   formData: VehicleFormData;
   vehicleTypes: VehicleType[];
@@ -102,6 +107,7 @@ interface VehicleState {
   driversLoading: boolean;
   submitLoading: boolean;
   activeStep: number;
+  validationErrors: ValidationErrors;
 }
 
 const initialState: VehicleState = {
@@ -111,7 +117,7 @@ const initialState: VehicleState = {
     vehicles_type_id: null,
     registration_number: "",
     site_allocated_id: null,
-    vehicle_status: "available",
+    vehicle_status: "active",
     is_roadworthy: true,
     inspection_cycle: null,
     inspection_expire: "",
@@ -160,6 +166,7 @@ const initialState: VehicleState = {
   driversLoading: false,
   submitLoading: false,
   activeStep: 0,
+  validationErrors: {},
 };
 
 // Create Redux slice
@@ -194,9 +201,16 @@ const vehicleSlice = createSlice({
     setActiveStep: (state, action: PayloadAction<number>) => {
       state.activeStep = action.payload;
     },
+    setValidationErrors: (state, action: PayloadAction<ValidationErrors>) => {
+      state.validationErrors = action.payload;
+    },
+    clearValidationError: (state, action: PayloadAction<string>) => {
+      delete state.validationErrors[action.payload];
+    },
     resetForm: (state) => {
       state.formData = initialState.formData;
       state.activeStep = 0;
+      state.validationErrors = {};
     },
   },
 });
@@ -212,6 +226,8 @@ export const {
   setDriversLoading,
   setSubmitLoading,
   setActiveStep,
+  setValidationErrors,
+  clearValidationError,
   resetForm,
 } = vehicleSlice.actions;
 
@@ -226,6 +242,39 @@ const store = configureStore({
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
+// Validation functions
+const validateTyreExpiry = (value: string): string | null => {
+  if (!value) return null;
+  
+  const pattern = /^\d{4}$/;
+  if (!pattern.test(value)) {
+    return "Tyre expiry must be exactly 4 digits in WWYY format (e.g., '0124')";
+  }
+  
+  const week = parseInt(value.substring(0, 2));
+  const year = parseInt(value.substring(2, 4));
+  
+  if (week < 1 || week > 53) {
+    return "Week must be between 01 and 53";
+  }
+  
+  return null;
+};
+
+const validateRegistrationNumber = (value: string): string | null => {
+  if (!value.trim()) {
+    return "Registration number is required";
+  }
+  return null;
+};
+
+const validateRequiredSelect = (value: number | null, fieldName: string): string | null => {
+  if (value === null) {
+    return `${fieldName} is required`;
+  }
+  return null;
+};
+
 // Vehicle form component
 function AddVehicleStepper() {
   const dispatch = useDispatch<AppDispatch>();
@@ -239,6 +288,7 @@ function AddVehicleStepper() {
     driversLoading,
     submitLoading,
     activeStep,
+    validationErrors,
   } = useSelector((state: RootState) => state.vehicle);
   const cookies = useCookies();
 
@@ -354,20 +404,60 @@ function AddVehicleStepper() {
     fetchDrivers();
   }, [cookies, dispatch]);
 
-  // Handle input changes
+  // Handle input changes with validation
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    dispatch(setFormData({ [name]: type === "checkbox" ? checked : value }));
+    const newValue = type === "checkbox" ? checked : value;
+    
+    dispatch(setFormData({ [name]: newValue }));
+    
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      dispatch(clearValidationError(name));
+    }
+    
+    // Real-time validation for specific fields
+    if (name === "registration_number") {
+      const error = validateRegistrationNumber(value);
+      if (error) {
+        dispatch(setValidationErrors({ ...validationErrors, [name]: error }));
+      }
+    }
+  };
+
+  // Handle tire expiry input changes
+  const handleTyreExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    // Only allow digits and limit to 4 characters
+    const sanitizedValue = value.replace(/\D/g, '').slice(0, 4);
+    
+    dispatch(setFormData({ [name]: sanitizedValue }));
+    
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      dispatch(clearValidationError(name));
+    }
+    
+    // Validate if value has 4 digits
+    if (sanitizedValue.length === 4) {
+      const error = validateTyreExpiry(sanitizedValue);
+      if (error) {
+        dispatch(setValidationErrors({ ...validationErrors, [name]: error }));
+      }
+    }
   };
 
   // Handle select changes
   const handleSelectChange = (name: string, value: string) => {
-    dispatch(
-      setFormData({
-        [name]:
-          name === "vehicle_status" ? value : value ? parseInt(value) : null,
-      })
-    );
+    const newValue = name === "vehicle_status" ? value : (value ? parseInt(value) : null);
+    
+    dispatch(setFormData({ [name]: newValue }));
+    
+    // Clear validation error when user makes a selection
+    if (validationErrors[name]) {
+      dispatch(clearValidationError(name));
+    }
   };
 
   // Handle number input changes
@@ -376,18 +466,79 @@ function AddVehicleStepper() {
     dispatch(setFormData({ [name]: value ? parseFloat(value) : null }));
   };
 
+  // Validate form step
+  const validateCurrentStep = (): boolean => {
+    const errors: ValidationErrors = {};
+    
+    if (activeStep === 0) {
+      // Basic Information validation
+      const regError = validateRegistrationNumber(formData.registration_number);
+      if (regError) errors.registration_number = regError;
+      
+      const typeError = validateRequiredSelect(formData.vehicles_type_id, "Vehicle type");
+      if (typeError) errors.vehicles_type_id = typeError;
+      
+      const siteError = validateRequiredSelect(formData.site_allocated_id, "Site allocated");
+      if (siteError) errors.site_allocated_id = siteError;
+    }
+    
+    if (activeStep === 2) {
+      // Tire Details validation
+      const tyreFields = [
+        'tyre_expiry_front_driver',
+        'tyre_expiry_front_passenger', 
+        'tyre_expiry_rear_outer_driver',
+        'tyre_expiry_rear_outer_passenger'
+      ];
+      
+      tyreFields.forEach(field => {
+        const value = formData[field as keyof VehicleFormData] as string;
+        if (value) {
+          const error = validateTyreExpiry(value);
+          if (error) errors[field] = error;
+        }
+      });
+    }
+    
+    dispatch(setValidationErrors(errors));
+    return Object.keys(errors).length === 0;
+  };
+
   // Validate required fields
   const isFormValid = () => {
     return (
       formData.registration_number &&
       formData.vehicles_type_id !== null &&
-      formData.site_allocated_id !== null
+      formData.site_allocated_id !== null &&
+      Object.keys(validationErrors).length === 0
     );
+  };
+
+  // Handle next step
+  const handleNextStep = () => {
+    if (validateCurrentStep()) {
+      dispatch(setActiveStep(activeStep + 1));
+    } else {
+      toast({
+        title: "Validation Error",
+        description: "Please fix the errors before proceeding.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateCurrentStep()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fix all validation errors before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const token = cookies.get("access_token");
 
@@ -402,6 +553,8 @@ function AddVehicleStepper() {
         body: JSON.stringify(formData),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         toast({
           title: "Success",
@@ -409,11 +562,26 @@ function AddVehicleStepper() {
         });
         dispatch(resetForm());
       } else {
-        const data = await response.json();
+        // Handle validation errors from API
+        if (data.message && data.message.includes("Validation failed")) {
+          const errorMessage = data.message.replace("Validation failed: ", "");
+          const fieldErrors: ValidationErrors = {};
+          
+          // Parse error message and extract field-specific errors
+          const errors = errorMessage.split("; ");
+          errors.forEach((error: string) => {
+            const [field, message] = error.split(": ");
+            if (field && message) {
+              fieldErrors[field] = message;
+            }
+          });
+          
+          dispatch(setValidationErrors(fieldErrors));
+        }
+        
         toast({
           title: "Error",
-          description:
-            data.message || "Failed to add vehicle. Please try again.",
+          description: data.message || "Failed to add vehicle. Please try again.",
           variant: "destructive",
         });
       }
@@ -427,6 +595,20 @@ function AddVehicleStepper() {
     } finally {
       dispatch(setSubmitLoading(false));
     }
+  };
+
+  // Error display component
+  const ErrorMessage = ({ field }: { field: string }) => {
+    if (!validationErrors[field]) return null;
+    
+    return (
+      <Alert variant="destructive" className="mt-2">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription className="text-sm">
+          {validationErrors[field]}
+        </AlertDescription>
+      </Alert>
+    );
   };
 
   // Stepper steps
@@ -443,8 +625,10 @@ function AddVehicleStepper() {
               placeholder="Enter registration number"
               value={formData.registration_number}
               onChange={handleInputChange}
+              className={validationErrors.registration_number ? "border-red-500" : ""}
               required
             />
+            <ErrorMessage field="registration_number" />
           </div>
           <div>
             <Label htmlFor="vehicles_type_id">Vehicle Type *</Label>
@@ -456,7 +640,7 @@ function AddVehicleStepper() {
               }
               required
             >
-              <SelectTrigger>
+              <SelectTrigger className={validationErrors.vehicles_type_id ? "border-red-500" : ""}>
                 <SelectValue placeholder="Select vehicle type" />
               </SelectTrigger>
               <SelectContent>
@@ -482,6 +666,7 @@ function AddVehicleStepper() {
                 )}
               </SelectContent>
             </Select>
+            <ErrorMessage field="vehicles_type_id" />
           </div>
           <div>
             <Label htmlFor="site_allocated_id">Site Allocated *</Label>
@@ -493,7 +678,7 @@ function AddVehicleStepper() {
               }
               required
             >
-              <SelectTrigger>
+              <SelectTrigger className={validationErrors.site_allocated_id ? "border-red-500" : ""}>
                 <SelectValue placeholder="Select site" />
               </SelectTrigger>
               <SelectContent className="max-h-60 overflow-auto">
@@ -519,6 +704,7 @@ function AddVehicleStepper() {
                 )}
               </SelectContent>
             </Select>
+            <ErrorMessage field="site_allocated_id" />
           </div>
           <div>
             <Label htmlFor="vehicle_status">Status</Label>
@@ -528,15 +714,15 @@ function AddVehicleStepper() {
               onValueChange={(value) =>
                 handleSelectChange("vehicle_status", value)
               }
-              defaultValue="available"
+              defaultValue="active"
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="unavailable">Unavailable</SelectItem>
-                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="under_maintenance">Under Maintenance</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -712,222 +898,242 @@ function AddVehicleStepper() {
     {
       label: "Tire Details",
       content: (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="tyre_expiry_front_driver">
-              Front Driver Tire Expiry
-            </Label>
-            <Input
-              id="tyre_expiry_front_driver"
-              name="tyre_expiry_front_driver"
-              type="date"
-              value={formData.tyre_expiry_front_driver}
-              onChange={handleInputChange}
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_expiry_front_passenger">
-              Front Passenger Tire Expiry
-            </Label>
-            <Input
-              id="tyre_expiry_front_passenger"
-              name="tyre_expiry_front_passenger"
-              type="date"
-              value={formData.tyre_expiry_front_passenger}
-              onChange={handleInputChange}
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_expiry_rear_outer_driver">
-              Rear Outer Driver Tire Expiry
-            </Label>
-            <Input
-              id="tyre_expiry_rear_outer_driver"
-              name="tyre_expiry_rear_outer_driver"
-              type="date"
-              value={formData.tyre_expiry_rear_outer_driver}
-              onChange={handleInputChange}
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_expiry_rear_outer_passenger">
-              Rear Outer Passenger Tire Expiry
-            </Label>
-            <Input
-              id="tyre_expiry_rear_outer_passenger"
-              name="tyre_expiry_rear_outer_passenger"
-              type="date"
-              value={formData.tyre_expiry_rear_outer_passenger}
-              onChange={handleInputChange}
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_pressure_front_driver">
-              Front Driver Tire Pressure (PSI)
-            </Label>
-            <Input
-              id="tyre_pressure_front_driver"
-              name="tyre_pressure_front_driver"
-              type="number"
-              step="0.1"
-              value={formData.tyre_pressure_front_driver || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 32.5"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_pressure_front_passenger">
-              Front Passenger Tire Pressure (PSI)
-            </Label>
-            <Input
-              id="tyre_pressure_front_passenger"
-              name="tyre_pressure_front_passenger"
-              type="number"
-              step="0.1"
-              value={formData.tyre_pressure_front_passenger || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 32.0"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_pressure_rear_outer_driver">
-              Rear Outer Driver Tire Pressure (PSI)
-            </Label>
-            <Input
-              id="tyre_pressure_rear_outer_driver"
-              name="tyre_pressure_rear_outer_driver"
-              type="number"
-              step="0.1"
-              value={formData.tyre_pressure_rear_outer_driver || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 35.0"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_pressure_rear_outer_passenger">
-              Rear Outer Passenger Tire Pressure (PSI)
-            </Label>
-            <Input
-              id="tyre_pressure_rear_outer_passenger"
-              name="tyre_pressure_rear_outer_passenger"
-              type="number"
-              step="0.1"
-              value={formData.tyre_pressure_rear_outer_passenger || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 35.5"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_depth_front_driver">
-              Front Driver Tire Depth (mm)
-            </Label>
-            <Input
-              id="tyre_depth_front_driver"
-              name="tyre_depth_front_driver"
-              type="number"
-              step="0.1"
-              value={formData.tyre_depth_front_driver || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 7.2"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_depth_front_passenger">
-              Front Passenger Tire Depth (mm)
-            </Label>
-            <Input
-              id="tyre_depth_front_passenger"
-              name="tyre_depth_front_passenger"
-              type="number"
-              step="0.1"
-              value={formData.tyre_depth_front_passenger || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 7.1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_depth_rear_outer_driver">
-              Rear Outer Driver Tire Depth (mm)
-            </Label>
-            <Input
-              id="tyre_depth_rear_outer_driver"
-              name="tyre_depth_rear_outer_driver"
-              type="number"
-              step="0.1"
-              value={formData.tyre_depth_rear_outer_driver || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 6.9"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_depth_rear_outer_passenger">
-              Rear Outer Passenger Tire Depth (mm)
-            </Label>
-            <Input
-              id="tyre_depth_rear_outer_passenger"
-              name="tyre_depth_rear_outer_passenger"
-              type="number"
-              step="0.1"
-              value={formData.tyre_depth_rear_outer_passenger || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 7.0"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_torque_front_driver">
-              Front Driver Tire Torque (Nm)
-            </Label>
-            <Input
-              id="tyre_torque_front_driver"
-              name="tyre_torque_front_driver"
-              type="number"
-              step="0.1"
-              value={formData.tyre_torque_front_driver || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 130.0"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_torque_front_passenger">
-              Front Passenger Tire Torque (Nm)
-            </Label>
-            <Input
-              id="tyre_torque_front_passenger"
-              name="tyre_torque_front_passenger"
-              type="number"
-              step="0.1"
-              value={formData.tyre_torque_front_passenger || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 130.0"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_torque_rear_outer_driver">
-              Rear Outer Driver Tire Torque (Nm)
-            </Label>
-            <Input
-              id="tyre_torque_rear_outer_driver"
-              name="tyre_torque_rear_outer_driver"
-              type="number"
-              step="0.1"
-              value={formData.tyre_torque_rear_outer_driver || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 135.0"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tyre_torque_rear_outer_passenger">
-              Rear Outer Passenger Tire Torque (Nm)
-            </Label>
-            <Input
-              id="tyre_torque_rear_outer_passenger"
-              name="tyre_torque_rear_outer_passenger"
-              type="number"
-              step="0.1"
-              value={formData.tyre_torque_rear_outer_passenger || ""}
-              onChange={handleNumberInputChange}
-              placeholder="e.g., 135.0"
-            />
+        <div className="space-y-6">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Tire expiry dates should be in WWYY format (4 digits). Example: 0124 means week 1 of 2024.
+            </AlertDescription>
+          </Alert>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="tyre_expiry_front_driver">
+                Front Driver Tire Expiry (WWYY)
+              </Label>
+              <Input
+                id="tyre_expiry_front_driver"
+                name="tyre_expiry_front_driver"
+                placeholder="e.g., 0124"
+                value={formData.tyre_expiry_front_driver}
+                onChange={handleTyreExpiryChange}
+                maxLength={4}
+                className={validationErrors.tyre_expiry_front_driver ? "border-red-500" : ""}
+              />
+              <ErrorMessage field="tyre_expiry_front_driver" />
+            </div>
+            <div>
+              <Label htmlFor="tyre_expiry_front_passenger">
+                Front Passenger Tire Expiry (WWYY)
+              </Label>
+              <Input
+                id="tyre_expiry_front_passenger"
+                name="tyre_expiry_front_passenger"
+                placeholder="e.g., 0124"
+                value={formData.tyre_expiry_front_passenger}
+                onChange={handleTyreExpiryChange}
+                maxLength={4}
+                className={validationErrors.tyre_expiry_front_passenger ? "border-red-500" : ""}
+              />
+              <ErrorMessage field="tyre_expiry_front_passenger" />
+            </div>
+            <div>
+              <Label htmlFor="tyre_expiry_rear_outer_driver">
+                Rear Outer Driver Tire Expiry (WWYY)
+              </Label>
+              <Input
+                id="tyre_expiry_rear_outer_driver"
+                name="tyre_expiry_rear_outer_driver"
+                placeholder="e.g., 0124"
+                value={formData.tyre_expiry_rear_outer_driver}
+                onChange={handleTyreExpiryChange}
+                maxLength={4}
+                className={validationErrors.tyre_expiry_rear_outer_driver ? "border-red-500" : ""}
+              />
+              <ErrorMessage field="tyre_expiry_rear_outer_driver" />
+            </div>
+            <div>
+              <Label htmlFor="tyre_expiry_rear_outer_passenger">
+                Rear Outer Passenger Tire Expiry (WWYY)
+              </Label>
+              <Input
+                id="tyre_expiry_rear_outer_passenger"
+                name="tyre_expiry_rear_outer_passenger"
+                placeholder="e.g., 0124"
+                value={formData.tyre_expiry_rear_outer_passenger}
+                onChange={handleTyreExpiryChange}
+                maxLength={4}
+                className={validationErrors.tyre_expiry_rear_outer_passenger ? "border-red-500" : ""}
+              />
+              <ErrorMessage field="tyre_expiry_rear_outer_passenger" />
+            </div>
+            <div>
+              <Label htmlFor="tyre_pressure_front_driver">
+                Front Driver Tire Pressure (PSI)
+              </Label>
+              <Input
+                id="tyre_pressure_front_driver"
+                name="tyre_pressure_front_driver"
+                type="number"
+                step="0.1"
+                value={formData.tyre_pressure_front_driver || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 32.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_pressure_front_passenger">
+                Front Passenger Tire Pressure (PSI)
+              </Label>
+              <Input
+                id="tyre_pressure_front_passenger"
+                name="tyre_pressure_front_passenger"
+                type="number"
+                step="0.1"
+                value={formData.tyre_pressure_front_passenger || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 32.0"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_pressure_rear_outer_driver">
+                Rear Outer Driver Tire Pressure (PSI)
+              </Label>
+              <Input
+                id="tyre_pressure_rear_outer_driver"
+                name="tyre_pressure_rear_outer_driver"
+                type="number"
+                step="0.1"
+                value={formData.tyre_pressure_rear_outer_driver || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 35.0"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_pressure_rear_outer_passenger">
+                Rear Outer Passenger Tire Pressure (PSI)
+              </Label>
+              <Input
+                id="tyre_pressure_rear_outer_passenger"
+                name="tyre_pressure_rear_outer_passenger"
+                type="number"
+                step="0.1"
+                value={formData.tyre_pressure_rear_outer_passenger || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 35.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_depth_front_driver">
+                Front Driver Tire Depth (mm)
+              </Label>
+              <Input
+                id="tyre_depth_front_driver"
+                name="tyre_depth_front_driver"
+                type="number"
+                step="0.1"
+                value={formData.tyre_depth_front_driver || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 7.2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_depth_front_passenger">
+                Front Passenger Tire Depth (mm)
+              </Label>
+              <Input
+                id="tyre_depth_front_passenger"
+                name="tyre_depth_front_passenger"
+                type="number"
+                step="0.1"
+                value={formData.tyre_depth_front_passenger || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 7.1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_depth_rear_outer_driver">
+                Rear Outer Driver Tire Depth (mm)
+              </Label>
+              <Input
+                id="tyre_depth_rear_outer_driver"
+                name="tyre_depth_rear_outer_driver"
+                type="number"
+                step="0.1"
+                value={formData.tyre_depth_rear_outer_driver || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 6.9"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_depth_rear_outer_passenger">
+                Rear Outer Passenger Tire Depth (mm)
+              </Label>
+              <Input
+                id="tyre_depth_rear_outer_passenger"
+                name="tyre_depth_rear_outer_passenger"
+                type="number"
+                step="0.1"
+                value={formData.tyre_depth_rear_outer_passenger || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 7.0"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_torque_front_driver">
+                Front Driver Tire Torque (Nm)
+              </Label>
+              <Input
+                id="tyre_torque_front_driver"
+                name="tyre_torque_front_driver"
+                type="number"
+                step="0.1"
+                value={formData.tyre_torque_front_driver || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 130.0"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_torque_front_passenger">
+                Front Passenger Tire Torque (Nm)
+              </Label>
+              <Input
+                id="tyre_torque_front_passenger"
+                name="tyre_torque_front_passenger"
+                type="number"
+                step="0.1"
+                value={formData.tyre_torque_front_passenger || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 130.0"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_torque_rear_outer_driver">
+                Rear Outer Driver Tire Torque (Nm)
+              </Label>
+              <Input
+                id="tyre_torque_rear_outer_driver"
+                name="tyre_torque_rear_outer_driver"
+                type="number"
+                step="0.1"
+                value={formData.tyre_torque_rear_outer_driver || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 135.0"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tyre_torque_rear_outer_passenger">
+                Rear Outer Passenger Tire Torque (Nm)
+              </Label>
+              <Input
+                id="tyre_torque_rear_outer_passenger"
+                name="tyre_torque_rear_outer_passenger"
+                type="number"
+                step="0.1"
+                value={formData.tyre_torque_rear_outer_passenger || ""}
+                onChange={handleNumberInputChange}
+                placeholder="e.g., 135.0"
+              />
+            </div>
           </div>
         </div>
       ),
@@ -1016,196 +1222,131 @@ function AddVehicleStepper() {
           <h2 className="text-xl font-semibold">Review Vehicle Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <h3 className="font-medium">Basic Information</h3>
-              <p>
-                <strong>Registration Number:</strong>{" "}
-                {formData.registration_number || "N/A"}
-              </p>
-              <p>
-                <strong>Vehicle Type:</strong>{" "}
-                {vehicleTypes.find(
-                  (type) => type.id === formData.vehicles_type_id
-                )?.name || "N/A"}
-              </p>
-              <p>
-                <strong>Site Allocated:</strong>{" "}
-                {sites.find((site) => site.id === formData.site_allocated_id)
-                  ?.name || "N/A"}
-              </p>
-              <p>
-                <strong>Status:</strong> {formData.vehicle_status || "N/A"}
-              </p>
-              <p>
-                <strong>Assignee Driver:</strong>{" "}
-                {drivers.find(
-                  (driver) => driver.id === formData.assignee_driver
-                )?.full_name || "N/A"}
-              </p>
-              <p>
-                <strong>Last Mileage:</strong> {formData.last_milage || "N/A"}
-              </p>
-              <p>
-                <strong>Vehicle Cost:</strong> {formData.vehicle_cost || "N/A"}
-              </p>
-              <p>
-                <strong>Vehicle Picture:</strong>{" "}
-                {formData.vehicle_picture || "N/A"}
-              </p>
-              <p>
-                <strong>Roadworthy:</strong>{" "}
-                {formData.is_roadworthy ? "Yes" : "No"}
-              </p>
+              <h3 className="font-medium mb-3">Basic Information</h3>
+              <div className="space-y-2 text-sm">
+                <p>
+                  <strong>Registration Number:</strong>{" "}
+                  {formData.registration_number || "N/A"}
+                </p>
+                <p>
+                  <strong>Vehicle Type:</strong>{" "}
+                  {vehicleTypes.find(
+                    (type) => type.id === formData.vehicles_type_id
+                  )?.name || "N/A"}
+                </p>
+                <p>
+                  <strong>Site Allocated:</strong>{" "}
+                  {sites.find((site) => site.id === formData.site_allocated_id)
+                    ?.name || "N/A"}
+                </p>
+                <p>
+                  <strong>Status:</strong> {formData.vehicle_status || "N/A"}
+                </p>
+                <p>
+                  <strong>Assignee Driver:</strong>{" "}
+                  {drivers.find(
+                    (driver) => driver.id === formData.assignee_driver
+                  )?.full_name || "N/A"}
+                </p>
+                <p>
+                  <strong>Last Mileage:</strong> {formData.last_milage || "N/A"}
+                </p>
+                <p>
+                  <strong>Vehicle Cost:</strong> {formData.vehicle_cost || "N/A"}
+                </p>
+                <p>
+                  <strong>Roadworthy:</strong>{" "}
+                  {formData.is_roadworthy ? "Yes" : "No"}
+                </p>
+              </div>
             </div>
             <div>
-              <h3 className="font-medium">Expiry Dates</h3>
-              <p>
-                <strong>Inspection Cycle:</strong>{" "}
-                {formData.inspection_cycle || "N/A"} days
-              </p>
-              <p>
-                <strong>Inspection Expiry:</strong>{" "}
-                {formData.inspection_expire || "N/A"}
-              </p>
-              <p>
-                <strong>Inspection Appointment:</strong>{" "}
-                {formData.inspection_appointment || "N/A"}
-              </p>
-              <p>
-                <strong>MOT Expiry:</strong> {formData.mot_expiry || "N/A"}
-              </p>
-              <p>
-                <strong>Tax Expiry:</strong> {formData.tax_expiry || "N/A"}
-              </p>
-              <p>
-                <strong>Insurance Expiry:</strong>{" "}
-                {formData.insurance_expiry || "N/A"}
-              </p>
-              <p>
-                <strong>Tacho Download:</strong>{" "}
-                {formData.tacho_download || "N/A"}
-              </p>
-              <p>
-                <strong>Tacho Calibration:</strong>{" "}
-                {formData.tacho_calibration || "N/A"}
-              </p>
+              <h3 className="font-medium mb-3">Expiry Dates</h3>
+              <div className="space-y-2 text-sm">
+                <p>
+                  <strong>Inspection Cycle:</strong>{" "}
+                  {formData.inspection_cycle || "N/A"} days
+                </p>
+                <p>
+                  <strong>Inspection Expiry:</strong>{" "}
+                  {formData.inspection_expire || "N/A"}
+                </p>
+                <p>
+                  <strong>Inspection Appointment:</strong>{" "}
+                  {formData.inspection_appointment || "N/A"}
+                </p>
+                <p>
+                  <strong>MOT Expiry:</strong> {formData.mot_expiry || "N/A"}
+                </p>
+                <p>
+                  <strong>Tax Expiry:</strong> {formData.tax_expiry || "N/A"}
+                </p>
+                <p>
+                  <strong>Insurance Expiry:</strong>{" "}
+                  {formData.insurance_expiry || "N/A"}
+                </p>
+                <p>
+                  <strong>Tacho Download:</strong>{" "}
+                  {formData.tacho_download || "N/A"}
+                </p>
+                <p>
+                  <strong>Tacho Calibration:</strong>{" "}
+                  {formData.tacho_calibration || "N/A"}
+                </p>
+              </div>
             </div>
             <div>
-              <h3 className="font-medium">Tire Details</h3>
-              <p>
-                <strong>Front Driver Tire Expiry:</strong>{" "}
-                {formData.tyre_expiry_front_driver || "N/A"}
-              </p>
-              <p>
-                <strong>Front Passenger Tire Expiry:</strong>{" "}
-                {formData.tyre_expiry_front_passenger || "N/A"}
-              </p>
-              <p>
-                <strong>Rear Outer Driver Tire Expiry:</strong>{" "}
-                {formData.tyre_expiry_rear_outer_driver || "N/A"}
-              </p>
-              <p>
-                <strong>Rear Outer Passenger Tire Expiry:</strong>{" "}
-                {formData.tyre_expiry_rear_outer_passenger || "N/A"}
-              </p>
-              <p>
-                <strong>Front Driver Tire Pressure:</strong>{" "}
-                {formData.tyre_pressure_front_driver || "N/A"} PSI
-              </p>
-              <p>
-                <strong>Front Passenger Tire Pressure:</strong>{" "}
-                {formData.tyre_pressure_front_passenger || "N/A"} PSI
-              </p>
-              <p>
-                <strong>Rear Outer Driver Tire Pressure:</strong>{" "}
-                {formData.tyre_pressure_rear_outer_driver || "N/A"} PSI
-              </p>
-              <p>
-                <strong>Rear Outer Passenger Tire Pressure:</strong>{" "}
-                {formData.tyre_pressure_rear_outer_passenger || "N/A"} PSI
-              </p>
-              <p>
-                <strong>Front Driver Tire Depth:</strong>{" "}
-                {formData.tyre_depth_front_driver || "N/A"} mm
-              </p>
-              <p>
-                <strong>Front Passenger Tire Depth:</strong>{" "}
-                {formData.tyre_depth_front_passenger || "N/A"} mm
-              </p>
-              <p>
-                <strong>Rear Outer Driver Tire Depth:</strong>{" "}
-                {formData.tyre_depth_rear_outer_driver || "N/A"} mm
-              </p>
-              <p>
-                <strong>Rear Outer Passenger Tire Depth:</strong>{" "}
-                {formData.tyre_depth_rear_outer_passenger || "N/A"} mm
-              </p>
-              <p>
-                <strong>Front Driver Tire Torque:</strong>{" "}
-                {formData.tyre_torque_front_driver || "N/A"} Nm
-              </p>
-              <p>
-                <strong>Front Passenger Tire Torque:</strong>{" "}
-                {formData.tyre_torque_front_passenger || "N/A"} Nm
-              </p>
-              <p>
-                <strong>Rear Outer Driver Tire Torque:</strong>{" "}
-                {formData.tyre_torque_rear_outer_driver || "N/A"} Nm
-              </p>
-              <p>
-                <strong>Rear Outer Passenger Tire Torque:</strong>{" "}
-                {formData.tyre_torque_rear_outer_passenger || "N/A"} Nm
-              </p>
+              <h3 className="font-medium mb-3">Tire Details</h3>
+              <div className="space-y-2 text-sm">
+                <p>
+                  <strong>Front Driver Tire Expiry:</strong>{" "}
+                  {formData.tyre_expiry_front_driver || "N/A"}
+                </p>
+                <p>
+                  <strong>Front Passenger Tire Expiry:</strong>{" "}
+                  {formData.tyre_expiry_front_passenger || "N/A"}
+                </p>
+                <p>
+                  <strong>Rear Outer Driver Tire Expiry:</strong>{" "}
+                  {formData.tyre_expiry_rear_outer_driver || "N/A"}
+                </p>
+                <p>
+                  <strong>Rear Outer Passenger Tire Expiry:</strong>{" "}
+                  {formData.tyre_expiry_rear_outer_passenger || "N/A"}
+                </p>
+              </div>
             </div>
             <div>
-              <h3 className="font-medium">Documents</h3>
-              <p>
-                <strong>Log Book:</strong> {formData.log_book || "N/A"}
-              </p>
-              <p>
-                <strong>MOT:</strong> {formData.mot || "N/A"}
-              </p>
-              <p>
-                <strong>Inspection:</strong> {formData.inspection || "N/A"}
-              </p>
-              <p>
-                <strong>Insurance:</strong> {formData.insurance || "N/A"}
-              </p>
-              <p>
-                <strong>Fitness Certificate:</strong>{" "}
-                {formData.fitness_certificate || "N/A"}
-              </p>
-              <p>
-                <strong>Route Permit:</strong> {formData.route_permit || "N/A"}
-              </p>
-              <p>
-                <strong>Financial Document:</strong>{" "}
-                {formData.financial || "N/A"}
-              </p>
-              <p>
-                <strong>Other Documents:</strong> {formData.others || "N/A"}
-              </p>
-              <p>
-                <strong>Service Records:</strong>{" "}
-                {formData.service_records || "N/A"}
-              </p>
-              <p>
-                <strong>Tax Document:</strong> {formData.tax || "N/A"}
-              </p>
-              <p>
-                <strong>Tacho Download Docs:</strong>{" "}
-                {formData.tacho_download_docs || "N/A"}
-              </p>
-              <p>
-                <strong>Tacho Calibration Docs:</strong>{" "}
-                {formData.tacho_calibration_docs || "N/A"}
-              </p>
+              <h3 className="font-medium mb-3">Documents</h3>
+              <div className="space-y-2 text-sm">
+                <p>
+                  <strong>Log Book:</strong> {formData.log_book ? "Uploaded" : "N/A"}
+                </p>
+                <p>
+                  <strong>MOT:</strong> {formData.mot ? "Uploaded" : "N/A"}
+                </p>
+                <p>
+                  <strong>Inspection:</strong> {formData.inspection ? "Uploaded" : "N/A"}
+                </p>
+                <p>
+                  <strong>Insurance:</strong> {formData.insurance ? "Uploaded" : "N/A"}
+                </p>
+                <p>
+                  <strong>Fitness Certificate:</strong>{" "}
+                  {formData.fitness_certificate ? "Uploaded" : "N/A"}
+                </p>
+                <p>
+                  <strong>Route Permit:</strong> {formData.route_permit ? "Uploaded" : "N/A"}
+                </p>
+              </div>
             </div>
           </div>
           <div className="flex justify-end">
             <Button
               type="button"
               onClick={handleSubmit}
-              className="bg-gradient-to-r from-orange to-magenta text-white hover:from-orange-700 hover:to-magenta-700"
+              disabled={!isFormValid() || submitLoading}
+              className="bg-gradient-to-r from-orange-500 to-pink-500 text-white hover:from-orange-600 hover:to-pink-600"
             >
               {submitLoading ? (
                 <>
@@ -1256,15 +1397,14 @@ function AddVehicleStepper() {
             {activeStep !== steps.length - 1 && (
               <Button
                 type="button"
-                onClick={() => dispatch(setActiveStep(activeStep + 1))}
+                onClick={handleNextStep}
                 disabled={
                   submitLoading ||
                   vehicleTypesLoading ||
                   sitesLoading ||
-                  driversLoading ||
-                  !isFormValid()
+                  driversLoading
                 }
-                className="bg-gradient-to-r from-orange to-magenta text-white hover:from-orange-700 hover:to-magenta-700"
+                className="bg-gradient-to-r from-orange-500 to-pink-500 text-white hover:from-orange-600 hover:to-pink-600"
               >
                 Next
               </Button>

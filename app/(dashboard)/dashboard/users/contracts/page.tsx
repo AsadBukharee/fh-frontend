@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Check,
   Zap,
+  Landmark,
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -201,7 +202,7 @@ const ShiftCard = memo(
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-500">Rate per Hour</label>
                   <div className="relative">
-                  <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Landmark className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       type="number"
                       step="0.01"
@@ -291,7 +292,7 @@ const ShiftCard = memo(
                   £{shift.rate_per_hours?.toFixed(2) || "0.00"}
                 </Badge>
               </div>
-              {isTemplate && (
+              {/* {isTemplate && (
                 <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-amber-600" />
@@ -350,7 +351,7 @@ const ShiftCard = memo(
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              )}
+              )} */}
               {shift.shift_note && (
                 <div className="flex items-start gap-2 text-sm text-gray-600">
                   <FileText className="h-4 w-4 mt-0.5 text-gray-400" />
@@ -957,7 +958,7 @@ const ShiftManagement = () => {
                   <p className="text-sm font-medium text-gray-600">Avg. Rate</p>
                   <p className="text-2xl font-bold text-gray-900">£{averageRate.toFixed(2)}</p>
                 </div>
-                <PoundSterling className="h-8 w-8 text-purple-600" />
+              <Landmark className="h-8 w-8 text-purple-600" />
               </div>
             </CardContent>
           </Card>
@@ -1149,7 +1150,7 @@ const ShiftManagement = () => {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-500">Rate per Hour</label>
                 <div className="relative">
-                  <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Landmark  className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     type="number"
                     step="0.01"

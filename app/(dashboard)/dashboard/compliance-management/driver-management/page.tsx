@@ -121,7 +121,7 @@ const DriverManagementPage = () => {
   useEffect(() => {
     const fetchDrivers = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/driver-management');
+        const response = await fetch('/api/driver-management');
         const data: ApiResponse = await response.json();
         setDrivers(data.data.results);
         setFilteredDrivers(data.data.results);
@@ -369,7 +369,7 @@ const tooltipContent = dateFields.map(({ key, label }) =>
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Driver Details Table</h1>
+        <h1 className="text-2xl font-bold">Driver Compliance</h1>
      <div className=" gap-2 flex">
          <Button
           variant="outline"

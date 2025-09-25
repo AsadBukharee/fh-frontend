@@ -1,12 +1,13 @@
 "use client"
 
-import  { ShiftTable } from "@/components/Rota/ChildTab"
+import { ShiftTable } from "@/components/Rota/ChildTab"
 import ParentTab from "@/components/Rota/ParentTab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 export default function Rota() {
-  const currentYear = 2025
-  const currentMonth = 7 
+  const currentYear = new Date().getFullYear() // Dynamically get the current year (2025)
+  const currentMonth = new Date().getMonth() + 1 // Dynamically get the current month (9 for September, 1-based)
+
   return (
     <div className="p-6 space-y-4 bg-white">
       {/* Title */}
@@ -27,18 +28,16 @@ export default function Rota() {
           <TabsTrigger
             value="child"
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 "
-
           >
             Child Tab · 12 Month View
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="parent">
-          <ParentTab/>
+          <ParentTab />
         </TabsContent>
         <TabsContent value="child">
-        <ShiftTable year={currentYear} month={currentMonth} />
-
+          <ShiftTable year={currentYear} month={currentMonth} />
         </TabsContent>
       </Tabs>
     </div>

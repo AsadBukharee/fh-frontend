@@ -587,7 +587,7 @@ function AddSiteForm() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label htmlFor="latitude" className="text-sm font-medium">
                       Latitude
                     </Label>
@@ -600,8 +600,8 @@ function AddSiteForm() {
                       type="text"
                       className="h-11"
                     />
-                  </div>
-                  <div className="space-y-2">
+                  </div> */}
+                  {/* <div className="space-y-2">
                     <Label htmlFor="longitude" className="text-sm font-medium">
                       Longitude
                     </Label>
@@ -614,7 +614,7 @@ function AddSiteForm() {
                       type="text"
                       className="h-11"
                     />
-                  </div>
+                  </div> */}
                   <div className="space-y-2">
                     <Label htmlFor="radius_m" className="text-sm font-medium">
                       Radius (meters)

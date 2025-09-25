@@ -95,7 +95,7 @@ export function NotificationsDropdown() {
             <h3 className="font-semibold">Notifications</h3>
             <div className=" flex gap-3">
               <RefreshCw className="w-5 h-5 text-gray-400 hover:text-gray-700 cursor-pointer"  onClick={()=>fetchNotifications()} />
-              <Badge variant="secondary">{filteredNotifications.length}</Badge>
+              {/* <Badge variant="secondary">{filteredNotifications.length}</Badge> */}
 
             </div>
           </div>
