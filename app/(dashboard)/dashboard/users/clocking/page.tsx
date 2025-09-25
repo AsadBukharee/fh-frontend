@@ -58,7 +58,7 @@ const Page = () => {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/clock-logs');
+        const response = await fetch('/api/clock-logs');
         if (!response.ok) {
           throw new Error('Failed to fetch clock logs');
         }
