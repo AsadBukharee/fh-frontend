@@ -31,6 +31,9 @@ import { CalendarIcon } from 'lucide-react';
 import { format, differenceInDays, isPast, parseISO } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import ExportButton from '@/app/utils/ExportButton';
+import API_URL from '@/app/utils/ENV';
+import { useCookies } from 'next-client-cookies';
+import Link from 'next/link';
 
 interface Driver {
   id: number;
@@ -117,11 +120,18 @@ const DriverManagementPage = () => {
   });
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  const token = useCookies().get("access_token");
 
   useEffect(() => {
     const fetchDrivers = async () => {
       try {
-        const response = await fetch('/api/driver-management');
+        const response = await fetch(`${API_URL}/api/profiles/driver/compliance/`,{
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
         const data: ApiResponse = await response.json();
         setDrivers(data.data.results);
         setFilteredDrivers(data.data.results);
@@ -507,17 +517,10 @@ const tooltipContent = dateFields.map(({ key, label }) =>
                     className="font-medium whitespace-nowrap"
                     onDoubleClick={() => handleDoubleClick(driver.id, 'full_name', driver.user.full_name)}
                   >
-                    {editingCell?.id === driver.id && editingCell?.field === 'full_name' ? (
-                      <Input
-                        value={editValue}
-                        onChange={handleEditChange}
-                        onBlur={() => handleEditSave(driver.id, 'full_name')}
-                        onKeyPress={(e) => handleKeyPress(e, driver.id, 'full_name')}
-                        autoFocus
-                      />
-                    ) : (
-                      driver.user.full_name
-                    )}
+                  
+                     <Link href={`/dashboard/compliance-management/driver-management/${driver.id}`} className="text-blue-600 hover:underline"> 
+                     {driver.user.full_name} </Link>
+                    
                   </TableCell>
              
                 
