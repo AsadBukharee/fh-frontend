@@ -180,7 +180,7 @@ export default function Drivers() {
   }
 
   return (
-    <div className="min-h-screen p-3 bg-white">
+    <div className="min-h-screen relative p-3 bg-white">
       {loading && (
         <div className=" absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pink-500"></div>
@@ -220,7 +220,7 @@ export default function Drivers() {
                     type="number"
                     value={item.days}
                     onChange={(e) => updateDays(item.id, Number.parseInt(e.target.value) || 0)}
-                    className="w-16 h-8 text-center text-sm border-gray-300"
+                    className="w-16 h-8  text-center text-sm border-gray-300"
                     min="0"
                   />
                 </div>

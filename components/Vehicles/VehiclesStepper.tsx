@@ -720,9 +720,11 @@ function AddVehicleStepper() {
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-                <SelectItem value="under_maintenance">Under Maintenance</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="unavailable">Unavailable</SelectItem>
+                <SelectItem value="minor_defect">Minor Defect</SelectItem>
+                <SelectItem value="assigned">Assigned</SelectItem>
+                <SelectItem value="disabled">Disabled</SelectItem>
               </SelectContent>
             </Select>
           </div>
