@@ -27,60 +27,92 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar as ShadcnCalendar } from "@/components/ui/calendar";
-import { parse, differenceInDays, format, isWithinInterval, isPast, parseISO } from "date-fns";
+import { parse, differenceInDays, format, isWithinInterval, isPast } from "date-fns";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import ExportButton from "@/app/utils/ExportButton";
+import Link from "next/link";
 
 interface ApiResponse {
   success: boolean;
   message: string;
   data: {
     mot: Array<{
+      vehicle: number;
       vehicle_reg: string;
       mot_expiry: string;
-      next_mot_booked_from: string | null;
+      book_next_mot_from: string | null;
       next_mot_booked_date: string | null;
       time_mot_booked: string;
+      mot_status: string;
     }>;
     pmi: Array<{
+      vehicle: number;
       vehicle_reg: string;
-      next_inspection_book_date: string;
+      last_pmi_date: string;
+      book_next_pmi_from: string;
+      next_pmi_date: string;
+      hover: {
+        second_planned: string;
+        third_planned: string;
+        fourth_planned: string;
+        fifth_planned: string;
+        sixth_planned: string;
+      };
     }>;
     tacho: Array<{
+      vehicle: number;
       vehicle_reg: string;
       last_download: string | null;
       next_download: string | null;
     }>;
     tyre: Array<{
+      vehicle: number;
       vehicle_reg: string;
       last_check: string | null;
       next_check: string | null;
     }>;
     insurance: Array<{
+      vehicle: number;
       vehicle_reg: string;
       expiry: string;
+      tax_expiry: string;
     }>;
     calibrations: Array<{
+      vehicle: number;
       vehicle_reg: string;
-      expiry: string;
+      tacho_expiry: string;
+      loller_expiry: string | null;
     }>;
   };
 }
 
 interface Vehicle {
+  id: number;
   vehicle_reg: string;
   type?: string;
   mot_expiry?: string;
-  next_mot_booked_from?: string | null;
+  book_next_mot_from?: string | null;
   next_mot_booked_date?: string | null;
   time_mot_booked?: string;
-  next_inspection_book_date?: string;
+  mot_status?: string;
+  last_pmi_date?: string;
+  book_next_pmi_from?: string;
+  next_pmi_date?: string;
+  hover?: {
+    second_planned: string;
+    third_planned: string;
+    fourth_planned: string;
+    fifth_planned: string;
+    sixth_planned: string;
+  };
   last_download?: string | null;
   next_download?: string | null;
   last_check?: string | null;
   next_check?: string | null;
-  expiry?: string;
+  insurance_expiry?: string;
+  tax_expiry?: string;
+  tacho_expiry?: string;
+  loller_expiry?: string | null;
 }
 
 export default function VehicleDashboard() {
@@ -92,7 +124,7 @@ export default function VehicleDashboard() {
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All Data");
-  const [vehicleRegFilter, setVehicleRegFilter] = useState("All Registrations");
+  const [vehicleIdFilter, setVehicleIdFilter] = useState("All Registrations");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [dateRange, setDateRange] = useState<{
     start: Date | null;
@@ -110,22 +142,7 @@ export default function VehicleDashboard() {
       if (!isNaN(dmy.getTime()) && /\d{2}\/\d{2}\/\d{4}/.test(trimmed))
         return dmy;
     } catch {}
-    const candidateFormats = [
-      "yyyy-MM-dd'T'HH:mm:ssXXX",
-      "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-      "yyyy-MM-dd'T'HH:mm:ss'Z'",
-      "yyyy-MM-dd",
-      "dd-MM-yyyy",
-      "MM/dd/yyyy",
-    ];
-    for (const fmt of candidateFormats) {
-      try {
-        const dt = parse(trimmed, fmt, new Date());
-        if (!isNaN(dt.getTime())) return dt;
-      } catch {}
-    }
-    const dt = new Date(trimmed);
-    return isNaN(dt.getTime()) ? null : dt;
+    return null;
   };
 
   const formatDateDmy = (input?: string | null): string => {
@@ -142,7 +159,8 @@ export default function VehicleDashboard() {
       );
     }
     try {
-      const date = parseFlexibleDate(dateString) || parseISO(dateString);
+      const date = parseFlexibleDate(dateString);
+      if (!date) throw new Error("Invalid date");
       const daysDiff = differenceInDays(date, new Date());
       if (isPast(date)) {
         return (
@@ -186,14 +204,13 @@ export default function VehicleDashboard() {
 
   const statusFilterOptions = ["All Statuses", "Expired", "Upcoming", "TBC"];
 
-  // Get unique vehicle registrations for the dropdown
-  const getVehicleRegistrations = () => {
+  const getVehicleIds = () => {
     if (!fullApiData) return ["All Registrations"];
-    const allRegs = new Set<string>();
+    const allIds = new Set<number>();
     Object.values(fullApiData.data).forEach((dataArray) => {
-      dataArray.forEach((item) => allRegs.add(item.vehicle_reg));
+      dataArray.forEach((item) => allIds.add(item.vehicle));
     });
-    return ["All Registrations", ...Array.from(allRegs).sort()];
+    return ["All Registrations", ...Array.from(allIds).sort((a, b) => a - b).map(String)];
   };
 
   const fetchData = useCallback(async () => {
@@ -223,46 +240,76 @@ export default function VehicleDashboard() {
     fetchData();
   }, [fetchData]);
 
+  const getVehicleData = (vehicleId: number) => {
+    if (!fullApiData) return null;
+    return {
+      mot: fullApiData.data.mot.find((item) => item.vehicle === vehicleId),
+      pmi: fullApiData.data.pmi.find((item) => item.vehicle === vehicleId),
+      tacho: fullApiData.data.tacho.find((item) => item.vehicle === vehicleId),
+      tyre: fullApiData.data.tyre.find((item) => item.vehicle === vehicleId),
+      insurance: fullApiData.data.insurance.find(
+        (item) => item.vehicle === vehicleId
+      ),
+      calibrations: fullApiData.data.calibrations.find(
+        (item) => item.vehicle === vehicleId
+      ),
+    };
+  };
+
   const getDataForActiveFilter = useCallback((): Vehicle[] => {
     if (!fullApiData) return [];
-
     const deduplicateByLatest = <
-      T extends { vehicle_reg: string; mot_expiry?: string; expiry?: string }
+      T extends {
+        vehicle: number;
+        vehicle_reg: string;
+        mot_expiry?: string;
+        next_pmi_date?: string;
+        tax_expiry?: string;
+        tacho_expiry?: string;
+        loller_expiry?: string;
+      }
     >(
       items: T[]
     ): T[] => {
-      const map = new Map<string, T>();
+      const map = new Map<number, T>();
       items.forEach((item) => {
-        const existing = map.get(item.vehicle_reg);
-        const itemDate = item.mot_expiry || item.expiry;
-        const existingDate = existing?.mot_expiry || existing?.expiry;
+        const existing = map.get(item.vehicle);
+        const itemDate =
+          item.mot_expiry ||
+          item.next_pmi_date ||
+          item.tax_expiry ||
+          item.tacho_expiry ||
+          item.loller_expiry;
+        const existingDate =
+          existing?.mot_expiry ||
+          existing?.next_pmi_date ||
+          existing?.tax_expiry ||
+          existing?.tacho_expiry ||
+          existing?.loller_expiry;
         if (
           !existing ||
           (itemDate &&
             existingDate &&
-            !!parseFlexibleDate(itemDate) &&
-!!parseFlexibleDate(existingDate) &&
-parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTime()
-
-            )
+            parseFlexibleDate(itemDate)?.getTime()! >
+              parseFlexibleDate(existingDate)?.getTime()!)
         ) {
-          map.set(item.vehicle_reg, item);
+          map.set(item.vehicle, item);
         }
       });
       return Array.from(map.values());
     };
 
     const applyStatusAndDateFilters = (vehicles: Vehicle[]): Vehicle[] => {
-      const today = new Date("2025-09-22T22:45:00"); // Updated to current date and time (10:45 PM PKT)
+      const today = new Date();
       let filtered = vehicles;
-
-      // Status filter
       if (statusFilter !== "All Statuses") {
         filtered = filtered.filter((vehicle) => {
           const dates = [
             vehicle.mot_expiry,
-            vehicle.expiry,
-            vehicle.next_inspection_book_date,
+            vehicle.next_pmi_date,
+            vehicle.tax_expiry,
+            vehicle.tacho_expiry,
+            vehicle.loller_expiry,
             vehicle.next_download,
             vehicle.next_check,
           ].filter(Boolean);
@@ -274,20 +321,19 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
           } else if (expiryDate) {
             const daysDiff = differenceInDays(expiryDate, today);
             if (statusFilter === "Expired") return daysDiff < 0;
-            if (statusFilter === "Upcoming")
-              return daysDiff >= 0 && daysDiff <= 30;
+            if (statusFilter === "Upcoming") return daysDiff >= 0 && daysDiff <= 30;
           }
           return true;
         });
       }
-
-      // Date range filter
       if (dateRange.start && dateRange.end) {
         filtered = filtered.filter((vehicle) => {
           const dates = [
             vehicle.mot_expiry,
-            vehicle.expiry,
-            vehicle.next_inspection_book_date,
+            vehicle.next_pmi_date,
+            vehicle.tax_expiry,
+            vehicle.tacho_expiry,
+            vehicle.loller_expiry,
             vehicle.next_download,
             vehicle.next_check,
           ].filter(Boolean);
@@ -301,55 +347,117 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
           });
         });
       }
-
       return filtered;
     };
 
     let data: Vehicle[] = [];
     switch (activeFilter) {
       case "All Data":
-        const allVehicles = new Set<string>();
+        const allVehicles = new Set<number>();
         Object.values(fullApiData.data).forEach((dataArray) => {
-          dataArray.forEach((item) => allVehicles.add(item.vehicle_reg));
+          dataArray.forEach((item) => allVehicles.add(item.vehicle));
         });
-        data = Array.from(allVehicles).map((reg) => {
-          const vehicleData = getVehicleData(reg);
+        data = Array.from(allVehicles).map((id) => {
+          const vehicleData = getVehicleData(id);
           return {
-            vehicle_reg: reg,
-            type: reg.includes("VAN") ? "16-Seater MK7" : "16-Seater MK8",
+            id,
+            vehicle_reg: vehicleData?.mot?.vehicle_reg || vehicleData?.pmi?.vehicle_reg || "",
+            type: vehicleData?.mot?.vehicle_reg?.includes("VAN") ? "16-Seater MK7" : "16-Seater MK8",
             mot_expiry: vehicleData?.mot?.mot_expiry,
-            next_mot_booked_from: vehicleData?.mot?.next_mot_booked_from,
+            book_next_mot_from: vehicleData?.mot?.book_next_mot_from,
             next_mot_booked_date: vehicleData?.mot?.next_mot_booked_date,
             time_mot_booked: vehicleData?.mot?.time_mot_booked,
-            next_inspection_book_date: vehicleData?.pmi?.next_inspection_book_date,
+            mot_status: vehicleData?.mot?.mot_status,
+            last_pmi_date: vehicleData?.pmi?.last_pmi_date,
+            book_next_pmi_from: vehicleData?.pmi?.book_next_pmi_from,
+            next_pmi_date: vehicleData?.pmi?.next_pmi_date,
+            hover: vehicleData?.pmi?.hover,
             last_download: vehicleData?.tacho?.last_download,
             next_download: vehicleData?.tacho?.next_download,
             last_check: vehicleData?.tyre?.last_check,
             next_check: vehicleData?.tyre?.next_check,
-            expiry: vehicleData?.insurance?.expiry || vehicleData?.calibrations?.expiry,
+            insurance_expiry: vehicleData?.insurance?.expiry,
+            tax_expiry: vehicleData?.insurance?.tax_expiry,
+            tacho_expiry: vehicleData?.calibrations?.tacho_expiry,
+            loller_expiry: vehicleData?.calibrations?.loller_expiry,
           };
         });
         break;
       case "MOT":
-        data = deduplicateByLatest(fullApiData.data.mot);
+        data = deduplicateByLatest(
+          fullApiData.data.mot.map((item) => ({
+            id: item.vehicle,
+            vehicle: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
+            mot_expiry: item.mot_expiry,
+            book_next_mot_from: item.book_next_mot_from,
+            next_mot_booked_date: item.next_mot_booked_date,
+            time_mot_booked: item.time_mot_booked,
+            mot_status: item.mot_status,
+          }))
+        );
         break;
       case "PMI Inspection":
-        data = deduplicateByLatest(fullApiData.data.pmi);
+        data = deduplicateByLatest(
+          fullApiData.data.pmi.map((item) => ({
+            id: item.vehicle,
+            vehicle: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
+            last_pmi_date: item.last_pmi_date,
+            book_next_pmi_from: item.book_next_pmi_from,
+            next_pmi_date: item.next_pmi_date,
+            hover: item.hover,
+          }))
+        );
         break;
       case "Vehicle Tacho Download":
-        data = deduplicateByLatest(fullApiData.data.tacho);
+        data = deduplicateByLatest(
+          fullApiData.data.tacho.map((item) => ({
+            id: item.vehicle,
+                        vehicle: item.vehicle,
+
+            vehicle_reg: item.vehicle_reg,
+            last_download: item.last_download,
+            next_download: item.next_download,
+          }))
+        );
         break;
       case "Tyre Maintenance Check":
-        data = deduplicateByLatest(fullApiData.data.tyre);
+        data = deduplicateByLatest(
+          fullApiData.data.tyre.map((item) => ({
+            id: item.vehicle,
+                        vehicle: item.vehicle,
+
+            vehicle_reg: item.vehicle_reg,
+            last_check: item.last_check,
+            next_check: item.next_check,
+          }))
+        );
         break;
       case "Insurance & Check":
-        data = deduplicateByLatest(fullApiData.data.insurance);
+        data = deduplicateByLatest(
+          fullApiData.data.insurance.map((item) => ({
+            id: item.vehicle,
+            vehicle: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
+            insurance_expiry: item.expiry,
+            tax_expiry: item.tax_expiry,
+          }))
+        );
         break;
       case "Calibrations":
-        data = deduplicateByLatest(fullApiData.data.calibrations);
+        data = deduplicateByLatest(
+          fullApiData.data.calibrations.map((item) => ({
+            id: item.vehicle,
+                        vehicle: item.vehicle,
+
+            vehicle_reg: item.vehicle_reg,
+            tacho_expiry: item.tacho_expiry,
+            loller_expiry: item.loller_expiry ?? undefined,
+          }))
+        );
         break;
     }
-
     return applyStatusAndDateFilters(data);
   }, [fullApiData, activeFilter, statusFilter, dateRange]);
 
@@ -357,26 +465,25 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
     let data = getDataForActiveFilter();
     if (searchQuery) {
       data = data.filter((d) =>
-        d.vehicle_reg.toLowerCase().includes(searchQuery.toLowerCase())
+        d.id.toString().toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    if (vehicleRegFilter !== "All Registrations") {
-      data = data.filter((d) => d.vehicle_reg === vehicleRegFilter);
+    if (vehicleIdFilter !== "All Registrations") {
+      data = data.filter((d) => d.id.toString() === vehicleIdFilter);
     }
     setFilteredData(data);
     setTotalPages(Math.ceil(data.length / perPage));
     setCurrentPage(1);
-  }, [getDataForActiveFilter, searchQuery, vehicleRegFilter, perPage]);
+  }, [getDataForActiveFilter, searchQuery, vehicleIdFilter, perPage]);
 
-  const getStatusBadge = (status?: string | null, expiry?: string) => {
+  const getStatusBadge = (status?: string | null, expiry?: string | null) => {
     if (!status && !expiry) return <span className="text-gray-400">-</span>;
-
     if (expiry) {
       try {
         const parsed = parseFlexibleDate(expiry);
-        const expiryDate = parsed ?? parse(expiry, "dd/MM/yyyy", new Date());
-        const today = new Date("2025-09-22T22:45:00");
-        const daysDiff = differenceInDays(expiryDate, today);
+        if (!parsed) throw new Error("Invalid date");
+        const today = new Date();
+        const daysDiff = differenceInDays(parsed, today);
         if (daysDiff < 0) {
           return (
             <Popover>
@@ -411,7 +518,6 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
         return <span className="text-gray-900">{formatDateDmy(expiry)}</span>;
       }
     }
-
     if (typeof status === "string" && status === "TBC") {
       return (
         <Popover>
@@ -438,61 +544,70 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
           <>
             <tr className="border-b border-gray-200">
               <th className="text-left p-3 text-sm font-medium text-gray-900 bg-gray-50 sticky left-0 z-10">
-                Vehicle Reg
+                Vehicle ID
               </th>
               <th
-                className="text-center p-3 text-sm font-medium text-orange-700 bg-orange-500/30  border-orange-600"
-                colSpan={4}
+                className="text-center p-3 text-sm font-medium text-orange-700 bg-orange-500/30 border-orange-600"
+                colSpan={5}
               >
                 MOT
               </th>
               <th
-                className="text-center p-3 text-sm font-medium text-rose-700 bg-rose-200  ose-500/30"
-                colSpan={1}
+                className="text-center p-3 text-sm font-medium text-rose-700 bg-rose-200 border-rose-600"
+                colSpan={3}
               >
                 PMI Inspections
               </th>
               <th
-                className="text-center p-3 text-sm font-medium text-blue-700 bg-blue-500/30  border-blue-600"
+                className="text-center p-3 text-sm font-medium text-blue-700 bg-blue-500/30 border-blue-600"
                 colSpan={2}
               >
                 Tacho Download
               </th>
               <th
-                className="text-center p-3 text-sm font-medium text-purple-700 bg-purple-500/30  border-purple-600"
+                className="text-center p-3 text-sm font-medium text-purple-700 bg-purple-500/30 border-purple-600"
                 colSpan={2}
               >
                 Tyre Maintenance
               </th>
               <th
-                className="text-center p-3 text-sm font-medium text-green-700 bg-green-500/30  border-green-600"
-                colSpan={1}
+                className="text-center p-3 text-sm font-medium text-green-700 bg-green-500/30 border-green-600"
+                colSpan={2}
               >
                 Insurance & Tax
               </th>
               <th
-                className="text-center p-3 text-sm font-medium text-yellow-700 bg-yellow-500/30"
-                colSpan={1}
+                className="text-center p-3 text-sm font-medium text-yellow-700 bg-yellow-500/30 border-yellow-600"
+                colSpan={2}
               >
                 Calibrations
               </th>
             </tr>
             <tr className="border-b border-gray-200 bg-gray-50">
               <th className="text-left p-3 text-xs font-medium text-gray-600 sticky left-0 z-10 bg-gray-50"></th>
-              <th className="text-left p-2 text-xs font-medium text-orange-700 bg-orange-500/30  min-w-[120px]">
+              <th className="text-left p-2 text-xs font-medium text-orange-700 bg-orange-500/30 min-w-[120px]">
                 MOT Expiry
               </th>
-              <th className="text-left p-2 text-xs font-medium text-orange-700 bg-orange-500/30  min-w-[140px]">
-                Next MOT Booked From
+              <th className="text-left p-2 text-xs font-medium text-orange-700 bg-orange-500/30 min-w-[140px]">
+                Book Next MOT From
               </th>
-              <th className="text-left p-2 text-xs font-medium text-orange-700 bg-orange-500/30  min-w-[140px]">
+              <th className="text-left p-2 text-xs font-medium text-orange-700 bg-orange-500/30 min-w-[140px]">
                 Next MOT Booked Date
               </th>
-              <th className="text-left p-2 text-xs font-medium text-orange-700 bg-orange-500/30  min-w-[120px]">
+              <th className="text-left p-2 text-xs font-medium text-orange-700 bg-orange-500/30 min-w-[120px]">
                 Time MOT Booked
               </th>
+              <th className="text-left p-2 text-xs font-medium text-orange-700 bg-orange-500/30 min-w-[120px]">
+                MOT Status
+              </th>
+              <th className="text-left p-2 text-xs font-medium text-rose-700 bg-rose-200 min-w-[130px]">
+                Last PMI Date
+              </th>
               <th className="text-left p-2 text-xs font-medium text-rose-700 bg-rose-200 min-w-[150px]">
-                Next Inspection Book Date
+                Next PMI Date
+              </th>
+              <th className="text-left p-2 text-xs font-medium text-rose-700 bg-rose-200 min-w-[130px]">
+                Book Next PMI From
               </th>
               <th className="text-left p-2 text-xs font-medium text-blue-700 bg-blue-500/30 min-w-[130px]">
                 Last Download
@@ -509,8 +624,14 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
               <th className="text-left p-2 text-xs font-medium text-green-700 bg-green-500/30 min-w-[130px]">
                 Insurance Expiry
               </th>
+              <th className="text-left p-2 text-xs font-medium text-green-700 bg-green-500/30 min-w-[130px]">
+                Tax Expiry
+              </th>
               <th className="text-left p-2 text-xs font-medium text-yellow-700 bg-yellow-500/30 min-w-[140px]">
-                Calibration Expiry
+                Tacho Expiry
+              </th>
+              <th className="text-left p-2 text-xs font-medium text-yellow-700 bg-yellow-500/30 min-w-[140px]">
+                LOLER Expiry
               </th>
             </tr>
           </>
@@ -519,13 +640,13 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
         return (
           <tr className="border-b border-gray-200 bg-orange-50">
             <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle Reg
+              Vehicle ID
             </th>
             <th className="text-left p-3 text-sm font-medium text-gray-900">
               MOT Expiry
             </th>
             <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Next MOT Booked From
+              Book Next MOT From
             </th>
             <th className="text-left p-3 text-sm font-medium text-gray-900">
               Next MOT Booked Date
@@ -533,16 +654,25 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
             <th className="text-left p-3 text-sm font-medium text-gray-900">
               Time MOT Booked
             </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">
+              MOT Status
+            </th>
           </tr>
         );
       case "PMI Inspection":
         return (
           <tr className="border-b border-gray-200 bg-pink-50">
             <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle Reg
+              Vehicle ID
             </th>
             <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Next Inspection Book Date
+              Last PMI Date
+            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">
+              Next PMI Date
+            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">
+              Book Next PMI From
             </th>
           </tr>
         );
@@ -550,7 +680,7 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
         return (
           <tr className="border-b border-gray-200 bg-blue-50">
             <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle Reg
+              Vehicle ID
             </th>
             <th className="text-left p-3 text-sm font-medium text-gray-900">
               Last Download
@@ -564,7 +694,7 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
         return (
           <tr className="border-b border-gray-200 bg-purple-50">
             <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle Reg
+              Vehicle ID
             </th>
             <th className="text-left p-3 text-sm font-medium text-gray-900">
               Last Check
@@ -578,10 +708,13 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
         return (
           <tr className="border-b border-gray-200 bg-green-50">
             <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle Reg
+              Vehicle ID
             </th>
             <th className="text-left p-3 text-sm font-medium text-gray-900">
               Insurance Expiry
+            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">
+              Tax Expiry
             </th>
           </tr>
         );
@@ -589,10 +722,13 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
         return (
           <tr className="border-b border-gray-200 bg-yellow-50">
             <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle Reg
+              Vehicle ID
             </th>
             <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Calibration Expiry
+              Tacho Expiry
+            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">
+              LOLER Expiry
             </th>
           </tr>
         );
@@ -601,28 +737,8 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
     }
   };
 
-  const getVehicleData = (vehicleReg: string) => {
-    if (!fullApiData) return null;
-    return {
-      mot: fullApiData.data.mot.find((item) => item.vehicle_reg === vehicleReg),
-      pmi: fullApiData.data.pmi.find((item) => item.vehicle_reg === vehicleReg),
-      tacho: fullApiData.data.tacho.find(
-        (item) => item.vehicle_reg === vehicleReg
-      ),
-      tyre: fullApiData.data.tyre.find(
-        (item) => item.vehicle_reg === vehicleReg
-      ),
-      insurance: fullApiData.data.insurance.find(
-        (item) => item.vehicle_reg === vehicleReg
-      ),
-      calibrations: fullApiData.data.calibrations.find(
-        (item) => item.vehicle_reg === vehicleReg
-      ),
-    };
-  };
-
   const renderTableRow = (item: Vehicle, index: number) => {
-    const vehicleData = getVehicleData(item.vehicle_reg);
+    const vehicleData = getVehicleData(item.id);
     const motData = vehicleData?.mot;
     const pmiData = vehicleData?.pmi;
     const tachoData = vehicleData?.tacho;
@@ -634,10 +750,10 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
       case "All Data":
         return (
           <tr
-            key={`${item.vehicle_reg}-${index}`}
+            key={`${item.id}-${index}`}
             className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
           >
-            <td className="p-3 font-medium text-gray-900  border-gray-200 sticky left-0 z-10 bg-white">
+            <td className="p-3 font-medium text-gray-900 border-gray-200 sticky left-0 z-10 bg-white">
               <div className="flex items-center gap-2">
                 <div
                   className={`w-2 h-2 rounded-full ${
@@ -646,25 +762,59 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
                       : "bg-green-500/30"
                   }`}
                 ></div>
-                {item.vehicle_reg}
+                <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                  {item.vehicle_reg}
+                </Link>
               </div>
             </td>
-            <td className="p-2 text-sm text-gray-900  border-gray-200">
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
               {getStatusBadge(null, motData?.mot_expiry)}
             </td>
-            <td className="p-2 text-sm text-gray-900  border-gray-200">
-              {formatDateDmy(motData?.next_mot_booked_from)}
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
+              {formatDateDmy(motData?.book_next_mot_from)}
             </td>
-            <td className="p-2 text-sm text-gray-900  border-gray-200">
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
               {formatDateDmy(motData?.next_mot_booked_date)}
             </td>
-            <td className="p-2 text-sm  border-gray-200">
+            <td className="p-2 text-sm border-gray-200">
               {getStatusBadge(motData?.time_mot_booked)}
             </td>
-            <td className="p-2 text-sm  border-gray-200">
-              {getStatusBadge(pmiData?.next_inspection_book_date)}
+            <td className="p-2 text-sm border-gray-200">
+              {getStatusBadge(motData?.mot_status)}
             </td>
-            <td className="p-2 text-sm text-gray-900  border-gray-200">
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <span className="cursor-pointer">
+                    {formatDateDmy(pmiData?.last_pmi_date)}
+                  </span>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2">
+                  <div className="text-sm whitespace-pre-line">
+                    {getDaysInfo(pmiData?.last_pmi_date, "Last PMI Date")}
+                    {pmiData?.hover && (
+                      <div className="mt-2">
+                        <span className="font-bold">Planned PMI Dates:</span>
+                        <ul className="list-disc pl-4">
+                          <li>2nd: {formatDateDmy(pmiData.hover.second_planned)}</li>
+                          <li>3rd: {formatDateDmy(pmiData.hover.third_planned)}</li>
+                          <li>4th: {formatDateDmy(pmiData.hover.fourth_planned)}</li>
+                          <li>5th: {formatDateDmy(pmiData.hover.fifth_planned)}</li>
+                          <li>6th: {formatDateDmy(pmiData.hover.sixth_planned)}</li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </td>
+            <td className="p-2 text-sm border-gray-200">
+              {getStatusBadge(null, pmiData?.next_pmi_date)}
+            </td>
+            <td className="p-2 text-sm border-gray-200">
+              {getStatusBadge(pmiData?.book_next_pmi_from)}
+            </td>
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
               <Popover>
                 <PopoverTrigger asChild>
                   <span className="cursor-pointer">
@@ -678,7 +828,7 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
                 </PopoverContent>
               </Popover>
             </td>
-            <td className="p-2 text-sm text-gray-900  border-gray-200">
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
               <Popover>
                 <PopoverTrigger asChild>
                   <span className="cursor-pointer">
@@ -692,7 +842,7 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
                 </PopoverContent>
               </Popover>
             </td>
-            <td className="p-2 text-sm text-gray-900  border-gray-200">
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
               <Popover>
                 <PopoverTrigger asChild>
                   <span className="cursor-pointer">
@@ -706,7 +856,7 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
                 </PopoverContent>
               </Popover>
             </td>
-            <td className="p-2 text-sm text-gray-900  border-gray-200">
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
               <Popover>
                 <PopoverTrigger asChild>
                   <span className="cursor-pointer">
@@ -720,52 +870,100 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
                 </PopoverContent>
               </Popover>
             </td>
-            <td className="p-2 text-sm text-gray-900  border-gray-200">
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
               {getStatusBadge(null, insuranceData?.expiry)}
             </td>
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
+              {getStatusBadge(null, insuranceData?.tax_expiry)}
+            </td>
+            <td className="p-2 text-sm text-gray-900 border-gray-200">
+              {getStatusBadge(null, calibrationData?.tacho_expiry)}
+            </td>
             <td className="p-2 text-sm text-gray-900">
-              {getStatusBadge(null, calibrationData?.expiry)}
+              {getStatusBadge(null, calibrationData?.loller_expiry)}
             </td>
           </tr>
         );
       case "MOT":
         return (
           <tr
-            key={`${item.vehicle_reg}-${index}`}
+            key={`${item.id}-${index}`}
             className="border-b border-gray-100 hover:bg-orange-50"
           >
-            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+              {item.vehicle_reg}
+              </Link>
+            </td>
             <td className="p-3 text-sm text-gray-900">
               {getStatusBadge(null, item.mot_expiry)}
             </td>
             <td className="p-3 text-sm text-gray-900">
-              {formatDateDmy(item.next_mot_booked_from)}
+              {formatDateDmy(item.book_next_mot_from)}
             </td>
             <td className="p-3 text-sm text-gray-900">
               {formatDateDmy(item.next_mot_booked_date)}
             </td>
             <td className="p-3 text-sm">{getStatusBadge(item.time_mot_booked)}</td>
+            <td className="p-3 text-sm">{getStatusBadge(item.mot_status)}</td>
           </tr>
         );
       case "PMI Inspection":
         return (
           <tr
-            key={`${item.vehicle_reg}-${index}`}
+            key={`${item.id}-${index}`}
             className="border-b border-gray-100 hover:bg-pink-50"
           >
-            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+              {item.vehicle_reg}
+              </Link>
+            </td>
             <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(item.next_inspection_book_date)}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <span className="cursor-pointer">
+                    {formatDateDmy(item.last_pmi_date)}
+                  </span>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2">
+                  <div className="text-sm whitespace-pre-line">
+                    {getDaysInfo(item.last_pmi_date, "Last PMI Date")}
+                    {item.hover && (
+                      <div className="mt-2">
+                        <span className="font-bold">Planned PMI Dates:</span>
+                        <ul className="list-disc pl-4">
+                          <li>2nd: {formatDateDmy(item.hover.second_planned)}</li>
+                          <li>3rd: {formatDateDmy(item.hover.third_planned)}</li>
+                          <li>4th: {formatDateDmy(item.hover.fourth_planned)}</li>
+                          <li>5th: {formatDateDmy(item.hover.fifth_planned)}</li>
+                          <li>6th: {formatDateDmy(item.hover.sixth_planned)}</li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </td>
+            <td className="p-3 text-sm text-gray-900">
+              {getStatusBadge(null, item.next_pmi_date)}
+            </td>
+            <td className="p-3 text-sm text-gray-900">
+              {getStatusBadge(item.book_next_pmi_from)}
             </td>
           </tr>
         );
       case "Vehicle Tacho Download":
         return (
           <tr
-            key={`${item.vehicle_reg}-${index}`}
+            key={`${item.id}-${index}`}
             className="border-b border-gray-100 hover:bg-blue-50"
           >
-            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+              {item.vehicle_reg}
+              </Link>
+            </td>
             <td className="p-3 text-sm text-gray-900">
               <Popover>
                 <PopoverTrigger asChild>
@@ -799,10 +997,14 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
       case "Tyre Maintenance Check":
         return (
           <tr
-            key={`${item.vehicle_reg}-${index}`}
+            key={`${item.id}-${index}`}
             className="border-b border-gray-100 hover:bg-purple-50"
           >
-            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+              {item.vehicle_reg}
+              </Link>
+            </td>
             <td className="p-3 text-sm text-gray-900">
               <Popover>
                 <PopoverTrigger asChild>
@@ -836,24 +1038,38 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
       case "Insurance & Check":
         return (
           <tr
-            key={`${item.vehicle_reg}-${index}`}
+            key={`${item.id}-${index}`}
             className="border-b border-gray-100 hover:bg-green-50"
           >
-            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+              {item.vehicle_reg}
+              </Link>
+            </td>
             <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(null, item.expiry)}
+              {getStatusBadge(null, item.insurance_expiry)}
+            </td>
+            <td className="p-3 text-sm text-gray-900">
+              {getStatusBadge(null, item.tax_expiry)}
             </td>
           </tr>
         );
       case "Calibrations":
         return (
           <tr
-            key={`${item.vehicle_reg}-${index}`}
+            key={`${item.id}-${index}`}
             className="border-b border-gray-100 hover:bg-yellow-50"
           >
-            <td className="p-3 font-medium text-gray-900">{item.vehicle_reg}</td>
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+              {item.vehicle_reg}
+              </Link>
+            </td>
             <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(null, item.expiry)}
+              {getStatusBadge(null, item.tacho_expiry)}
+            </td>
+            <td className="p-3 text-sm text-gray-900">
+              {getStatusBadge(null, item.loller_expiry)}
             </td>
           </tr>
         );
@@ -866,13 +1082,11 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
     currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNextPage = () =>
     currentPage < totalPages && setCurrentPage(currentPage + 1);
-
   const getRowRange = () => {
     const start = (currentPage - 1) * perPage + 1;
     const end = Math.min(currentPage * perPage, filteredData.length);
     return `${start}-${end}`;
   };
-
   const paginatedData = filteredData.slice(
     (currentPage - 1) * perPage,
     currentPage * perPage
@@ -888,7 +1102,6 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
           Monitor and manage vehicle compliance across all categories
         </p>
       </div>
-
       <div className="">
         <div className="flex flex-wrap gap-1">
           {filterOptions.map((filter) => {
@@ -897,7 +1110,6 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
             return (
               <div className="flex items-center group" key={filter.key}>
                 <button
-                  key={filter.key}
                   onClick={() => setActiveFilter(filter.key)}
                   className={`flex items-center h-[30px] gap-2 px-4 py-2 text-xs font-medium whitespace-nowrap ${
                     isActive ? "bg-orange-500 text-white" : "text-gray-600"
@@ -907,21 +1119,20 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
                   {filter.label}
                 </button>
                 <div
-                className={`w-0 h-0 border-b-[30px] ${
-                  isActive ? "border-b-orange-500" : "border-b-transparent"
-                } border-r-[30px] border-r-transparent`}
-              ></div>
+                  className={`w-0 h-0 border-b-[30px] ${
+                    isActive ? "border-b-orange-500" : "border-b-transparent"
+                  } border-r-[30px] border-r-transparent`}
+                ></div>
               </div>
             );
           })}
         </div>
       </div>
-
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative">
           <Search className="w-4 h-4 z-1 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Search vehicles..."
+            placeholder="Search vehicles by ID..."
             className="pl-9 w-64"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -930,16 +1141,16 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="bg-white border-gray-300">
-              {vehicleRegFilter} <Filter className="w-4 h-4 ml-2" />
+              {vehicleIdFilter} <Filter className="w-4 h-4 ml-2" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            {getVehicleRegistrations().map((reg) => (
+            {getVehicleIds().map((id) => (
               <DropdownMenuItem
-                key={reg}
-                onClick={() => setVehicleRegFilter(reg)}
+                key={id}
+                onClick={() => setVehicleIdFilter(id)}
               >
-                {reg}
+                {id}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -1006,9 +1217,7 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
             </div>
           </PopoverContent>
         </Popover>
-        {/* <ExportButton fileName="Vehicle Managements Data" data={fullApiData} /> */}
       </div>
-
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
         {loading ? (
           <div className="flex justify-center py-12 text-gray-500/30">
@@ -1037,11 +1246,17 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
                     <td
                       colSpan={
                         activeFilter === "All Data"
-                          ? 11
+                          ? 16
                           : activeFilter === "MOT"
-                          ? 5
+                          ? 6
                           : activeFilter === "PMI Inspection"
-                          ? 2
+                          ? 4
+                          : activeFilter === "Vehicle Tacho Download"
+                          ? 3
+                          : activeFilter === "Tyre Maintenance Check"
+                          ? 3
+                          : activeFilter === "Insurance & Check"
+                          ? 3
                           : 3
                       }
                       className="text-center py-12 text-gray-500/30"
@@ -1053,7 +1268,7 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
                         <div className="text-sm">
                           No vehicles match the current filters:{" "}
                           <span className="font-medium text-orange-600">
-                            {activeFilter}, {statusFilter}, {vehicleRegFilter},
+                            {activeFilter}, {statusFilter}, {vehicleIdFilter},
                             {dateRange.start && dateRange.end
                               ? `Date Range: ${format(
                                   dateRange.start,
@@ -1066,7 +1281,7 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
                           onClick={() => {
                             setActiveFilter("All Data");
                             setStatusFilter("All Statuses");
-                            setVehicleRegFilter("All Registrations");
+                            setVehicleIdFilter("All Registrations");
                             setDateRange({ start: null, end: null });
                           }}
                           variant="outline"
@@ -1084,7 +1299,6 @@ parseFlexibleDate(itemDate)!.getTime() > parseFlexibleDate(existingDate)!.getTim
           </div>
         )}
       </div>
-
       {!loading && !error && filteredData.length > 0 && (
         <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200">
           <div className="text-sm text-gray-500/30">

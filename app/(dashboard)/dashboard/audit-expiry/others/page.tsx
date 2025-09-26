@@ -7,6 +7,7 @@ import Link from "next/link"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { format } from "date-fns"
+import { FolderClosed } from "lucide-react"
 
 // Utility function to transform ID to title
 const formatTitle = (id: string) => {
@@ -275,9 +276,9 @@ export default function Others() {
   }
 
   return (
-    <div className="min-h-screen p-3 bg-white">
+    <div className="min-h-screen p-3 relative bg-white">
       {loading && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pink-500"></div>
         </div>
       )}
@@ -378,7 +379,7 @@ export default function Others() {
               </div>
 
               {/* Directory */}
-              <div className="col-span-2 text-center">
+              <div className="col-span-2 flex justify-center text-center">
                 {uploading[item.id] ? (
                   <span className="text-sm text-gray-500">Uploading...</span>
                 ) : item.directory ? (
@@ -395,7 +396,7 @@ export default function Others() {
                       className="hidden"
                       onChange={(e) => e.target.files?.[0] && handleFileUpload(item.id, e.target.files[0])}
                     />
-                    <span className="text-sm text-blue-600 hover:underline">Upload</span>
+                    <FolderClosed className=" hover:text-gray-400" />
                   </label>
                 )}
               </div>
