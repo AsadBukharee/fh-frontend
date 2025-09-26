@@ -1,28 +1,94 @@
-
-'use client'
+'use client';
 import React, { useEffect, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Filter } from 'lucide-react';
 import ExportButton from '@/app/utils/ExportButton';
+import API_URL from '@/app/utils/ENV';
+import { useCookies } from 'next-client-cookies';
 
+// Define the ClockLog interface to match the API response
 interface ClockLog {
+  id: number;
   driverName: string;
-  driverId: string;
+  driverId: number;
   siteName: string;
-  siteId: string;
+  siteId: number;
   date: string;
   clockIn: string;
   clockOut: string;
-  totalHours: string;
+  totalHours: number;
+  hourlyRate: number;
+  earnings: number;
 }
 
-interface ApiResponse {
+interface ApiResponseClock {
+  success: boolean;
   message: string;
-  data: ClockLog[];
+  data: {
+    results: {
+      id: number;
+      user: {
+        id: number;
+        full_name: string;
+        email: string;
+        role: string;
+        avatar: string | null;
+      };
+      site: {
+        id: number;
+        name: string;
+        status: string;
+        image: string;
+      };
+      date: string;
+      clock_in: string;
+      clock_out: string;
+      hours_worked: number;
+      hourly_rate: number;
+      earnings: number;
+    }[];
+    pagination: {
+      count: number;
+      next: string | null;
+      previous: string | null;
+      current_page: number;
+      total_pages: number;
+    };
+    summary: {
+      total_hours: number;
+      total_earnings: number;
+      total_records: number;
+    };
+  };
+}
+
+interface User {
+  id: number;
+  full_name: string;
+  email: string;
+  role: string | null;
+  is_active: boolean;
+  site: Array<{
+    id: number;
+    name: string;
+    status: string;
+    image: string | null;
+  }>;
+}
+
+interface ApiResponseUsers {
+  success: boolean;
+  message: string;
+  data: {
+    results: User[];
+    count: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  };
 }
 
 const Page = () => {
@@ -30,78 +96,145 @@ const Page = () => {
   const [filteredLogs, setFilteredLogs] = useState<ClockLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [driverFilter, setDriverFilter] = useState('');
+  const [driverFilter, setDriverFilter] = useState('all');
   const [siteFilter, setSiteFilter] = useState('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState('2025-09-01');
+  const [endDate, setEndDate] = useState('2025-10-30');
   const [hoursFilter, setHoursFilter] = useState('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalHours, setTotalHours] = useState(0);
+  const [totalEarnings, setTotalEarnings] = useState(0);
+  const [users, setUsers] = useState<User[]>([]);
+  const [sites, setSites] = useState<string[]>([]);
+  const token = useCookies().get('access_token') || '';
+  const pageSize = 20;
 
   // Define badge colors for sites
   const siteBadgeColors: { [key: string]: string } = {
-    'Downtown Warehouse': 'bg-blue-100 text-blue-800',
-    'Eastside Depot': 'bg-purple-100 text-purple-800',
-    'North Hub': 'bg-green-100 text-green-800',
-    'West Terminal': 'bg-yellow-100 text-yellow-800',
-    'Central Station': 'bg-indigo-100 text-indigo-800',
-    'South Yard': 'bg-pink-100 text-pink-800',
+    'Bolton Central': 'bg-blue-100 text-blue-800',
+    '35 Market Street': 'bg-purple-100 text-purple-800',
+    'Any': 'bg-green-100 text-green-800',
   };
 
   // Define badge colors for total hours
-  const getHoursBadgeColor = (hours: string) => {
-    const hoursNum = parseFloat(hours);
-    if (hoursNum === 8) return 'bg-green-100 text-green-800';
-    if (hoursNum < 8) return 'bg-yellow-100 text-yellow-800';
+  const getHoursBadgeColor = (hours: number) => {
+    if (hours === 8) return 'bg-green-100 text-green-800';
+    if (hours < 8) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
   };
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const response = await fetch('/api/clock-logs');
-        if (!response.ok) {
-          throw new Error('Failed to fetch clock logs');
-        }
-        const data: ApiResponse = await response.json();
-        setLogs(data.data);
-        setFilteredLogs(data.data);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
+  // Fetch users from the API
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(`${API_URL}/users/`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
       }
-    };
+      const data: ApiResponseUsers = await response.json();
+      const activeDrivers = data.data.results.filter(
+        (user) => user.is_active && (user.role === 'Driver' || user.role === 'mechanic')
+      );
+      setUsers(activeDrivers);
 
-    fetchLogs();
+      // Extract unique site names from users
+      const uniqueSites = new Set<string>();
+      activeDrivers.forEach((user) => {
+        user.site.forEach((s) => uniqueSites.add(s.name));
+      });
+      setSites(Array.from(uniqueSites).sort());
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      setError((err as Error).message);
+    }
+  };
+
+  // Fetch logs from the API
+  const fetchLogs = async (page: number) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        user_id: driverFilter === 'all' ? '' : driverFilter,
+        start_date: startDate,
+        end_date: endDate,
+        page: page.toString(),
+        page_size: pageSize.toString(),
+      });
+      const response = await fetch(`${API_URL}/clocking/?${params.toString()}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch clock logs');
+      }
+      const data: ApiResponseClock = await response.json();
+
+      // Map API response to ClockLog interface
+      const mappedLogs: ClockLog[] = data.data.results.map((log) => ({
+        id: log.id,
+        driverName: log.user.full_name,
+        driverId: log.user.id,
+        siteName: log.site.name,
+        siteId: log.site.id,
+        date: log.date,
+        clockIn: log.clock_in,
+        clockOut: log.clock_out,
+        totalHours: log.hours_worked,
+        hourlyRate: log.hourly_rate,
+        earnings: log.earnings,
+      }));
+
+      setLogs(mappedLogs);
+      setFilteredLogs(mappedLogs);
+      setTotalPages(data.data.pagination.total_pages);
+      setTotalRecords(data.data.summary.total_records);
+      setTotalHours(data.data.summary.total_hours);
+      setTotalEarnings(data.data.summary.total_earnings);
+
+      // Update sites with any new site names from clocking data
+      const clockingSites = new Set<string>([
+        ...sites,
+        ...data.data.results.map((log) => log.site.name),
+      ]);
+      setSites(Array.from(clockingSites).sort());
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
   }, []);
 
   useEffect(() => {
-    let filtered = logs;
-
-    // Filter by driver name
-    if (driverFilter) {
-      filtered = filtered.filter((log) =>
-        log.driverName.toLowerCase().includes(driverFilter.toLowerCase())
-      );
+    if (token && users.length > 0) {
+      fetchLogs(currentPage);
     }
+  }, [currentPage, startDate, endDate, driverFilter, users, token]);
+
+  // Apply client-side filters
+  useEffect(() => {
+    let filtered = logs;
 
     // Filter by site
     if (siteFilter !== 'all') {
       filtered = filtered.filter((log) => log.siteName === siteFilter);
     }
 
-    // Filter by date range
-    if (startDate) {
-      filtered = filtered.filter((log) => log.date >= startDate);
-    }
-    if (endDate) {
-      filtered = filtered.filter((log) => log.date <= endDate);
-    }
-
     // Filter by total hours
     if (hoursFilter !== 'all') {
       filtered = filtered.filter((log) => {
-        const hours = parseFloat(log.totalHours);
+        const hours = log.totalHours;
         if (hoursFilter === 'less8') return hours < 8;
         if (hoursFilter === '8') return hours === 8;
         if (hoursFilter === 'more8') return hours > 8;
@@ -110,7 +243,7 @@ const Page = () => {
     }
 
     setFilteredLogs(filtered);
-  }, [driverFilter, siteFilter, startDate, endDate, hoursFilter, logs]);
+  }, [siteFilter, hoursFilter, logs]);
 
   if (loading) {
     return <div className="p-4">Loading...</div>;
@@ -130,83 +263,100 @@ const Page = () => {
               Comprehensive overview of driver clock-in and clock-out times
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              {filteredLogs.length} record{filteredLogs.length !== 1 ? 's' : ''} found
+              {totalRecords} record{totalRecords !== 1 ? 's' : ''} found | Total Hours: {totalHours} | Total Earnings: £{totalEarnings.toFixed(2)}
             </p>
           </div>
           <div className="flex gap-2">
             <ExportButton data={filteredLogs} fileName="clock_logs.csv" />
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex text-white items-center gap-2"
-                  style={{
-                    background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
-                    width: 'auto',
-                    height: 'auto',
-                  }}
-                >
-                  <Filter className="w-4 h-4" />
-                  Filters
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Filter Clock Logs</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Input
-                      type="date"
-                      placeholder="Start Date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full"
-                    />
-                    <Input
-                      type="date"
-                      placeholder="End Date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                  <Select value={hoursFilter} onValueChange={setHoursFilter}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Filter by hours" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Hours</SelectItem>
-                      <SelectItem value="less8">Less than 8 hours</SelectItem>
-                      <SelectItem value="8">Exactly 8 hours</SelectItem>
-                      <SelectItem value="more8">More than 8 hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={siteFilter} onValueChange={setSiteFilter}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Filter by site" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Sites</SelectItem>
-                      {[...new Set(logs.map((log) => log.siteName))].map((site) => (
-                        <SelectItem key={site} value={site}>
-                          {site}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
         </div>
-        <div className="w-full max-w-md">
-          <Input
-            placeholder="Search by driver name..."
-            value={driverFilter}
-            onChange={(e) => setDriverFilter(e.target.value)}
-            className="w-[300px] md:w-[400px] lg:w-[500px]"
-          />
+
+        {/* Filters on screen */}
+        <div className="flex flex-wrap items-end gap-4 bg-gray-50 p-4 rounded-lg">
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-sm font-medium block mb-1">Search by Driver</label>
+            <Select value={driverFilter} onValueChange={setDriverFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Drivers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Drivers</SelectItem>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id.toString()}>
+                    {user.full_name} ({user.role})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="min-w-[140px]">
+            <label className="text-sm font-medium block mb-1">Start Date</label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          <div className="min-w-[140px]">
+            <label className="text-sm font-medium block mb-1">End Date</label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          <div className="min-w-[150px]">
+            <label className="text-sm font-medium block mb-1">Hours Worked</label>
+            <Select value={hoursFilter} onValueChange={setHoursFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Hours" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Hours</SelectItem>
+                <SelectItem value="less8">Less than 8 hours</SelectItem>
+                <SelectItem value="8">Exactly 8 hours</SelectItem>
+                <SelectItem value="more8">More than 8 hours</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="min-w-[150px]">
+            <label className="text-sm font-medium block mb-1">Site</label>
+            <Select value={siteFilter} onValueChange={setSiteFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Sites" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sites</SelectItem>
+                {sites.map((site) => (
+                  <SelectItem key={site} value={site}>
+                    {site}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              setDriverFilter('all');
+              setSiteFilter('all');
+              setHoursFilter('all');
+              setStartDate('2025-09-01');
+              setEndDate('2025-10-30');
+              setCurrentPage(1);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Filter className="w-4 h-4" />
+            Clear Filters
+          </Button>
         </div>
       </div>
 
@@ -220,12 +370,14 @@ const Page = () => {
             <TableHead>Clock In</TableHead>
             <TableHead>Clock Out</TableHead>
             <TableHead>Total Hours</TableHead>
+            <TableHead>Hourly Rate</TableHead>
+            <TableHead>Earnings</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredLogs.length > 0 ? (
-            filteredLogs.map((log, index) => (
-              <TableRow key={index}>
+            filteredLogs.map((log) => (
+              <TableRow key={log.id}>
                 <TableCell>{log.driverName}</TableCell>
                 <TableCell>
                   <span
@@ -248,6 +400,8 @@ const Page = () => {
                     {log.totalHours}
                   </span>
                 </TableCell>
+                <TableCell>£{log.hourlyRate.toFixed(2)}</TableCell>
+                <TableCell>£{log.earnings.toFixed(2)}</TableCell>
               </TableRow>
             ))
           ) : (
@@ -259,6 +413,27 @@ const Page = () => {
           )}
         </TableBody>
       </Table>
+
+      {/* Pagination Controls */}
+      <div className="flex justify-between items-center mt-4">
+        <Button
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage((prev) => prev - 1)}
+          variant="outline"
+        >
+          Previous
+        </Button>
+        <span>
+          Page {currentPage} of {totalPages}
+        </span>
+        <Button
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage((prev) => prev + 1)}
+          variant="outline"
+        >
+          Next
+        </Button>
+      </div>
     </div>
   );
 };

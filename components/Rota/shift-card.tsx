@@ -170,7 +170,7 @@ export function ShiftCard({
                 >
                   {shift_list.map((shift) => (
                     <option key={shift.id} value={shift.id}>
-                      {shift.name}
+                      {shift.name} - {shift.hours_from} to {shift.hours_to} ({shift.total_hours} Hrs)
                     </option>
                   ))}
                 </select>

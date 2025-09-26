@@ -22,7 +22,7 @@ import {
   ChevronDown,
   Check,
   Zap,
-  Landmark,
+  HandCoins ,
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -202,7 +202,7 @@ const ShiftCard = memo(
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-500">Rate per Hour</label>
                   <div className="relative">
-                  <Landmark className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <HandCoins  className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       type="number"
                       step="0.01"
@@ -958,7 +958,7 @@ const ShiftManagement = () => {
                   <p className="text-sm font-medium text-gray-600">Avg. Rate</p>
                   <p className="text-2xl font-bold text-gray-900">£{averageRate.toFixed(2)}</p>
                 </div>
-              <Landmark className="h-8 w-8 text-purple-600" />
+              <HandCoins  className="h-8 w-8 text-purple-600" />
               </div>
             </CardContent>
           </Card>
@@ -1150,7 +1150,7 @@ const ShiftManagement = () => {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-500">Rate per Hour</label>
                 <div className="relative">
-                  <Landmark  className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <HandCoins   className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     type="number"
                     step="0.01"

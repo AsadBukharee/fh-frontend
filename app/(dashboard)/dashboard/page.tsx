@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
-import { PoundSterling, Calendar, Car, MapPin, Filter, Eye, MoreHorizontal, Landmark } from "lucide-react"
+import {  Calendar, Car, MapPin,  HandCoins  } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { format } from "date-fns"
@@ -99,7 +99,7 @@ export default function Dashboard() {
           title: "Monthly Salary",
           value: `£${dashboardData.dashboard_metrics.monthly_salary_count.toLocaleString("en-GB")}`,
           change: 0,
-          icon: <Landmark className="w-4 h-4 text-green-600" />,
+          icon: <HandCoins  className="w-4 h-4 text-green-600" />,
           progress: (dashboardData.dashboard_metrics.monthly_salary_count / 20) * 100, // Assuming max £20
           progressColor: "bg-green-500",
         },
