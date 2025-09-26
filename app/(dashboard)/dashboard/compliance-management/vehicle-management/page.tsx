@@ -290,9 +290,15 @@ export default function VehicleDashboard() {
           !existing ||
           (itemDate &&
             existingDate &&
-            parseFlexibleDate(itemDate)?.getTime()! >
-              parseFlexibleDate(existingDate)?.getTime()!)
-        ) {
+            (() => {
+              const itemDateObj = parseFlexibleDate(itemDate);
+              const existingDateObj = parseFlexibleDate(existingDate);
+              if (itemDateObj && existingDateObj) {
+                return itemDateObj.getTime() > existingDateObj.getTime();
+              }
+              return !!itemDateObj;
+            })()))
+        {
           map.set(item.vehicle, item);
         }
       });
