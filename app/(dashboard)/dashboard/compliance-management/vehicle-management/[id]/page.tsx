@@ -734,10 +734,7 @@ export default function VehicleDetailPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-1">
-                <div className="flex flex-col items-center p-4 bg-white">
-                  <Shapes className="w-12 h-12 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-600">16-Seater Mini</span>
-                </div>
+             
                 <div className="flex flex-col items-center p-4 bg-white">
                   <NotebookPen className="w-12 h-12 text-gray-800 mb-2" />
                   <Badge className="text-sm font-medium bg-orange-100 text-orange-700">
