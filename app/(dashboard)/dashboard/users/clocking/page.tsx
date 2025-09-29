@@ -8,6 +8,7 @@ import { Filter } from 'lucide-react';
 import ExportButton from '@/app/utils/ExportButton';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
+import { format } from 'date-fns';
 
 // Define the ClockLog interface to match the API response
 interface ClockLog {
@@ -99,7 +100,7 @@ const Page = () => {
   const [driverFilter, setDriverFilter] = useState('all');
   const [siteFilter, setSiteFilter] = useState('all');
   const [startDate, setStartDate] = useState('2025-09-01');
-  const [endDate, setEndDate] = useState('2025-10-30');
+  const [endDate, setEndDate] = useState(''); // Initialize as empty for flexibility
   const [hoursFilter, setHoursFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -110,6 +111,9 @@ const Page = () => {
   const [sites, setSites] = useState<string[]>([]);
   const token = useCookies().get('access_token') || '';
   const pageSize = 20;
+
+  // Get today's date for max attribute
+  const today = new Date().toISOString().split('T')[0];
 
   // Define badge colors for sites
   const siteBadgeColors: { [key: string]: string } = {
@@ -162,7 +166,7 @@ const Page = () => {
       const params = new URLSearchParams({
         user_id: driverFilter === 'all' ? '' : driverFilter,
         start_date: startDate,
-        end_date: endDate,
+        end_date: endDate || today, // Fallback to today if endDate is empty
         page: page.toString(),
         page_size: pageSize.toString(),
       });
@@ -209,6 +213,19 @@ const Page = () => {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Validate date range
+  const handleDateChange = (type: 'start' | 'end', value: string) => {
+    if (type === 'start') {
+      setStartDate(value);
+      // Ensure endDate is not before startDate
+      if (endDate && new Date(value) > new Date(endDate)) {
+        setEndDate('');
+      }
+    } else {
+      setEndDate(value);
     }
   };
 
@@ -292,21 +309,24 @@ const Page = () => {
 
           <div className="min-w-[140px]">
             <label className="text-sm font-medium block mb-1">Start Date</label>
-            <Input
+            <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full"
+              onChange={(e) => handleDateChange('start', e.target.value)}
+              max={today} // Restrict to past dates only
+              className="w-full bg-white p-1.5 border border-gray-300 rounded-sm"
             />
           </div>
 
           <div className="min-w-[140px]">
             <label className="text-sm font-medium block mb-1">End Date</label>
-            <Input
+            <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full"
+              onChange={(e) => handleDateChange('end', e.target.value)}
+              min={startDate} // Prevent selecting endDate before startDate
+              max={today} // Restrict to past dates only
+              className="w-full bg-white p-1.5 border border-gray-300 rounded-sm"
             />
           </div>
 
@@ -348,8 +368,8 @@ const Page = () => {
               setDriverFilter('all');
               setSiteFilter('all');
               setHoursFilter('all');
-              setStartDate('2025-09-01');
-              setEndDate('2025-10-30');
+              setStartDate('');
+              setEndDate('');
               setCurrentPage(1);
             }}
             className="flex items-center gap-2"
@@ -388,7 +408,7 @@ const Page = () => {
                     {log.siteName}
                   </span>
                 </TableCell>
-                <TableCell>{log.date}</TableCell>
+                <TableCell>{format(new Date(log.date), 'dd/MM/yyyy')}</TableCell>
                 <TableCell>{log.clockIn}</TableCell>
                 <TableCell>{log.clockOut}</TableCell>
                 <TableCell>
