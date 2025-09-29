@@ -41,6 +41,7 @@ interface Driver {
     email: string;
     full_name: string;
     display_name: string;
+    license_number: string;
     role: string;
   };
   profile_status: string;
@@ -523,7 +524,7 @@ const tooltipContent = dateFields.map(({ key, label }) =>
                   </TableCell>
              
                 
-                  <TableCell className="whitespace-nowrap">HAYNE5109AFYTT 26</TableCell>
+                  <TableCell className="whitespace-nowrap">{driver.user.license_number || "-"}</TableCell>
                   {renderDateCell(driver.id, 'driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                   {renderDateCell(driver.id, 'last_driver_check_code_date', driver.driver_compliance.last_driver_check_code_date, driver)}
                   {renderDateCell(driver.id, 'next_driver_check_code_due', driver.driver_compliance.next_driver_check_code_due, driver)}

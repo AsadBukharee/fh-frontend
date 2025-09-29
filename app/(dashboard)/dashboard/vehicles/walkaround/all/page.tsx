@@ -94,8 +94,8 @@ const WalkaroundPage = () => {
   const [openPlus, setOpenPlus] = useState(false);
   const [selectedWalkaround, setSelectedWalkaround] = useState<Walkaround | null>(null);
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date());
-  const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date()); // Auto-select current date
+  const [dateTo, setDateTo] = useState<Date | undefined>(new Date()); // Auto-select current date
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
@@ -233,8 +233,9 @@ const WalkaroundPage = () => {
   }, [openPlus, openDetailsDialog]);
 
   const resetFilters = () => {
-    setDateFrom(new Date());
-    setDateTo(new Date());
+    const currentDate = new Date(); // Explicitly set to current date
+    setDateFrom(currentDate);
+    setDateTo(currentDate);
     setPage(1);
     setPageSize(50);
     setError(null);
@@ -246,9 +247,7 @@ const WalkaroundPage = () => {
   };
 
   const handleAddChildWalkaround = (chainId: number) => {
-    // Find all walkarounds in the same chain
     const chainWalkarounds = walkarounds.filter((w) => w.chain_id === chainId);
-    // Find the walkaround with the highest walkaround_step
     const latestWalkaround = chainWalkarounds.reduce((latest, current) => {
       return (current.walkaround_step || 0) > (latest.walkaround_step || 0) ? current : latest;
     }, chainWalkarounds[0]);
@@ -261,7 +260,6 @@ const WalkaroundPage = () => {
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // Group walkarounds by chain_id instead of by vehicle_id
   const groupedWalkarounds = useMemo(() => {
     const byChain = walkarounds.reduce((acc, walkaround) => {
       const chainId = walkaround.chain_id || walkaround.id;
@@ -293,7 +291,7 @@ const WalkaroundPage = () => {
           <div className="text-gray-600">Loading...</div>
         </div>
       )}
-      <div className=" mx-auto">
+      <div className="mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
@@ -395,26 +393,34 @@ const WalkaroundPage = () => {
             </Dialog>
           </div>
         </div>
-        {/* Walkaround List - Now each chain gets its own box */}
+        {/* Walkaround List */}
         <div className="space-y-6">
           {Object.entries(groupedWalkarounds).map(([chainId, { root, children }]) => {
-            // Get vehicle info from root or first child
             const vehicleInfo = root?.vehicle || children[0]?.vehicle;
-            
             return (
               <div key={chainId} className="p-4 border border-gray-200 rounded-lg">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-                  Vehicle: {vehicleInfo?.registration_number} ({vehicleInfo?.vehicles_type_name})   
+                  Vehicle: {vehicleInfo?.registration_number} ({vehicleInfo?.vehicles_type_name})
                 </h2>
                 <div className="flex flex-col sm:flex-row bg-white overflow-y-auto items-start sm:items-center gap-4">
                   {root && (
                     <>
                       <div className={`p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64`}>
-                        <h3 className="text-sm font-semibold">Step <span className=" text-gray-500">{root.walkaround_step}</span></h3>
-                        <p className="text-sm font-semibold">Driver: <span className=" text-gray-500">{root.conducted_by || "N/A"}</span></p>
-                        <p className="text-sm font-semibold">Status: <Badge className={`${getStatusClasses(root.status)}`}>{root.status.charAt(0).toUpperCase() + root.status.slice(1)}</Badge></p>
-                        <p className="text-sm font-semibold">Date: <span className=" text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span></p>
-                        <p className="text-sm font-semibold">Time: <span className=" text-gray-500">{root.time}</span></p>
+                        <h3 className="text-sm font-semibold">
+                          Step <span className="text-gray-500">{root.walkaround_step}</span>
+                        </h3>
+                        <p className="text-sm font-semibold">
+                          Driver: <span className="text-gray-500">{root.conducted_by || "N/A"}</span>
+                        </p>
+                        <p className="text-sm font-semibold">
+                          Status: <Badge className={`${getStatusClasses(root.status)}`}>{root.status.charAt(0).toUpperCase() + root.status.slice(1)}</Badge>
+                        </p>
+                        <p className="text-sm font-semibold">
+                          Date: <span className="text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span>
+                        </p>
+                        <p className="text-sm font-semibold">
+                          Time: <span className="text-gray-500">{root.time}</span>
+                        </p>
                         <Button
                           variant="outline"
                           className="text-xs mt-2"
@@ -434,15 +440,25 @@ const WalkaroundPage = () => {
                     .map((child, idx) => (
                       <div key={child.id} className="flex items-center gap-4">
                         <div className={`p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64`}>
-                          <h3 className="text-sm font-semibold">Step <span className=" text-gray-500">{child.walkaround_step}</span> </h3>
-                          <p className="text-sm font-semibold ">Driver: <span className=" text-gray-500">{child.conducted_by || "N/A"}</span></p>
-                          <p className="text-sm font-semibold ">Status: <Badge className={`${getStatusClasses(child.status)}`}>{child.status.charAt(0).toUpperCase() + child.status.slice(1)}</Badge></p>
-                          <p className="text-sm font-semibold ">Date: <span className=" text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span></p>
-                          <p className="text-sm font-semibold ">Time: <span className=" text-gray-500">{child.time}</span></p>
+                          <h3 className="text-sm font-semibold">
+                            Step <span className="text-gray-500">{child.walkaround_step}</span>
+                          </h3>
+                          <p className="text-sm font-semibold">
+                            Driver: <span className="text-gray-500">{child.conducted_by || "N/A"}</span>
+                          </p>
+                          <p className="text-sm font-semibold">
+                            Status: <Badge className={`${getStatusClasses(child.status)}`}>{child.status.charAt(0).toUpperCase() + child.status.slice(1)}</Badge>
+                          </p>
+                          <p className="text-sm font-semibold">
+                            Date: <span className="text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span>
+                          </p>
+                          <p className="text-sm font-semibold">
+                            Time: <span className="text-gray-500">{child.time}</span>
+                          </p>
                           <Button
                             variant="outline"
                             className="text-xs mt-2"
-                            onClick={() =>router.push(`/dashboard/vehicles/walkaround/all/${child.id}`)}
+                            onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${child.id}`)}
                             aria-label={`View details for walkaround ${child.id}`}
                           >
                             <Eye className="h-4 w-4 mr-1" /> Details
