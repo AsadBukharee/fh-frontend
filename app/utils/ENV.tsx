@@ -1,5 +1,5 @@
 
-const API_URL = 'https://production.fosterhartley.uk';
+const API_URL = 'https://prod.fosterhartley.uk';
 //test
 
 export default API_URL;
