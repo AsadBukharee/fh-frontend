@@ -1,4 +1,4 @@
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://prod.fosterhartley.uk';
+const API_URL = 'https://production.fosterhartley.uk';
 
 export default API_URL;
