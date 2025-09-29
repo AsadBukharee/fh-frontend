@@ -180,7 +180,6 @@ export default function DailyLogsManagement() {
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">Emp ID</TableHead>
                 <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Department</TableHead>
                 <TableHead className="font-semibold">Current Week</TableHead>
                 <TableHead className="font-semibold">Incomplete Logs</TableHead>
                 <TableHead className="font-semibold">Waiting Approval</TableHead>
@@ -193,7 +192,6 @@ export default function DailyLogsManagement() {
                 <TableRow key={employee.id} className="hover:bg-muted/30">
                   <TableCell className="font-medium">{employee.id}</TableCell>
                   <TableCell>{employee.name}</TableCell>
-                  <TableCell>{employee.department}</TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={getStatusColor(employee.currentWeek)}>
                       {employee.currentWeek}

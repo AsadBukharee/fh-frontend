@@ -796,7 +796,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
             <table className="w-full table-auto border-collapse">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="sticky left-0 z-10 border-b border-r px-4 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-50">
+                  <th className="sticky left-0 z-10 border-b border-r px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider bg-gray-50">
                     Day
                   </th>
                   {(selectedUser
@@ -805,7 +805,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                   ).map((user) => (
                     <th
                       key={user.id}
-                      className="border-b w-[200px] border-r px-4 py-3 text-left text-xs font-medium uppercase tracking-wider min-w-[200px]"
+                      className="border-b w-[200px] border-r px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[200px]"
                     >
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
@@ -834,19 +834,17 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                       </div>
                     </th>
                   ))}
-                    <th className="sticky right-[400px] border-b w-[100px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
+                    <th className="sticky right-[300px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
                     Daily Salary
                     </th>
-                    <th className="sticky right-[300px] border-b w-[100px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
-                    Users Working
-                    </th>
-                    <th className="sticky right-[200px] border-b w-[100px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
+                 
+                    <th className="sticky right-[200px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
                     Total Staff
                     </th>
-                    <th className="sticky right-[100px] border-b w-[100px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
+                    <th className="sticky right-[100px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
                     Total Drivers
                     </th>
-                    <th className="sticky right-[0px] border-b w-[100px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
+                    <th className="sticky right-[0px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
                     Total Holidays
                     </th>
                 </tr>
@@ -939,19 +937,17 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                               </td>
                             );
                           })}
-                            <td className="sticky right-[400px] p-2  align-top text-sm text-center font-medium bg-gray-50 z-10">
+                            <td className="sticky right-[300px] p-2  align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
                             £{totalDailySalary.toFixed(2)}
                             </td>
-                            <td className="sticky right-[300px] text-center p-2 align-top text-sm  font-medium bg-gray-50 z-10">
-                            {dailyStats.users_working}
-                            </td>
-                            <td className="sticky right-[200px] p-2 align-top text-sm text-center font-medium bg-gray-50 z-10">
+                         
+                            <td className="sticky right-[200px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
                             {dailyStats.total_staff}
                             </td>
-                            <td className="sticky right-[100px] p-2 align-top text-sm text-center font-medium bg-gray-50 z-10">
+                            <td className="sticky right-[100px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
                             {dailyStats.total_drivers}
                             </td>
-                            <td className="sticky right-[0px] p-2 align-top text-sm text-center font-medium bg-gray-50 z-10">
+                            <td className="sticky right-[0px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
                             {dailyStats.total_holidays}
                             </td>
                         </tr>

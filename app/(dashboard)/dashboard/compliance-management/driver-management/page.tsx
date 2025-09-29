@@ -500,7 +500,6 @@ const tooltipContent = dateFields.map(({ key, label }) =>
               <TableHead>DOC Expiry</TableHead>
               <TableHead>Last Tacho Download</TableHead>
               <TableHead>Next Driver Tacho Download</TableHead>
-              <TableHead>DBS Valid Form</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -524,7 +523,7 @@ const tooltipContent = dateFields.map(({ key, label }) =>
                   </TableCell>
              
                 
-                  <TableCell className="whitespace-nowrap">HAYNE5109AFYTT 2/6</TableCell>
+                  <TableCell className="whitespace-nowrap">HAYNE5109AFYTT 26</TableCell>
                   {renderDateCell(driver.id, 'driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                   {renderDateCell(driver.id, 'last_driver_check_code_date', driver.driver_compliance.last_driver_check_code_date, driver)}
                   {renderDateCell(driver.id, 'next_driver_check_code_due', driver.driver_compliance.next_driver_check_code_due, driver)}
@@ -533,11 +532,7 @@ const tooltipContent = dateFields.map(({ key, label }) =>
                   {renderDateCell(driver.id, 'night_worker_assessment_expiry', driver.driver_compliance.night_worker_assessment_expiry, driver)}
                   {renderDateCell(driver.id, 'last_driver_tacho_download', driver.driver_compliance.last_driver_tacho_download, driver)}
                   {renderDateCell(driver.id, 'next_driver_tacho_download', driver.driver_compliance.next_driver_tacho_download, driver)}
-                  <TableCell>
-                    <Button variant="outline" className="text-orange-500 border-orange-500">
-                      Review
-                    </Button>
-                  </TableCell>
+                 
                 </TableRow>
               ))
             )}
