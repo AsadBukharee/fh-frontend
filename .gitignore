@@ -23,8 +23,7 @@ menu.json
 
 # misc
 .DS_Store
-*.pem
-
+/app/utils/ENV.tsx
 # debug
 npm-debug.log*
 yarn-debug.log*
