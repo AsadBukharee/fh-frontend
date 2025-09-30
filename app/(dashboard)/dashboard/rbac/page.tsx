@@ -367,6 +367,17 @@ const MenuItemComponent = memo(
   },
 )
 MenuItemComponent.displayName = "MenuItemComponent"
+function formatResourceName(str:string) {
+  if (!str) return "";
+  const exceptions = ["dvsa", "crh"];
+  if (exceptions.includes(str.toLowerCase())) {
+    return str.toUpperCase();
+  }
+  return str
+    .split(" ")
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
 
 // ============= MAIN COMPONENT WITH OPTIMIZATIONS =============
 export default function UsersPageOptimized() {
@@ -1065,7 +1076,7 @@ export default function UsersPageOptimized() {
                   <Input
                     onChange={(e) => debouncedSetSearchTerm(e.target.value)}
                     placeholder="Search roles or menu items"
-                    className="pl-10 bg-white border border-gray-300 text-gray-800 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="pl-10"
                   />
                 </div>
 
@@ -1107,9 +1118,12 @@ export default function UsersPageOptimized() {
                               onCheckedChange={() => handleTempResourceToggle(resource.name.toLowerCase())}
                               id={`resource-${resource.id}`}
                             />
-                            <label htmlFor={`resource-${resource.id}`} className="flex-1 capitalize cursor-pointer">
-                              {resource.name}
-                            </label>
+                           <label 
+  htmlFor={`resource-${resource.id}`} 
+  className="flex-1 cursor-pointer"
+>
+  {formatResourceName(resource.name)}
+</label>
                           </div>
                         </DropdownMenuItem>
                       ))}
@@ -1156,12 +1170,12 @@ export default function UsersPageOptimized() {
                 </TableHeader>
                 <TableBody>
                   {filteredData.length > 0 ? (
-                    filteredData.map((user) => (
+                    filteredData.map((user,index) => (
                       <TableRow key={user.id} className="hover:bg-gray-50 border-1 border-gray-200">
-                        <TableCell className="font-medium">{user.id}</TableCell>
+                        <TableCell className="font-medium">{index+1}</TableCell>
                         <TableCell>
                           <Badge className="px-3 py-1 text-sm bg-transparent hover:bg-transparent font-medium text-gray-700">
-                            {user.type}
+                            {formatResourceName(user.type)}
                           </Badge>
                         </TableCell>
                         {selectedResources.map((module) => (

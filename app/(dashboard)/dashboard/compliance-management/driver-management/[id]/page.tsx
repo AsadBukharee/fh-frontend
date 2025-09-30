@@ -32,6 +32,7 @@ import API_URL from "@/app/utils/ENV";
 import { formatDmy } from "@/lib/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
+// Define interfaces (unchanged)
 interface DriverData {
   id: number;
   user: {
@@ -89,27 +90,23 @@ interface DriverData {
   created_at: string;
   updated_at: string;
 }
-
 interface Contract {
   id: number;
   name: string;
   description: string;
 }
-
 interface Site {
   id: number;
   name: string;
   status: string;
   image: string;
 }
-
 interface CompetencyModule {
   id: number;
   module_name: string;
   description: string;
   expiry_date: string;
 }
-
 interface ProfessionalCompetency {
   id: number;
   driver: number;
@@ -128,7 +125,6 @@ interface ProfessionalCompetency {
   created_at: string;
   updated_at: string;
 }
-
 interface HealthAnswer {
   id: number;
   question: number;
@@ -189,6 +185,12 @@ export default function DriverDetailPage() {
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null);
+  // New state for review submission
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [driverToReview, setDriverToReview] = useState<DriverData | null>(null);
+  const [reviewRemarks, setReviewRemarks] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   // Function to check if a URL is a PDF
   const isPdfUrl = (url: string) => url.toLowerCase().endsWith(".pdf");
@@ -197,6 +199,7 @@ export default function DriverDetailPage() {
     console.log(`${type}: ${message}`);
   };
 
+  // Fetch driver data
   const fetchData = async () => {
     try {
       const response = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
@@ -238,6 +241,79 @@ export default function DriverDetailPage() {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Placeholder for fetchDrivers (assuming it refreshes driver data)
+  const fetchDrivers = async () => {
+    await fetchData(); // Re-use fetchData to refresh driver details
+  };
+
+  // Integrate handleReviewSubmit
+  const handleReviewSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!driverToReview) return;
+
+    if (reviewRemarks.length > 150) {
+      setReviewError("Remarks cannot exceed 150 characters");
+      return;
+    }
+
+    setReviewLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/profiles/driver/review/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({
+          driver_id: driverToReview.id,
+          remarks: reviewRemarks,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showToast("Driver review submitted successfully", "success");
+        setIsReviewModalOpen(false);
+        setDriverToReview(null);
+        setReviewRemarks("");
+        setReviewError(null);
+        await fetchDrivers();
+      } else {
+        showToast(data.message || "Failed to submit review", "error");
+        setReviewError(data.message || "Failed to submit review");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while submitting the review";
+      showToast(errorMessage, "error");
+      setReviewError(errorMessage);
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  // Integrate handleApproveDriverClick
+  const handleApproveDriverClick = async (driverId: number) => {
+    try {
+      const response = await fetch(`${API_URL}/api/profiles/driver/approve/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({ driver_id: driverId }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast("Driver approved successfully", "success");
+        await fetchDrivers();
+      } else {
+        showToast(data.message || "Failed to approve driver", "error");
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to approve driver", "error");
     }
   };
 
@@ -490,15 +566,12 @@ export default function DriverDetailPage() {
   };
 
   const handleSaveProfile = async () => {
-    // Client-side validation
     if (!editFormData.email || !editFormData.full_name) {
       showToast("Email and full name are required", "error");
       return;
     }
-
     setSaving(true);
     try {
-      // Update user details via users endpoint
       const userPayload = {
         email: editFormData.email,
         full_name: editFormData.full_name,
@@ -513,12 +586,9 @@ export default function DriverDetailPage() {
         },
         body: JSON.stringify(userPayload),
       });
-
       if (!userResponse.ok) {
         throw new Error("Failed to update user profile");
       }
-
-      // Update driver profile details via profiles/driver endpoint
       const driverPayload = {
         user_id: driverData?.user.id,
         phone: editFormData.phone,
@@ -538,14 +608,11 @@ export default function DriverDetailPage() {
         },
         body: JSON.stringify(driverPayload),
       });
-
       if (!driverResponse.ok) {
         throw new Error("Failed to update driver profile");
       }
-
       const userResult = await userResponse.json();
       const driverResult = await driverResponse.json();
-
       if (userResult.success && driverResult.success) {
         setDriverData((prev) =>
           prev
@@ -791,13 +858,84 @@ export default function DriverDetailPage() {
               </Button>
             </>
           ) : (
-            <Button
-              onClick={handleEditToggle}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
-            >
-              <Edit className="h-5 w-5 mr-2" />
-              Edit Profile
-            </Button>
+            <>
+              <Button
+                onClick={handleEditToggle}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
+              >
+                <Edit className="h-5 w-5 mr-2" />
+                Edit Profile
+              </Button>
+              {/* Add Review Driver Button */}
+              <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    onClick={() => setDriverToReview(driverData)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all"
+                  >
+                    <FileText className="h-5 w-5 mr-2" />
+                    Review Driver
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Submit Driver Review</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleReviewSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="review_remarks" className="text-sm font-semibold text-gray-600">
+                        Remarks (max 150 characters)
+                      </Label>
+                      <Input
+                        id="review_remarks"
+                        value={reviewRemarks}
+                        onChange={(e) => setReviewRemarks(e.target.value)}
+                        placeholder="Enter review remarks"
+                        maxLength={150}
+                        className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
+                      />
+                      {reviewError && <p className="text-sm text-red-600">{reviewError}</p>}
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsReviewModalOpen(false);
+                          setReviewRemarks("");
+                          setReviewError(null);
+                        }}
+                        className="border-purple-600 text-purple-600 hover:bg-purple-100"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={reviewLoading}
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                      >
+                        {reviewLoading ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        ) : (
+                          <Save className="h-5 w-5 mr-2" />
+                        )}
+                        Submit Review
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              {/* Add Approve Driver Button */}
+              {driverData.profile_status !== "approved" && (
+                <Button
+                  onClick={() => handleApproveDriverClick(driverData.id)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-all"
+                >
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Approve Driver
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -933,6 +1071,8 @@ export default function DriverDetailPage() {
                         </Label>
                         <Input
                           id="phone"
+                          type="number"
+                          max={11}
                           value={editFormData.phone}
                           onChange={(e) => handleInputChange("phone", e.target.value)}
                           placeholder="Enter phone number"
@@ -968,23 +1108,16 @@ export default function DriverDetailPage() {
                         <Label htmlFor="role" className="text-sm font-semibold text-gray-600">
                           Role
                         </Label>
-                        <Select
+                        <Input
+                          id="date_of_birth"
+                          type="text"
                           value={editFormData.role}
-                          onValueChange={(value) => handleInputChange("role", value)}
-                        >
-                          <SelectTrigger
-                            id="role"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          >
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="supervisor">Supervisor</SelectItem>
-                            <SelectItem value="driver">Driver</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            {/* Add other roles as needed */}
-                          </SelectContent>
-                        </Select>
+                          disabled
+                          onChange={(e) => handleInputChange("role", e.target.value)}
+                          placeholder="Enter date of birth"
+                          className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
+                        />
+
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="is_active" className="text-sm font-semibold text-gray-600">
@@ -1006,56 +1139,7 @@ export default function DriverDetailPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contract" className="text-sm font-semibold text-gray-600">
-                          Contract
-                        </Label>
-                        <Select
-                          value={editFormData.contractId}
-                          onValueChange={(value) => handleInputChange("contractId", value)}
-                          disabled={contractsLoading}
-                        >
-                          <SelectTrigger
-                            id="contract"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          >
-                            <SelectValue placeholder="Select a contract" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contracts.map((contract) => (
-                              <SelectItem key={contract.id} value={contract.id.toString()}>
-                                {contract.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sites" className="text-sm font-semibold text-gray-600">
-                          Sites
-                        </Label>
-                        <Select
-                          value={editFormData.siteIds[0] ?? ""}
-                          onValueChange={(value) =>
-                            handleInputChange("siteIds", Array.isArray(value) ? value : [value])
-                          }
-                          disabled={sitesLoading}
-                        >
-                          <SelectTrigger
-                            id="sites"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          >
-                            <SelectValue placeholder="Select sites" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sites.map((site) => (
-                              <SelectItem key={site.id} value={site.id.toString()}>
-                                {site.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                   
                     </div>
                   </div>
                 ) : (
@@ -1662,80 +1746,70 @@ export default function DriverDetailPage() {
               </div>
               <CardDescription className="text-gray-600">Health-related questions and answers</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8">
-              {healthData.length === 0 ? (
-                <p className="text-gray-600 text-center py-6">No health answers found.</p>
-              ) : (
-                (isEditingHealth ? editHealthData : healthData).map((health) => (
-                  <div key={health.id} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Question</Label>
-                        <p className="font-medium text-purple-800">{health.question_text}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Answer</Label>
-                        {isEditingHealth ? (
-                          <Select
-                            value={health.answer.toString()}
-                            onValueChange={(value) => handleHealthInputChange(health.id, "answer", value === "true")}
-                          >
-                            <SelectTrigger className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
-                              <SelectValue placeholder="Select answer" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="true">Yes</SelectItem>
-                              <SelectItem value="false">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge
-                            className={`px-3 py-1 text-sm font-medium ${
-                              health.answer
-                                ? "bg-purple-600 hover:bg-purple-700"
-                                : "bg-orange-600 hover:bg-orange-700"
-                            } text-white rounded-full transition-colors`}
-                          >
-                            {health.answer ? "Yes" : "No"}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="col-span-2">
-                        <Label className="text-sm font-semibold text-gray-600">Note</Label>
-                        {isEditingHealth ? (
-                          <Input
-                            value={health.note}
-                            onChange={(e) => handleHealthInputChange(health.id, "note", e.target.value)}
-                            placeholder="Enter note"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        ) : (
-                          <p className="font-medium text-purple-800">{health.note || "No note provided"}</p>
-                        )}
-                      </div>
-                      {health.admin_remarks && (
+            
+              <CardContent className="space-y-8">
+                {healthData.length === 0 ? (
+                  <p className="text-gray-600 text-center py-6">No health answers found.</p>
+                ) : (
+                  (isEditingHealth ? editHealthData : healthData).map((health) => (
+                    <div key={health.id} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <Label className="text-sm font-semibold text-gray-600">Question</Label>
+                          <p className="font-medium text-purple-800">{health.question_text}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-semibold text-gray-600">Answer</Label>
+                          {isEditingHealth ? (
+                            <Select
+                              value={health.answer.toString()}
+                              onValueChange={(value) =>
+                                handleHealthInputChange(health.id, "answer", value === "true")
+                              }
+                            >
+                              <SelectTrigger className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
+                                <SelectValue placeholder="Select answer" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="true">Yes</SelectItem>
+                                <SelectItem value="false">No</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <p className="font-medium text-purple-800">{health.answer ? "Yes" : "No"}</p>
+                          )}
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-sm font-semibold text-gray-600">Note</Label>
+                          {isEditingHealth ? (
+                            <Input
+                              value={health.note}
+                              onChange={(e) =>
+                                handleHealthInputChange(health.id, "note", e.target.value)
+                              }
+                              placeholder="Enter note"
+                              className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
+                            />
+                          ) : (
+                            <p className="font-medium text-purple-800">{health.note || "No note provided"}</p>
+                          )}
+                        </div>
                         <div className="col-span-2">
                           <Label className="text-sm font-semibold text-gray-600">Admin Remarks</Label>
-                          <p className="font-medium text-purple-800">{health.admin_remarks}</p>
+                          <p className="font-medium text-purple-800">
+                            {health.admin_remarks || "No remarks provided"}
+                          </p>
                         </div>
-                      )}
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Created At</Label>
-                        <p className="font-medium text-purple-800">{formatDate(health.created_at)}</p>
                       </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Updated At</Label>
-                        <p className="font-medium text-purple-800">{formatDate(health.updated_at)}</p>
-                      </div>
+                      <Separator className="bg-purple-200" />
                     </div>
-                    <Separator className="bg-purple-200" />
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    
   );
 }
