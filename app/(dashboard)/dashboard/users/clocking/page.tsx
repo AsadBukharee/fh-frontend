@@ -234,9 +234,9 @@ const Page = () => {
   }, []);
 
   useEffect(() => {
-    if (token && users.length > 0) {
+ 
       fetchLogs(currentPage);
-    }
+    
   }, [currentPage, startDate, endDate, driverFilter, users, token]);
 
   // Apply client-side filters
