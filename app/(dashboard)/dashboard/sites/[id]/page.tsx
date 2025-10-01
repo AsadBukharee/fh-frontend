@@ -30,6 +30,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Separator } from "@/components/ui/separator";
+import ImageUploader from "@/components/Media/UploadImage";
 
 // ---------------------- Types ----------------------
 interface OperationHour {
@@ -360,6 +361,10 @@ export default function SiteDetails() {
     }
   };
 
+  const handleImageUploadSuccess = (url: string) => {
+    setEditSite((prev) => (prev ? { ...prev, image: url } : prev));
+  };
+
   const status = "Active";
   const complianceStatus = site && site.staff.total > site.max_staff_allowed ? "Over Capacity" : "In Compliance";
   const severity = site ? deriveSeverity(site.warnings) : "Medium";
@@ -616,22 +621,7 @@ export default function SiteDetails() {
                   ))}
                 </div>
              
-              <Separator className="my-4" />
-              <div className="text-lg bg-gray-100 p-4 flex justify-between items-center rounded-lg">
-                <p className="font-medium text-gray-700">Total Staff / Maximum Allowed</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-xl font-bold text-gray-800">{isEditing ? editSite.staff.total : site.staff.total} / {isEditing ? editSite.max_staff_allowed : site.max_staff_allowed}</p>
-                  <p
-                    className={
-                      utilization.includes("105") || utilization.includes("107")
-                        ? "text-red-600 font-medium"
-                        : "text-gray-700 font-medium"
-                    }
-                  >
-                    {utilization}
-                  </p>
-                </div>
-              </div>
+           
             </Card>
            
             <Card className="p-4 rounded-lg bg-white border border-gray-200 shadow">
@@ -653,11 +643,16 @@ export default function SiteDetails() {
 
           {/* Right Column */}
           <div className="space-y-6">
-            <div className="w-full h-[200px] rounded-md bg-gray-50 flex justify-center items-center border border-gray-200">
-              {site.image ? (
-                <img src={site.image} className="w-full h-full object-cover" alt="site" />
-              ) : (
-                <div className="text-gray-400">No image</div>
+            <div className="space-y-4">
+              <div className="w-full h-[200px] rounded-md bg-gray-50 flex justify-center items-center border border-gray-200">
+                {editSite.image ? (
+                  <img src={editSite.image} className="w-full h-full object-cover" alt="site" />
+                ) : (
+                  <div className="text-gray-400">No image</div>
+                )}
+              </div>
+              {isEditing && (
+                <ImageUploader onUploadSuccess={handleImageUploadSuccess} />
               )}
             </div>
             <Card className="p-4 rounded-lg bg-red-50 border border-red-200">
