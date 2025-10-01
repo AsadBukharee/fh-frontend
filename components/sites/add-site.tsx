@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Save,
@@ -17,6 +18,8 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
+  CheckCircle,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -313,6 +316,7 @@ const DebugComponent = () => {
 };
 
 function AddSiteForm() {
+  const router = useRouter();
   const { showToast } = useToast();
   const cookies = useCookies();
   const token = cookies.get("access_token");
@@ -320,6 +324,8 @@ function AddSiteForm() {
   const form = useSelector((state: RootState) => state.form);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isFetchingPostcode, setIsFetchingPostcode] = React.useState(false);
+  const [submitSuccess, setSubmitSuccess] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   // Debug form state changes
   React.useEffect(() => {
@@ -432,9 +438,17 @@ function AddSiteForm() {
     dispatch(toggle24Hour());
   };
 
+  const handleClose = () => {
+    setSubmitSuccess(false);
+    setSubmitError(null);
+    dispatch(resetForm());
+    router.back(); // Or router.push('/sites') if you have a specific route
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
 
     const payload = {
       name: form.name,
@@ -475,16 +489,22 @@ function AddSiteForm() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to submit the form");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || errorData.detail || errorData.error || "Failed to add site. Please try again.";
+        setSubmitError(errorMessage);
+        showToast(errorMessage, "error");
+        return;
       }
 
       const result = await response.json();
       showToast("Site added successfully!", "success");
-      alert("Site added successfully!")
       console.log("API response:", result);
       dispatch(resetForm());
+      setSubmitSuccess(true);
     } catch (error) {
-      showToast("Failed to add site. Please try again.", "error");
+      const errorMessage = error instanceof Error ? error.message : "Failed to add site. Please try again.";
+      setSubmitError(errorMessage);
+      showToast(errorMessage, "error");
       console.error("Error submitting form:", error);
     } finally {
       setIsSubmitting(false);
@@ -500,6 +520,53 @@ function AddSiteForm() {
     "Saturday",
     "Sunday",
   ];
+
+  if (submitSuccess) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="text-center">
+            <div className="mx-auto h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl">Site Added Successfully!</CardTitle>
+            <p className="text-muted-foreground">Your site has been created and is ready to use.</p>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={handleClose} className="gap-2">
+              <X className="h-4 w-4" />
+              Close
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (submitError) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="text-center">
+            <div className="mx-auto h-16 w-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <X className="h-8 w-8 text-red-600" />
+            </div>
+            <CardTitle className="text-2xl">Failed to Add Site</CardTitle>
+            <p className="text-muted-foreground">{submitError}</p>
+          </CardHeader>
+          <CardContent className="flex justify-center space-x-4">
+            <Button onClick={handleClose} variant="outline">
+              Cancel
+            </Button>
+            <Button onClick={() => setSubmitError(null)} className="gap-2">
+              <Save className="h-4 w-4" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
