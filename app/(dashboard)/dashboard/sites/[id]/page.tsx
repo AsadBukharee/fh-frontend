@@ -811,12 +811,7 @@ export default function SiteDetails() {
                     {status}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">Compliance Status</span>
-                  <Badge className={`${getComplianceBadgeColors(complianceStatus)} text-xs font-medium`}>
-                    {complianceStatus}
-                  </Badge>
-                </div>
+              
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-700">Active Alerts</span>
                   <Badge className="bg-red-100 text-red-700 text-xs font-medium">
@@ -832,7 +827,7 @@ export default function SiteDetails() {
             <Card className="p-4 rounded-lg bg-white border border-gray-200">
               <div className="flex items-center gap-2 text-gray-700 font-semibold mb-4">
                 <Users className="w-5 h-5 text-orange-600" />
-                <span>Today's Presence</span>
+                <span>Today&apos;s Presence</span>
               </div>
               <div className="space-y-2 text-sm text-gray-700">
                 <div className="flex justify-between">
