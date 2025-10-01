@@ -31,6 +31,7 @@ import {
 } from "recharts";
 import { Separator } from "@/components/ui/separator";
 import ImageUploader from "@/components/Media/UploadImage";
+import Image from "next/image";
 
 // ---------------------- Types ----------------------
 interface OperationHour {
@@ -371,15 +372,19 @@ export default function SiteDetails() {
   const staffBreakdown = site ? getStaffBreakdown(site.staff) : [];
   const utilization = site ? `${Math.round((site.staff.total / site.max_staff_allowed) * 100)}%` : "0%";
 
-  const buildChartData = () => {
+  const buildFuelData = () => {
     return [
-      { name: "Mon", used: 600, allocated: 1100 },
-      { name: "Tue", used: 650, allocated: 1150 },
-      { name: "Wed", used: 700, allocated: 1200 },
-      { name: "Thu", used: 750, allocated: 1250 },
-      { name: "Fri", used: 800, allocated: 1300 },
-      { name: "Sat", used: 700, allocated: 1200 },
-      { name: "Sun", used: 650, allocated: 1150 },
+      { month: "Jan", fuel: 1.0 },
+      { month: "Feb", fuel: 1.2 },
+      { month: "Mar", fuel: 1.5 },
+      { month: "Apr", fuel: 2.0 },
+      { month: "May", fuel: 5.67 },
+      { month: "Jun", fuel: 3.0 },
+      { month: "Jul", fuel: 2.8 },
+      { month: "Aug", fuel: 3.2 },
+      { month: "Sep", fuel: 2.9 },
+      { month: "Oct", fuel: 1.8 },
+      { month: "Nov", fuel: 1.5 },
     ];
   };
 
@@ -625,19 +630,73 @@ export default function SiteDetails() {
             </Card>
            
             <Card className="p-4 rounded-lg bg-white border border-gray-200 shadow">
-              <h3 className="text-gray-800 font-semibold mb-4 flex items-center gap-2">
+              <h3 className="text-gray-800 font-semibold mb-6 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-orange-600" /> Operational Statistics
               </h3>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={buildChartData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" stroke="#6b7280" />
-                  <YAxis stroke="#6b7280" />
-                  <Tooltip />
-                  <Bar dataKey="used" fill="#f97316" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="allocated" fill="#fdba74" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+
+              {/* Top Stats: Employees and Vehicles */}
+              <div className="grid grid-cols-2 gap-6 mb-6 p-4 bg-orange-50 rounded-lg">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-500">Employees</p>
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm text-gray-500">Total Today</span>
+                  </div>
+                  <p className="text-3xl font-bold text-gray-800">30</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold text-green-600">21</span>
+                    <span className="text-sm font-medium text-green-600">Operational</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-500">Vehicles</p>
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm text-gray-500">Total Today</span>
+                  </div>
+                  <p className="text-3xl font-bold text-gray-800">30</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold text-green-600">18</span>
+                    <span className="text-sm font-medium text-green-600">Operational</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fuel Usage Chart */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-semibold text-gray-800">Fuel Usage (L)</h4>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">May</p>
+                    <p className="text-lg font-bold text-purple-600">5.67 L</p>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={buildFuelData()} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
+                    <YAxis stroke="#6b7280" fontSize={12} tickFormatter={(value) => `${value} L`} domain={[0, 6]} />
+                    <Tooltip formatter={(value) => [`${value} L`, 'Fuel Usage']} />
+                    <Bar 
+                      dataKey="fuel" 
+                      radius={[4, 4, 0, 0]} 
+                      fill={(entry: { month: string; }) => entry.month === 'May' ? '#a855f7' : '#ec4899'}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Week and Month Totals */}
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-500">This Week</p>
+                  <p className="text-xl font-bold text-gray-800">1.250</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-500">This Month</p>
+                  <p className="text-xl font-bold text-gray-800">4.850</p>
+                </div>
+              </div>
             </Card>
           </div>
 
@@ -646,7 +705,7 @@ export default function SiteDetails() {
             <div className="space-y-4">
               <div className="w-full h-[200px] rounded-md bg-gray-50 flex justify-center items-center border border-gray-200">
                 {editSite.image ? (
-                  <img src={editSite.image} className="w-full h-full object-cover" alt="site" />
+                  <Image src={editSite.image} width={400}  height={300} className="w-full h-full object-cover" alt="site" />
                 ) : (
                   <div className="text-gray-400">No image</div>
                 )}
@@ -772,7 +831,7 @@ export default function SiteDetails() {
             <Card className="p-4 rounded-lg bg-white border border-gray-200">
               <div className="flex items-center gap-2 text-gray-700 font-semibold mb-4">
                 <Users className="w-5 h-5 text-orange-600" />
-                <span>Presence</span>
+                <span>Today's Presence</span>
               </div>
               <div className="space-y-2 text-sm text-gray-700">
                 <div className="flex justify-between">
