@@ -1,5 +1,6 @@
-"use client"
+"use client";
 
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -7,71 +8,112 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { useStepper } from "@/components/ui/stepper"
-import { useState, useEffect } from "react"
-import API_URL from "@/app/utils/ENV"
-import { useCookies } from "next-client-cookies"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useStepper } from "./DriverStepper";
+import API_URL from "@/app/utils/ENV";
+import { useCookies } from "next-client-cookies";
 
-interface NextOfKinStepProps {
-  driverId: number | null
-  setNextOfKinData: (data: any) => void
-  user_id: number
-  initialNextOfKinData?: any // Optional prop for pre-populating data
+interface NextOfKinData {
+  kin_name: string;
+  kin_contact: string;
+  kin_relationship: string;
+  kin_address: string;
+  kin_email: string;
 }
 
-export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNextOfKinData }: NextOfKinStepProps) {
-  const { goToNextStep, goToPreviousStep } = useStepper()
-  const cookies = useCookies()
+interface NextOfKinStepProps {
+  driverId: number | null;
+  setNextOfKinData: (data: NextOfKinData) => void;
+  user_id: number;
+  initialNextOfKinData?: NextOfKinData;
+}
 
-  // Initialize formData with data from localStorage or initialNextOfKinData, if provided
-  const [formData, setFormData] = useState(() => {
-    const savedData = localStorage.getItem(`nextOfKin_${driverId}`)
-    return savedData
-      ? JSON.parse(savedData)
-      : initialNextOfKinData || {
-          kin_name: "",
-          kin_contact: "",
-          kin_relationship: "",
-          kin_address: "",
-          kin_email: "",
-        }
-  })
+export function NextOfKinStep({
+  user_id,
+  driverId,
+  setNextOfKinData,
+  initialNextOfKinData,
+}: NextOfKinStepProps) {
+  const { goToNextStep, goToPreviousStep, disableBack } = useStepper();
+  const cookies = useCookies();
 
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState<NextOfKinData>(
+    () => {
+      const savedData = localStorage.getItem(`nextOfKin_${driverId}`);
+      return savedData
+        ? JSON.parse(savedData)
+        : initialNextOfKinData || {
+            kin_name: "",
+            kin_contact: "",
+            kin_relationship: "",
+            kin_address: "",
+            kin_email: "",
+          };
+    }
+  );
 
-  // Persist formData to localStorage whenever it changes
+  const [errors, setErrors] = useState<Partial<Record<keyof NextOfKinData, string>> & { general?: string }>({});
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     if (driverId) {
-      localStorage.setItem(`nextOfKin_${driverId}`, JSON.stringify(formData))
+      localStorage.setItem(`nextOfKin_${driverId}`, JSON.stringify(formData));
     }
-  }, [formData, driverId])
+  }, [formData, driverId]);
+
+  const validateField = (name: keyof NextOfKinData, value: string) => {
+    switch (name) {
+      case "kin_name":
+        return value.trim() ? "" : "Name is required";
+      case "kin_contact":
+        return /^\+?\d{10,15}$/.test(value.replace(/\D/g, "")) ? "" : "Invalid phone number (e.g., +447700112233)";
+      case "kin_relationship":
+        return value.trim() ? "" : "Relationship is required";
+      case "kin_address":
+        return value.trim() ? "" : "Address is required";
+      case "kin_email":
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? "" : "Invalid email address";
+      default:
+        return "";
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev: any) => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: validateField(name as keyof NextOfKinData, value) }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
+    e.preventDefault();
+    setErrors({});
+    setLoading(true);
 
     if (driverId === null) {
-      setError("Please complete the 'Personal Info' step first.")
-      setLoading(false)
-      return
+      setErrors({ general: "Please complete the 'Personal Info' step first." });
+      setLoading(false);
+      return;
     }
 
-    const token = cookies.get('access_token')
+    const token = cookies.get("access_token");
     if (!token) {
-      setError("Authentication token is missing. Please log in again.")
-      setLoading(false)
-      return
+      setErrors({ general: "Authentication token is missing. Please log in again." });
+      setLoading(false);
+      return;
+    }
+
+    const newErrors: Partial<Record<keyof NextOfKinData, string>> = {};
+    (Object.keys(formData) as (keyof NextOfKinData)[]).forEach((field) => {
+      newErrors[field] = validateField(field, formData[field]);
+    });
+
+    if (Object.values(newErrors).some((error) => error)) {
+      setErrors(newErrors);
+      setLoading(false);
+      return;
     }
 
     const payload = {
@@ -80,9 +122,9 @@ export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNext
       next_of_kin_relationship: formData.kin_relationship,
       next_of_kin_address: formData.kin_address,
       next_of_kin_email: formData.kin_email,
-      user_id: user_id,
+      user_id,
       driver_id: driverId,
-    }
+    };
 
     try {
       const res = await fetch(`${API_URL}/api/profiles/driver/${driverId}/`, {
@@ -92,30 +134,22 @@ export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNext
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
-      })
+      });
 
-      const responseData = await res.json()
-      console.log("API Response:", responseData) // Debug the response
-
+      const responseData = await res.json();
       if (!res.ok) {
-        throw new Error(responseData?.detail || "Submission failed.")
+        throw new Error(responseData?.detail || "Submission failed.");
       }
 
-      // Update parent state with the submitted data
-      setNextOfKinData(payload)
-
-      // Optionally, clear localStorage after successful submission
-      localStorage.removeItem(`nextOfKin_${driverId}`)
-
-      // Proceed to the next step
-      goToNextStep()
+      setNextOfKinData(formData);
+      localStorage.removeItem(`nextOfKin_${driverId}`);
+      goToNextStep();
     } catch (err: any) {
-      console.error("Error:", err) // Debug the error
-      setError(err.message || "Something went wrong.")
+      setErrors({ general: err.message || "Something went wrong." });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Card>
@@ -143,6 +177,7 @@ export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNext
                     onChange={handleInputChange}
                     required
                   />
+                  {errors.kin_name && <p className="text-sm text-red-500">{errors.kin_name}</p>}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="kin_contact">Contact Number</Label>
@@ -150,11 +185,12 @@ export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNext
                     id="kin_contact"
                     name="kin_contact"
                     type="tel"
-                    placeholder="+44 7700112233"
+                    placeholder="+447700112233"
                     value={formData.kin_contact}
                     onChange={handleInputChange}
                     required
                   />
+                  {errors.kin_contact && <p className="text-sm text-red-500">{errors.kin_contact}</p>}
                 </div>
               </div>
               <div className="space-y-1">
@@ -167,6 +203,7 @@ export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNext
                   onChange={handleInputChange}
                   required
                 />
+                {errors.kin_relationship && <p className="text-sm text-red-500">{errors.kin_relationship}</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="kin_email">Email</Label>
@@ -179,6 +216,7 @@ export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNext
                   onChange={handleInputChange}
                   required
                 />
+                {errors.kin_email && <p className="text-sm text-red-500">{errors.kin_email}</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="kin_address">Address</Label>
@@ -190,13 +228,13 @@ export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNext
                   onChange={handleInputChange}
                   required
                 />
+                {errors.kin_address && <p className="text-sm text-red-500">{errors.kin_address}</p>}
               </div>
             </div>
           )}
-
-          {error && (
+          {errors.general && (
             <p className="text-sm text-red-500" aria-live="polite">
-              {error}
+              {errors.general}
             </p>
           )}
         </CardContent>
@@ -206,6 +244,7 @@ export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNext
             variant="outline"
             className="border border-magenta text-magenta"
             onClick={goToPreviousStep}
+            disabled={disableBack || loading}
           >
             Previous
           </Button>
@@ -219,5 +258,5 @@ export function NextOfKinStep({ user_id, driverId, setNextOfKinData, initialNext
         </CardFooter>
       </form>
     </Card>
-  )
+  );
 }

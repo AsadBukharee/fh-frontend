@@ -31,6 +31,7 @@ import { parse, differenceInDays, format, isWithinInterval, isPast } from "date-
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import Link from "next/link";
+import ExportButton from "@/app/utils/ExportButton";
 
 interface ApiResponse {
   success: boolean;
@@ -1223,6 +1224,9 @@ export default function VehicleDashboard() {
             </div>
           </PopoverContent>
         </Popover>
+        <div className="">
+          <ExportButton data={filteredData} fileName="Vehicle Compliance" />
+        </div>
       </div>
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
         {loading ? (

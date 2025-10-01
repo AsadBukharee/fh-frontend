@@ -218,46 +218,7 @@ export default function SiteGrid() {
           </div>
         </div>
 
-        {/* Filter Section */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4">
-          <div className="flex flex-col w-full sm:w-1/3">
-            <label className="text-sm font-medium text-gray-700">Status</label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="onHold">On Hold</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col w-full sm:w-1/3">
-            <label className="text-sm font-medium text-gray-700">Shift Presence</label>
-            <Select value={shiftFilter} onValueChange={setShiftFilter}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select shift" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="early">Early</SelectItem>
-                <SelectItem value="middle">Middle</SelectItem>
-                <SelectItem value="night">Night</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col w-full sm:w-1/3">
-            <label className="text-sm font-medium text-gray-700">Min Vehicles</label>
-            <Input
-              type="number"
-              value={vehicleFilter}
-              onChange={(e) => setVehicleFilter(e.target.value)}
-              placeholder="Enter min number of vehicles"
-              className="w-full"
-            />
-          </div>
-        </div>
+   
 
         <div className="flex justify-evenly items-center flex-wrap gap-6">
           {filteredSites.map((site) => (

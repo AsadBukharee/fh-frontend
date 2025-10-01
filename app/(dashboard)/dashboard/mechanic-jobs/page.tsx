@@ -1,3 +1,4 @@
+
 "use client"
 
 import type React from "react"
@@ -53,6 +54,7 @@ import {
   BarChart,
   CircleCheck,
   X,
+  Edit,
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -88,6 +90,22 @@ interface Vehicle {
   registration_number: string
 }
 
+interface MechanicDefectPayload {
+  mechanic_job: number
+  priority: string
+  defect_text: string
+  color: string
+}
+
+interface MechanicJobPayload {
+  vehicle: number
+  mechanic: number
+  assignee: number
+  notes: string
+  source: string
+  status: string
+}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface ApiResponse<T> {
   success: boolean
   message: string
@@ -105,6 +123,8 @@ interface MechanicJobApiResponse extends ApiResponse<{
 interface UserApiResponse extends ApiResponse<User[]> {}
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface VehicleApiResponse extends ApiResponse<Vehicle[]> {}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface MechanicDefectApiResponse extends ApiResponse<MechanicDefectPayload> {}
 
 export default function MechanicJobsPage() {
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
@@ -120,9 +140,8 @@ export default function MechanicJobsPage() {
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [isBarChartDialogOpen, setIsBarChartDialogOpen] = useState(false)
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
+  const [isUpdateDefectDialogOpen, setIsUpdateDefectDialogOpen] = useState(false)
   const [selectedJob, setSelectedJob] = useState<MechanicJob | null>(null)
-  const [status, setStatus] = useState<string>("")
-  const [notes, setNotes] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
@@ -137,15 +156,34 @@ export default function MechanicJobsPage() {
   const [filterStartDate, setFilterStartDate] = useState<string>("")
   const [filterEndDate, setFilterEndDate] = useState<string>("")
   
+  // State for job update
+  const [jobPayload, setJobPayload] = useState<MechanicJobPayload>({
+    vehicle: 0,
+    mechanic: 0,
+    assignee: 0,
+    notes: "",
+    source: "",
+    status: "",
+  })
+
+  // State for multiple defects
+  const [defects, setDefects] = useState<MechanicDefectPayload[]>([
+    {
+      mechanic_job: 0,
+      priority: "medium",
+      defect_text: "",
+      color: "#00FF00",
+    },
+  ])
+
   const perPage = 10
   const { showToast } = useToast()
   const cookies = useCookies()
   const role = cookies.get("role") || "user"
 
-  // Frontend filtering logic
+  // Filtered jobs logic
   const filteredJobs = useMemo(() => {
     return allJobs.filter(job => {
-      // Search filter
       const matchesSearch = searchQuery === '' || 
         job.vehicle_reg.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.mechanic_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -156,33 +194,26 @@ export default function MechanicJobsPage() {
           defect.toLowerCase().includes(searchQuery.toLowerCase())
         )
 
-      // Status filter
       const matchesStatus = filterStatus === '' || filterStatus === 'all' || 
         job.status.toLowerCase() === filterStatus.toLowerCase()
 
-      // Vehicle registration filter
       const matchesVehicleReg = filterVehicleReg === '' || filterVehicleReg === 'all' ||
         job.vehicle_reg === filterVehicleReg
 
-      // Mechanic name filter
       const matchesMechanicName = filterMechanicName === '' || filterMechanicName === 'all' ||
         job.mechanic_name === filterMechanicName
 
-      // Assignee name filter
       const matchesAssigneeName = filterAssigneeName === '' || filterAssigneeName === 'all' ||
         job.assignee_name === filterAssigneeName
 
-      // Source filter
       const matchesSource = filterSource === '' ||
         job.source.toLowerCase().includes(filterSource.toLowerCase())
 
-      // Defects filter
       const matchesDefects = filterDefects === '' ||
         job.mechanicdefects.some(defect => 
           defect.toLowerCase().includes(filterDefects.toLowerCase())
         )
 
-      // Date filters
       const jobDate = new Date(job.timestamp)
       const matchesStartDate = filterStartDate === '' || 
         jobDate >= new Date(filterStartDate)
@@ -207,7 +238,7 @@ export default function MechanicJobsPage() {
     filterEndDate
   ])
 
-  // Calculate pagination based on filtered results
+  // Pagination logic
   const totalFilteredPages = Math.ceil(filteredJobs.length / perPage)
   const paginatedJobs = useMemo(() => {
     const startIndex = (currentPage - 1) * perPage
@@ -215,6 +246,7 @@ export default function MechanicJobsPage() {
     return filteredJobs.slice(startIndex, endIndex)
   }, [filteredJobs, currentPage, perPage])
 
+  // Fetch functions
   const fetchManagers = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/users/list-names/?role=manager`, {
@@ -296,10 +328,9 @@ export default function MechanicJobsPage() {
   const fetchJobs = useCallback(async () => {
     setLoading(true)
     try {
-      // Fetch all jobs without filters (simplified query)
       const queryParams = new URLSearchParams({
         page: "1",
-        per_page: "1000", // Fetch more to handle frontend pagination
+        per_page: "1000",
       }).toString()
 
       const url = `${API_URL}/activity/mechanic-job/?${queryParams}`
@@ -334,7 +365,154 @@ export default function MechanicJobsPage() {
     }
   }, [cookies, showToast])
 
-  // Reset pagination when filters or search change
+  // Update mechanic job
+  const handleStatusUpdate = async () => {
+    if (!selectedJob) return
+
+    try {
+      const response = await fetch(`${API_URL}/activity/mechanic-job/${selectedJob.id}/`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify(jobPayload),
+      })
+
+      if (response.status === 401) {
+        showToast("Session expired. Please log in again.", "error")
+        return
+      }
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        showToast(data.message || `Job ID ${selectedJob.id} updated successfully`, "success")
+        await fetchJobs()
+      } else {
+        showToast(data.message || "Failed to update job", "error")
+      }
+    } catch {
+      showToast("An error occurred while updating the job", "error")
+    } finally {
+      setIsStatusDialogOpen(false)
+      setSelectedJob(null)
+      setJobPayload({
+        vehicle: 0,
+        mechanic: 0,
+        assignee: 0,
+        notes: "",
+        source: "",
+        status: "",
+      })
+    }
+  }
+
+  // Update multiple defects
+  const updateMechanicDefects = async () => {
+    if (!selectedJob) return
+
+    try {
+      for (const defect of defects) {
+        if (!defect.defect_text) continue // Skip empty defects
+
+        const response = await fetch(`${API_URL}/activity/user_activity/mechanic-defect/1/`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+          body: JSON.stringify({
+            ...defect,
+            mechanic_job: selectedJob.id,
+          }),
+        })
+
+        if (response.status === 401) {
+          showToast("Session expired. Please log in again.", "error")
+          return
+        }
+
+        const data: MechanicDefectApiResponse = await response.json()
+
+        if (!response.ok || !data.success) {
+          showToast(data.message || "Failed to update defect", "error")
+          return
+        }
+      }
+
+      showToast("All defects updated successfully", "success")
+      await fetchJobs()
+    } catch {
+      showToast("An error occurred while updating defects", "error")
+    } finally {
+      setIsUpdateDefectDialogOpen(false)
+      setSelectedJob(null)
+      setDefects([
+        {
+          mechanic_job: 0,
+          priority: "medium",
+          defect_text: "",
+          color: "#00FF00",
+        },
+      ])
+    }
+  }
+
+  // Handle opening update defect dialog
+  const handleUpdateDefectClick = (job: MechanicJob) => {
+    setSelectedJob(job)
+    setDefects([
+      {
+        mechanic_job: job.id,
+        priority: "medium",
+        defect_text: job.mechanicdefects[0] || "Engine oil leak fixed",
+        color: "#00FF00",
+      },
+    ])
+    setIsUpdateDefectDialogOpen(true)
+  }
+
+  // Handle opening status update dialog
+  const handleStatusUpdateClick = (job: MechanicJob) => {
+    setSelectedJob(job)
+    setJobPayload({
+      vehicle: job.vehicle,
+      mechanic: job.mechanic,
+      assignee: job.assignee,
+      notes: job.notes,
+      source: job.source,
+      status: job.status,
+    })
+    setIsStatusDialogOpen(true)
+  }
+
+  // Add new defect input
+  const addDefect = () => {
+    setDefects([
+      ...defects,
+      {
+        mechanic_job: selectedJob?.id || 0,
+        priority: "medium",
+        defect_text: "",
+        color: "#00FF00",
+      },
+    ])
+  }
+
+  // Remove defect input
+  const removeDefect = (index: number) => {
+    setDefects(defects.filter((_, i) => i !== index))
+  }
+
+  // Update defect field
+  const updateDefectField = (index: number, field: keyof MechanicDefectPayload, value: string) => {
+    const newDefects = [...defects]
+    newDefects[index] = { ...newDefects[index], [field]: value }
+    setDefects(newDefects)
+  }
+
+  // Other functions
   useEffect(() => {
     setCurrentPage(1)
   }, [filteredJobs.length])
@@ -407,56 +585,9 @@ export default function MechanicJobsPage() {
     }
   }
 
-  const handleStatusUpdateClick = (job: MechanicJob) => {
-    setSelectedJob(job)
-    setStatus(job.status)
-    setNotes(job.notes)
-    setIsStatusDialogOpen(true)
-  }
-
   const handleBarChartClick = (job: MechanicJob) => {
     setSelectedJob(job)
     setIsBarChartDialogOpen(true)
-  }
-
-  const handleStatusUpdate = async () => {
-    if (!selectedJob) return
-
-    try {
-      const payload = {
-        status,
-        notes,
-      }
-      const response = await fetch(`${API_URL}/activity/mechanic-job/${selectedJob.id}/`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
-      }
-
-      const data = await response.json()
-
-      if (response.ok && data.success) {
-        showToast(data.message || `Job ID ${selectedJob.id} status updated successfully`, "success")
-        await fetchJobs()
-      } else {
-        showToast(data.message || "Failed to update job status", "error")
-      }
-    } catch {
-      showToast("An error occurred while updating the job status", "error")
-    } finally {
-      setIsStatusDialogOpen(false)
-      setSelectedJob(null)
-      setStatus("")
-      setNotes("")
-    }
   }
 
   const handleApplyFilters = () => {
@@ -483,7 +614,6 @@ export default function MechanicJobsPage() {
     if (currentPage < totalFilteredPages) setCurrentPage(currentPage + 1)
   }
 
-  // Update search query on change (debounced if needed)
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
     setCurrentPage(1)
@@ -558,7 +688,6 @@ export default function MechanicJobsPage() {
         </div>
       ) : (
         <>
-          {/* Results summary */}
           <div className="mb-4 text-sm text-gray-600">
             Showing {paginatedJobs.length} of {filteredJobs.length} mechanic jobs 
             {searchQuery || Object.values({filterStatus, filterVehicleReg, filterMechanicName, filterAssigneeName, filterSource, filterDefects, filterStartDate, filterEndDate}).some(f => f !== '') && 
@@ -640,7 +769,11 @@ export default function MechanicJobsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStatusUpdateClick(job)}>
                               <CircleCheck className="w-4 h-4 mr-2" />
-                              Status
+                              Update Job
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateDefectClick(job)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Update Defects
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-red-600"
@@ -845,6 +978,7 @@ export default function MechanicJobsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Delete Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -865,21 +999,79 @@ export default function MechanicJobsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Job Update Dialog */}
       <AlertDialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CircleCheck className="w-5 h-5 text-orange-500" />
-              Update Job Status
+              Update Mechanic Job
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Update the status and notes for job ID <strong>{selectedJob?.id}</strong> for vehicle <strong>{selectedJob?.vehicle_reg}</strong>.
+              Update the details for job ID <strong>{selectedJob?.id}</strong> for vehicle <strong>{selectedJob?.vehicle_reg}</strong>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-4">
             <div>
+              <label className="text-sm font-medium text-gray-700">Vehicle</label>
+              <Select
+                value={jobPayload.vehicle.toString()}
+                onValueChange={(value) => setJobPayload({ ...jobPayload, vehicle: parseInt(value) })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select vehicle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles.map((vehicle) => (
+                    <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
+                      {vehicle.registration_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Mechanic</label>
+              <Select
+                value={jobPayload.mechanic.toString()}
+                onValueChange={(value) => setJobPayload({ ...jobPayload, mechanic: parseInt(value) })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select mechanic" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mechanics.map((mechanic) => (
+                    <SelectItem key={mechanic.id} value={mechanic.id.toString()}>
+                      {mechanic.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Assignee</label>
+              <Select
+                value={jobPayload.assignee.toString()}
+                onValueChange={(value) => setJobPayload({ ...jobPayload, assignee: parseInt(value) })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {managers.map((manager) => (
+                    <SelectItem key={manager.id} value={manager.id.toString()}>
+                      {manager.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <label className="text-sm font-medium text-gray-700">Status</label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select
+                value={jobPayload.status}
+                onValueChange={(value) => setJobPayload({ ...jobPayload, status: value })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -892,10 +1084,18 @@ export default function MechanicJobsPage() {
               </Select>
             </div>
             <div>
+              <label className="text-sm font-medium text-gray-700">Source</label>
+              <Input
+                value={jobPayload.source}
+                onChange={(e) => setJobPayload({ ...jobPayload, source: e.target.value })}
+                placeholder="Enter source"
+              />
+            </div>
+            <div>
               <label className="text-sm font-medium text-gray-700">Notes</label>
               <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                value={jobPayload.notes}
+                onChange={(e) => setJobPayload({ ...jobPayload, notes: e.target.value })}
                 placeholder="Enter notes"
                 rows={4}
               />
@@ -904,7 +1104,88 @@ export default function MechanicJobsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleStatusUpdate} className="bg-orange-600 hover:bg-orange-700">
-              Update Status
+              Update Job
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Update Defects Dialog */}
+      <AlertDialog open={isUpdateDefectDialogOpen} onOpenChange={setIsUpdateDefectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-orange-500" />
+              Update Mechanic Defects
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Update the defect details for job ID <strong>{selectedJob?.id}</strong> for vehicle <strong>{selectedJob?.vehicle_reg}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 max-h-[400px] overflow-y-auto py-2">
+            {defects.map((defect, index) => (
+              <div key={index} className="border p-4 rounded-md space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-sm font-medium text-gray-700">Defect {index + 1}</h4>
+                  {defects.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeDefect(index)}
+                      className="text-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Priority</label>
+                  <Select
+                    value={defect.priority}
+                    onValueChange={(value) => updateDefectField(index, "priority", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Defect Description</label>
+                  <Textarea
+                    value={defect.defect_text}
+                    onChange={(e) => updateDefectField(index, "defect_text", e.target.value)}
+                    placeholder="Enter defect description"
+                    rows={4}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Color</label>
+                  <Input
+                    type="color"
+                    value={defect.color}
+                    onChange={(e) => updateDefectField(index, "color", e.target.value)}
+                  />
+                </div>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              onClick={addDefect}
+              className="flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Another Defect
+            </Button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={updateMechanicDefects} className="bg-orange-600 hover:bg-orange-700">
+              Update Defects
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

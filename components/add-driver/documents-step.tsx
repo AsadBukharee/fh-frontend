@@ -1,13 +1,14 @@
 "use client";
 
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useStepper } from "@/components/ui/stepper";
-import { useActionState, useState } from "react";
+import { useStepper } from "./DriverStepper";
+import { useActionState } from "react";
 import { submitDocuments } from "../action";
 import FileUploader from "../Media/MediaUpload";
 
@@ -18,6 +19,7 @@ export interface Module {
 }
 
 export interface ProfessionalCompetency {
+  driver: any; // Replace 'any' with the correct type if known
   document_name: string;
   has_expiry: boolean;
   description: string;
@@ -28,94 +30,102 @@ export interface ProfessionalCompetency {
   request_status: string;
   has_description: boolean;
   modules: Module[];
-  // Removed driver property, as it is added in submitDocuments
 }
 
 interface DocumentsStepProps {
   driverId: number | null;
-  setDocumentsData: (data: any) => void;
+  setDocumentsData: (data: Record<string, ProfessionalCompetency>) => void;
 }
 
 export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps) {
-  const { goToNextStep, goToPreviousStep } = useStepper();
-  const [competencies, setCompetencies] = useState<{ [key: string]: ProfessionalCompetency }>(
-    {
-      "d_or_d1_license": {
-        document_name: "D or D1 License",
-        has_document: true,
-        has_expiry: true,
-        has_description: true,
-        request_status: "pending",
-        modules: [],
-        urls: ["", ""],
-        has_back_side: false,
-        description: "",
-        expiry_date: "",
-      },
-      cpc: {
-        document_name: "CPC",
-        has_document: true,
-        has_expiry: true,
-        has_description: true,
-        request_status: "pending",
-        modules: [],
-        urls: ["", ""],
-        has_back_side: false,
-        description: "",
-        expiry_date: "",
-      },
-      tacho_card: {
-        document_name: "Tacho Card",
-        has_document: false,
-        has_expiry: false,
-        has_description: false,
-        request_status: "pending",
-        modules: [],
-        urls: ["", ""],
-        has_back_side: false,
-        description: "",
-        expiry_date: "",
-      },
-      Passport_Right_To_Work: {
-        document_name: "Passport / Right To Work",
-        has_document: true,
-        has_expiry: true,
-        has_description: true,
-        request_status: "pending",
-        modules: [],
-        urls: ["", ""],
-        has_back_side: false,
-        description: "",
-        expiry_date: "",
-      },
-      proof_of_address: {
-        document_name: "Proof of Address",
-        has_document: true,
-        has_expiry: true,
-        has_description: true,
-        request_status: "pending",
-        modules: [],
-        urls: ["", ""],
-        has_back_side: false,
-        description: "",
-        expiry_date: "",
-      },
-    }
-  );
-  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const { goToNextStep, goToPreviousStep, disableBack } = useStepper();
+  const [competencies, setCompetencies] = useState<Record<string, ProfessionalCompetency>>({
+    d_or_d1_license: {
+      document_name: "D or D1 License",
+      has_document: true,
+      has_expiry: true,
+      has_description: true,
+      request_status: "pending",
+      modules: [],
+      urls: ["", ""],
+      has_back_side: false,
+      description: "",
+      expiry_date: "",
+      driver: undefined
+    },
+    cpc: {
+      document_name: "CPC",
+      has_document: true,
+      has_expiry: true,
+      has_description: true,
+      request_status: "pending",
+      modules: [],
+      urls: ["", ""],
+      has_back_side: false,
+      description: "",
+      expiry_date: "",
+      driver: undefined
+    },
+    tacho_card: {
+      document_name: "Tacho Card",
+      has_document: false,
+      has_expiry: false,
+      has_description: false,
+      request_status: "pending",
+      modules: [],
+      urls: ["", ""],
+      has_back_side: false,
+      description: "",
+      expiry_date: "",
+      driver: undefined
+    },
+    Passport_Right_To_Work: {
+      document_name: "Passport / Right To Work",
+      has_document: true,
+      has_expiry: true,
+      has_description: true,
+      request_status: "pending",
+      modules: [],
+      urls: ["", ""],
+      has_back_side: false,
+      description: "",
+      expiry_date: "",
+      driver: undefined
+    },
+    proof_of_address: {
+      document_name: "Proof of Address",
+      has_document: true,
+      has_expiry: true,
+      has_description: true,
+      request_status: "pending",
+      modules: [],
+      urls: ["", ""],
+      has_back_side: false,
+      description: "",
+      expiry_date: "",
+      driver: undefined
+    },
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isModuleDialogOpen, setIsModuleDialogOpen] = useState(false);
   const [currentModule, setCurrentModule] = useState<Module | null>(null);
   const [currentDocId, setCurrentDocId] = useState<string | null>(null);
 
   const [documentsState, documentsAction, documentsPending] = useActionState(
-    async (prevState: any, formData: FormData) => {
+    async (_prevState: any, _formData: FormData) => {
       if (driverId === null) {
         return {
           success: false,
           message: "Please complete the 'Personal Info', 'Next of Kin', and 'Health Questions' steps first.",
         };
       }
-      //@ts-expect-error ab thk ha
+
+      const errors = validateForm();
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        return { success: false, message: "Please fix the errors in the form." };
+      }
+
       const result = await submitDocuments({ driverId, competencies });
       if (result.success) {
         setDocumentsData(competencies);
@@ -139,24 +149,27 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
       ...prev,
       [docId]: {
         ...prev[docId],
-        urls: side === "front" ? [url, prev[docId]?.urls[1] || ""] : [prev[docId]?.urls[0] || "", url],
+        urls: side === "front" ? [url, prev[docId].urls[1] || ""] : [prev[docId].urls[0] || "", url],
       },
     }));
+    setFormErrors((prev) => ({ ...prev, [`${docId}_${side}_image`]: "" }));
   };
 
   const validateForm = () => {
-    const errors: { [key: string]: string } = {};
+    const errors: Record<string, string> = {};
     documentTypes.forEach((docType) => {
       const competency = competencies[docType.id];
-      if (docType.id === "tacho_card" && !competency?.has_document) {
-        if (!competency?.description) {
+      if (docType.id === "tacho_card" && !competency.has_document) {
+        if (!competency.description.trim()) {
           errors[`${docType.id}_reason`] = `Reason is required if ${docType.label} is not provided.`;
         }
       } else {
         if (!competency.urls[0]) {
           errors[`${docType.id}_front_image`] = `Front image is required for ${docType.label}.`;
         }
-        if (competency.has_expiry && competency.expiry_date && new Date(competency.expiry_date) < new Date()) {
+        if (competency.has_expiry && !competency.expiry_date) {
+          errors[`${docType.id}_expiry_date`] = `Expiry date is required for ${docType.label}.`;
+        } else if (competency.has_expiry && competency.expiry_date && new Date(competency.expiry_date) < new Date()) {
           errors[`${docType.id}_expiry_date`] = `Expiry date for ${docType.label} cannot be in the past.`;
         }
         if (docType.id === "cpc" && competency.modules.length === 0) {
@@ -188,13 +201,14 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
         ...prev,
         [currentDocId]: {
           ...prev[currentDocId],
-          modules: [...(prev[currentDocId]?.modules || []), module],
+          modules: [...prev[currentDocId].modules, module],
         },
       }));
     }
+    setFormErrors((prev) => ({ ...prev, [`${currentDocId}_modules`]: "" }));
     setCurrentModule(null);
-    setIsModuleDialogOpen(false);
     setCurrentDocId(null);
+    setIsModuleDialogOpen(false);
   };
 
   const handleEditModule = (docId: string, module: Module) => {
@@ -228,11 +242,16 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
         has_document: checked,
         has_expiry: checked,
         has_description: checked,
-        request_status: "pending",
-        modules: prev[docId]?.modules || [],
-        urls: prev[docId]?.urls || ["", ""],
-        has_back_side: prev[docId]?.has_back_side || false,
+        urls: checked ? prev[docId].urls : ["", ""],
+        description: checked ? prev[docId].description : "",
+        expiry_date: checked ? prev[docId].expiry_date : "",
       },
+    }));
+    setFormErrors((prev) => ({
+      ...prev,
+      [`${docId}_reason`]: "",
+      [`${docId}_front_image`]: "",
+      [`${docId}_expiry_date`]: "",
     }));
   };
 
@@ -244,17 +263,12 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
         [field]: value,
       },
     }));
+    setFormErrors((prev) => ({ ...prev, [`${docId}_${field}`]: "" }));
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const errors = validateForm();
-    setFormErrors(errors);
-    console.log("Form Errors:", errors);
-
-    if (Object.keys(errors).length === 0) {
-      documentsAction(new FormData());
-    }
+    documentsAction(new FormData());
   };
 
   return (
@@ -277,7 +291,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id={`${docType.id}_has_document`}
-                      checked={competencies[docType.id]?.has_document || false}
+                      checked={competencies[docType.id].has_document}
                       onCheckedChange={(checked) => handleCheckboxChange(docType.id, checked as boolean)}
                     />
                     <Label htmlFor={`${docType.id}_has_document`} className="text-sm font-medium text-gray-700">
@@ -287,7 +301,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
                 ) : (
                   <Label className="text-sm font-medium text-gray-700">{docType.label} (Required)</Label>
                 )}
-                {competencies[docType.id]?.has_document && (
+                {competencies[docType.id].has_document && (
                   <>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
@@ -314,7 +328,6 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
                           accept="image/*,application/pdf"
                           maxSize={5 * 1024 * 1024}
                         />
-                        
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -325,8 +338,9 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
                         <Input
                           id={`${docType.id}_expiry_date`}
                           type="date"
-                          value={competencies[docType.id]?.expiry_date || ""}
+                          value={competencies[docType.id].expiry_date}
                           onChange={(e) => handleInputChange(docType.id, "expiry_date", e.target.value)}
+                          required={competencies[docType.id].has_expiry}
                         />
                         {formErrors[`${docType.id}_expiry_date`] && (
                           <p className="text-sm text-red-500">{formErrors[`${docType.id}_expiry_date`]}</p>
@@ -338,9 +352,10 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
                         </Label>
                         <Input
                           id={`${docType.id}_description`}
-                          value={competencies[docType.id]?.description || ""}
+                          value={competencies[docType.id].description}
                           onChange={(e) => handleInputChange(docType.id, "description", e.target.value)}
                           placeholder="e.g., Valid UK license"
+                          required={competencies[docType.id].has_description}
                         />
                       </div>
                     </div>
@@ -373,7 +388,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
                             />
                           </DialogContent>
                         </Dialog>
-                        {competencies[docType.id]?.modules.length > 0 && (
+                        {competencies[docType.id].modules.length > 0 && (
                           <div className="space-y-2">
                             {competencies[docType.id].modules.map((module, index) => (
                               <div key={index} className="flex justify-between items-center border p-2 rounded-md">
@@ -411,16 +426,17 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
                     )}
                   </>
                 )}
-                {docType.id === "tacho_card" && !competencies[docType.id]?.has_document && (
+                {docType.id === "tacho_card" && !competencies[docType.id].has_document && (
                   <div className="space-y-2">
                     <Label htmlFor={`${docType.id}_reason`} className="text-sm font-medium text-gray-700">
                       Reason if not provided
                     </Label>
                     <Input
                       id={`${docType.id}_reason`}
-                      value={competencies[docType.id]?.description || ""}
+                      value={competencies[docType.id].description}
                       onChange={(e) => handleInputChange(docType.id, "description", e.target.value)}
                       placeholder="e.g., Not applicable"
+                      required
                     />
                     {formErrors[`${docType.id}_reason`] && (
                       <p className="text-sm text-red-500">{formErrors[`${docType.id}_reason`]}</p>
@@ -431,7 +447,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
             ))
           )}
           {documentsState?.message && !documentsState.success && (
-            <p className="text-sm text-red-500" aria-live="polite">
+            <p className="text-sm text-red-500 mt-4" aria-live="polite">
               {documentsState.message}
             </p>
           )}
@@ -442,6 +458,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
             variant="outline"
             className="border border-orange-600 text-orange-600 hover:bg-orange-50 text-sm"
             onClick={goToPreviousStep}
+            disabled={disableBack || documentsPending}
           >
             Previous
           </Button>
@@ -470,10 +487,22 @@ function ModuleForm({
   const [moduleName, setModuleName] = useState(initialData?.module_name || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [expiryDate, setExpiryDate] = useState(initialData?.expiry_date || "");
+  const [errors, setErrors] = useState<Partial<Record<keyof Module, string>>>({});
+
+  const validateModule = () => {
+    const newErrors: Partial<Record<keyof Module, string>> = {};
+    if (!moduleName.trim()) newErrors.module_name = "Module name is required";
+    if (!description.trim()) newErrors.description = "Description is required";
+    if (!expiryDate) newErrors.expiry_date = "Expiry date is required";
+    else if (new Date(expiryDate) < new Date()) newErrors.expiry_date = "Expiry date cannot be in the past";
+    return newErrors;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (moduleName && description && expiryDate) {
+    const newErrors = validateModule();
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length === 0) {
       onSubmit({ module_name: moduleName, description, expiry_date: expiryDate });
     }
   };
@@ -491,6 +520,7 @@ function ModuleForm({
           placeholder="e.g., Basic First Aid"
           required
         />
+        {errors.module_name && <p className="text-sm text-red-500">{errors.module_name}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="description" className="text-sm font-medium text-gray-700">
@@ -503,6 +533,7 @@ function ModuleForm({
           placeholder="e.g., Basic first aid procedures"
           required
         />
+        {errors.description && <p className="text-sm text-red-500">{errors.description}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="expiry_date" className="text-sm font-medium text-gray-700">
@@ -515,6 +546,7 @@ function ModuleForm({
           onChange={(e) => setExpiryDate(e.target.value)}
           required
         />
+        {errors.expiry_date && <p className="text-sm text-red-500">{errors.expiry_date}</p>}
       </div>
       <div className="flex justify-end space-x-2">
         <Button type="button" variant="outline" onClick={onCancel}>
