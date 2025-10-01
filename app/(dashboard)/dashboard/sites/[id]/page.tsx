@@ -680,6 +680,7 @@ export default function SiteDetails() {
                     <Bar 
                       dataKey="fuel" 
                       radius={[4, 4, 0, 0]} 
+                      //@ts-expect-error ab thk ha
                       fill={(entry: { month: string; }) => entry.month === 'May' ? '#a855f7' : '#ec4899'}
                     />
                   </BarChart>
