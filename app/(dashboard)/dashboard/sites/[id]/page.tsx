@@ -7,6 +7,22 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
   Truck,
   Users,
   MapPin,
@@ -77,11 +93,13 @@ interface Site {
   max_staff_allowed: number;
   contact_position: string;
   contact_phone: string;
+  contact_name:string;
   contact_email: string;
   radius_m: number;
   latitude: number;
   longitude: number;
   number_of_allocated_vehicles: number;
+  status: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -113,15 +131,17 @@ const formatTime = (time: string | null) => {
 
 const getStatusBadgeColors = (status: string) => {
   switch (status) {
-    case "Active":
+    case "active":
       return "bg-green-100 text-green-700";
-    case "On Hold":
-      return "bg-yellow-100 text-yellow-700";
-    case "Completed":
+    case "inactive":
       return "bg-gray-100 text-gray-700";
     default:
       return "bg-gray-100 text-gray-700";
   }
+};
+
+const getDisplayStatus = (status: string) => {
+  return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
 const getSeverityBadgeColors = (severity: string) => {
@@ -179,6 +199,8 @@ export default function SiteDetails() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState("");
 
   const fetchSite = async () => {
     setLoading(true);
@@ -223,6 +245,17 @@ export default function SiteDetails() {
 
   const handleInputChange = (field: keyof Site, value: any) => {
     setEditSite((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const handleStatusChange = (value: string) => {
+    if (!editSite || value === editSite.status) return;
+    setPendingStatus(value);
+    setStatusDialogOpen(true);
+  };
+
+  const confirmStatusChange = () => {
+    handleInputChange("status", pendingStatus);
+    setStatusDialogOpen(false);
   };
 
   const handleStaffChange = (role: keyof Omit<Staff, 'total'>, value: number) => {
@@ -303,6 +336,7 @@ export default function SiteDetails() {
         longitude: editSite.longitude,
         number_of_allocated_vehicles: editSite.number_of_allocated_vehicles,
         max_staff_allowed: editSite.max_staff_allowed,
+        status: editSite.status,
         presence: editSite.presence,
         staff: editSite.staff,
         warnings: editSite.warnings,
@@ -366,9 +400,11 @@ export default function SiteDetails() {
     setEditSite((prev) => (prev ? { ...prev, image: url } : prev));
   };
 
-  const status = "Active";
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.src = "/placeholder-image.jpg"; // Replace with your placeholder image path
+  };
+
   const complianceStatus = site && site.staff.total > site.max_staff_allowed ? "Over Capacity" : "In Compliance";
-  const severity = site ? deriveSeverity(site.warnings) : "Medium";
   const staffBreakdown = site ? getStaffBreakdown(site.staff) : [];
   const utilization = site ? `${Math.round((site.staff.total / site.max_staff_allowed) * 100)}%` : "0%";
 
@@ -453,7 +489,7 @@ export default function SiteDetails() {
                   )}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-500">Address</p>
+                  <p className="font-medium text-gray-500">Site Address</p>
                   {isEditing ? (
                     <Input
                       type="text"
@@ -463,34 +499,6 @@ export default function SiteDetails() {
                     />
                   ) : (
                     <p className="font-semibold text-gray-800">{site.address}</p>
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium text-gray-500">Longitude (Geofencing)</p>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      step="0.0001"
-                      value={String(editSite.longitude)}
-                      onChange={(e) => handleInputChange("longitude", parseFloat(e.target.value || "0"))}
-                      className="w-full border-gray-300"
-                    />
-                  ) : (
-                    <p className="font-semibold text-gray-800">{site.longitude?.toFixed(4)}</p>
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium text-gray-500">Latitude (Geofencing)</p>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      step="0.0001"
-                      value={String(editSite.latitude)}
-                      onChange={(e) => handleInputChange("latitude", parseFloat(e.target.value || "0"))}
-                      className="w-full border-gray-300"
-                    />
-                  ) : (
-                    <p className="font-semibold text-gray-800">{site.latitude?.toFixed(4)}</p>
                   )}
                 </div>
                 <div>
@@ -507,29 +515,57 @@ export default function SiteDetails() {
                   )}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-500">Contact Phone</p>
+                  <p className="font-medium text-gray-500">Radius</p>
                   {isEditing ? (
                     <Input
-                      type="text"
-                      value={editSite.contact_phone}
-                      onChange={(e) => handleInputChange("contact_phone", e.target.value)}
+                      type="number"
+                      value={String(editSite.radius_m)}
+                      onChange={(e) => handleInputChange("radius_m", parseInt(e.target.value || "0"))}
                       className="w-full border-gray-300"
                     />
                   ) : (
-                    <p className="font-semibold text-gray-800">{site.contact_phone}</p>
+                    <p className="font-semibold text-gray-800">{site.radius_m}</p>
                   )}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-500">Contact Email</p>
+                  <p className="font-medium text-gray-500">Longitude</p>
                   {isEditing ? (
                     <Input
-                      type="email"
-                      value={editSite.contact_email}
-                      onChange={(e) => handleInputChange("contact_email", e.target.value)}
+                      type="number"
+                      step="0.0001"
+                      value={String(editSite.longitude)}
+                      onChange={(e) => handleInputChange("longitude", parseFloat(e.target.value || "0"))}
                       className="w-full border-gray-300"
                     />
                   ) : (
-                    <p className="font-semibold text-gray-800">{site.contact_email}</p>
+                    <p className="font-semibold text-gray-800">{site.longitude?.toFixed(4)}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-500">Latitude</p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      value={String(editSite.latitude)}
+                      onChange={(e) => handleInputChange("latitude", parseFloat(e.target.value || "0"))}
+                      className="w-full border-gray-300"
+                    />
+                  ) : (
+                    <p className="font-semibold text-gray-800">{site.latitude?.toFixed(4)}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-500">Contact Name</p>
+                  {isEditing ? (
+                    <Input
+                      type="text"
+                      value={editSite.contact_name}
+                      onChange={(e) => handleInputChange("contact_name", e.target.value)}
+                      className="w-full border-gray-300"
+                    />
+                  ) : (
+                    <p className="font-semibold text-gray-800">{site.contact_name}</p>
                   )}
                 </div>
                 <div>
@@ -546,27 +582,33 @@ export default function SiteDetails() {
                   )}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-500">Radius (m)</p>
+                  <p className="font-medium text-gray-500">Contact Email</p>
                   {isEditing ? (
                     <Input
-                      type="number"
-                      value={String(editSite.radius_m)}
-                      onChange={(e) => handleInputChange("radius_m", parseInt(e.target.value || "0"))}
+                      type="email"
+                      value={editSite.contact_email}
+                      onChange={(e) => handleInputChange("contact_email", e.target.value)}
                       className="w-full border-gray-300"
                     />
                   ) : (
-                    <p className="font-semibold text-gray-800">{site.radius_m}</p>
+                    <p className="font-semibold text-gray-800">{site.contact_email}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-500">Contact Phone</p>
+                  {isEditing ? (
+                    <Input
+                      type="text"
+                      value={editSite.contact_phone}
+                      onChange={(e) => handleInputChange("contact_phone", e.target.value)}
+                      className="w-full border-gray-300"
+                    />
+                  ) : (
+                    <p className="font-semibold text-gray-800">{site.contact_phone}</p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center mt-4 text-xs text-gray-500">
-                <Badge className={`${getStatusBadgeColors(status)} text-xs font-medium mr-2`}>
-                  {status}
-                </Badge>
-                <span>
-                  Last Updated: {new Date(site.updated_at).toLocaleDateString("en-GB")}
-                </span>
-              </div>
+         
             </Card>
             {/* <div className="flex font-bold gap-2 text-gray-800">
               <Truck className="text-orange-600" />
@@ -635,7 +677,7 @@ export default function SiteDetails() {
               </h3>
 
               {/* Top Stats: Employees and Vehicles */}
-              <div className="grid grid-cols-2 gap-6 mb-6 p-4 bg-orange-50 rounded-lg">
+              <div className="grid grid-cols-2 gap-6 mb-6 p-4 bg-orange-50/20 rounded-lg">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-500">Employees</p>
                   <div className="flex items-center gap-2">
@@ -680,8 +722,7 @@ export default function SiteDetails() {
                     <Bar 
                       dataKey="fuel" 
                       radius={[4, 4, 0, 0]} 
-                      //@ts-expect-error ab thk ha
-                      fill={(entry: { month: string; }) => entry.month === 'May' ? '#a855f7' : '#ec4899'}
+                      fill={'#ffbbed'}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -704,9 +745,16 @@ export default function SiteDetails() {
           {/* Right Column */}
           <div className="space-y-6">
             <div className="space-y-4">
-              <div className="w-full h-[200px] rounded-md bg-gray-50 flex justify-center items-center border border-gray-200">
+              <div className="w-full h-[200px] rounded-md bg-gray-50 flex justify-center items-center border border-gray-200 overflow-hidden">
                 {editSite.image ? (
-                  <Image src={editSite.image} width={400}  height={300} className="w-full h-full object-cover" alt="site" />
+                  <Image 
+                    src={editSite.image} 
+                    width={400} 
+                    height={300} 
+                    className="w-full h-full object-cover" 
+                    alt="site"
+                    onError={handleImageError}
+                  />
                 ) : (
                   <div className="text-gray-400">No image</div>
                 )}
@@ -721,9 +769,7 @@ export default function SiteDetails() {
                   <TriangleAlert className="w-5 h-5 text-yellow-600" />
                   <span className="text-yellow-600 font-bold">Site Alerts</span>
                 </div>
-                <Badge className={`${getSeverityBadgeColors(severity)} text-xs font-medium`}>
-                  {severity}
-                </Badge>
+            
               </div>
               <ul className="text-sm text-gray-700 list-disc pl-4">
                 {site.warnings.map((warning, index) => (
@@ -770,8 +816,7 @@ export default function SiteDetails() {
                     ) : hour.is_open_24_hours ? (
                       <span className="text-sm font-medium text-orange-600">24 hrs</span>
                     ) : null}
-                  </div>
-                  {isEditing ? (
+                       {isEditing ? (
                     <div className="flex gap-4">
                       <Input
                         type="time"
@@ -796,6 +841,8 @@ export default function SiteDetails() {
                   ) : hour.is_closed ? (
                     <span className="text-sm text-gray-700">Closed</span>
                   ) : null}
+                  </div>
+               
                 </div>
               ))}
             </Card>
@@ -807,9 +854,21 @@ export default function SiteDetails() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-700">Site Status</span>
-                  <Badge className={`${getStatusBadgeColors(status)} text-xs font-medium`}>
-                    {status}
-                  </Badge>
+                  {isEditing ? (
+                    <Select value={editSite.status} onValueChange={handleStatusChange}>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={`${getStatusBadgeColors(site.status)} text-xs font-medium`}>
+                      {getDisplayStatus(site.status)}
+                    </Badge>
+                  )}
                 </div>
               
                 <div className="flex items-center justify-between">
@@ -865,6 +924,23 @@ export default function SiteDetails() {
           </div>
         </div>
       </form>
+
+      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Status Change</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to change the site status to {getDisplayStatus(pendingStatus)}?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmStatusChange}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

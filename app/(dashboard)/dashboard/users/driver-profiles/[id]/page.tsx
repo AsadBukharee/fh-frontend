@@ -2,39 +2,16 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import {
-  User,
-  Calendar,
-  FileText,
-  Building2,
-  Mail,
-  CheckCircle,
-  XCircle,
-  Edit,
-  Save,
-  X,
-  AlertTriangle,
-  File,
-  ExternalLink,
-  Heart,
-  Phone,
-  MapPin,
-} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Edit, Save, X, CheckCircle } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { formatDmy } from "@/lib/utils";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import ProfessionalCompetencyTab from "./tabs/ProfessionalCompetencyTab";
+import DriverDetailTab from "./tabs/DriverDetailTab";
+import SignAgreementTab from "./tabs/SignAgreementTab";
+import HealthAnswerTab from "./tabs/HealthAnswerTab";
 
-// Define interfaces
 interface DriverData {
   id: number;
   user: {
@@ -126,7 +103,7 @@ interface ProfessionalCompetency {
   urls: string[];
   request_status: string;
   has_description: boolean;
-  next_five_modules: CompetencyModule[];
+  next_five_modules: string[];
   modules: CompetencyModule[];
   created_at: string;
   updated_at: string;
@@ -177,6 +154,10 @@ export default function DriverDetailPage() {
     next_of_kin_email: "",
     next_of_kin_address: "",
     contract_signing_date: "",
+    rota_start_date: "",
+    have_other_jobs: false,
+    have_other_jobs_note: "",
+    avatar: "", // Added avatar field
   });
   const [editHealthData, setEditHealthData] = useState<HealthAnswer[]>([]);
   const [editCompetencyData, setEditCompetencyData] = useState<ProfessionalCompetency[]>([]);
@@ -195,7 +176,6 @@ export default function DriverDetailPage() {
   const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [driverToReview, setDriverToReview] = useState<DriverData | null>(null);
   const [reviewRemarks, setReviewRemarks] = useState("");
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -204,7 +184,7 @@ export default function DriverDetailPage() {
   const showToast = (message: string, type: string) => {
     console.log(`${type}: ${message}`);
   };
-  const steps = ["Personal Information", "Next of Kin", "Job Detail", "Bright HR SignUP"];
+  const steps = ["Personal Information", "Next of Kin", "Job Detail", "Bright HR Signup"];
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -212,10 +192,8 @@ export default function DriverDetailPage() {
       .join("")
       .toUpperCase();
   };
-
   const formatDate = (dateString: string | null) => (dateString ? formatDmy(dateString) : "Not set");
 
-  // Fetch driver data
   const fetchData = async () => {
     try {
       const response = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
@@ -249,6 +227,10 @@ export default function DriverDetailPage() {
           next_of_kin_email: result.data.next_of_kin_email,
           next_of_kin_address: result.data.next_of_kin_address,
           contract_signing_date: result.data.user.contract_signing_date || "",
+          rota_start_date: result.data.user.rota_start_date || "",
+          have_other_jobs: result.data.have_other_jobs || false,
+          have_other_jobs_note: result.data.have_other_jobs_note || "",
+          avatar: result.data.user.avatar || "", // Initialize avatar
         });
       } else {
         throw new Error(result.message || "Failed to load driver data");
@@ -259,10 +241,6 @@ export default function DriverDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchDrivers = async () => {
-    await fetchData();
   };
 
   const fetchCompetencyData = async () => {
@@ -385,7 +363,37 @@ export default function DriverDetailPage() {
     };
     fetchContracts();
     fetchSites();
-  }, [cookies]);
+  }, [cookies, sites.length]);
+
+  const handleFileUpload = (competencyId: number, url: string, isBackSide: boolean) => {
+    setEditCompetencyData((prev) =>
+      prev.map((item) => {
+        if (item.id === competencyId) {
+          let updatedUrls = [...item.urls];
+          const hasBackSide = item.has_back_side;
+
+          if (hasBackSide) {
+            if (isBackSide) {
+              updatedUrls[1] = url;
+            } else {
+              updatedUrls[0] = url;
+            }
+          } else {
+            updatedUrls = updatedUrls.length > 0 ? [url] : [url];
+          }
+
+          return {
+            ...item,
+            urls: updatedUrls,
+            has_document: true,
+            has_back_side: hasBackSide,
+          };
+        }
+        return item;
+      })
+    );
+    showToast("Document uploaded successfully", "success");
+  };
 
   const handleAssignContract = async () => {
     if (!selectedContractId) {
@@ -408,7 +416,7 @@ export default function DriverDetailPage() {
         throw new Error("Failed to assign contract");
       }
       const result = await response.json();
-      if (result.success) {
+      if (result?.name) {
         showToast("Contract assigned successfully", "success");
         fetchData();
         setSelectedContractId("");
@@ -454,47 +462,6 @@ export default function DriverDetailPage() {
     }
   };
 
-  const handleReviewSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!driverToReview) return;
-    if (reviewRemarks.length > 150) {
-      setReviewError("Remarks cannot exceed 150 characters");
-      return;
-    }
-    setReviewLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/profiles/driver/review/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-        body: JSON.stringify({
-          driver_id: driverToReview.id,
-          remarks: reviewRemarks,
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        showToast("Driver review submitted successfully", "success");
-        setIsReviewModalOpen(false);
-        setDriverToReview(null);
-        setReviewRemarks("");
-        setReviewError(null);
-        await fetchDrivers();
-      } else {
-        showToast(data.message || "Failed to submit review", "error");
-        setReviewError(data.message || "Failed to submit review");
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while submitting the review";
-      showToast(errorMessage, "error");
-      setReviewError(errorMessage);
-    } finally {
-      setReviewLoading(false);
-    }
-  };
-
   const handleApproveDriverClick = async (driverId: number) => {
     try {
       const response = await fetch(`${API_URL}/api/profiles/driver/approve/`, {
@@ -508,7 +475,7 @@ export default function DriverDetailPage() {
       const data = await response.json();
       if (data.success) {
         showToast("Driver approved successfully", "success");
-        await fetchDrivers();
+        await fetchData();
       } else {
         showToast(data.message || "Failed to approve driver", "error");
       }
@@ -537,6 +504,10 @@ export default function DriverDetailPage() {
         next_of_kin_email: driverData?.next_of_kin_email || "",
         next_of_kin_address: driverData?.next_of_kin_address || "",
         contract_signing_date: driverData?.user.contract_signing_date || "",
+        rota_start_date: driverData?.user.rota_start_date || "",
+        have_other_jobs: driverData?.have_other_jobs || false,
+        have_other_jobs_note: driverData?.have_other_jobs_note || "",
+        avatar: driverData?.user.avatar || "", // Reset avatar
       });
     }
     setIsEditing(!isEditing);
@@ -575,6 +546,36 @@ export default function DriverDetailPage() {
     );
   };
 
+  const handleModuleInputChange = (competencyId: number, moduleId: number, field: string, value: string) => {
+    setEditCompetencyData((prev) =>
+      prev.map((competency) =>
+        competency.id === competencyId
+          ? {
+              ...competency,
+              modules: competency.modules.map((module) =>
+                module.id === moduleId ? { ...module, [field]: value } : module
+              ),
+            }
+          : competency
+      )
+    );
+  };
+
+  const handleNextFiveModulesChange = (competencyId: number, index: number, value: string) => {
+    setEditCompetencyData((prev) =>
+      prev.map((competency) =>
+        competency.id === competencyId
+          ? {
+              ...competency,
+              next_five_modules: competency.next_five_modules.map((module, i) =>
+                i === index ? value : module
+              ),
+            }
+          : competency
+      )
+    );
+  };
+
   const handleSaveProfile = async () => {
     if (!editFormData.email || !editFormData.full_name) {
       showToast("Email and full name are required", "error");
@@ -589,6 +590,8 @@ export default function DriverDetailPage() {
         is_active: editFormData.is_active,
         paid_holidays: editFormData.paid_holidays,
         contract_signing_date: editFormData.contract_signing_date || null,
+        rota_start_date: editFormData.rota_start_date || null,
+        avatar: editFormData.avatar || null, // Include avatar in userPayload
       };
       const userResponse = await fetch(`${API_URL}/users/${driverData?.user.id}/`, {
         method: "PATCH",
@@ -611,6 +614,8 @@ export default function DriverDetailPage() {
         next_of_kin_contact: editFormData.next_of_kin_contact,
         next_of_kin_email: editFormData.next_of_kin_email,
         next_of_kin_address: editFormData.next_of_kin_address,
+        have_other_jobs: editFormData.have_other_jobs,
+        have_other_jobs_note: editFormData.have_other_jobs_note,
       };
       const driverResponse = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
         method: "PUT",
@@ -638,8 +643,10 @@ export default function DriverDetailPage() {
                   is_active: editFormData.is_active,
                   paid_holidays: editFormData.paid_holidays,
                   contract_signing_date: editFormData.contract_signing_date,
+                  rota_start_date: editFormData.rota_start_date,
                   contract: contracts.find((c) => c.id.toString() === editFormData.contractId) || prev.user.contract,
                   site: sites.filter((s) => editFormData.siteIds.includes(s.id.toString())),
+                  avatar: editFormData.avatar || prev.user.avatar, // Update avatar in driverData
                 },
                 phone: editFormData.phone,
                 address: editFormData.address,
@@ -649,6 +656,8 @@ export default function DriverDetailPage() {
                 next_of_kin_contact: editFormData.next_of_kin_contact,
                 next_of_kin_email: editFormData.next_of_kin_email,
                 next_of_kin_address: editFormData.next_of_kin_address,
+                have_other_jobs: editFormData.have_other_jobs,
+                have_other_jobs_note: editFormData.have_other_jobs_note,
               }
             : null
         );
@@ -709,6 +718,17 @@ export default function DriverDetailPage() {
         id: item.id,
         request_status: item.request_status,
         expiry_date: item.expiry_date,
+        description: item.description,
+        urls: item.urls,
+        has_document: item.has_document,
+        has_back_side: item.has_back_side,
+        next_five_modules: item.next_five_modules,
+        modules: item.modules.map((module) => ({
+          id: module.id,
+          module_name: module.module_name,
+          description: module.description,
+          expiry_date: module.expiry_date,
+        })),
       }));
       const response = await fetch(`${API_URL}/api/profiles/professional-competency/bulk-update/`, {
         method: "POST",
@@ -745,24 +765,19 @@ export default function DriverDetailPage() {
       </div>
     );
   }
-
   if (error || !driverData || competencyError || healthError) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <Card className="w-full max-w-md shadow-xl bg-white rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-2xl text-orange-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-700">{error || competencyError || healthError || "Driver not found"}</p>
-          </CardContent>
-        </Card>
+        <div className="w-full max-w-md shadow-xl bg-white rounded-xl">
+          <h2 className="text-2xl text-orange-600">Error</h2>
+          <p className="text-gray-700">{error || competencyError || healthError || "Driver not found"}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-8 space-y-8 bg-gray-100 min-h-screen">
+    <div className="container p-8 space-y-8 bg-gray-100 min-h-screen">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-4 bg-white border border-purple-200 rounded-xl p-2 shadow-sm">
           <TabsTrigger
@@ -795,1063 +810,113 @@ export default function DriverDetailPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="driver-detail">
-          <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-            <CardHeader>
-              <CardTitle className="text-2xl text-purple-800">Driver Detail</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex mb-8 border-b border-purple-200 pb-4">
-                {steps.map((label, index) => (
-                  <div
-                    key={label}
-                    className={`flex-1 text-center cursor-pointer transition-all ${
-                      index === currentStep ? "font-bold text-purple-800 border-b-2 border-purple-600" : "text-gray-600"
-                    }`}
-                    onClick={() => setCurrentStep(index)}
-                  >
-                    {label}
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-8">
-              {currentStep === 0 && (
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <div className="space-y-6">
-      {/* Header Section with Avatar and Basic Info */}
-      <div className="flex items-start gap-8">
-        <Avatar className="h-28 w-28 ring-4 ring-purple-200">
-          <AvatarImage src={driverData.user.avatar || "/placeholder.svg"} alt={driverData.user.full_name} />
-          <AvatarFallback className="text-xl font-bold bg-purple-100 text-purple-800">
-            {getInitials(driverData.user.full_name)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 space-y-3">
-          <div className="flex items-center gap-4">
-            <h1 className="text-4xl font-bold text-purple-800">{driverData.user.full_name}</h1>
-            <Badge
-              className={`px-3 py-1 text-sm font-medium ${
-                driverData.user.is_active
-                  ? "bg-purple-600 hover:bg-purple-700"
-                  : "bg-gray-400 hover:bg-gray-500"
-              } text-white rounded-full transition-colors`}
-            >
-              {driverData.user.is_active ? "Active" : "Inactive"}
-            </Badge>
-            <Badge
-              className={`px-3 py-1 text-sm font-medium ${
-                driverData.profile_status === "approved"
-                  ? "bg-purple-600 hover:bg-purple-700"
-                  : "bg-orange-600 hover:bg-orange-700"
-              } text-white rounded-full transition-colors`}
-            >
-              {driverData.profile_status.charAt(0).toUpperCase() + driverData.profile_status.slice(1)}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-6 text-gray-700">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-purple-600" />
-              <span className="text-sm">{driverData.user.role}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-purple-600" />
-              <span className="text-sm">{driverData.user.email}</span>
-            </div>
-          </div>
-          <Accordion type="single" collapsible>
-            <AccordionItem value="item-1">
-              <AccordionTrigger>
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-orange-500" />
-                  <span>Warnings</span>
-                  {driverData.warnings?.length > 0 && (
-                    <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600">
-                      {driverData.warnings.length}
-                    </span>
-                  )}
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                {driverData.warnings?.length > 0 ? (
-                  <div className="space-y-2 mt-2">
-                    {driverData.warnings.map((warning: string, i: number) => (
-                      <div
-                        key={i}
-                        className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700 shadow-sm"
-                      >
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
-                        <span>{warning}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground mt-2">No warnings for this driver.</p>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </div>
-        <div className="flex gap-3">
-          {isEditing ? (
-            <>
-              <Button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
-              >
-                {saving ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                ) : (
-                  <Save className="h-5 w-5 mr-2" />
-                )}
-                Save Changes
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleEditToggle}
-                disabled={saving}
-                className="border-purple-600 text-purple-600 hover:bg-purple-100 rounded-lg transition-all"
-              >
-                <X className="h-5 w-5 mr-2" />
-                Cancel
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                onClick={handleEditToggle}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
-              >
-                <Edit className="h-5 w-5 mr-2" />
-                Edit Profile
-              </Button>
-              <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    onClick={() => setDriverToReview(driverData)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all"
-                  >
-                    <FileText className="h-5 w-5 mr-2" />
-                    Review Driver
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Submit Driver Review</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleReviewSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="review_remarks" className="text-sm font-semibold text-gray-600">
-                        Remarks (max 150 characters)
-                      </Label>
-                      <Input
-                        id="review_remarks"
-                        value={reviewRemarks}
-                        onChange={(e) => setReviewRemarks(e.target.value)}
-                        placeholder="Enter review remarks"
-                        maxLength={150}
-                        className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                      />
-                      {reviewError && <p className="text-sm text-red-600">{reviewError}</p>}
-                    </div>
-                    <div className="flex justify-end gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsReviewModalOpen(false);
-                          setReviewRemarks("");
-                          setReviewError(null);
-                        }}
-                        className="border-purple-600 text-purple-600 hover:bg-purple-100"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={reviewLoading}
-                        className="bg-purple-600 hover:bg-purple-700 text-white"
-                      >
-                        {reviewLoading ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        ) : (
-                          <Save className="h-5 w-5 mr-2" />
-                        )}
-                        Submit Review
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-              {driverData.profile_status !== "approved" && (
-                <Button
-                  onClick={() => handleApproveDriverClick(driverData.id)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-all"
-                >
-                  <CheckCircle className="h-5 w-5 mr-2" />
-                  Approve Driver
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="flex justify-evenly items-center gap-6">
-        <Card className="w-[220px] shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-gray-600">Total Shifts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-800">{driverData.user.shifts_count}</div>
-          </CardContent>
-        </Card>
-        <Card className="w-[220px] shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-gray-600">Paid Holidays</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-800">{driverData.user.paid_holidays}</div>
-          </CardContent>
-        </Card>
-        <Card className="w-[220px] shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-gray-600">Rota Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              {driverData.user.parent_rota_completed && driverData.user.child_rota_completed ? (
-                <>
-                  <CheckCircle className="h-5 w-5 text-purple-600" />
-                  <span className="text-sm font-semibold text-purple-800">Complete</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-5 w-5 text-orange-600" />
-                  <span className="text-sm font-semibold text-orange-600">Pending</span>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Separator className="bg-purple-200" />
-
-      {/* Contact Information Section */}
-      <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 rounded-xl">
-        <CardHeader>
-          <CardTitle className="text-lg font-bold text-purple-800">Contact Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isEditing ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm font-semibold text-gray-600">
-                  Phone
-                </Label>
-                <Input
-                  id="phone"
-                  type="number"
-                  max={11}
-                  value={editFormData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  placeholder="Enter phone number"
-                  className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address" className="text-sm font-semibold text-gray-600">
-                  Address
-                </Label>
-                <Input
-                  id="address"
-                  value={editFormData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
-                  placeholder="Enter address"
-                  className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date_of_birth" className="text-sm font-semibold text-gray-600">
-                  Date of Birth
-                </Label>
-                <Input
-                  id="date_of_birth"
-                  type="date"
-                  value={editFormData.date_of_birth}
-                  onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
-                  className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-purple-600" />
-                <div>
-                  <Label className="text-xs font-semibold text-gray-500">Phone</Label>
-                  <p className="font-medium text-purple-800">{driverData.phone}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-purple-600" />
-                <div>
-                  <Label className="text-xs font-semibold text-gray-500">Address</Label>
-                  <p className="font-medium text-purple-800">{driverData.address}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-purple-600" />
-                <div>
-                  <Label className="text-xs font-semibold text-gray-500">Date of Birth</Label>
-                  <p className="font-medium text-purple-800">{formatDate(driverData.date_of_birth)}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Account Settings Section - Only in Edit Mode */}
-      {isEditing && (
-        <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold text-purple-800">Account Settings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="full_name" className="text-sm font-semibold text-gray-600">
-                  Full Name
-                </Label>
-                <Input
-                  id="full_name"
-                  value={editFormData.full_name}
-                  onChange={(e) => handleInputChange("full_name", e.target.value)}
-                  placeholder="Enter full name"
-                  className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="display_name" className="text-sm font-semibold text-gray-600">
-                  Display Name
-                </Label>
-                <Input
-                  id="display_name"
-                  value={editFormData.display_name}
-                  onChange={(e) => handleInputChange("display_name", e.target.value)}
-                  placeholder="Enter display name"
-                  className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-semibold text-gray-600">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={editFormData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  placeholder="Enter email address"
-                  className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="is_active" className="text-sm font-semibold text-gray-600">
-                  Active Status
-                </Label>
-                <Select
-                  value={editFormData.is_active.toString()}
-                  onValueChange={(value) => handleInputChange("is_active", value === "true")}
-                >
-                  <SelectTrigger
-                    id="is_active"
-                    className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                  >
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Active</SelectItem>
-                    <SelectItem value="false">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  </div>
-)}
-                {currentStep === 1 && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {isEditing ? (
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="next_of_kin_name" className="text-sm font-semibold text-gray-600">
-                            Name
-                          </Label>
-                          <Input
-                            id="next_of_kin_name"
-                            value={editFormData.next_of_kin_name}
-                            onChange={(e) => handleInputChange("next_of_kin_name", e.target.value)}
-                            placeholder="Enter next of kin name"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="next_of_kin_relationship" className="text-sm font-semibold text-gray-600">
-                            Relationship
-                          </Label>
-                          <Input
-                            id="next_of_kin_relationship"
-                            value={editFormData.next_of_kin_relationship}
-                            onChange={(e) => handleInputChange("next_of_kin_relationship", e.target.value)}
-                            placeholder="Enter relationship"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="next_of_kin_contact" className="text-sm font-semibold text-gray-600">
-                            Contact
-                          </Label>
-                          <Input
-                            id="next_of_kin_contact"
-                            value={editFormData.next_of_kin_contact}
-                            onChange={(e) => handleInputChange("next_of_kin_contact", e.target.value)}
-                            placeholder="Enter contact number"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="next_of_kin_email" className="text-sm font-semibold text-gray-600">
-                            Email
-                          </Label>
-                          <Input
-                            id="next_of_kin_email"
-                            type="email"
-                            value={editFormData.next_of_kin_email}
-                            onChange={(e) => handleInputChange("next_of_kin_email", e.target.value)}
-                            placeholder="Enter email address"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-2 col-span-2">
-                          <Label htmlFor="next_of_kin_address" className="text-sm font-semibold text-gray-600">
-                            Address
-                          </Label>
-                          <Input
-                            id="next_of_kin_address"
-                            value={editFormData.next_of_kin_address}
-                            onChange={(e) => handleInputChange("next_of_kin_address", e.target.value)}
-                            placeholder="Enter address"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-6">
-                        
-                        <div>
-                          <Label className="text-sm font-semibold text-gray-600">Name</Label>
-                          <p className="font-medium text-purple-800">{driverData.next_of_kin_name}</p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-semibold text-gray-600">Relationship</Label>
-                          <p className="font-medium text-purple-800">{driverData.next_of_kin_relationship}</p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-semibold text-gray-600">Contact</Label>
-                          <p className="font-medium text-purple-800">{driverData.next_of_kin_contact}</p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-semibold text-gray-600">Email</Label>
-                          <p className="font-medium text-purple-800">{driverData.next_of_kin_email || "Not provided"}</p>
-                        </div>
-                        <div className="col-span-2">
-                          <Label className="text-sm font-semibold text-gray-600">Address</Label>
-                          <p className="font-medium text-purple-800">{driverData.next_of_kin_address}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {currentStep === 2 && (
-                  <div className="space-y-8">
-                  
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-semibold text-purple-800">Contract Details</h3>
-                      <div className="flex items-end gap-6">
-                        <div className="flex-1 space-y-2">
-                          <Label htmlFor="assign_contract" className="text-sm font-semibold text-gray-600">
-                            Select Contract
-                          </Label>
-                          <Select
-                            value={selectedContractId}
-                            onValueChange={setSelectedContractId}
-                            disabled={contractsLoading || assigningContract}
-                          >
-                            <SelectTrigger
-                              id="assign_contract"
-                              className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                            >
-                              <SelectValue placeholder="Select a contract to assign" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {contracts.map((contract) => (
-                                <SelectItem key={contract.id} value={contract.id.toString()}>
-                                  {contract.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button
-                          onClick={handleAssignContract}
-                          disabled={assigningContract || !selectedContractId}
-                          className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
-                        >
-                          {assigningContract ? (
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                          ) : (
-                            <Save className="h-5 w-5 mr-2" />
-                          )}
-                          Assign Contract
-                        </Button>
-                      </div>
-                    </div>
-                    <Separator className="bg-purple-200" />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Contract ID</Label>
-                        <p className="font-medium text-purple-800">{driverData.user.contract?.id || "Not assigned"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Contract Name</Label>
-                        <p className="font-medium text-purple-800">{driverData.user.contract?.name || "Not assigned"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Contract Signing Date</Label>
-                        {isEditing ? (
-                          <Input
-                            id="contract_signing_date"
-                            type="date"
-                            value={editFormData.contract_signing_date}
-                            onChange={(e) => handleInputChange("contract_signing_date", e.target.value)}
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        ) : (
-                          <p className="font-medium text-purple-800">{formatDate(driverData.user.contract_signing_date)}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Paid Holidays</Label>
-                        {isEditing ? (
-                          <Input
-                            id="paid_holidays"
-                            type="number"
-                            value={editFormData.paid_holidays}
-                            onChange={(e) => handleInputChange("paid_holidays", parseInt(e.target.value))}
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        ) : (
-                          <p className="font-medium text-purple-800">{driverData.user.paid_holidays}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-600">Description</Label>
-                      <p className="font-medium text-purple-800">
-                        {driverData.user.contract?.description || "No description available"}
-                      </p>
-                    </div>
-                    <Separator className="bg-purple-200" />
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-semibold text-purple-800">Assigned Sites</h3>
-                      <div className="flex items-end gap-6">
-                        <div className="flex-1 space-y-2">
-                          <Label className="text-sm font-semibold text-gray-600">Select Sites</Label>
-                          <div className="rounded-lg p-3 max-h-64 overflow-y-auto border border-purple-200 bg-white">
-                            {sites.map((site) => (
-                              <div
-                                key={site.id}
-                                className="flex border-b border-purple-100 items-center space-x-3 p-3 hover:bg-purple-50 transition-colors"
-                              >
-                                <input
-                                  type="checkbox"
-                                  id={`site-${site.id}`}
-                                  checked={selectedSiteIds.includes(site.id.toString())}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedSiteIds([...selectedSiteIds, site.id.toString()]);
-                                    } else {
-                                      setSelectedSiteIds(selectedSiteIds.filter((id) => id !== site.id.toString()));
-                                    }
-                                  }}
-                                  disabled={sitesLoading || assigningSites}
-                                  className="h-5 w-5 text-purple-600 focus:ring-purple-600 rounded"
-                                />
-                                <label htmlFor={`site-${site.id}`} className="text-sm font-medium text-purple-800">
-                                  {site.name}
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <Button
-                          onClick={handleAssignSites}
-                          disabled={assigningSites || selectedSiteIds.length === 0}
-                          className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
-                        >
-                          {assigningSites ? (
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                          ) : (
-                            <Save className="h-5 w-5 mr-2" />
-                          )}
-                          Assign Sites
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {driverData.user.site.map((site) => (
-                        <Card
-                          key={site.id}
-                          className="overflow-hidden shadow-lg bg-white hover:shadow-xl transition-all rounded-xl"
-                        >
-                          <div className="aspect-video relative">
-                            <img
-                              src={site.image || "/placeholder.svg"}
-                              alt={site.name}
-                              className="w-full h-full object-cover rounded-t-xl"
-                            />
-                          </div>
-                          <CardContent className="p-5">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-semibold text-lg text-purple-800">{site.name}</h3>
-                              <Badge
-                                className={`px-3 py-1 text-sm font-medium ${
-                                  site.status === "active"
-                                    ? "bg-purple-600 hover:bg-purple-700"
-                                    : "bg-gray-400 hover:bg-gray-500"
-                                } text-white rounded-full transition-colors`}
-                              >
-                                {site.status}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-gray-600 mt-2">Site ID: {site.id}</p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {currentStep === 3 && (
-                  <div className="space-y-8">
-                    <h3 className="text-xl font-semibold text-purple-800">Bright HR SignUP</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Signup Date</Label>
-                        <p className="font-medium text-purple-800">{formatDate(driverData.signup_date)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Contract Signing Date</Label>
-                        <p className="font-medium text-purple-800">{formatDate(driverData.user.contract_signing_date)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Rota Start Date</Label>
-                        <p className="font-medium text-purple-800">{formatDate(driverData.user.rota_start_date)}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-between mt-8">
-                <Button
-                  variant="outline"
-                  disabled={currentStep === 0}
-                  onClick={() => setCurrentStep((prev) => prev - 1)}
-                  className="border-purple-600 text-purple-600 hover:bg-purple-100"
-                >
-                  Previous
-                </Button>
-                <Button
-                  disabled={currentStep === steps.length - 1}
-                  onClick={() => setCurrentStep((prev) => prev + 1)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  Next
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <DriverDetailTab
+            driverData={driverData}
+            editFormData={editFormData}
+            contracts={contracts}
+            sites={sites}
+            selectedContractId={selectedContractId}
+            setSelectedContractId={setSelectedContractId}
+            selectedSiteIds={selectedSiteIds}
+            setSelectedSiteIds={setSelectedSiteIds}
+            currentStep={currentStep}
+            setCurrentStep={setCurrentStep}
+            steps={steps}
+            getInitials={getInitials}
+            formatDate={formatDate}
+            isEditing={isEditing}
+            handleInputChange={handleInputChange}
+            handleAssignContract={handleAssignContract}
+            handleAssignSites={handleAssignSites}
+            contractsLoading={contractsLoading}
+            sitesLoading={sitesLoading}
+            assigningContract={assigningContract}
+            assigningSites={assigningSites}
+          />
         </TabsContent>
         <TabsContent value="professional-competency">
-          <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                  <File className="h-6 w-6" />
-                  Professional Competency Details
-                </CardTitle>
-                <div className="flex gap-3">
-                  {isEditingCompetency ? (
-                    <>
-                      <Button
-                        onClick={handleSaveCompetency}
-                        disabled={savingCompetency}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
-                      >
-                        {savingCompetency ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        ) : (
-                          <Save className="h-5 w-5 mr-2" />
-                        )}
-                        Save Changes
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleCompetencyEditToggle}
-                        disabled={savingCompetency}
-                        className="border-purple-600 text-purple-600 hover:bg-purple-100 rounded-lg transition-all"
-                      >
-                        <X className="h-5 w-5 mr-2" />
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={handleCompetencyEditToggle}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
-                    >
-                      <Edit className="h-5 w-5 mr-2" />
-                      Edit Competencies
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <CardDescription className="text-gray-600">
-                Documents and certifications related to professional competency
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {competencyData.length === 0 ? (
-                <p className="text-gray-600 text-center py-6">No professional competency records found.</p>
-              ) : (
-                (isEditingCompetency ? editCompetencyData : competencyData).map((competency) => (
-                  <div key={competency.id} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Document Name</Label>
-                        <p className="font-medium text-purple-800">{competency.document_name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Document Type</Label>
-                        <p className="font-medium text-purple-800">{competency.document_type}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Status</Label>
-                        {isEditingCompetency ? (
-                          <Select
-                            value={competency.request_status}
-                            onValueChange={(value) => handleCompetencyInputChange(competency.id, "request_status", value)}
-                          >
-                            <SelectTrigger className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="approved">Approved</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="not_approved">Not Approved</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge
-                            className={`px-3 py-1 text-sm font-medium ${
-                              competency.request_status === "pending"
-                                ? "bg-orange-600 hover:bg-orange-700"
-                                : competency.request_status === "approved"
-                                ? "bg-purple-600 hover:bg-purple-700"
-                                : "bg-red-600 hover:bg-red-700"
-                            } text-white rounded-full transition-colors`}
-                          >
-                            {competency.request_status.charAt(0).toUpperCase() + competency.request_status.slice(1)}
-                          </Badge>
-                        )}
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Expiry Date</Label>
-                        {isEditingCompetency ? (
-                          <Input
-                            type="date"
-                            value={competency.expiry_date || ""}
-                            onChange={(e) => handleCompetencyInputChange(competency.id, "expiry_date", e.target.value)}
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        ) : (
-                          <p className="font-medium text-purple-800">{formatDate(competency.expiry_date)}</p>
-                        )}
-                      </div>
-                      {competency.has_description && (
-                        <div className="col-span-2">
-                          <Label className="text-sm font-semibold text-gray-600">Description</Label>
-                          <p className="font-medium text-purple-800">{competency.description}</p>
-                        </div>
-                      )}
-                    </div>
-                    {competency.has_document && competency.urls.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Document Links</Label>
-                        <div className="flex flex-col gap-3 mt-2">
-                          {competency.urls.map((url, index) => (
-                            <div key={index}>
-                              {isPdfUrl(url) ? (
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <button
-                                      className="flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors bg-purple-50 p-3 rounded-lg hover:bg-purple-100 w-full text-left"
-                                      onClick={() => setSelectedPdfUrl(url)}
-                                    >
-                                      <ExternalLink className="h-5 w-5" />
-                                      <span>
-                                        {competency.has_back_side && index === 0
-                                          ? "Front Side"
-                                          : competency.has_back_side && index === 1
-                                          ? "Back Side"
-                                          : `Document ${index + 1}`}
-                                      </span>
-                                    </button>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-4xl w-full">
-                                    <DialogHeader>
-                                      <DialogTitle>
-                                        {competency.has_back_side && index === 0
-                                          ? "Front Side"
-                                          : competency.has_back_side && index === 1
-                                          ? "Back Side"
-                                          : `Document ${index + 1}`}
-                                      </DialogTitle>
-                                    </DialogHeader>
-                                    <div className="w-full h-[600px]">
-                                      <iframe
-                                        src={selectedPdfUrl || url}
-                                        title="PDF Viewer"
-                                        className="w-full h-full border-0 rounded-lg"
-                                      />
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
-                              ) : (
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors bg-purple-50 p-3 rounded-lg hover:bg-purple-100"
-                                >
-                                  <ExternalLink className="h-5 w-5" />
-                                  <span>
-                                    {competency.has_back_side && index === 0
-                                      ? "Front Side"
-                                      : competency.has_back_side && index === 1
-                                      ? "Back Side"
-                                      : `Document ${index + 1}`}
-                                  </span>
-                                </a>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {competency.modules.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Modules</Label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-                          {competency.modules.map((module) => (
-                            <Card
-                              key={module.id}
-                              className="shadow-md bg-white hover:shadow-lg transition-all rounded-lg border border-purple-200"
-                            >
-                              <CardContent className="p-5">
-                                <div className="space-y-4">
-                                  <div>
-                                    <Label className="text-sm font-semibold text-gray-600">Module Name</Label>
-                                    <p className="font-medium text-purple-800">{module.module_name}</p>
-                                  </div>
-                                  <div>
-                                    <Label className="text-sm font-semibold text-gray-600">Description</Label>
-                                    <p className="font-medium text-purple-800">{module.description}</p>
-                                  </div>
-                                  <div>
-                                    <Label className="text-sm font-semibold text-gray-600">Expiry Date</Label>
-                                    <p className="font-medium text-purple-800">{formatDate(module.expiry_date)}</p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <Separator className="bg-purple-200" />
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          <ProfessionalCompetencyTab
+            competencyData={competencyData}
+            editCompetencyData={editCompetencyData}
+            isEditingCompetency={isEditingCompetency}
+            savingCompetency={savingCompetency}
+            formatDate={formatDate}
+            isPdfUrl={isPdfUrl}
+            selectedPdfUrl={selectedPdfUrl}
+            setSelectedPdfUrl={setSelectedPdfUrl}
+            handleCompetencyEditToggle={handleCompetencyEditToggle}
+            handleCompetencyInputChange={handleCompetencyInputChange}
+            handleModuleInputChange={handleModuleInputChange}
+            handleFileUpload={handleFileUpload}
+            handleSaveCompetency={handleSaveCompetency}
+            handleNextFiveModulesChange={handleNextFiveModulesChange}
+          />
         </TabsContent>
         <TabsContent value="health-answer">
-          <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                  <Heart className="h-6 w-6" />
-                  Health Information
-                </CardTitle>
-                <div className="flex gap-3">
-                  {isEditingHealth ? (
-                    <>
-                      <Button
-                        onClick={handleSaveHealth}
-                        disabled={savingHealth}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
-                      >
-                        {savingHealth ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        ) : (
-                          <Save className="h-5 w-5 mr-2" />
-                        )}
-                        Save Changes
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleHealthEditToggle}
-                        disabled={savingHealth}
-                        className="border-purple-600 text-purple-600 hover:bg-purple-100 rounded-lg transition-all"
-                      >
-                        <X className="h-5 w-5 mr-2" />
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={handleHealthEditToggle}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
-                    >
-                      <Edit className="h-5 w-5 mr-2" />
-                      Edit Health Answers
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <CardDescription className="text-gray-600">Health-related questions and answers</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {healthData.length === 0 ? (
-                <p className="text-gray-600 text-center py-6">No health answers found.</p>
-              ) : (
-                (isEditingHealth ? editHealthData : healthData).map((health) => (
-                  <div key={health.id} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Question</Label>
-                        <p className="font-medium text-purple-800">{health.question_text}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-semibold text-gray-600">Answer</Label>
-                        {isEditingHealth ? (
-                          <Select
-                            value={health.answer.toString()}
-                            onValueChange={(value) =>
-                              handleHealthInputChange(health.id, "answer", value === "true")
-                            }
-                          >
-                            <SelectTrigger className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
-                              <SelectValue placeholder="Select answer" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="true">Yes</SelectItem>
-                              <SelectItem value="false">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <p className="font-medium text-purple-800">{health.answer ? "Yes" : "No"}</p>
-                        )}
-                      </div>
-                      <div className="col-span-2">
-                        <Label className="text-sm font-semibold text-gray-600">Note</Label>
-                        {isEditingHealth ? (
-                          <Input
-                            value={health.note}
-                            onChange={(e) =>
-                              handleHealthInputChange(health.id, "note", e.target.value)
-                            }
-                            placeholder="Enter note"
-                            className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
-                          />
-                        ) : (
-                          <p className="font-medium text-purple-800">{health.note || "No note provided"}</p>
-                        )}
-                      </div>
-                      <div className="col-span-2">
-                        <Label className="text-sm font-semibold text-gray-600">Admin Remarks</Label>
-                        <p className="font-medium text-purple-800">
-                          {health.admin_remarks || "No remarks provided"}
-                        </p>
-                      </div>
-                    </div>
-                    <Separator className="bg-purple-200" />
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          <HealthAnswerTab
+            healthData={healthData}
+            editHealthData={editHealthData}
+            isEditingHealth={isEditingHealth}
+            savingHealth={savingHealth}
+            handleHealthEditToggle={handleHealthEditToggle}
+            handleHealthInputChange={handleHealthInputChange}
+            handleSaveHealth={handleSaveHealth}
+          />
         </TabsContent>
         <TabsContent value="sign-agreement">
-          <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
-                <FileText className="h-6 w-6" />
-                Sign Agreement
-              </CardTitle>
-              <CardDescription className="text-gray-600">Review and sign the agreement</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-purple-800">Current Contract</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-600">Contract Name</Label>
-
-                    <p className="font-medium text-purple-800">{driverData.user.contract?.name || "Not assigned"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-600">Signing Date</Label>
-                    <p className="font-medium text-purple-800">
-                      {formatDate(driverData.user.contract_signing_date) || "Not signed"}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-600">Description</Label>
-                  <p className="font-medium text-purple-800">
-                    {driverData.user.contract?.description || "No description available"}
-                  </p>
-                </div>
-              </div>
-              <Separator className="bg-purple-200" />
-              <Button
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
-                onClick={() => showToast("Agreement signed successfully", "success")}
-              >
-                <Save className="h-5 w-5 mr-2" />
-                Sign Agreement
-              </Button>
-            </CardContent>
-          </Card>
+          <SignAgreementTab
+            driverData={driverData}
+            formatDate={formatDate}
+            showToast={showToast}
+          />
         </TabsContent>
       </Tabs>
+      <div className="fixed bottom-6 right-5 z-50 flex flex-col gap-2">
+        {isEditing ? (
+          <>
+            <Button
+              onClick={handleSaveProfile}
+              disabled={saving}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all w-48"
+            >
+              {saving ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+              ) : (
+                <Save className="h-5 w-5 mr-2" />
+              )}
+              Save Changes
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleEditToggle}
+              disabled={saving}
+              className="border-purple-600 text-purple-600 hover:bg-purple-100 rounded-lg transition-all w-48"
+            >
+              <X className="h-5 w-5 mr-2" />
+              Cancel
+            </Button>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={handleEditToggle}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all w-48"
+            >
+              <Edit className="h-5 w-5 mr-2" />
+              Edit Profile
+            </Button>
+            {driverData.profile_status !== "approved" && (
+              <Button
+                onClick={() => handleApproveDriverClick(driverData.id)}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-all w-48"
+              >
+                <CheckCircle className="h-5 w-5 mr-2" />
+                Approve Driver
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

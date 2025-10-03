@@ -1,129 +1,65 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, Clock, MapPin } from "lucide-react"
 import Link from "next/link"
+import API_URL from "@/app/utils/ENV"
+import { useCookies } from "next-client-cookies"
 
-// Sample employee data
-const employeeDetails = {
-  1: { name: "John Smith", employeeId: "EMP001" },
-  2: { name: "Jenny Wilson", employeeId: "EMP002" },
-  3: { name: "Jenny Wilson", employeeId: "EMP003" },
-  4: { name: "Jenny Wilson", employeeId: "EMP004" },
-  5: { name: "Jenny Wilson", employeeId: "EMP005" },
-  6: { name: "Jenny Wilson", employeeId: "EMP006" },
-  7: { name: "Jenny Wilson", employeeId: "EMP007" },
-  8: { name: "Jenny Wilson", employeeId: "EMP008" },
-  9: { name: "Jenny Wilson", employeeId: "EMP009" },
+// Define the shape of a log for the UI
+interface DutyLog {
+  id: number
+  day: string
+  date: string
+  timeRange: string
+  locationRange: string
+  totalHours: string
+  drivingHours: string
+  breakHours: string
+  status: string
+  type: string
+  empId: string
 }
 
-const weeklyLogs = [
-  {
-    day: "Monday",
-    date: "1/15/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Off Duty",
-    type: "current",
-  },
-  {
-    day: "Tuesday",
-    date: "1/16/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Complete",
-    type: "current",
-  },
-  {
-    day: "Wednesday",
-    date: "1/17/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Incomplete",
-    type: "current",
-  },
-  {
-    day: "Thursday",
-    date: "1/18/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Waiting",
-    type: "current",
-  },
-  {
-    day: "Friday",
-    date: "1/19/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Incomplete",
-    type: "current",
-  },
-  {
-    day: "Saturday",
-    date: "1/20/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Complete",
-    type: "current",
-  },
-  {
-    day: "Sunday",
-    date: "1/21/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Complete",
-    type: "current",
-  },
-  // Historical logs
-  {
-    day: "Monday",
-    date: "1/8/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Complete",
-    type: "history",
-  },
-  {
-    day: "Tuesday",
-    date: "1/9/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Complete",
-    type: "history",
-  },
-  {
-    day: "Wednesday",
-    date: "1/10/2024",
-    empId: "1:30 - 4:56",
-    timeRange: "08:00 - 16:30",
-    locationRange: "0:00 - 10:5",
-    totalHours: "Total 8:30AM",
-    status: "Incomplete",
-    type: "history",
-  },
-]
+// API response interface
+interface ApiResponse {
+  week_start: string
+  week_end: string
+  logs: {
+    id: number
+    day: string
+    date: string
+    shift_name: string
+    driving_duty_hours: string
+    breaks_taken: string
+    total_duty_time: string
+    vehicle: number | null
+    vehicle_registration: string | null
+    on_duty: boolean
+    status: string
+    user_name: string
+  }[]
+}
+
+// Helper to format date from YYYY-MM-DD to MM/DD/YYYY
+const formatDate = (dateStr: string): string => {
+  const [year, month, day] = dateStr.split("-")
+  return `${month}/${day}/${year}`
+}
+
+// Helper to format location range
+const formatLocationRange = (vehicleRegistration: string | null): string => {
+  return vehicleRegistration || "N/A"
+}
+
+// Helper to capitalize status for display
+const formatStatus = (status: string): string => {
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+}
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -145,16 +81,71 @@ export default function EmployeeDetailPage() {
   const params = useParams()
   const employeeId = params.id as string
   const [activeTab, setActiveTab] = useState("current")
+  const [logs, setLogs] = useState<DutyLog[]>([])
+  const [employee, setEmployee] = useState<{ name: string; employeeId: string }>({
+    name: "Loading...",
+    employeeId: `EMP${employeeId.padStart(3, "0")}`,
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const token = useCookies().get("access_token")
 
-  const employee = employeeDetails[Number.parseInt(employeeId) as keyof typeof employeeDetails] || {
-    name: "John Smith",
-    employeeId: "EMP001",
-  }
+  // Fetch logs from API (use dynamic employeeId)
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`${API_URL}/activity/duty-logs/current-week/?user_id=6`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (!response.ok) {
+          throw new Error("Failed to fetch logs")
+        }
+        const data: ApiResponse = await response.json()
 
-  const currentWeekLogs = weeklyLogs.filter((log) => log.type === "current")
-  const incompleteLogs = weeklyLogs.filter((log) => log.status === "Incomplete")
-  const waitingLogs = weeklyLogs.filter((log) => log.status === "Waiting")
-  const historyLogs = weeklyLogs.filter((log) => log.type === "history")
+        // Map API logs to component's expected format (consistent prefixes)
+        const formattedLogs: DutyLog[] = data.logs.map((log) => ({
+          id: log.id,
+          day: log.day,
+          date: formatDate(log.date),
+          empId: `LOG${log.id.toString().padStart(3, "0")}`,
+          timeRange: log.shift_name,
+          locationRange: formatLocationRange(log.vehicle_registration),
+          totalHours: `Total ${log.total_duty_time || "00:00:00"}`,
+          drivingHours: `Driving ${log.driving_duty_hours || "00:00:00"}`,
+          breakHours: `Breaks ${log.breaks_taken || "00:00:00"}`, // Added prefix and null fallback
+          status: formatStatus(log.status),
+          type: "current",
+        }))
+
+        setLogs(formattedLogs)
+
+        // Set employee details from the first log
+        if (data.logs.length > 0) {
+          setEmployee({
+            name: data.logs[0].user_name,
+            employeeId: `EMP${employeeId.padStart(3, "0")}`,
+          })
+        }
+      } catch (err) {
+        setError("Error fetching logs. Please try again later.")
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (employeeId && token) { // Guard against missing params.id or token
+      fetchLogs()
+    }
+  }, [employeeId, token])
+
+  const currentWeekLogs = logs.filter((log) => log.type === "current")
+  const incompleteLogs = logs.filter((log) => log.status === "Incomplete")
+  const waitingLogs = logs.filter((log) => log.status === "Waiting")
+  const historyLogs = logs.filter((log) => log.type === "history")
 
   const getFilteredLogs = () => {
     switch (activeTab) {
@@ -219,6 +210,7 @@ export default function EmployeeDetailPage() {
           </div>
         </div>
 
+        {/* Tabs */}
         <div className="flex gap-1 border-b border-gray-200">
           <button
             onClick={() => setActiveTab("current")}
@@ -270,44 +262,59 @@ export default function EmployeeDetailPage() {
           </button>
         </div>
 
+        {/* Logs Section */}
         <div className="space-y-6">
           <div className="space-y-2">
             <h2 className="text-lg font-semibold text-gray-900">{sectionInfo.title}</h2>
             <p className="text-sm text-gray-600">{sectionInfo.description}</p>
           </div>
 
-          {filteredLogs.length > 0 ? (
+          {loading ? (
+            <Card className="p-8 text-center bg-white">
+              <p className="text-gray-500">Loading logs...</p>
+            </Card>
+          ) : error ? (
+            <Card className="p-8 text-center bg-white">
+              <p className="text-red-500">{error}</p>
+            </Card>
+          ) : filteredLogs.length > 0 ? (
             <div className="space-y-3">
-              {filteredLogs.map((log, index) => (
-                <Card  key={index} className="p-4 bg-gray-50">
-                  <Link href={`/dashboard/users/daily-duty-logs/${employeeId}/${index}`} className="flex items-center justify-between">
-                    <div className="flex items-center gap-8">
+              {filteredLogs.map((log) => (
+                <Card key={log.id} className="p-4 bg-gray-50">
+                  <Link href={`/dashboard/users/daily-duty-logs/${employeeId}/${log.id}`} className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 md:gap-8">
                       {/* Day and Date */}
                       <div className="min-w-[120px]">
                         <div className="font-medium text-gray-900">{log.day}</div>
                         <div className="text-sm text-gray-500">{log.date}</div>
                       </div>
 
-                      {/* Employee ID */}
-                      <div className="min-w-[80px]">
-                        <div className="text-sm text-gray-600">{log.empId}</div>
-                      </div>
+                    
 
-                      {/* Time Range */}
+                      {/* Time Range (shift_name) */}
                       <div className="flex items-center gap-2 min-w-[140px]">
-                        <Clock className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-700">{log.timeRange}</span>
+                        <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 truncate">{log.timeRange}</span>
                       </div>
 
-                      {/* Location Range */}
-                      <div className="flex items-center gap-2 min-w-[120px]">
-                        <MapPin className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-700">{log.locationRange}</span>
+                     
+
+                      {/* Total Duty Hours */}
+                      <div className="min-w-[100px] flex items-center gap-1">
+                        <Clock className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-blue-600 truncate">{log.totalHours}</span>
                       </div>
 
-                      {/* Total Hours */}
-                      <div className="min-w-[100px]">
-                        <span className="text-sm font-medium text-blue-600">{log.totalHours}</span>
+                      {/* Driving Hours */}
+                      <div className="min-w-[100px] flex items-center gap-1">
+                        <Clock className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-blue-600 truncate">{log.drivingHours}</span>
+                      </div>
+
+                      {/* Break Hours */}
+                      <div className="min-w-[100px] flex items-center gap-1">
+                        <Clock className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-blue-600 truncate">{log.breakHours}</span>
                       </div>
                     </div>
 

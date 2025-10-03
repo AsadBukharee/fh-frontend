@@ -55,6 +55,7 @@ interface Site {
   id: number;
   name: string;
   image: string | null;
+  status:string;
   notes: string | null;
   postcode: string;
   address: string;
@@ -235,12 +236,12 @@ export default function SiteGrid() {
                   <div className="flex gap-1">
                     <Badge
                       className={`text-xs font-medium ${
-                        site.notes?.includes("Temporarily reduced")
+                        site.status=="inactive"
                           ? "bg-yellow-100 text-yellow-700"
                           : "bg-green-100 text-green-700"
                       }`}
                     >
-                      {site.notes?.includes("Temporarily reduced") ? "On Hold" : "Active"}
+                      {site.status=="active"?"Active":"Inactive"}
                     </Badge>
                     <Tooltip>
                       <TooltipTrigger asChild>
