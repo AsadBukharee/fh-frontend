@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -139,6 +138,15 @@ const fallbackDrivers: Driver[] = [
   { id: 3, full_name: "Mike Johnson", avatar: null, email: "mike.johnson@example.com" },
 ];
 
+// Map time slot IDs to API run names
+const idToRunName: Record<TimeSlotId, string> = {
+  early: "Early",
+  shuttle1: "First Shuttle",
+  shuttle2: "2nd Shuttle Run",
+  shuttle3: "Third Shuttle",
+  night: "Night",
+};
+
 // Map API run names to time slot IDs
 const runNameToId: Record<string, TimeSlotId> = {
   Early: "early",
@@ -148,21 +156,60 @@ const runNameToId: Record<string, TimeSlotId> = {
   Night: "night",
 };
 
-const tabs: { id: TimeSlotId; label: string; color: string }[] = [
-  { id: "early", label: "Early", color: "bg-pink-100 text-pink-600 border-pink-200" },
-  { id: "shuttle1", label: "1st Shuttle", color: "bg-green-100 text-green-600 border-green-200" },
-  { id: "shuttle2", label: "2nd Shuttle", color: "bg-purple-100 text-purple-600 border-purple-200" },
-  { id: "shuttle3", label: "3rd Shuttle", color: "bg-orange-100 text-orange-600 border-orange-200" },
-  { id: "night", label: "Night", color: "bg-blue-100 text-blue-600 border-blue-200" },
+const tabs: { id: TimeSlotId; label: string; color: string; startTime: string; endTime: string }[] = [
+  { id: "early", label: "Early", color: "bg-pink-100 text-pink-600 border-pink-200", startTime: "5:00 AM", endTime: "9:20 AM" },
+  { id: "shuttle1", label: "1st Shuttle", color: "bg-green-100 text-green-600 border-green-200", startTime: "9:21 AM", endTime: "2:00 PM" },
+  { id: "shuttle2", label: "2nd Shuttle", color: "bg-purple-100 text-purple-600 border-purple-200", startTime: "2:01 PM", endTime: "4:30 PM" },
+  { id: "shuttle3", label: "3rd Shuttle", color: "bg-orange-100 text-orange-600 border-orange-200", startTime: "4:31 PM", endTime: "6:59 PM" },
+  { id: "night", label: "Night", color: "bg-blue-100 text-blue-600 border-blue-200", startTime: "7:00 PM", endTime: "4:59 AM" },
 ];
 
+// Helper function to parse time strings (e.g., "5:00 AM") to hours and minutes
+const parseTime = (timeStr: string): { hours: number; minutes: number } => {
+  const [time, period] = timeStr.split(" ");
+  const [hours, minutes] = time.split(":").map(Number);
+  return {
+    hours: period === "PM" && hours !== 12 ? hours + 12 : period === "AM" && hours === 12 ? 0 : hours,
+    minutes,
+  };
+};
+
+// Helper function to determine the current shift based on current time
+const getCurrentShift = (currentTime: Date): TimeSlotId => {
+  const hours = currentTime.getHours();
+  const minutes = currentTime.getMinutes();
+  const currentMinutes = hours * 60 + minutes;
+
+  for (const tab of tabs) {
+    const start = parseTime(tab.startTime);
+    const end = parseTime(tab.endTime);
+    let startMinutes = start.hours * 60 + start.minutes;
+    let endMinutes = end.hours * 60 + end.minutes;
+
+    // Handle "Night" shift crossing midnight
+    if (tab.id === "night") {
+      if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
+        return "night";
+      }
+    } else {
+      // For other shifts, check if current time is within start and end
+      if (startMinutes <= currentMinutes && currentMinutes <= endMinutes) {
+        return tab.id;
+      }
+    }
+  }
+
+  // Default to "early" if no shift matches
+  return "early";
+};
+
 export default function TransportDashboard() {
-  const [activeTab, setActiveTab] = useState<TimeSlotId>("early");
+  const [activeTab, setActiveTab] = useState<TimeSlotId>(getCurrentShift(new Date()));
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
+    from: new Date(),
+    to: new Date(),
   });
   const [direction, setDirection] = useState<string>("all");
   const [transportData, setTransportData] = useState<TransportData>(fallbackTransportData);
@@ -176,8 +223,25 @@ export default function TransportDashboard() {
     location_name: string;
     data: { driver_name: string; number: number; datetime: string; direction: string }[];
   } | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState<number>(30); // Counter starts at 30 seconds
   const cookies = useCookies();
   const token = cookies.get("access_token");
+
+  // Clear Filters Function
+  const clearFilters = () => {
+    setSelectedLocation("all");
+    setSelectedDriver("all");
+    setDateRange({ from: new Date(), to: new Date() });
+    setDirection("all");
+    setPage(1);
+    setRefreshCounter(30);
+  };
+
+  // Refresh API Function
+  const refreshData = () => {
+    fetchData();
+    setRefreshCounter(30);
+  };
 
   // Fetch locations
   useEffect(() => {
@@ -235,67 +299,85 @@ export default function TransportDashboard() {
     fetchDrivers();
   }, [token]);
 
-  // Fetch transport data based on filters
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const today = new Date();
-        const defaultEndDate = today;
-        const defaultStartDate = new Date(today.setDate(today.getDate() - 7));
+  // Fetch transport data based on filters and active tab
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const today = new Date();
+      const defaultEndDate = today;
+      const defaultStartDate = new Date(today.setDate(today.getDate() - 7));
 
-        const queryParams = new URLSearchParams({
-          start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : format(defaultStartDate, "yyyy-MM-dd"),
-          end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(defaultEndDate, "yyyy-MM-dd"),
-          driver: selectedDriver !== "all" ? selectedDriver : "",
-          location: selectedLocation !== "all" ? selectedLocation : "",
-          direction: direction !== "all" ? direction : "",
-          page: page.toString(),
-          page_size: "20",
-        });
+      const queryParams = new URLSearchParams({
+        start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : format(defaultStartDate, "yyyy-MM-dd"),
+        end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(defaultEndDate, "yyyy-MM-dd"),
+        driver: selectedDriver !== "all" ? selectedDriver : "",
+        location: selectedLocation !== "all" ? selectedLocation : "",
+        direction: direction !== "all" ? direction : "",
+        page: page.toString(),
+        page_size: "20",
+        run_type: idToRunName[activeTab], // Tab-specific run type
+      });
 
-        const response = await fetch(
-          `${API_URL}/activity/su-run/data-screen/?${queryParams}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        if (!response.ok) {
-          throw new Error("Failed to fetch data");
+      const response = await fetch(
+        `${API_URL}/activity/su-run/data-screen/?${queryParams}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
-        const apiData: ApiResponse = await response.json();
-
-        const newTransportData: TransportData = { ...fallbackTransportData };
-        apiData.data.runs.forEach((run) => {
-          const slotId = runNameToId[run.runName] || "early";
-          newTransportData[slotId] = {
-            timeRange: `${run.startTime} - ${run.endTime}`,
-            data: run.data,
-            internalOps: {
-              drivers: run.internalJobsList.map((job) => ({
-                name: job.name,
-                transfers: parseInt(job.Total),
-                jobs: parseInt(job.Total),
-                total: parseInt(job.Total),
-              })),
-            },
-          };
-        });
-        setTransportData(newTransportData);
-        setTotalPages(apiData.data.total_pages);
-        setError(null);
-      } catch (err) {
-        setError("Error fetching data. Using fallback data.");
-        console.error(err);
-      } finally {
-        setIsLoading(false);
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch data");
       }
-    };
+      const apiData: ApiResponse = await response.json();
+
+      const newTransportData: TransportData = { ...fallbackTransportData };
+      apiData.data.runs.forEach((run) => {
+        const slotId = runNameToId[run.runName] || "early";
+        newTransportData[slotId] = {
+          timeRange: `${run.startTime} - ${run.endTime}`,
+          data: run.data,
+          internalOps: {
+            drivers: run.internalJobsList.map((job) => ({
+              name: job.name,
+              transfers: parseInt(job.Total),
+              jobs: parseInt(job.Total),
+              total: parseInt(job.Total),
+            })),
+          },
+        };
+      });
+      setTransportData(newTransportData);
+      setTotalPages(apiData.data.total_pages);
+      setError(null);
+    } catch (err) {
+      setError("Error fetching data. Using fallback data.");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch data on filter changes, tab changes, or initial load
+  useEffect(() => {
     fetchData();
-  }, [dateRange.from, dateRange.to, selectedDriver, selectedLocation, direction, page, token]);
+  }, [dateRange.from, dateRange.to, selectedDriver, selectedLocation, direction, page, activeTab, token]);
+
+  // Auto-refresh every 30 seconds with counter
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshCounter((prev) => {
+        if (prev <= 1) {
+          fetchData(); // Trigger API refresh
+          return 30; // Reset counter to 30 seconds
+        }
+        return prev - 1; // Decrement counter
+      });
+    }, 1000); // Run every second
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, []);
 
   const currentData = transportData[activeTab];
 
@@ -315,13 +397,9 @@ export default function TransportDashboard() {
     try {
       const queryParams = new URLSearchParams({
         location_name: locationName,
-        run_type: activeTab === "early" ? "Early" : 
-                  activeTab === "shuttle1" ? "First Shuttle" : 
-                  activeTab === "shuttle2" ? "2nd Shuttle Run" : 
-                  activeTab === "shuttle3" ? "Third Shuttle" : 
-                  "Night",
-        start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : "2025-09-08",
-        end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : "2025-09-08",
+        run_type: idToRunName[activeTab],
+        start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       });
 
       const response = await fetch(
@@ -362,8 +440,11 @@ export default function TransportDashboard() {
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-900">SU Data Management</h1>
           </div>
-          <div>
+          <div className="flex items-center gap-4">
             <span className="text-sm text-gray-500">Last updated 12:58 PM</span>
+            <span className="text-sm text-gray-500">
+              Next refresh in {refreshCounter} seconds
+            </span>
           </div>
         </div>
       </div>
@@ -376,13 +457,10 @@ export default function TransportDashboard() {
               key={tab.id}
               onClick={() => {
                 setActiveTab(tab.id);
-                setSelectedLocation("all");
-                setSelectedDriver("all");
-                setDateRange({ from: undefined, to: undefined });
-                setDirection("all");
-                setPage(1);
+                setPage(1); // Reset pagination for new tab
+                setRefreshCounter(30);
               }}
-              className={`px-4 py-1 rounded-2xl text-sm font-medium border transition-colors ${
+              className={`px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer ${
                 activeTab === tab.id ? tab.color : "text-gray-500 hover:text-gray-700 bg-white border-gray-200"
               }`}
             >
@@ -390,8 +468,22 @@ export default function TransportDashboard() {
             </Badge>
           ))}
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <ExportButton data={filteredData} fileName="SU data Management" />
+          <Button
+            variant="outline"
+            onClick={clearFilters}
+            className="text-sm"
+          >
+            Clear Filters
+          </Button>
+          <Button
+            variant="outline"
+            onClick={refreshData}
+            className="text-sm"
+          >
+            Refresh 
+          </Button>
         </div>
       </div>
 
@@ -417,7 +509,7 @@ export default function TransportDashboard() {
             <SelectTrigger className="w-[180px] border-gray-300">
               <SelectValue placeholder="Select Location" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="h-[150px]">
               <SelectItem value="all">All Locations</SelectItem>
               {locations.map((loc) => (
                 <SelectItem key={loc.id} value={loc.id.toString()}>
@@ -430,7 +522,7 @@ export default function TransportDashboard() {
             <SelectTrigger className="w-[180px] border-gray-300">
               <SelectValue placeholder="Select Driver" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="h-[150px]">
               <SelectItem value="all">All Drivers</SelectItem>
               {drivers.map((driver) => (
                 <SelectItem key={driver.id} value={driver.id.toString()}>
@@ -456,7 +548,10 @@ export default function TransportDashboard() {
                 <Calendar
                   mode="single"
                   selected={dateRange.from}
-                  onSelect={(date) => setDateRange((prev) => ({ ...prev, from: date }))}
+                  onSelect={(date) => {
+                    setDateRange((prev) => ({ ...prev, from: date }));
+                    setRefreshCounter(30); // Reset counter on date change
+                  }}
                   initialFocus
                   className="rounded-md"
                   defaultMonth={dateRange.from || new Date()}
@@ -479,7 +574,10 @@ export default function TransportDashboard() {
                 <Calendar
                   mode="single"
                   selected={dateRange.to}
-                  onSelect={(date) => setDateRange((prev) => ({ ...prev, to: date }))}
+                  onSelect={(date) => {
+                    setDateRange((prev) => ({ ...prev, to: date }));
+                    setRefreshCounter(30); // Reset counter on date change
+                  }}
                   initialFocus
                   className="rounded-md"
                   defaultMonth={dateRange.to || new Date()}
@@ -495,7 +593,33 @@ export default function TransportDashboard() {
       {error && <p className="text-red-500">{error}</p>}
 
       {/* Pagination Controls */}
-   
+      {!isLoading && totalPages > 1 && (
+        <div className="flex justify-between items-center mb-6">
+          <Button
+            variant="outline"
+            disabled={page === 1}
+            onClick={() => {
+              setPage((prev) => Math.max(prev - 1, 1));
+              setRefreshCounter(30); // Reset counter on page change
+            }}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-gray-600">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            disabled={page === totalPages}
+            onClick={() => {
+              setPage((prev) => Math.min(prev + 1, totalPages));
+              setRefreshCounter(30); // Reset counter on page change
+            }}
+          >
+            Next
+          </Button>
+        </div>
+      )}
 
       {/* Data Table */}
       {!isLoading && (

@@ -1,7 +1,6 @@
+
 "use client";
-
 import type React from "react";
-
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
@@ -40,6 +39,12 @@ import {
 import Image from "next/image";
 import ExpiryDates from "@/components/Vehicles/VehicleEditExpiry"; // Custom component for expiry dates
 import ImageUploader from "@/components/Media/UploadImage"; // Custom component for image uploads
+
+// Interface for site data structure
+interface Site {
+  id: number;
+  name: string;
+}
 
 // Interface for vehicle data structure
 interface Vehicle {
@@ -160,12 +165,23 @@ interface Vehicle {
   };
 }
 
+// Status choices for vehicle status dropdown
+const STATUS_CHOICES = [
+  { value: "no_defect", label: "No Defects" },
+  { value: "minor_defect_roadworthy", label: "Minor Defect - Roadworthy" },
+  { value: "minor_defect_not_roadworthy", label: "Minor Defect - Not Roadworthy" },
+  { value: "major_defect", label: "Major Defect" },
+];
+
 export default function VehicleDetailPage() {
   const { id } = useParams(); // Get vehicle ID from URL
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
+  const [sites, setSites] = useState<Site[]>([]); // State for sites
   const [loading, setLoading] = useState(true);
+  const [sitesLoading, setSitesLoading] = useState(true); // Separate loading state for sites
   const [error, setError] = useState<string | null>(null);
+  const [sitesError, setSitesError] = useState<string | null>(null); // Separate error state for sites
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [isEditingTyreExpiry, setIsEditingTyreExpiry] = useState(false);
@@ -179,7 +195,7 @@ export default function VehicleDetailPage() {
   const cookies = useCookies();
   const token = cookies.get("access_token");
 
-  // Fetch vehicle data on mount or when ID/token changes
+  // Fetch vehicle data and sites on mount or when ID/token changes
   useEffect(() => {
     const fetchVehicle = async () => {
       try {
@@ -191,6 +207,7 @@ export default function VehicleDetailPage() {
           },
         });
         const data = await res.json();
+        console.log("Vehicle API response:", data); // Debug log
         if (data.success) {
           setVehicle(data.data);
           setEditVehicle(data.data);
@@ -199,28 +216,60 @@ export default function VehicleDetailPage() {
             front_driver: data.data.tyre_expiry_front_driver || "",
             front_passenger: data.data.tyre_expiry_front_passenger || "",
             rear_outer_driver: data.data.tyre_expiry_rear_outer_driver || "",
-            rear_outer_passenger:
-              data.data.tyre_expiry_rear_outer_passenger || "",
+            rear_outer_passenger: data.data.tyre_expiry_rear_outer_passenger || "",
           });
         } else {
           setError(data.message || "Failed to fetch vehicle data");
         }
       } catch (err) {
         setError("Error fetching vehicle data");
+        console.error("Error fetching vehicle:", err);
       } finally {
         setLoading(false);
       }
     };
 
+    const fetchSites = async () => {
+      try {
+        setSitesLoading(true);
+        const res = await fetch(`${API_URL}/api/sites/list-names/`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        console.log("Sites API response:", data); // Debug log
+        if (data.success && Array.isArray(data.data)) {
+          setSites(data.data);
+          setSitesError(null);
+        } else {
+          setSitesError(data.message || "No sites returned from API");
+          setSites([]);
+        }
+      } catch (err) {
+        setSitesError("Error fetching sites: " + (err instanceof Error ? err.message : "Unknown error"));
+        setSites([]);
+        console.error("Error fetching sites:", err);
+      } finally {
+        setSitesLoading(false);
+      }
+    };
+
     if (id && token) {
       fetchVehicle();
+      fetchSites();
+    } else {
+      setError("Missing vehicle ID or authentication token");
+      setLoading(false);
+      setSitesLoading(false);
     }
   }, [id, token]);
 
   // Update vehicle price
   const handlePriceUpdate = async () => {
     if (!vehicle || !token) return;
-
     try {
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PATCH",
@@ -230,7 +279,6 @@ export default function VehicleDetailPage() {
         },
         body: JSON.stringify({ vehicle_cost: tempPrice }),
       });
-
       const updatedData = await res.json();
       if (res.ok && updatedData.success) {
         setVehicle((prev) =>
@@ -249,7 +297,6 @@ export default function VehicleDetailPage() {
   // Update tyre expiry dates
   const handleTyreExpiryUpdate = async () => {
     if (!vehicle || !token) return;
-
     try {
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PATCH",
@@ -264,7 +311,6 @@ export default function VehicleDetailPage() {
           tyre_expiry_rear_outer_passenger: tempTyreExpiry.rear_outer_passenger,
         }),
       });
-
       if (res.ok) {
         setVehicle((prev) =>
           prev
@@ -292,7 +338,6 @@ export default function VehicleDetailPage() {
   // Handle image upload
   const handleImageUpload = async (imageUrl: string) => {
     if (!vehicle || !token) return;
-
     try {
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PATCH",
@@ -302,7 +347,6 @@ export default function VehicleDetailPage() {
         },
         body: JSON.stringify({ vehicle_picture: imageUrl }),
       });
-
       if (res.ok) {
         setVehicle((prev) =>
           prev ? { ...prev, vehicle_picture: imageUrl } : prev
@@ -322,30 +366,30 @@ export default function VehicleDetailPage() {
     setEditVehicle((prev) => (prev ? { ...prev, [field]: value } : prev));
   };
 
-  // Handle input changes for site_allocated fields
-  const handleSiteAllocatedChange = (
-    field: keyof NonNullable<Vehicle["site_allocated"]>,
-    value: any
-  ) => {
-  setEditVehicle((prev) =>
-  prev && prev.site_allocated
-    ? {
-        ...prev,
-        site_allocated: { ...prev.site_allocated, [field]: value },
-      }
-    : prev
-);
-
-  };
-
-  // Handle input changes for vehicles_type fields
-  const handleVehicleTypeChange = (
-    field: keyof Vehicle["vehicles_type"],
-    value: any
-  ) => {
+  // Handle input changes for site_allocated field
+  const handleSiteAllocatedChange = (value: number | null) => {
     setEditVehicle((prev) =>
       prev
-        ? { ...prev, vehicles_type: { ...prev.vehicles_type, [field]: value } }
+        ? {
+            ...prev,
+            site_allocated: value
+              ? {
+                  id: value,
+                  name: sites.find((site) => site.id === value)?.name || "",
+                  status: "",
+                  postcode: "",
+                  address: "",
+                  contact_name: "",
+                  contact_phone: "",
+                  contact_email: "",
+                  latitude: 0,
+                  longitude: 0,
+                  radius_m: 0,
+                  number_of_allocated_vehicles: 0,
+                  created_by: "",
+                }
+              : null,
+          }
         : prev
     );
   };
@@ -354,11 +398,9 @@ export default function VehicleDetailPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editVehicle || !token) return;
-
     try {
       setLoading(true);
       setError(null);
-
       const vehicleData = {
         registration_number: editVehicle.registration_number,
         vehicle_status: editVehicle.vehicle_status,
@@ -368,9 +410,9 @@ export default function VehicleDetailPage() {
         insurance_expiry: editVehicle.insurance_expiry,
         walkaround_count: editVehicle.walkaround_count,
         vehicles_type: editVehicle.vehicles_type.id, // Send only the ID
-        site_allocated: editVehicle.site_allocated?.id ?? null,
+        site_allocated: editVehicle.site_allocated?.id ?? null, // Send the selected site ID
       };
-
+      console.log("Submitting vehicle data:", vehicleData); // Debug log
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PUT",
         headers: {
@@ -379,7 +421,6 @@ export default function VehicleDetailPage() {
         },
         body: JSON.stringify(vehicleData),
       });
-
       const updatedData = await res.json();
       if (res.ok && updatedData.success) {
         setVehicle(updatedData.data);
@@ -392,6 +433,7 @@ export default function VehicleDetailPage() {
       setError(
         err instanceof Error ? err.message : "Error updating vehicle data"
       );
+      console.error("Error updating vehicle:", err);
     } finally {
       setLoading(false);
     }
@@ -400,10 +442,12 @@ export default function VehicleDetailPage() {
   // Get badge colors based on status
   const getStatusBadgeColors = (status: string) => {
     switch (status.toLowerCase()) {
-      case "active":
-      case "available":
+      case "no_defect":
         return "bg-green-100 text-green-700";
-      case "inactive":
+      case "minor_defect_roadworthy":
+        return "bg-yellow-100 text-yellow-700";
+      case "minor_defect_not_roadworthy":
+      case "major_defect":
         return "bg-red-100 text-red-700";
       default:
         return "bg-gray-100 text-gray-700";
@@ -498,6 +542,14 @@ export default function VehicleDetailPage() {
         </div>
       </div>
 
+      {/* Sites Error */}
+      {sitesError && (
+        <div className="flex items-center gap-2 text-red-600 bg-red-50 p-4 rounded-lg mb-6">
+          <TriangleAlert className="w-5 h-5" />
+          <span className="font-medium">{sitesError}</span>
+        </div>
+      )}
+
       {/* Warnings and Missing Attributes Accordion */}
       <Card className="mb-6 p-6 bg-gray-100 border border-gray-200 rounded-2xl shadow-sm">
         <Accordion type="single" collapsible>
@@ -513,15 +565,6 @@ export default function VehicleDetailPage() {
               <AccordionContent>
                 <div className="flex items-center justify-between gap-2 text-red-700 font-medium mb-2">
                   <span>Warnings</span>
-                  {/* <X
-                    className="cursor-pointer"
-                    onClick={() =>
-                      setVehicle((prev) => {
-                        if (!prev) return prev;
-                        return { ...prev, warnings: [] };
-                      })
-                    }
-                  /> */}
                 </div>
                 <ul className="space-y-1">
                   {vehicle.warnings.map((warning, index) => (
@@ -533,7 +576,6 @@ export default function VehicleDetailPage() {
               </AccordionContent>
             </AccordionItem>
           )}
-
           {/* Missing Attributes */}
           {vehicle.missing_attributes && vehicle.missing_attributes.length > 0 && (
             <AccordionItem value="missing-attributes">
@@ -546,15 +588,6 @@ export default function VehicleDetailPage() {
               <AccordionContent>
                 <div className="flex items-center justify-between gap-2 text-yellow-700 font-medium mb-2">
                   <span>Missing Information</span>
-                  {/* <X
-                    className="cursor-pointer"
-                    onClick={() =>
-                      setVehicle((prev) => {
-                        if (!prev) return prev;
-                        return { ...prev, missing_attributes: [] };
-                      })
-                    }
-                  /> */}
                 </div>
                 <ul className="space-y-1">
                   {vehicle.missing_attributes.map((attr, index) => (
@@ -579,7 +612,6 @@ export default function VehicleDetailPage() {
                 <Camera className="w-7 h-7 rounded-full text-blue-500" />
                 <span>Vehicle Overview</span>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col items-start">
                   {vehicle.vehicle_picture ? (
@@ -597,7 +629,6 @@ export default function VehicleDetailPage() {
                   )}
                   <ImageUploader onUploadSuccess={handleImageUpload} />
                 </div>
-
                 <div className="flex flex-col justify-center items-start">
                   <div
                     className={`flex ${
@@ -692,7 +723,6 @@ export default function VehicleDetailPage() {
                   <Users className="w-7 h-7 rounded-full text-green-500" />
                   <span>Assigned Driver</span>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Full Name</p>
@@ -714,7 +744,7 @@ export default function VehicleDetailPage() {
                       </Badge>
                     </div>
                   )}
-                  {vehicle.assignee_driver.shifts_count && (
+                  {vehicle.assignee_driver.shifts_count !== undefined && (
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Total Shifts</p>
                       <p className="font-medium text-gray-900">
@@ -732,12 +762,7 @@ export default function VehicleDetailPage() {
                 <Shapes className="w-7 h-7 rounded-full text-red-500" />
                 <span>Vehicle Type</span>
               </div>
-
               <div className="grid grid-cols-2 gap-1">
-                <div className="flex flex-col items-center p-4 bg-white">
-                  <Shapes className="w-12 h-12 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-600">16-Seater Mini</span>
-                </div>
                 <div className="flex flex-col items-center p-4 bg-white">
                   <NotebookPen className="w-12 h-12 text-gray-800 mb-2" />
                   <Badge className="text-sm font-medium bg-orange-100 text-orange-700">
@@ -753,7 +778,6 @@ export default function VehicleDetailPage() {
                 <Info className="w-6 h-6 rounded-full text-red-500" />
                 <span>General Information</span>
               </div>
-
               <div className="grid grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-1 rounded">
                   <p className="text-sm text-gray-500 mb-1">Registration</p>
@@ -770,22 +794,30 @@ export default function VehicleDetailPage() {
                     <p className="font-medium text-gray-900">
                       {vehicle.registration_number}
                     </p>
+                    
                   )}
                 </div>
                 <div className="bg-gray-50 p-1 rounded">
                   <p className="text-sm text-gray-500 mb-1">Status</p>
                   {isEditing ? (
-                    <Input
-                      type="text"
+                    <select
                       value={editVehicle.vehicle_status}
                       onChange={(e) =>
                         handleInputChange("vehicle_status", e.target.value)
                       }
-                      className="w-full"
-                    />
+                      className="w-full p-2 border rounded-md"
+                    >
+                      {STATUS_CHOICES.map((status) => (
+                        <option key={status.value} value={status.value}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
                   ) : (
                     <Badge className={getStatusBadgeColors(vehicle.vehicle_status)}>
-                      {vehicle.vehicle_status}
+                      {STATUS_CHOICES.find(
+                        (status) => status.value === vehicle.vehicle_status
+                      )?.label || vehicle.vehicle_status}
                     </Badge>
                   )}
                 </div>
@@ -814,18 +846,18 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       type="number"
-                      value={editVehicle.walkaround_count || 1}
+                      value={editVehicle.walkaround_count || ""}
                       onChange={(e) =>
                         handleInputChange(
                           "walkaround_count",
-                          Number.parseInt(e.target.value)
+                          e.target.value ? Number.parseInt(e.target.value) : null
                         )
                       }
                       className="w-full"
                     />
                   ) : (
                     <p className="font-medium text-gray-900">
-                      {vehicle.walkaround_count || "N/A"}
+                      {vehicle.walkaround_count ?? "N/A"}
                     </p>
                   )}
                 </div>
@@ -854,7 +886,9 @@ export default function VehicleDetailPage() {
                 <div className="flex items-center bg-gray-50 px-1 py-2 rounded justify-between">
                   <span className="text-sm text-gray-600">Status</span>
                   <Badge className={getStatusBadgeColors(vehicle.vehicle_status)}>
-                    {vehicle.vehicle_status}
+                    {STATUS_CHOICES.find(
+                      (status) => status.value === vehicle.vehicle_status
+                    )?.label || vehicle.vehicle_status}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
@@ -870,7 +904,7 @@ export default function VehicleDetailPage() {
                     Walkaround Count
                   </span>
                   <span className="font-medium text-gray-900">
-                    {vehicle.walkaround_count || "N/A"}
+                    {vehicle.walkaround_count ?? "N/A"}
                   </span>
                 </div>
               </div>
@@ -1033,13 +1067,11 @@ export default function VehicleDetailPage() {
                         />
                         <div className="mt-2 space-y-1 text-center">
                           <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                            Expiry:{" "}
-                            {vehicle.tyre_expiry_front_passenger || "N/A"}
+                            Expiry: {vehicle.tyre_expiry_front_passenger || "N/A"}
                           </div>
                           {vehicle.tyre_pressure_front_passenger && (
                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
-                              Pressure: {vehicle.tyre_pressure_front_passenger}{" "}
-                              PSI
+                              Pressure: {vehicle.tyre_pressure_front_passenger} PSI
                             </div>
                           )}
                           {vehicle.tyre_depth_front_passenger && (
@@ -1111,13 +1143,11 @@ export default function VehicleDetailPage() {
                         />
                         <div className="mt-2 space-y-1 text-center">
                           <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                            Expiry:{" "}
-                            {vehicle.tyre_expiry_rear_outer_driver || "N/A"}
+                            Expiry: {vehicle.tyre_expiry_rear_outer_driver || "N/A"}
                           </div>
                           {vehicle.tyre_pressure_rear_outer_driver && (
                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
-                              Pressure:{" "}
-                              {vehicle.tyre_pressure_rear_outer_driver} PSI
+                              Pressure: {vehicle.tyre_pressure_rear_outer_driver} PSI
                             </div>
                           )}
                           {vehicle.tyre_depth_rear_outer_driver && (
@@ -1151,13 +1181,11 @@ export default function VehicleDetailPage() {
                         />
                         <div className="mt-2 space-y-1 text-center">
                           <div className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                            Expiry:{" "}
-                            {vehicle.tyre_expiry_rear_outer_passenger || "N/A"}
+                            Expiry: {vehicle.tyre_expiry_rear_outer_passenger || "N/A"}
                           </div>
                           {vehicle.tyre_pressure_rear_outer_passenger && (
                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md">
-                              Pressure:{" "}
-                              {vehicle.tyre_pressure_rear_outer_passenger} PSI
+                              Pressure: {vehicle.tyre_pressure_rear_outer_passenger} PSI
                             </div>
                           )}
                           {vehicle.tyre_depth_rear_outer_passenger && (
@@ -1167,8 +1195,7 @@ export default function VehicleDetailPage() {
                           )}
                           {vehicle.tyre_torque_rear_outer_passenger && (
                             <div className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-md">
-                              Torque: {vehicle.tyre_torque_rear_outer_passenger}{" "}
-                              Nm
+                              Torque: {vehicle.tyre_torque_rear_outer_passenger} Nm
                             </div>
                           )}
                         </div>
@@ -1315,9 +1342,11 @@ export default function VehicleDetailPage() {
                     </div>
                   </AccordionContent>
                 </AccordionItem>
+
+                {/* Site Allocated */}
                 <AccordionItem value="site-allocated">
                   <AccordionTrigger>
-                    <div className="flex items-center gap-2 text-gray-700 font-medium ">
+                    <div className="flex items-center gap-2 text-gray-700 font-medium">
                       <MapPin className="w-6 h-6 rounded-full text-red-500" />
                       <span>Site Allocated</span>
                     </div>
@@ -1336,22 +1365,35 @@ export default function VehicleDetailPage() {
                             />
                           </div>
                         )}
-
                         <div className="grid grid-cols-2 gap-6">
                           <div>
                             <p className="text-sm text-gray-500 mb-1">Site Name</p>
                             {isEditing ? (
-                              <Input
-                                type="text"
-                                value={editVehicle.site_allocated?.name || ""}
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange("name", e.target.value)
-                                }
-                                className="w-full"
-                              />
+                              sitesLoading ? (
+                                <p className="text-sm text-gray-600">Loading sites...</p>
+                              ) : sites.length === 0 ? (
+                                <p className="text-sm text-red-600">No sites available</p>
+                              ) : (
+                                <select
+                                  value={editVehicle.site_allocated?.id?.toString() || ""}
+                                  onChange={(e) =>
+                                    handleSiteAllocatedChange(
+                                      e.target.value ? Number(e.target.value) : null
+                                    )
+                                  }
+                                  className="w-full p-2 border rounded-md"
+                                >
+                                  <option value="">Select a site</option>
+                                  {sites.map((site) => (
+                                    <option key={site.id} value={site.id}>
+                                      {site.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )
                             ) : (
                               <p className="font-medium text-gray-900">
-                                {vehicle.site_allocated.name}
+                                {vehicle.site_allocated.name || "Not provided"}
                               </p>
                             )}
                           </div>
@@ -1359,23 +1401,9 @@ export default function VehicleDetailPage() {
                             <p className="text-sm text-gray-500 mb-1">
                               Contact Name
                             </p>
-                            {isEditing ? (
-                              <Input
-                                type="text"
-                                value={editVehicle.site_allocated?.contact_name || ""}
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "contact_name",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full"
-                              />
-                            ) : (
-                              <p className="font-medium text-gray-900">
-                                {vehicle.site_allocated.contact_name}
-                              </p>
-                            )}
+                            <p className="font-medium text-gray-900">
+                              {vehicle.site_allocated.contact_name || "Not provided"}
+                            </p>
                           </div>
                           {vehicle.site_allocated.contact_position && (
                             <div>
@@ -1392,179 +1420,60 @@ export default function VehicleDetailPage() {
                               Contact Phone
                             </p>
                             <p className="font-medium text-gray-900">
-                              {vehicle.site_allocated.contact_phone}
+                              {vehicle.site_allocated.contact_phone || "Not provided"}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500 mb-1">Address</p>
-                            {isEditing ? (
-                              <Input
-                                type="text"
-                                value={editVehicle.site_allocated?.address || ""}
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "address",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full"
-                              />
-                            ) : (
-                              <p className="font-medium text-gray-900">
-                                {vehicle.site_allocated.address || "Not provided"}
-                              </p>
-                            )}
+                            <p className="font-medium text-gray-900">
+                              {vehicle.site_allocated.address || "Not provided"}
+                            </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500 mb-1">Status</p>
-                            {isEditing ? (
-                              <Input
-                                type="text"
-                                value={editVehicle.site_allocated?.status || ""}
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "status",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full"
-                              />
-                            ) : (
-                              <Badge className={getStatusBadgeColors(vehicle.site_allocated.status)}>
-                                {vehicle.site_allocated.status}
-                              </Badge>
-                            )}
+                            <Badge className={getStatusBadgeColors(vehicle.site_allocated.status)}>
+                              {vehicle.site_allocated.status || "N/A"}
+                            </Badge>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500 mb-1">Post Code</p>
-                            {isEditing ? (
-                              <Input
-                                type="text"
-                                value={editVehicle.site_allocated?.postcode || ""}
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "postcode",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full"
-                              />
-                            ) : (
-                              <p className="font-medium text-gray-900">
-                                {vehicle.site_allocated.postcode}
-                              </p>
-                            )}
+                            <p className="font-medium text-gray-900">
+                              {vehicle.site_allocated.postcode || "Not provided"}
+                            </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500 mb-1">Radius</p>
-                            {isEditing ? (
-                              <Input
-                                type="number"
-                                value={editVehicle.site_allocated?.radius_m || 0}
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "radius_m",
-                                    Number.parseInt(e.target.value)
-                                  )
-                                }
-                                className="w-full"
-                              />
-                            ) : (
-                              <p className="font-medium text-gray-900">
-                                {vehicle.site_allocated.radius_m} m
-                              </p>
-                            )}
+                            <p className="font-medium text-gray-900">
+                              {vehicle.site_allocated.radius_m ? `${vehicle.site_allocated.radius_m} m` : "Not provided"}
+                            </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500 mb-1">Latitude</p>
-                            {isEditing ? (
-                              <Input
-                                type="number"
-                                value={editVehicle.site_allocated?.latitude || 0}
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "latitude",
-                                    Number.parseFloat(e.target.value)
-                                  )
-                                }
-                                className="w-full"
-                              />
-                            ) : (
-                              <p className="font-medium text-gray-900">
-                                {vehicle.site_allocated.latitude}
-                              </p>
-                            )}
+                            <p className="font-medium text-gray-900">
+                              {vehicle.site_allocated.latitude || "Not provided"}
+                            </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500 mb-1">Longitude</p>
-                            {isEditing ? (
-                              <Input
-                                type="number"
-                                value={editVehicle.site_allocated?.longitude || 0}
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "longitude",
-                                    Number.parseFloat(e.target.value)
-                                  )
-                                }
-                                className="w-full"
-                              />
-                            ) : (
-                              <p className="font-medium text-gray-900">
-                                {vehicle.site_allocated.longitude}
-                              </p>
-                            )}
+                            <p className="font-medium text-gray-900">
+                              {vehicle.site_allocated.longitude || "Not provided"}
+                            </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500 mb-1">
                               No. of vehicles
                             </p>
-                            {isEditing ? (
-                              <Input
-                                type="number"
-                                value={
-                                  editVehicle.site_allocated
-                                    ?.number_of_allocated_vehicles || 0
-                                }
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "number_of_allocated_vehicles",
-                                    Number.parseInt(e.target.value)
-                                  )
-                                }
-                                className="w-full"
-                              />
-                            ) : (
-                              <p className="font-medium text-gray-900">
-                                {
-                                  vehicle.site_allocated
-                                    .number_of_allocated_vehicles
-                                }
-                              </p>
-                            )}
+                            <p className="font-medium text-gray-900">
+                              {vehicle.site_allocated.number_of_allocated_vehicles || "Not provided"}
+                            </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500 mb-1">Created By</p>
-                            {isEditing ? (
-                              <Input
-                                type="text"
-                                value={editVehicle.site_allocated?.created_by || ""}
-                                onChange={(e) =>
-                                  handleSiteAllocatedChange(
-                                    "created_by",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full"
-                              />
-                            ) : (
-                              <p className="font-medium text-gray-900">
-                                {vehicle.site_allocated.created_by}
-                              </p>
-                            )}
+                            <p className="font-medium text-gray-900">
+                              {vehicle.site_allocated.created_by || "Not provided"}
+                            </p>
                           </div>
                         </div>
-
                         {/* Staff Information */}
                         {vehicle.site_allocated.staff && (
                           <div className="mt-6 pt-6 border-t border-gray-200">
@@ -1599,7 +1508,6 @@ export default function VehicleDetailPage() {
                             </div>
                           </div>
                         )}
-
                         {/* Site Presence */}
                         {vehicle.site_allocated.presence && (
                           <div className="mt-6 pt-6 border-t border-gray-200">
@@ -1637,35 +1545,33 @@ export default function VehicleDetailPage() {
                           </div>
                         )}
                       </>
-                    ) : vehicle.assignee_driver?.site?.length ? (
-                      <div className="grid grid-cols-2 gap-6">
-                        <div>
-                          <p className="text-sm text-gray-500 mb-1">Site Name</p>
-                          <p className="font-medium text-gray-900">
-                            {vehicle.assignee_driver.site[0].name}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500 mb-1">Status</p>
-                          <Badge className={getStatusBadgeColors(vehicle.assignee_driver.site[0].status)}>
-                            {vehicle.assignee_driver.site[0].status}
-                          </Badge>
-                        </div>
-                        {vehicle.assignee_driver.site[0].image && (
-                          <div className="col-span-2">
-                            <img
-                              src={vehicle.assignee_driver.site[0].image || "/placeholder.svg"}
-                              alt="Site"
-                              width={300}
-                              height={150}
-                              className="rounded-lg object-cover"
-                            />
-                          </div>
-                        )}
-                      </div>
                     ) : (
                       <div className="text-sm text-gray-600">
-                        No site allocated to this vehicle.
+                        No site allocated to this vehicle. Please select a site in edit mode.
+                             {isEditing ? (
+                              sitesLoading ? (
+                                <p className="text-sm text-gray-600">Loading sites...</p>
+                              ) : sites.length === 0 ? (
+                                <p className="text-sm text-red-600">No sites available</p>
+                              ) : (
+                                <select
+                                  value={editVehicle.site_allocated?.id?.toString() || ""}
+                                  onChange={(e) =>
+                                    handleSiteAllocatedChange(
+                                      e.target.value ? Number(e.target.value) : null
+                                    )
+                                  }
+                                  className="w-full p-2 border rounded-md"
+                                >
+                                  <option value="">Select a site</option>
+                                  {sites.map((site) => (
+                                    <option key={site.id} value={site.id}>
+                                      {site.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )
+                            ): null}
                       </div>
                     )}
                   </AccordionContent>

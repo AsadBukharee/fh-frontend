@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -16,102 +17,183 @@ type TransportData = Record<TabKey, TransportTab>
 
 const transportData: TransportData = {
   early: {
-    timeRange: "06:00 AM - 09:30 AM",
+    timeRange: "5:00 AM - 9:20 AM",
     data: [],
     internalOps: { transfer: 0, jobs: 0 },
   },
   shuttle1: {
-    timeRange: "09:30 AM - 12:00 PM",
+    timeRange: "9:21 AM - 2:00 PM",
     data: [],
     internalOps: { transfer: 0, jobs: 0 },
   },
   shuttle2: {
-    timeRange: "12:00 PM - 15:00 PM",
+    timeRange: "2:01 PM - 4:30 PM",
     data: [],
     internalOps: { transfer: 0, jobs: 0 },
   },
   shuttle3: {
-    timeRange: "15:00 PM - 18:00 PM",
+    timeRange: "4:31 PM - 6:59 PM",
     data: [],
     internalOps: { transfer: 0, jobs: 0 },
   },
   night: {
-    timeRange: "18:00 PM - 00:00 AM",
+    timeRange: "7:00 PM - 4:59 AM",
     data: [],
     internalOps: { transfer: 0, jobs: 0 },
   },
 }
 
-const tabs: { id: TabKey; label: string; apiRunType: string; color: string }[] = [
-  { id: "early", label: "Early", apiRunType: "Early", color: "border-red-200 text-red-600" },
-  { id: "shuttle1", label: "First Shuttle", apiRunType: "First Shuttle", color: "border-green-200 text-green-600" },
-  { id: "shuttle2", label: "Second Shuttle", apiRunType: "Second Shuttle", color: "border-pink-200 text-pink-600" },
-  { id: "shuttle3", label: "Third Shuttle", apiRunType: "Third Shuttle", color: "border-orange-200 text-orange-600" },
-  { id: "night", label: "Night", apiRunType: "Night", color: "border-purple-200 text-purple-600" },
+const tabs: { id: TabKey; label: string; apiRunType: string; color: string; startTime: string; endTime: string }[] = [
+  { id: "early", label: "Early", apiRunType: "Early", color: "border-red-200 text-red-600", startTime: "5:00 AM", endTime: "9:20 AM" },
+  { id: "shuttle1", label: "First Shuttle", apiRunType: "First Shuttle", color: "border-green-200 text-green-600", startTime: "9:21 AM", endTime: "2:00 PM" },
+  { id: "shuttle2", label: "Second Shuttle", apiRunType: "Second Shuttle", color: "border-pink-200 text-pink-600", startTime: "2:01 PM", endTime: "4:30 PM" },
+  { id: "shuttle3", label: "Third Shuttle", apiRunType: "Third Shuttle", color: "border-orange-200 text-orange-600", startTime: "4:31 PM", endTime: "6:59 PM" },
+  { id: "night", label: "Night", apiRunType: "Night", color: "border-purple-200 text-purple-600", startTime: "7:00 PM", endTime: "4:59 AM" },
 ]
 
-export default function TransportDashboard() {
-  const [activeTab, setActiveTab] = useState<TabKey>("early")
-  const [apiData, setApiData] = useState<TransportData>(transportData)
-  const token = useCookies().get("access_token")
+// Map API run names to TabKey
+const runNameToId: Record<string, TabKey> = {
+  Early: "early",
+  "First Shuttle": "shuttle1",
+  "Second Shuttle": "shuttle2",
+  "Third Shuttle": "shuttle3",
+  Night: "night",
+}
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`${API_URL}/activity/su-run/overview/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        const result = await response.json()
+// Helper function to parse time strings (e.g., "5:00 AM") to hours and minutes
+const parseTime = (timeStr: string): { hours: number; minutes: number } => {
+  const [time, period] = timeStr.split(" ")
+  const [hours, minutes] = time.split(":").map(Number)
+  return {
+    hours: period === "PM" && hours !== 12 ? hours + 12 : period === "AM" && hours === 12 ? 0 : hours,
+    minutes,
+  }
+}
 
-        if (result.success) {
-          const updatedData: TransportData = { ...transportData }
+// Helper function to determine the current shift based on current time (fallback)
+const getCurrentShiftByTime = (currentTime: Date): TabKey => {
+  const hours = currentTime.getHours()
+  const minutes = currentTime.getMinutes()
+  const currentMinutes = hours * 60 + minutes
 
-          result.data.runs.forEach((run: any) => {
-            const tab = tabs.find((t) => run.runName.toLowerCase().includes(t.apiRunType.toLowerCase()))
-            if (tab) {
-              // Map internal jobs
-              const transfer = run.internalJobsList.find((j: any) => j.name === "Internal Transfer")?.Total || 0
-              const jobs = run.internalJobsList.find((j: any) => j.name === "Internal Jobs")?.Total || 0
+  for (const tab of tabs) {
+    const start = parseTime(tab.startTime)
+    const end = parseTime(tab.endTime)
+    let startMinutes = start.hours * 60 + start.minutes
+    let endMinutes = end.hours * 60 + end.minutes
 
-              updatedData[tab.id].internalOps = {
-                transfer: Number(transfer),
-                jobs: Number(jobs),
-              }
-
-              // Map data locations
-              updatedData[tab.id].data = run.data.map((loc: any): DataRow => ({
-                location: String(loc.location ?? ""),
-                out: Number(loc.out ?? 0),
-                in: Number(loc.in ?? 0),
-                spillOver: Number(loc.in ?? 0) - Number(loc.out ?? 0),
-              }))
-
-              // Update time range
-              updatedData[tab.id].timeRange = `${run.startTime} - ${run.endTime}`
-            }
-          })
-
-          setApiData(updatedData)
-        }
-      } catch (error) {
-        console.error("Error fetching API data:", error)
+    // Handle "Night" shift crossing midnight
+    if (tab.id === "night") {
+      if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
+        return "night"
+      }
+    } else {
+      if (startMinutes <= currentMinutes && currentMinutes <= endMinutes) {
+        return tab.id
       }
     }
+  }
 
+  // Default to "early" if no shift matches
+  return "early"
+}
+
+export default function TransportDashboard() {
+  const [activeTab, setActiveTab] = useState<TabKey>("early") // Initial default, updated after API fetch
+  const [apiData, setApiData] = useState<TransportData>(transportData)
+  const [refreshCounter, setRefreshCounter] = useState<number>(30) // Counter starts at 30 seconds
+  const [currentRunType, setCurrentRunType] = useState<string | null>(null) // Store API's curent_run_type
+  const token = useCookies().get("access_token")
+
+  // Fetch data from API and set initial active tab based on curent_run_type
+  const fetchData = async () => {
+    try {
+      const response = await fetch(`${API_URL}/activity/su-run/overview/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        const updatedData: TransportData = { ...transportData }
+
+        // Map API data to tabs
+        result.data.runs.forEach((run: any) => {
+          const tab = tabs.find((t) => run.runName.toLowerCase().includes(t.apiRunType.toLowerCase()))
+          if (tab) {
+            // Map internal jobs
+            const transfer = run.internalJobsList.find((j: any) => j.name === "Internal Transfer")?.Total || 0
+            const jobs = run.internalJobsList.find((j: any) => j.name === "Internal Jobs")?.Total || 0
+
+            updatedData[tab.id].internalOps = {
+              transfer: Number(transfer),
+              jobs: Number(jobs),
+            }
+
+            // Map data locations
+            updatedData[tab.id].data = run.data.map((loc: any): DataRow => ({
+              location: String(loc.location ?? ""),
+              out: Number(loc.out ?? 0),
+              in: Number(loc.in ?? 0),
+              spillOver: Number(loc.in ?? 0) - Number(loc.out ?? 0),
+            }))
+
+            // Update time range
+            updatedData[tab.id].timeRange = `${run.startTime} - ${run.endTime}`
+          }
+        })
+
+        setApiData(updatedData)
+        // Set active tab based on curent_run_type, or fall back to time-based logic
+        const runType = result.data.curent_run_type
+        if (runType && runNameToId[runType]) {
+          setActiveTab(runNameToId[runType])
+        } else {
+          setActiveTab(getCurrentShiftByTime(new Date()))
+        }
+        setCurrentRunType(runType)
+      }
+    } catch (error) {
+      console.error("Error fetching API data:", error)
+      // Fallback to time-based shift selection on error
+      setActiveTab(getCurrentShiftByTime(new Date()))
+    }
+  }
+
+  // Fetch data on component mount and when activeTab changes
+  useEffect(() => {
     fetchData()
-  }, [token])
+  }, [token, activeTab])
+
+  // Auto-refresh every 30 seconds with counter
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshCounter((prev) => {
+        if (prev <= 1) {
+          fetchData() // Trigger API refresh
+          return 30 // Reset counter to 30 seconds
+        }
+        return prev - 1 // Decrement counter
+      })
+    }, 1000) // Run every second
+
+    return () => clearInterval(interval) // Cleanup on unmount
+  }, [])
+
+  // Manual refresh function
+  const refreshData = () => {
+    fetchData()
+    setRefreshCounter(30)
+  }
 
   const currentData = apiData[activeTab]
 
-  const getTotalOut = () => currentData.data.reduce((sum, item) => sum + item.out, 0)
-  const getTotalIn = () => currentData.data.reduce((sum, item) => sum + item.in, 0)
-  const getTotalSpillOver = () => currentData.data.reduce((sum, item) => sum + item.spillOver, 0)
+ 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -120,6 +202,7 @@ export default function TransportDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">SU Number Screen</h1>
               <p className="text-sm text-gray-500 flex items-center gap-1">
                 Last updated: {new Date().toLocaleTimeString()}
+                <span className="ml-4">Next refresh in {refreshCounter} seconds</span>
               </p>
             </div>
           </div>
@@ -127,28 +210,54 @@ export default function TransportDashboard() {
       </div>
 
       <div className="p-6">
-        {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-6">
-          {tabs.map((tab) => (
-            <Badge
-              key={tab.id}
-              variant={activeTab === tab.id ? "default" : "outline"}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer gap-2 
-                ${tab.id === "early"
-                  ? "bg-red-500/10 border-red-500 text-red-600"
-                  : tab.id === "shuttle1"
-                    ? "bg-green-500/10 text-green-600 border-green-500"
-                    : tab.id === "shuttle2"
-                      ? "bg-pink-500/10 border-pink-500 text-pink-600"
-                      : tab.id === "shuttle3"
-                        ? "bg-orange-500/10 border-orange-500 text-orange-600"
-                        : "bg-purple-500/10 text-purple-600 border-purple-500"}
-                ${activeTab === tab.id ? "bg-white" : ""}`}
-            >
-              {tab.label}
-            </Badge>
-          ))}
+        {/* Navigation Tabs and Refresh Button */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex gap-2">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id
+              return (
+                <Badge
+                  key={tab.id}
+                  variant="outline"
+                  onClick={() => {
+                    setActiveTab(tab.id)
+                    setRefreshCounter(30) // Reset counter on tab change
+                  }}
+                  className={`flex items-center px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer gap-2
+                    ${
+                      tab.id === "early"
+                        ? isActive
+                          ? "bg-red-500/20 text-red-500 border-red-500/70"
+                          : "bg-white text-gray-600/50 border-gray-500/50"
+                        : tab.id === "shuttle1"
+                        ? isActive
+                          ? "bg-green-500/20 text-green-500 border-green-500/70"
+                          : "bg-white text-gray-600/50 border-gray-500/50"
+                        : tab.id === "shuttle2"
+                        ? isActive
+                          ? "bg-pink-500/20 text-pink-500 border-pink-500/70"
+                          : "bg-white text-gray-600/50 border-gray-500/50"
+                        : tab.id === "shuttle3"
+                        ? isActive
+                          ? "bg-orange-500/20 text-orange-500 border-orange-500/70"
+                          : "bg-white text-gray-600/50 border-gray-500/50"
+                        : isActive
+                        ? "bg-purple-500/20 text-purple-500 border-purple-500/70"
+                        : "bg-white text-gray-600/50 border-gray-500/50"
+                    }`}
+                >
+                  {tab.label}
+                </Badge>
+              )
+            })}
+          </div>
+          <Button
+            variant="outline"
+            onClick={refreshData}
+            className="text-sm"
+          >
+            Refresh 
+          </Button>
         </div>
 
         {/* Main Content */}
@@ -178,54 +287,40 @@ export default function TransportDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentData.data.map((row, index) => (
-                  <TableRow key={index} className="hover:bg-gray-50">
-                    <TableCell className="font-medium text-gray-900">{row.location}</TableCell>
-                    <TableCell className="text-center">
-                      <div className="bg-pink-100 text-pink-800 px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px]">
-                        {row.out}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="bg-green-100 text-green-800 px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px]">
-                        {row.in}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div
-                        className={`px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px] ${
-                          row.spillOver > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {row.spillOver > 0 ? "+" : ""}
-                        {row.spillOver}
-                      </div>
+                {currentData.data.length > 0 ? (
+                  currentData.data.map((row, index) => (
+                    <TableRow key={index} className="hover:bg-gray-50">
+                      <TableCell className="font-medium text-gray-900">{row.location}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="bg-pink-100 text-pink-800 px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px]">
+                          {row.out}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="bg-green-100 text-green-800 px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px]">
+                          {row.in}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div
+                          className={`px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px] ${
+                            row.spillOver > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {row.spillOver > 0 ? "+" : ""}
+                          {row.spillOver}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-gray-500 py-4">
+                      No data available
                     </TableCell>
                   </TableRow>
-                ))}
-                <TableRow className="bg-gray-100 font-semibold">
-                  <TableCell className="font-bold text-gray-900">Total</TableCell>
-                  <TableCell className="text-center">
-                    <div className="bg-pink-200 text-pink-900 px-3 py-1 rounded-md text-sm font-bold inline-block min-w-[40px]">
-                      {getTotalOut()}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="bg-green-200 text-green-900 px-3 py-1 rounded-md text-sm font-bold inline-block min-w-[40px]">
-                      {getTotalIn()}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div
-                      className={`px-3 py-1 rounded-md text-sm font-bold inline-block min-w-[40px] ${
-                        getTotalSpillOver() > 0 ? "bg-green-200 text-green-900" : "bg-red-200 text-red-900"
-                      }`}
-                    >
-                      {getTotalSpillOver() > 0 ? "+" : ""}
-                      {getTotalSpillOver()}
-                    </div>
-                  </TableCell>
-                </TableRow>
+                )}
+               
               </TableBody>
             </Table>
           </Card>
@@ -256,5 +351,3 @@ export default function TransportDashboard() {
     </div>
   )
 }
-
-

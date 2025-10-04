@@ -10,22 +10,21 @@ import Link from "next/link"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 
-// Define the shape of a log for the UI
 interface DutyLog {
   id: number
   day: string
   date: string
   timeRange: string
-  locationRange: string
   totalHours: string
   drivingHours: string
   breakHours: string
   status: string
   type: string
   empId: string
+  vehicle: number | null
+  vehicleRegistration: string | null
 }
 
-// API response interface
 interface ApiResponse {
   week_start: string
   week_end: string
@@ -38,25 +37,19 @@ interface ApiResponse {
     breaks_taken: string
     total_duty_time: string
     vehicle: number | null
-    vehicle_registration: string | null
+    vehicle_registration?: string | null   // snake_case
+    vehicleRegistration?: string | null   // camelCase (fallback)
     on_duty: boolean
     status: string
     user_name: string
   }[]
 }
 
-// Helper to format date from YYYY-MM-DD to MM/DD/YYYY
 const formatDate = (dateStr: string): string => {
   const [year, month, day] = dateStr.split("-")
   return `${month}/${day}/${year}`
 }
 
-// Helper to format location range
-const formatLocationRange = (vehicleRegistration: string | null): string => {
-  return vehicleRegistration || "N/A"
-}
-
-// Helper to capitalize status for display
 const formatStatus = (status: string): string => {
   return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
 }
@@ -90,39 +83,35 @@ export default function EmployeeDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const token = useCookies().get("access_token")
 
-  // Fetch logs from API (use dynamic employeeId)
   useEffect(() => {
     const fetchLogs = async () => {
       try {
         setLoading(true)
         const response = await fetch(`${API_URL}/activity/duty-logs/current-week/?user_id=6`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         })
-        if (!response.ok) {
-          throw new Error("Failed to fetch logs")
-        }
+        if (!response.ok) throw new Error("Failed to fetch logs")
         const data: ApiResponse = await response.json()
 
-        // Map API logs to component's expected format (consistent prefixes)
+        console.log("API raw log sample:", data.logs[0]) // debug check
+
         const formattedLogs: DutyLog[] = data.logs.map((log) => ({
           id: log.id,
           day: log.day,
           date: formatDate(log.date),
           empId: `LOG${log.id.toString().padStart(3, "0")}`,
           timeRange: log.shift_name,
-          locationRange: formatLocationRange(log.vehicle_registration),
           totalHours: `Total ${log.total_duty_time || "00:00:00"}`,
           drivingHours: `Driving ${log.driving_duty_hours || "00:00:00"}`,
-          breakHours: `Breaks ${log.breaks_taken || "00:00:00"}`, // Added prefix and null fallback
+          breakHours: `Breaks ${log.breaks_taken || "00:00:00"}`,
           status: formatStatus(log.status),
           type: "current",
+          vehicle: log.vehicle,
+          // handle both snake_case and camelCase
+          vehicleRegistration: log.vehicle_registration ?? log.vehicleRegistration ?? null,
         }))
 
         setLogs(formattedLogs)
-
-        // Set employee details from the first log
         if (data.logs.length > 0) {
           setEmployee({
             name: data.logs[0].user_name,
@@ -137,9 +126,7 @@ export default function EmployeeDetailPage() {
       }
     }
 
-    if (employeeId && token) { // Guard against missing params.id or token
-      fetchLogs()
-    }
+    if (employeeId && token) fetchLogs()
   }, [employeeId, token])
 
   const currentWeekLogs = logs.filter((log) => log.type === "current")
@@ -165,30 +152,15 @@ export default function EmployeeDetailPage() {
   const getSectionInfo = () => {
     switch (activeTab) {
       case "current":
-        return {
-          title: "Current Week Logs",
-          description: "Logs for the current driving week only",
-        }
+        return { title: "Current Week Logs", description: "Logs for the current driving week only" }
       case "incomplete":
-        return {
-          title: "Incomplete Logs",
-          description: "Logs that require completion or correction",
-        }
+        return { title: "Incomplete Logs", description: "Logs that require completion or correction" }
       case "waiting":
-        return {
-          title: "Waiting for Approval",
-          description: "Logs pending supervisor approval",
-        }
+        return { title: "Waiting for Approval", description: "Logs pending supervisor approval" }
       case "history":
-        return {
-          title: "Historical Logs",
-          description: "Previous weeks and archived logs",
-        }
+        return { title: "Historical Logs", description: "Previous weeks and archived logs" }
       default:
-        return {
-          title: "Current Week Logs",
-          description: "Logs for the current driving week only",
-        }
+        return { title: "Current Week Logs", description: "Logs for the current driving week only" }
     }
   }
 
@@ -198,11 +170,10 @@ export default function EmployeeDetailPage() {
   return (
     <div className="min-h-screen bg-white p-6">
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header Section */}
+        {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
+            <ArrowLeft className="h-4 w-4" /> Back
           </Button>
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-gray-900">Daily Logs - {employee.name}</h1>
@@ -212,57 +183,43 @@ export default function EmployeeDetailPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab("current")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "current"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Current Week
-          </button>
-          <button
-            onClick={() => setActiveTab("incomplete")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 clip-tab transition-colors flex items-center gap-2 ${
-              activeTab === "incomplete"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 bg-gray-50 hover:text-gray-700"
-            }`}
-          >
-            Incomplete
-            {incompleteLogs.length > 0 && (
-              <Badge className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
-                {incompleteLogs.length}
-              </Badge>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("waiting")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 clip-tab transition-colors flex items-center gap-2 ${
-              activeTab === "waiting"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 bg-gray-50 hover:text-gray-700"
-            }`}
-          >
-            Waiting
-            {waitingLogs.length > 0 && (
-              <Badge className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">{waitingLogs.length}</Badge>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("history")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 clip-tab transition-colors ${
-              activeTab === "history"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 bg-gray-50 hover:text-gray-700"
-            }`}
-          >
-            History
-          </button>
+          {["current", "incomplete", "waiting", "history"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab
+                  ? "border-orange-500 text-orange-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {tab === "current" && "Current Week"}
+              {tab === "incomplete" && (
+                <>
+                  Incomplete
+                  {incompleteLogs.length > 0 && (
+                    <Badge className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
+                      {incompleteLogs.length}
+                    </Badge>
+                  )}
+                </>
+              )}
+              {tab === "waiting" && (
+                <>
+                  Waiting
+                  {waitingLogs.length > 0 && (
+                    <Badge className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
+                      {waitingLogs.length}
+                    </Badge>
+                  )}
+                </>
+              )}
+              {tab === "history" && "History"}
+            </button>
+          ))}
         </div>
 
-        {/* Logs Section */}
+        {/* Logs */}
         <div className="space-y-6">
           <div className="space-y-2">
             <h2 className="text-lg font-semibold text-gray-900">{sectionInfo.title}</h2>
@@ -281,7 +238,10 @@ export default function EmployeeDetailPage() {
             <div className="space-y-3">
               {filteredLogs.map((log) => (
                 <Card key={log.id} className="p-4 bg-gray-50">
-                  <Link href={`/dashboard/users/daily-duty-logs/${employeeId}/${log.id}`} className="flex items-center justify-between">
+                  <Link
+                    href={`/dashboard/users/daily-duty-logs/${employeeId}/${log.id}`}
+                    className="flex items-center justify-between"
+                  >
                     <div className="flex items-center gap-4 md:gap-8">
                       {/* Day and Date */}
                       <div className="min-w-[120px]">
@@ -289,36 +249,40 @@ export default function EmployeeDetailPage() {
                         <div className="text-sm text-gray-500">{log.date}</div>
                       </div>
 
-                    
-
-                      {/* Time Range (shift_name) */}
+                      {/* Shift */}
                       <div className="flex items-center gap-2 min-w-[140px]">
-                        <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <Clock className="h-4 w-4 text-gray-400" />
                         <span className="text-sm text-gray-700 truncate">{log.timeRange}</span>
                       </div>
 
-                     
+                      {/* Vehicle Registration */}
+                      <div className="flex items-center gap-2 min-w-[140px]">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-700 truncate">
+                          {log.vehicleRegistration || "No Vehicle"}
+                        </span>
+                      </div>
 
-                      {/* Total Duty Hours */}
+                      {/* Total Duty */}
                       <div className="min-w-[100px] flex items-center gap-1">
-                        <Clock className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                        <Clock className="h-4 w-4 text-blue-400" />
                         <span className="text-sm font-medium text-blue-600 truncate">{log.totalHours}</span>
                       </div>
 
-                      {/* Driving Hours */}
+                      {/* Driving */}
                       <div className="min-w-[100px] flex items-center gap-1">
-                        <Clock className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                        <Clock className="h-4 w-4 text-blue-400" />
                         <span className="text-sm font-medium text-blue-600 truncate">{log.drivingHours}</span>
                       </div>
 
-                      {/* Break Hours */}
+                      {/* Breaks */}
                       <div className="min-w-[100px] flex items-center gap-1">
-                        <Clock className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                        <Clock className="h-4 w-4 text-blue-400" />
                         <span className="text-sm font-medium text-blue-600 truncate">{log.breakHours}</span>
                       </div>
                     </div>
 
-                    {/* Status Badge */}
+                    {/* Status */}
                     <div>
                       <Badge variant="secondary" className={`${getStatusColor(log.status)} text-xs px-3 py-1`}>
                         {log.status}
