@@ -79,8 +79,8 @@ const getCurrentShiftByTime = (currentTime: Date): TabKey => {
   for (const tab of tabs) {
     const start = parseTime(tab.startTime)
     const end = parseTime(tab.endTime)
-    let startMinutes = start.hours * 60 + start.minutes
-    let endMinutes = end.hours * 60 + end.minutes
+    const startMinutes = start.hours * 60 + start.minutes
+    const endMinutes = end.hours * 60 + end.minutes
 
     // Handle "Night" shift crossing midnight
     if (tab.id === "night") {

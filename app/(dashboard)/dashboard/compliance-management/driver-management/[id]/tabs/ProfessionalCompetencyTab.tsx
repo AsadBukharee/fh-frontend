@@ -917,7 +917,7 @@ export default function ProfessionalCompetencyTab({
                               Upcoming CPC Training Schedule
                             </p>
                             <p className="text-xs text-indigo-700 mt-1">
-                              These modules represent the next five training sessions required for CPC certification maintenance. Click "Edit Document" to update.
+                              These modules represent the next five training sessions required for CPC certification maintenance. Click &qout;Edit Document&qout; to update.
                             </p>
                           </div>
                         </div>
@@ -933,7 +933,7 @@ export default function ProfessionalCompetencyTab({
                               Save Your Changes
                             </p>
                             <p className="text-xs text-orange-700 mt-1">
-                              Don't forget to click "Save Changes" button at the top to save your module updates.
+                              Don&apos;t forget to click &qout;Save Changes&qout; button at the top to save your module updates.
                             </p>
                           </div>
                         </div>
@@ -968,7 +968,7 @@ export default function ProfessionalCompetencyTab({
                     Document Upload Required
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
-                    You've changed the expiry date but haven't uploaded the updated documents yet. 
+                    You&apos;ve changed the expiry date but haven&apos;t uploaded the updated documents yet. 
                     Set a reminder to upload them later, and your changes will be saved.
                   </p>
                 </div>
@@ -1092,7 +1092,7 @@ export default function ProfessionalCompetencyTab({
             </div>
 
             <p className="text-xs text-gray-600 text-center pt-2">
-              Your changes will be saved, and you'll receive a reminder to upload the documents later.
+              Your changes will be saved, and you&apos;ll receive a reminder to upload the documents later.
             </p>
           </div>
         </DialogContent>

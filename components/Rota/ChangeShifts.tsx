@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, Clock, User, MessageSquare, ArrowRight, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+import { Calendar, Clock, User, MessageSquare, ArrowRight, AlertCircle, Check, X } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 
@@ -25,11 +29,30 @@ interface ChangeShiftRequest {
   shift_changes: ShiftChange[];
 }
 
+interface ActionDialogState {
+  isOpen: boolean;
+  requestId: number | null;
+  shiftChangeIds: number[];
+  action: 'approved' | 'rejected' | null;
+  driverName: string;
+  isBulkAction: boolean;
+}
+
 const ChangeShifts: React.FC = () => {
   const [requests, setRequests] = useState<ChangeShiftRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [dialogState, setDialogState] = useState<ActionDialogState>({
+    isOpen: false,
+    requestId: null,
+    shiftChangeIds: [],
+    action: null,
+    driverName: '',
+    isBulkAction: false,
+  });
+  const [adminResponse, setAdminResponse] = useState<string>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
   const cookies = useCookies();
 
   useEffect(() => {
@@ -56,19 +79,93 @@ const ChangeShifts: React.FC = () => {
     fetchShiftRequests();
   }, []);
 
-  const filteredRequests = requests.filter(req => 
-    filterStatus === 'all' ? true : req.status === filterStatus
-  );
+  const openActionDialog = (request: ChangeShiftRequest, action: 'approved' | 'rejected', shiftChangeId?: number) => {
+    setDialogState({
+      isOpen: true,
+      requestId: request.id,
+      shiftChangeIds: shiftChangeId ? [shiftChangeId] : request.shift_changes.map(sc => sc.id),
+      action,
+      driverName: request.driver_name,
+      isBulkAction: !shiftChangeId,
+    });
+    setAdminResponse('');
+  };
+
+  const closeDialog = () => {
+    setDialogState({
+      isOpen: false,
+      requestId: null,
+      shiftChangeIds: [],
+      action: null,
+      driverName: '',
+      isBulkAction: false,
+    });
+    setAdminResponse('');
+  };
+
+  const handleSubmitAction = async () => {
+    if (!dialogState.action || dialogState.shiftChangeIds.length === 0) return;
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        requests: dialogState.shiftChangeIds.map(id => ({
+          change_shift_id: id,
+          approval: dialogState.action,
+        })),
+        admin_response: adminResponse.trim() || undefined,
+      };
+
+      const response = await fetch(`${API_URL}/api/staff/change-shift-requests/approve/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${cookies.get('access_token')}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process request');
+      }
+
+      // Refresh the requests list
+      const updatedResponse = await fetch(`${API_URL}/api/staff/change-shift-requests/`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${cookies.get('access_token')}`,
+        },
+      });
+      
+      if (updatedResponse.ok) {
+        const data: ChangeShiftRequest[] = await updatedResponse.json();
+        setRequests(data);
+      }
+
+      closeDialog();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const filteredRequests = requests.filter(req => {
+    if (filterStatus === 'all') return true;
+    if (filterStatus === 'approved') return req.status === 'approved' || req.status === 'approved';
+    return req.status === filterStatus;
+  });
 
   const statusCounts = {
     all: requests.length,
     pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved').length,
+    approved: requests.filter(r => r.status === 'approved' || r.status === 'approved').length,
     rejected: requests.filter(r => r.status === 'rejected').length,
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'approved':
       case 'approved':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'rejected':
@@ -188,11 +285,14 @@ const ChangeShifts: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    <Badge
-                      className={`${getStatusColor(request.status)} border px-4 py-1.5 font-semibold text-sm`}
-                    >
-                      {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        className={`${getStatusColor(request.status)} border px-4 py-1.5 font-semibold text-sm`}
+                      >
+                        {request.status === 'approved' ? 'Approved' :(request.status=='partial_accepted'?"Partial Accepted": request.status.charAt(0).toUpperCase() + request.status.slice(1))}
+                      </Badge>
+                     
+                    </div>
                   </div>
                 </CardHeader>
 
@@ -245,6 +345,7 @@ const ChangeShifts: React.FC = () => {
                             <TableHead className="font-semibold text-slate-700"></TableHead>
                             <TableHead className="font-semibold text-slate-700">New Shift</TableHead>
                             <TableHead className="font-semibold text-slate-700">Status</TableHead>
+                            <TableHead className="font-semibold text-slate-700 text-center">Action</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -274,8 +375,31 @@ const ChangeShifts: React.FC = () => {
                                 <Badge
                                   className={`${getStatusColor(shift.approval)} border font-medium`}
                                 >
-                                  {shift.approval.charAt(0).toUpperCase() + shift.approval.slice(1)}
+                                  {shift.approval === 'approved' ? 'Approved' : shift.approval.charAt(0).toUpperCase() + shift.approval.slice(1)}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {shift.approval === 'pending' && (
+                                  <div className="flex gap-1.5 justify-center">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => openActionDialog(request, 'approved', shift.id)}
+                                      className="bg-green-600 hover:bg-green-700 text-white h-8 px-3"
+                                    >
+                                      <Check className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => openActionDialog(request, 'rejected', shift.id)}
+                                      className="bg-red-600 hover:bg-red-700 text-white h-8 px-3"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                )}
+                                {shift.approval !== 'pending' && (
+                                  <div className="text-center text-slate-400 text-sm">—</div>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -289,6 +413,77 @@ const ChangeShifts: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Action Dialog */}
+      <Dialog open={dialogState.isOpen} onOpenChange={closeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {dialogState.action === 'approved' ? (
+                <>
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100">
+                    <Check className="h-5 w-5 text-green-600" />
+                  </div>
+                  Approve Shift Change Request
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-100">
+                    <X className="h-5 w-5 text-red-600" />
+                  </div>
+                  Reject Shift Change Request
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {dialogState.isBulkAction ? (
+                dialogState.action === 'approved' 
+                  ? `You are approving all ${dialogState.shiftChangeIds.length} shift change(s) for ${dialogState.driverName}.`
+                  : `You are rejecting all ${dialogState.shiftChangeIds.length} shift change(s) for ${dialogState.driverName}.`
+              ) : (
+                dialogState.action === 'approved' 
+                  ? `You are approving this individual shift change for ${dialogState.driverName}.`
+                  : `You are rejecting this individual shift change for ${dialogState.driverName}.`
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label htmlFor="admin-response" className="text-sm font-medium text-slate-700 mb-2 block">
+                Admin Response {dialogState.action === 'rejected' && <span className="text-red-500">*</span>}
+              </label>
+              <Textarea
+                id="admin-response"
+                placeholder={dialogState.action === 'approved' 
+                  ? "Add an optional message (e.g., 'Approved as per company policy')"
+                  : "Please provide a reason for rejection"}
+                value={adminResponse}
+                onChange={(e) => setAdminResponse(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeDialog}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitAction}
+              disabled={submitting || (dialogState.action === 'rejected' && !adminResponse.trim())}
+              className={dialogState.action === 'approved' 
+                ? 'bg-green-600 hover:bg-green-700' 
+                : 'bg-red-600 hover:bg-red-700'}
+            >
+              {submitting ? 'Processing...' : `Confirm ${dialogState.action === 'approved' ? 'Approval' : 'Rejection'}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
