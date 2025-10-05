@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -51,12 +50,13 @@ const tabs: { id: TabKey; label: string; apiRunType: string; color: string; star
   { id: "night", label: "Night", apiRunType: "Night", color: "border-purple-200 text-purple-600", startTime: "7:00 PM", endTime: "4:59 AM" },
 ]
 
-// Map API run names to TabKey
+// Map API run names to TabKey, including the exact format from API
 const runNameToId: Record<string, TabKey> = {
   Early: "early",
   "First Shuttle": "shuttle1",
   "Second Shuttle": "shuttle2",
-  "Third Shuttle": "shuttle3",
+  "3rd Shuttle Run": "shuttle3", // Match API's exact format
+  "Third Shuttle": "shuttle3", // Support both formats for robustness
   Night: "night",
 }
 
@@ -99,10 +99,10 @@ const getCurrentShiftByTime = (currentTime: Date): TabKey => {
 }
 
 export default function TransportDashboard() {
-  const [activeTab, setActiveTab] = useState<TabKey>("early") // Initial default, updated after API fetch
+  const [activeTab, setActiveTab] = useState<TabKey>("early")
   const [apiData, setApiData] = useState<TransportData>(transportData)
-  const [refreshCounter, setRefreshCounter] = useState<number>(30) // Counter starts at 30 seconds
-  const [currentRunType, setCurrentRunType] = useState<string | null>(null) // Store API's curent_run_type
+  const [refreshCounter, setRefreshCounter] = useState<number>(30)
+  const [currentRunType, setCurrentRunType] = useState<string | null>(null)
   const token = useCookies().get("access_token")
 
   // Fetch data from API and set initial active tab based on curent_run_type
@@ -121,19 +121,19 @@ export default function TransportDashboard() {
 
         // Map API data to tabs
         result.data.runs.forEach((run: any) => {
-          const tab = tabs.find((t) => run.runName.toLowerCase().includes(t.apiRunType.toLowerCase()))
-          if (tab) {
+          const tabId = runNameToId[run.runName]
+          if (tabId) {
             // Map internal jobs
             const transfer = run.internalJobsList.find((j: any) => j.name === "Internal Transfer")?.Total || 0
             const jobs = run.internalJobsList.find((j: any) => j.name === "Internal Jobs")?.Total || 0
 
-            updatedData[tab.id].internalOps = {
+            updatedData[tabId].internalOps = {
               transfer: Number(transfer),
               jobs: Number(jobs),
             }
 
             // Map data locations
-            updatedData[tab.id].data = run.data.map((loc: any): DataRow => ({
+            updatedData[tabId].data = run.data.map((loc: any): DataRow => ({
               location: String(loc.location ?? ""),
               out: Number(loc.out ?? 0),
               in: Number(loc.in ?? 0),
@@ -141,45 +141,49 @@ export default function TransportDashboard() {
             }))
 
             // Update time range
-            updatedData[tab.id].timeRange = `${run.startTime} - ${run.endTime}`
+            updatedData[tabId].timeRange = `${run.startTime} - ${run.endTime}`
           }
         })
 
         setApiData(updatedData)
-        // Set active tab based on curent_run_type, or fall back to time-based logic
-        const runType = result.data.curent_run_type
+        // Set active tab based on curent_run_type, handling typo
+        const runType = result.data.current_run_type || result.data.curent_run_type
         if (runType && runNameToId[runType]) {
           setActiveTab(runNameToId[runType])
         } else {
           setActiveTab(getCurrentShiftByTime(new Date()))
         }
         setCurrentRunType(runType)
+      } else {
+        console.error("API returned unsuccessful response:", result.message)
+        setActiveTab(getCurrentShiftByTime(new Date()))
       }
     } catch (error) {
       console.error("Error fetching API data:", error)
-      // Fallback to time-based shift selection on error
       setActiveTab(getCurrentShiftByTime(new Date()))
     }
   }
 
-  // Fetch data on component mount and when activeTab changes
+  // Fetch data on component mount
   useEffect(() => {
-    fetchData()
-  }, [token, activeTab])
+    if (token) {
+      fetchData()
+    }
+  }, [token])
 
   // Auto-refresh every 30 seconds with counter
   useEffect(() => {
     const interval = setInterval(() => {
       setRefreshCounter((prev) => {
         if (prev <= 1) {
-          fetchData() // Trigger API refresh
-          return 30 // Reset counter to 30 seconds
+          fetchData()
+          return 30
         }
-        return prev - 1 // Decrement counter
+        return prev - 1
       })
-    }, 1000) // Run every second
+    }, 1000)
 
-    return () => clearInterval(interval) // Cleanup on unmount
+    return () => clearInterval(interval)
   }, [])
 
   // Manual refresh function
@@ -189,8 +193,6 @@ export default function TransportDashboard() {
   }
 
   const currentData = apiData[activeTab]
-
- 
 
   return (
     <div className="min-h-screen bg-white">
@@ -221,7 +223,7 @@ export default function TransportDashboard() {
                   variant="outline"
                   onClick={() => {
                     setActiveTab(tab.id)
-                    setRefreshCounter(30) // Reset counter on tab change
+                    setRefreshCounter(30)
                   }}
                   className={`flex items-center px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer gap-2
                     ${
@@ -256,7 +258,7 @@ export default function TransportDashboard() {
             onClick={refreshData}
             className="text-sm"
           >
-            Refresh 
+            Refresh
           </Button>
         </div>
 
@@ -304,7 +306,11 @@ export default function TransportDashboard() {
                       <TableCell className="text-center">
                         <div
                           className={`px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px] ${
-                            row.spillOver > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                            row.spillOver > 0
+                              ? "bg-green-100 text-green-800"
+                              : row.spillOver < 0
+                              ? "bg-red-100 text-red-800"
+                              : "bg-gray-100 text-gray-800"
                           }`}
                         >
                           {row.spillOver > 0 ? "+" : ""}
@@ -320,7 +326,6 @@ export default function TransportDashboard() {
                     </TableCell>
                   </TableRow>
                 )}
-               
               </TableBody>
             </Table>
           </Card>

@@ -28,10 +28,10 @@ export default function HealthAnswerTab({
   handleSaveHealth,
 }: HealthAnswerTabProps) {
   return (
-    <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all rounded-xl">
+    <Card className="shadow-lg bg-gradient-to-br from-white to-orange-50 hover:shadow-xl transition-all rounded-xl">
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle className="flex items-center gap-3 text-2xl text-purple-800">
+          <CardTitle className="flex items-center gap-3 text-2xl text-orange-800">
             <Heart className="h-6 w-6" />
             Health Information
           </CardTitle>
@@ -41,7 +41,7 @@ export default function HealthAnswerTab({
                 <Button
                   onClick={handleSaveHealth}
                   disabled={savingHealth}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
                 >
                   {savingHealth ? (
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
@@ -54,7 +54,7 @@ export default function HealthAnswerTab({
                   variant="outline"
                   onClick={handleHealthEditToggle}
                   disabled={savingHealth}
-                  className="border-purple-600 text-purple-600 hover:bg-purple-100 rounded-lg transition-all"
+                  className="border-orange-600 text-orange-600 hover:bg-orange-100 rounded-lg transition-all"
                 >
                   <X className="h-5 w-5 mr-2" />
                   Cancel
@@ -82,7 +82,7 @@ export default function HealthAnswerTab({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label className="text-sm font-semibold text-gray-600">Question</Label>
-                  <p className="font-medium text-purple-800">{health.question_text}</p>
+                  <p className="font-medium text-orange-800">{health.question_text}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-semibold text-gray-600">Answer</Label>
@@ -93,7 +93,7 @@ export default function HealthAnswerTab({
                         handleHealthInputChange(health.id, "answer", value === "true")
                       }
                     >
-                      <SelectTrigger className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg">
+                      <SelectTrigger className="border-orange-200 focus:ring-2 focus:ring-orange-600 rounded-lg">
                         <SelectValue placeholder="Select answer" />
                       </SelectTrigger>
                       <SelectContent>
@@ -102,7 +102,7 @@ export default function HealthAnswerTab({
                       </SelectContent>
                     </Select>
                   ) : (
-                    <p className="font-medium text-purple-800">{health.answer ? "Yes" : "No"}</p>
+                    <p className="font-medium text-orange-800">{health.answer ? "Yes" : "No"}</p>
                   )}
                 </div>
                 <div className="col-span-2">
@@ -114,20 +114,20 @@ export default function HealthAnswerTab({
                         handleHealthInputChange(health.id, "note", e.target.value)
                       }
                       placeholder="Enter note"
-                      className="border-purple-200 focus:ring-2 focus:ring-purple-600 rounded-lg"
+                      className="border-orange-200 focus:ring-2 focus:ring-orange-600 rounded-lg"
                     />
                   ) : (
-                    <p className="font-medium text-purple-800">{health.note || "No note provided"}</p>
+                    <p className="font-medium text-orange-800">{health.note || "No note provided"}</p>
                   )}
                 </div>
                 <div className="col-span-2">
                   <Label className="text-sm font-semibold text-gray-600">Admin Remarks</Label>
-                  <p className="font-medium text-purple-800">
+                  <p className="font-medium text-orange-800">
                     {health.admin_remarks || "No remarks provided"}
                   </p>
                 </div>
               </div>
-              <Separator className="bg-purple-200" />
+              <Separator className="bg-orange-200" />
             </div>
           ))
         )}

@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
@@ -145,6 +144,7 @@ const runNameToId: Record<string, string> = {
   '1st Shuttle Run': 'shuttle1', // Handle API typo
   'Second Shuttle': 'shuttle2',
   'Third Shuttle': 'shuttle3',
+  '3rd Shuttle Run': 'shuttle3',
   Night: 'night',
 };
 
@@ -204,7 +204,6 @@ const MaintenanceRunsPage = () => {
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [refreshCounter, setRefreshCounter] = useState<number>(30); // Auto-refresh counter
-  const [currentRunType, setCurrentRunType] = useState<string | null>(null); // Store API's curent_run_type
   const token = useCookies().get('access_token');
 
   // Fetch vehicles, drivers, and current run type
@@ -246,7 +245,6 @@ const MaintenanceRunsPage = () => {
           setRunType(tabs.find((tab) => tab.id === timeBasedShift)?.apiRunType || 'all');
           setTempRunType(tabs.find((tab) => tab.id === timeBasedShift)?.apiRunType || 'all');
         }
-        setCurrentRunType(runType);
       } catch (err) {
         setError((err as Error).message);
         // Fallback to time-based shift selection on error
@@ -294,7 +292,7 @@ const MaintenanceRunsPage = () => {
     const interval = setInterval(() => {
       setRefreshCounter((prev) => {
         if (prev <= 1) {
-          fetchMaintenanceRuns(); // Trigger data refresh
+          refreshData(); // Trigger data refresh
           return 30; // Reset counter
         }
         return prev - 1;
@@ -304,34 +302,46 @@ const MaintenanceRunsPage = () => {
   }, []);
 
   // Manual refresh function
-  const refreshData = () => {
-    fetchMaintenanceRuns();
-    setRefreshCounter(30);
-  };
-
-  // Fetch maintenance runs (for refresh)
-  const fetchMaintenanceRuns = async () => {
+  const refreshData = async () => {
     setLoading(true);
     try {
-      const queryParams = new URLSearchParams({
-        ...(vehicleId !== 'all' && { vehicle: vehicleId }),
-        ...(driverId !== 'all' && { driver: driverId }),
-        ...(runType !== 'all' && { run_type: runType }),
-        page: page.toString(),
-        page_size: '20',
-      });
-      const response = await fetch(`${API_URL}/activity/maintenance-run/?${queryParams}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch maintenance runs');
+      const [currentRunResponse, maintenanceResponse] = await Promise.all([
+        fetch(`${API_URL}/activity/su-run/overview/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_URL}/activity/maintenance-run/?${new URLSearchParams({
+          ...(vehicleId !== 'all' && { vehicle: vehicleId }),
+          ...(driverId !== 'all' && { driver: driverId }),
+          ...(runType !== 'all' && { run_type: runType }),
+          page: page.toString(),
+          page_size: '20',
+        })}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+      ]);
+
+      if (currentRunResponse.ok) {
+        const currentRunData: CurrentRunApiResponse = await currentRunResponse.json();
+        const newRunType = currentRunData.data.curent_run_type;
+        if (newRunType && runNameToId[newRunType]) {
+          const newTabId = runNameToId[newRunType];
+          if (activeTab !== newTabId) {
+            setActiveTab(newTabId);
+            setRunType(tabs.find((tab) => tab.id === newTabId)?.apiRunType || 'all');
+            setTempRunType(tabs.find((tab) => tab.id === newTabId)?.apiRunType || 'all');
+            setPage(1);
+          }
+        }
       }
-      const data: ApiResponse = await response.json();
-      setMaintenanceRuns(data.data.results || []);
-      setTotalPages(data.data.total_pages || 1);
+
+      if (maintenanceResponse.ok) {
+        const data: ApiResponse = await maintenanceResponse.json();
+        setMaintenanceRuns(data.data.results || []);
+        setTotalPages(data.data.total_pages || 1);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {

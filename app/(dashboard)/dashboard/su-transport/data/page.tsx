@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,7 @@ interface ApiResponse {
   success: boolean;
   message: string;
   data: {
+    current_run_type: string;
     runs: ApiRun[];
     count: number;
     page: number;
@@ -90,7 +91,7 @@ interface Driver {
   email: string;
 }
 
-// Define types for your data structure
+// Define types for data structure
 type TimeSlotId = "early" | "shuttle1" | "shuttle2" | "shuttle3" | "night";
 
 interface LocationRow {
@@ -124,7 +125,6 @@ const fallbackTransportData: TransportData = {
   night: { timeRange: "7:00 PM - 4:59 AM", data: [], internalOps: { drivers: [] } },
 };
 
-// Fallback static lists for locations and drivers
 const fallbackLocations: Location[] = [
   { id: 15, name: "Braintree Bus Station" },
   { id: 16, name: "Braintree Borno Pharmacy" },
@@ -132,27 +132,19 @@ const fallbackLocations: Location[] = [
   { id: 18, name: "Braintree Police Station" },
   { id: 26, name: "Colchester Napier Road" },
 ];
+
 const fallbackDrivers: Driver[] = [
   { id: 1, full_name: "John David", avatar: null, email: "john.david@example.com" },
   { id: 2, full_name: "Jane Smith", avatar: null, email: "jane.smith@example.com" },
   { id: 3, full_name: "Mike Johnson", avatar: null, email: "mike.johnson@example.com" },
 ];
 
-// Map time slot IDs to API run names
-const idToRunName: Record<TimeSlotId, string> = {
-  early: "Early",
-  shuttle1: "First Shuttle",
-  shuttle2: "2nd Shuttle Run",
-  shuttle3: "Third Shuttle",
-  night: "Night",
-};
-
 // Map API run names to time slot IDs
 const runNameToId: Record<string, TimeSlotId> = {
   Early: "early",
   "First Shuttle": "shuttle1",
-  "2nd Shuttle Run": "shuttle2",
-  "Third Shuttle": "shuttle3",
+  "Second Shuttle": "shuttle2",
+  "3rd Shuttle Run": "shuttle3",
   Night: "night",
 };
 
@@ -164,47 +156,8 @@ const tabs: { id: TimeSlotId; label: string; color: string; startTime: string; e
   { id: "night", label: "Night", color: "bg-blue-100 text-blue-600 border-blue-200", startTime: "7:00 PM", endTime: "4:59 AM" },
 ];
 
-// Helper function to parse time strings (e.g., "5:00 AM") to hours and minutes
-const parseTime = (timeStr: string): { hours: number; minutes: number } => {
-  const [time, period] = timeStr.split(" ");
-  const [hours, minutes] = time.split(":").map(Number);
-  return {
-    hours: period === "PM" && hours !== 12 ? hours + 12 : period === "AM" && hours === 12 ? 0 : hours,
-    minutes,
-  };
-};
-
-// Helper function to determine the current shift based on current time
-const getCurrentShift = (currentTime: Date): TimeSlotId => {
-  const hours = currentTime.getHours();
-  const minutes = currentTime.getMinutes();
-  const currentMinutes = hours * 60 + minutes;
-
-  for (const tab of tabs) {
-    const start = parseTime(tab.startTime);
-    const end = parseTime(tab.endTime);
-    let startMinutes = start.hours * 60 + start.minutes;
-    let endMinutes = end.hours * 60 + end.minutes;
-
-    // Handle "Night" shift crossing midnight
-    if (tab.id === "night") {
-      if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
-        return "night";
-      }
-    } else {
-      // For other shifts, check if current time is within start and end
-      if (startMinutes <= currentMinutes && currentMinutes <= endMinutes) {
-        return tab.id;
-      }
-    }
-  }
-
-  // Default to "early" if no shift matches
-  return "early";
-};
-
 export default function TransportDashboard() {
-  const [activeTab, setActiveTab] = useState<TimeSlotId>(getCurrentShift(new Date()));
+  const [activeTab, setActiveTab] = useState<TimeSlotId | null>(null); // Initialize as null
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
@@ -223,7 +176,7 @@ export default function TransportDashboard() {
     location_name: string;
     data: { driver_name: string; number: number; datetime: string; direction: string }[];
   } | null>(null);
-  const [refreshCounter, setRefreshCounter] = useState<number>(30); // Counter starts at 30 seconds
+  const [refreshCounter, setRefreshCounter] = useState<number>(30);
   const cookies = useCookies();
   const token = cookies.get("access_token");
 
@@ -299,8 +252,8 @@ export default function TransportDashboard() {
     fetchDrivers();
   }, [token]);
 
-  // Fetch transport data based on filters and active tab
-  const fetchData = async () => {
+  // Fetch transport data
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const today = new Date();
@@ -315,7 +268,6 @@ export default function TransportDashboard() {
         direction: direction !== "all" ? direction : "",
         page: page.toString(),
         page_size: "20",
-        run_type: idToRunName[activeTab], // Tab-specific run type
       });
 
       const response = await fetch(
@@ -341,45 +293,48 @@ export default function TransportDashboard() {
           internalOps: {
             drivers: run.internalJobsList.map((job) => ({
               name: job.name,
-              transfers: parseInt(job.Total),
-              jobs: parseInt(job.Total),
+              transfers: job.name === "Internal Transfer" ? parseInt(job.Total) : 0,
+              jobs: job.name === "Internal Jobs" ? parseInt(job.Total) : 0,
               total: parseInt(job.Total),
             })),
           },
         };
       });
+
       setTransportData(newTransportData);
       setTotalPages(apiData.data.total_pages);
+      setActiveTab(runNameToId[apiData.data.current_run_type] || "early");
       setError(null);
     } catch (err) {
       setError("Error fetching data. Using fallback data.");
+      setActiveTab("early"); // Fallback to "early" on error
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [dateRange.from, dateRange.to, selectedDriver, selectedLocation, direction, page, token]);
 
-  // Fetch data on filter changes, tab changes, or initial load
+  // Fetch data on filter changes or initial load
   useEffect(() => {
     fetchData();
-  }, [dateRange.from, dateRange.to, selectedDriver, selectedLocation, direction, page, activeTab, token]);
+  }, [fetchData]);
 
   // Auto-refresh every 30 seconds with counter
   useEffect(() => {
     const interval = setInterval(() => {
       setRefreshCounter((prev) => {
         if (prev <= 1) {
-          fetchData(); // Trigger API refresh
-          return 30; // Reset counter to 30 seconds
+          fetchData();
+          return 30;
         }
-        return prev - 1; // Decrement counter
+        return prev - 1;
       });
-    }, 1000); // Run every second
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, []);
-
-  const currentData = transportData[activeTab];
+  // Use fallback tab if still loading
+  const currentData = activeTab ? transportData[activeTab] : transportData.early;
 
   const filteredData = currentData.data.filter((row: LocationRow) => {
     return selectedLocation === "all" || row.location === selectedLocation;
@@ -397,7 +352,6 @@ export default function TransportDashboard() {
     try {
       const queryParams = new URLSearchParams({
         location_name: locationName,
-        run_type: idToRunName[activeTab],
         start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
         end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       });
@@ -441,7 +395,7 @@ export default function TransportDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">SU Data Management</h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">Last updated 12:58 PM</span>
+            <span className="text-sm text-gray-500">Last updated {new Date().toLocaleTimeString()}</span>
             <span className="text-sm text-gray-500">
               Next refresh in {refreshCounter} seconds
             </span>
@@ -450,157 +404,161 @@ export default function TransportDashboard() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center mb-6 justify-between">
-        <div className="flex gap-2">
-          {tabs.map((tab) => (
-            <Badge
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setPage(1); // Reset pagination for new tab
-                setRefreshCounter(30);
-              }}
-              className={`px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer ${
-                activeTab === tab.id ? tab.color : "text-gray-500 hover:text-gray-700 bg-white border-gray-200"
-              }`}
+      {!isLoading && activeTab && (
+        <div className="flex items-center mb-6 justify-between">
+          <div className="flex gap-2">
+            {tabs.map((tab) => (
+              <Badge
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setPage(1);
+                  setRefreshCounter(30);
+                }}
+                className={`px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer ${
+                  activeTab === tab.id ? tab.color : "text-gray-500 hover:text-gray-700 bg-white border-gray-200"
+                }`}
+              >
+                {tab.label}
+              </Badge>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <ExportButton data={filteredData} fileName="SU Data Management" />
+            <Button
+              variant="outline"
+              onClick={clearFilters}
+              className="text-sm"
             >
-              {tab.label}
-            </Badge>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportButton data={filteredData} fileName="SU data Management" />
-          <Button
-            variant="outline"
-            onClick={clearFilters}
-            className="text-sm"
-          >
-            Clear Filters
-          </Button>
-          <Button
-            variant="outline"
-            onClick={refreshData}
-            className="text-sm"
-          >
-            Refresh 
-          </Button>
-        </div>
-      </div>
-
-      {/* Section Header */}
-      <div className="mb-4">
-        <div className="mb-2">
-          <h2 className="text-lg font-semibold text-gray-900">Reports</h2>
-          <p className="text-sm text-gray-500">{currentData.timeRange} data</p>
-        </div>
-        {/* Filter Row */}
-        <div className="flex items-center gap-4 mb-6 text-sm text-gray-600">
-          <Select onValueChange={setDirection} value={direction}>
-            <SelectTrigger className="w-[180px] border-gray-300">
-              <SelectValue placeholder="Select Direction" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Directions</SelectItem>
-              <SelectItem value="in">In</SelectItem>
-              <SelectItem value="out">Out</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select onValueChange={setSelectedLocation} value={selectedLocation}>
-            <SelectTrigger className="w-[180px] border-gray-300">
-              <SelectValue placeholder="Select Location" />
-            </SelectTrigger>
-            <SelectContent className="h-[150px]">
-              <SelectItem value="all">All Locations</SelectItem>
-              {locations.map((loc) => (
-                <SelectItem key={loc.id} value={loc.id.toString()}>
-                  {loc.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select onValueChange={setSelectedDriver} value={selectedDriver}>
-            <SelectTrigger className="w-[180px] border-gray-300">
-              <SelectValue placeholder="Select Driver" />
-            </SelectTrigger>
-            <SelectContent className="h-[150px]">
-              <SelectItem value="all">All Drivers</SelectItem>
-              {drivers.map((driver) => (
-                <SelectItem key={driver.id} value={driver.id.toString()}>
-                  {driver.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-[140px] justify-start text-left font-normal",
-                    !dateRange.from && "text-muted-foreground"
-                  )}
-                >
-                  {dateRange.from ? format(dateRange.from, "LLL dd, yyyy") : "Start Date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-2">
-                <Calendar
-                  mode="single"
-                  selected={dateRange.from}
-                  onSelect={(date) => {
-                    setDateRange((prev) => ({ ...prev, from: date }));
-                    setRefreshCounter(30); // Reset counter on date change
-                  }}
-                  initialFocus
-                  className="rounded-md"
-                  defaultMonth={dateRange.from || new Date()}
-                />
-              </PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-[140px] justify-start text-left font-normal",
-                    !dateRange.to && "text-muted-foreground"
-                  )}
-                >
-                  {dateRange.to ? format(dateRange.to, "LLL dd, yyyy") : "End Date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-2">
-                <Calendar
-                  mode="single"
-                  selected={dateRange.to}
-                  onSelect={(date) => {
-                    setDateRange((prev) => ({ ...prev, to: date }));
-                    setRefreshCounter(30); // Reset counter on date change
-                  }}
-                  initialFocus
-                  className="rounded-md"
-                  defaultMonth={dateRange.to || new Date()}
-                />
-              </PopoverContent>
-            </Popover>
+              Clear Filters
+            </Button>
+            <Button
+              variant="outline"
+              onClick={refreshData}
+              className="text-sm"
+            >
+              Refresh
+            </Button>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Section Header */}
+      {!isLoading && activeTab && (
+        <div className="mb-4">
+          <div className="mb-2">
+            <h2 className="text-lg font-semibold text-gray-900">Reports</h2>
+            <p className="text-sm text-gray-500">{currentData.timeRange} data</p>
+          </div>
+          {/* Filter Row */}
+          <div className="flex items-center gap-4 mb-6 text-sm text-gray-600">
+            <Select onValueChange={setDirection} value={direction}>
+              <SelectTrigger className="w-[180px] border-gray-300">
+                <SelectValue placeholder="Select Direction" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Directions</SelectItem>
+                <SelectItem value="in">In</SelectItem>
+                <SelectItem value="out">Out</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select onValueChange={setSelectedLocation} value={selectedLocation}>
+              <SelectTrigger className="w-[180px] border-gray-300">
+                <SelectValue placeholder="Select Location" />
+              </SelectTrigger>
+              <SelectContent className="h-[150px]">
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id.toString()}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select onValueChange={setSelectedDriver} value={selectedDriver}>
+              <SelectTrigger className="w-[180px] border-gray-300">
+                <SelectValue placeholder="Select Driver" />
+              </SelectTrigger>
+              <SelectContent className="h-[150px]">
+                <SelectItem value="all">All Drivers</SelectItem>
+                {drivers.map((driver) => (
+                  <SelectItem key={driver.id} value={driver.id.toString()}>
+                    {driver.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-4">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !dateRange.from && "text-muted-foreground"
+                    )}
+                  >
+                    {dateRange.from ? format(dateRange.from, "LLL dd, yyyy") : "Start Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2">
+                  <Calendar
+                    mode="single"
+                    selected={dateRange.from}
+                    onSelect={(date) => {
+                      setDateRange((prev) => ({ ...prev, from: date }));
+                      setRefreshCounter(30);
+                    }}
+                    initialFocus
+                    className="rounded-md"
+                    defaultMonth={dateRange.from || new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !dateRange.to && "text-muted-foreground"
+                    )}
+                  >
+                    {dateRange.to ? format(dateRange.to, "LLL dd, yyyy") : "End Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2">
+                  <Calendar
+                    mode="single"
+                    selected={dateRange.to}
+                    onSelect={(date) => {
+                      setDateRange((prev) => ({ ...prev, to: date }));
+                      setRefreshCounter(30);
+                    }}
+                    initialFocus
+                    className="rounded-md"
+                    defaultMonth={dateRange.to || new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Loading and Error States */}
       {isLoading && <p className="text-gray-500">Loading data...</p>}
       {error && <p className="text-red-500">{error}</p>}
 
       {/* Pagination Controls */}
-      {!isLoading && totalPages > 1 && (
+      {!isLoading && activeTab && totalPages > 1 && (
         <div className="flex justify-between items-center mb-6">
           <Button
             variant="outline"
             disabled={page === 1}
             onClick={() => {
               setPage((prev) => Math.max(prev - 1, 1));
-              setRefreshCounter(30); // Reset counter on page change
+              setRefreshCounter(30);
             }}
           >
             Previous
@@ -613,7 +571,7 @@ export default function TransportDashboard() {
             disabled={page === totalPages}
             onClick={() => {
               setPage((prev) => Math.min(prev + 1, totalPages));
-              setRefreshCounter(30); // Reset counter on page change
+              setRefreshCounter(30);
             }}
           >
             Next
@@ -622,7 +580,7 @@ export default function TransportDashboard() {
       )}
 
       {/* Data Table */}
-      {!isLoading && (
+      {!isLoading && activeTab && (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
           <Table>
             <TableHeader>
@@ -763,7 +721,7 @@ export default function TransportDashboard() {
       )}
 
       {/* Internal Operations */}
-      {!isLoading && (
+      {!isLoading && activeTab && (
         <div className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Internal Operations</h3>

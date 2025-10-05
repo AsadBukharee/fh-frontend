@@ -1,103 +1,177 @@
-'use client'
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Filter, CheckCheck, Clock, Check, X, TriangleAlert, ClockArrowUp } from "lucide-react";
+'use client';
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Filter, CheckCheck, Clock, Check, X, TriangleAlert, ClockArrowUp } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import API_URL from '@/app/utils/ENV';
+import { useCookies } from 'next-client-cookies';
 
 // Define the notification type
 interface NotificationCardProps {
   id: string;
-  type: "approved" | "update" | "denied" | "alert";
+  type: 'approved' | 'update' | 'denied' | 'alert';
   title: string;
   description: string;
   time: string;
+  created_at: string; // Store raw timestamp for filtering
   read: boolean;
 }
 
+// API response type
+interface ApiNotification {
+  id: number;
+  title: string;
+  body: string;
+  type: string;
+  data: {
+    new_status?: string;
+    event_type?: string;
+    [key: string]: any;
+  };
+  is_read: boolean;
+  created_at: string;
+}
+
 export default function NotificationsPage() {
-  // State for notifications
-  const [recentNotifications, setRecentNotifications] = useState<NotificationCardProps[]>([
-    {
-      id: "1",
-      type: "approved",
-      title: "Request Approved",
-      description: "Your request for project access has been approved.",
-      time: "2 hrs ago",
-      read: false,
-    },
-    {
-      id: "2",
-      type: "update",
-      title: "System Update",
-      description: "System will undergo maintenance on July 16, 2025.",
-      time: "3 hrs ago",
-      read: false,
-    },
-    {
-      id: "3",
-      type: "denied",
-      title: "Request Denied",
-      description: "Your request for additional resources was denied.",
-      time: "5 hrs ago",
-      read: false,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationCardProps[]>([]);
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [initialLoading, setInitialLoading] = useState<boolean>(true); // Separate loading for initial fetch
+  const [nextPage, setNextPage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const token = useCookies().get('access_token');
 
-  const [earlierNotifications, setEarlierNotifications] = useState<NotificationCardProps[]>([
-    {
-      id: "4",
-      type: "alert",
-      title: "Security Alert",
-      description: "Unusual login attempt detected on your account.",
-      time: "1 day ago",
-      read: false,
-    },
-  ]);
+  // Map API notification type to component type
+  const mapNotificationType = (apiNotification: ApiNotification): NotificationCardProps['type'] => {
+    if (apiNotification.type === 'profile_status') {
+      return apiNotification.data.new_status === 'approved' ? 'approved' : 'denied';
+    }
+    if (apiNotification.type === 'system') {
+      return apiNotification.title.toLowerCase().includes('alert') ? 'alert' : 'update';
+    }
+    return 'update'; // Default fallback
+  };
 
-  // State for active filter
-  const [activeFilter, setActiveFilter] = useState<string>("all");
+  // Normalize nextPage URL to match API_URL protocol
+  const normalizeNextPageUrl = (url: string | null): string | null => {
+    if (!url) return null;
+    // Use API_URL's protocol and host, keep the path and query
+    const baseUrl = new URL(API_URL);
+    const nextUrl = new URL(url);
+    return `${baseUrl.origin}${nextUrl.pathname}${nextUrl.search}`;
+  };
 
-  // Function to mark a single notification as read
-  const markAsRead = (id: string, isRecent: boolean) => {
-    if (isRecent) {
-      setRecentNotifications((prev) =>
-        prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif))
-      );
-    } else {
-      setEarlierNotifications((prev) =>
-        prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif))
-      );
+  // Check if a notification already exists (by ID) to prevent duplicates
+  const hasDuplicate = (existingNotifications: NotificationCardProps[], newNotification: ApiNotification) => {
+    return existingNotifications.some((notif) => notif.id === newNotification.id.toString());
+  };
+
+  // Fetch notifications from API
+  const fetchNotifications = async (url: string) => {
+    if (loading) return; // Prevent multiple simultaneous fetches
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('Fetching notifications from:', url);
+      console.log('Using token:', token);
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('API response:', data);
+      if (data.success) {
+        const mappedNotifications: NotificationCardProps[] = data.data.results
+          .filter((item: ApiNotification) => !hasDuplicate(notifications, item)) // Filter out duplicates
+          .map((item: ApiNotification) => ({
+            id: item.id.toString(),
+            type: mapNotificationType(item),
+            title: item.title,
+            description: item.body,
+            time: formatDistanceToNow(new Date(item.created_at), { addSuffix: true }),
+            created_at: item.created_at, // Store raw timestamp
+            read: item.is_read,
+          }));
+
+        // Log for debugging
+        if (mappedNotifications.length > 0) {
+          console.log('Mapped new notifications:', mappedNotifications.map(n => n.id));
+          console.log('Total notifications after append:', notifications.length + mappedNotifications.length);
+        }
+
+        setNotifications((prev) => [...prev, ...mappedNotifications]);
+        setNextPage(normalizeNextPageUrl(data.data.pagination.next));
+      } else {
+        throw new Error(data.message || 'API request failed');
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setError('Failed to load notifications. Please try again.');
+    } finally {
+      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
-  // Function to mark all notifications as read
-  const markAllAsRead = () => {
-    setRecentNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
-    setEarlierNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
+  // Initial fetch on mount
+  useEffect(() => {
+    if (token) {
+      fetchNotifications(`${API_URL}/api/notification-inbox/?page=1`);
+    } else {
+      setError('No access token found. Please log in.');
+      setInitialLoading(false);
+    }
+  }, [token]);
+
+  // Mark a single notification as read (local state update)
+  const markAsRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif))
+    );
+    // TODO: Add API call to mark notification as read if endpoint exists
   };
 
-  // Function to filter notifications
-  const filteredRecentNotifications =
-    activeFilter === "all"
-      ? recentNotifications
-      : recentNotifications.filter((notif) => notif.type === activeFilter);
+  // Mark all notifications as read (local state update)
+  const markAllAsRead = () => {
+    setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
+    // TODO: Add API call to mark all notifications as read if endpoint exists
+  };
 
-  const filteredEarlierNotifications =
-    activeFilter === "all"
-      ? earlierNotifications
-      : earlierNotifications.filter((notif) => notif.type === activeFilter);
+  // Filter notifications
+  const filteredNotifications =
+    activeFilter === 'all'
+      ? notifications
+      : notifications.filter((notif) => notif.type === activeFilter);
+
+  // Separate recent and earlier notifications (within last 24 hours)
+  const recentNotifications = filteredNotifications.filter(
+    (notif) => new Date().getTime() - new Date(notif.created_at).getTime() < 24 * 60 * 60 * 1000
+  );
+  const earlierNotifications = filteredNotifications.filter(
+    (notif) => new Date().getTime() - new Date(notif.created_at).getTime() >= 24 * 60 * 60 * 1000
+  );
 
   // Calculate badge counts
   const getBadgeCount = (type: string) => {
-    if (type === "all") {
-      return recentNotifications.length + earlierNotifications.length;
+    if (type === 'all') {
+      return notifications.length;
     }
-    return (
-      recentNotifications.filter((notif) => notif.type === type).length +
-      earlierNotifications.filter((notif) => notif.type === type).length
-    );
+    return notifications.filter((notif) => notif.type === type).length;
+  };
+
+  // Load more notifications
+  const loadMore = () => {
+    if (nextPage && !loading) {
+      fetchNotifications(nextPage);
+    }
   };
 
   return (
@@ -109,14 +183,20 @@ export default function NotificationsPage() {
           <p className="text-muted-foreground">See all your notifications here</p>
         </div>
         <Button
-          
-          className="flex items-center gap-2 shadow-md outlin-1 outline-gray-100 bg-transparent"
-          onClick={() => setActiveFilter("all")}
+          className="flex items-center gap-2 shadow-md outline-1 outline-gray-100 bg-transparent"
+          onClick={() => setActiveFilter('all')}
         >
           <Filter className="w-4 h-4" />
           Clear Filter
         </Button>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-md">
+          {error}
+        </div>
+      )}
 
       {/* Categories and Mark as Read */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
@@ -126,60 +206,58 @@ export default function NotificationsPage() {
             <Badge
               variant="outline"
               className={`cursor-pointer ${
-                activeFilter === "all"
-                  ? "border-red-500 text-red-500 bg-red-50"
-                  : "border-0 text-red-500 bg-red-100"
+                activeFilter === 'all'
+                  ? 'border-red-500 text-red-500 bg-red-50'
+                  : 'border-0 text-red-500 bg-red-100'
               }`}
-              onClick={() => setActiveFilter("all")}
+              onClick={() => setActiveFilter('all')}
             >
-                <span>See All</span>
-  <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
-    {getBadgeCount("all")}
-  </span>
-             
+              <span>See All</span>
+              <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
+                {getBadgeCount('all')}
+              </span>
             </Badge>
             <Badge
               variant="outline"
               className={`cursor-pointer ${
-                activeFilter === "approved"
-                  ? "border-green-500 text-green-500 bg-green-50"
-                  : "text-green-500 bg-green-100 border-0"
+                activeFilter === 'approved'
+                  ? 'border-green-500 text-green-500 bg-green-50'
+                  : 'text-green-500 bg-green-100 border-0'
               }`}
-              onClick={() => setActiveFilter("approved")}
+              onClick={() => setActiveFilter('approved')}
             >
-                <span>Requests</span>
-                <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
-                    {getBadgeCount("approved")}
-                </span>
-             
+              <span>Requests</span>
+              <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
+                {getBadgeCount('approved')}
+              </span>
             </Badge>
             <Badge
               variant="outline"
               className={`cursor-pointer ${
-                activeFilter === "update"
-                  ? "border-pink-500 text-pink-500 bg-pink-50"
-                  : "text-pink-500 bg-pink-100 border-0"
+                activeFilter === 'update'
+                  ? 'border-pink-500 text-pink-500 bg-pink-50'
+                  : 'text-pink-500 bg-pink-100 border-0'
               }`}
-              onClick={() => setActiveFilter("update")}
+              onClick={() => setActiveFilter('update')}
             >
-                <span>Updates</span>
-                <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
-                    {getBadgeCount("update")}
-                </span>
+              <span>Updates</span>
+              <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
+                {getBadgeCount('update')}
+              </span>
             </Badge>
             <Badge
               variant="outline"
               className={`cursor-pointer ${
-                activeFilter === "alert"
-                  ? "border-orange-500 text-orange-500 bg-orange-50"
-                  : "text-orange-500  border-0 bg-orange-100"
+                activeFilter === 'alert'
+                  ? 'border-orange-500 text-orange-500 bg-orange-50'
+                  : 'text-orange-500 border-0 bg-orange-100'
               }`}
-              onClick={() => setActiveFilter("alert")}
+              onClick={() => setActiveFilter('alert')}
             >
-                <span>Alerts</span>
-                <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
-                    {getBadgeCount("alert")}
-                </span>
+              <span>Alerts</span>
+              <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
+                {getBadgeCount('alert')}
+              </span>
             </Badge>
           </div>
         </div>
@@ -195,35 +273,51 @@ export default function NotificationsPage() {
 
       {/* Notifications List */}
       <ScrollArea className="h-[calc(100vh-250px)] pr-4">
-        <h3 className="text-xl font-semibold mb-4">Recent</h3>
-        <div className="grid gap-4 mb-8">
-          {filteredRecentNotifications.length > 0 ? (
-            filteredRecentNotifications.map((notification) => (
-              <NotificationCard
-                key={notification.id}
-                {...notification}
-                onMarkAsRead={() => markAsRead(notification.id, true)}
-              />
-            ))
-          ) : (
-            <p className="text-muted-foreground">No recent notifications</p>
-          )}
-        </div>
+        {initialLoading ? (
+          <p className="text-muted-foreground">Loading notifications...</p>
+        ) : (
+          <>
+            <h3 className="text-xl font-semibold mb-4">Recent</h3>
+            <div className="grid gap-4 mb-8">
+              {recentNotifications.length > 0 ? (
+                recentNotifications.map((notification) => (
+                  <NotificationCard
+                    key={notification.id} // Use stable ID-based key
+                    {...notification}
+                    onMarkAsRead={() => markAsRead(notification.id)}
+                  />
+                ))
+              ) : (
+                <p className="text-muted-foreground">No recent notifications</p>
+              )}
+            </div>
 
-        <h3 className="text-xl font-semibold mb-4">Earlier</h3>
-        <div className="grid gap-4">
-          {filteredEarlierNotifications.length > 0 ? (
-            filteredEarlierNotifications.map((notification) => (
-              <NotificationCard
-                key={notification.id}
-                {...notification}
-                onMarkAsRead={() => markAsRead(notification.id, false)}
-              />
-            ))
-          ) : (
-            <p className="text-muted-foreground">No earlier notifications</p>
-          )}
-        </div>
+            <h3 className="text-xl font-semibold mb-4">Earlier</h3>
+            <div className="grid gap-4">
+              {earlierNotifications.length > 0 ? (
+                earlierNotifications.map((notification) => (
+                  <NotificationCard
+                    key={notification.id} // Use stable ID-based key
+                    {...notification}
+                    onMarkAsRead={() => markAsRead(notification.id)}
+                  />
+                ))
+              ) : (
+                <p className="text-muted-foreground">No earlier notifications</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {nextPage && !initialLoading && (
+          <Button
+            className="mt-4 w-full"
+            onClick={loadMore}
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Load More'}
+          </Button>
+        )}
       </ScrollArea>
     </div>
   );
@@ -242,10 +336,26 @@ function NotificationCard({
   onMarkAsRead,
 }: NotificationCardPropsWithAction) {
   const iconMap = {
-    approved: <span className="bg-green-100 p-1 rounded-full"><Check className="w-5 h-5 text-green-500" /></span>,
-    update: <span className="bg-blue-100 p-1 rounded-full"><ClockArrowUp  className="w-5 h-5 text-blue-500" /></span>,
-    denied: <span className="bg-red-100 p-1 rounded-full"><X className="w-5 h-5 text-red-500" /></span>,
-    alert: <span className="bg-orange-100 p-1 rounded-full"><TriangleAlert  className="w-5 h-5 text-orange-500" /></span>,
+    approved: (
+      <span className="bg-green-100 p-1 rounded-full">
+        <Check className="w-5 h-5 text-green-500" />
+      </span>
+    ),
+    update: (
+      <span className="bg-blue-100 p-1 rounded-full">
+        <ClockArrowUp className="w-5 h-5 text-blue-500" />
+      </span>
+    ),
+    denied: (
+      <span className="bg-red-100 p-1 rounded-full">
+        <X className="w-5 h-5 text-red-500" />
+      </span>
+    ),
+    alert: (
+      <span className="bg-orange-100 p-1 rounded-full">
+        <TriangleAlert className="w-5 h-5 text-orange-500" />
+      </span>
+    ),
   };
 
   return (
@@ -253,7 +363,9 @@ function NotificationCard({
       className="p-4 flex items-start gap-4 relative cursor-pointer hover:bg-gray-50"
       onClick={onMarkAsRead}
     >
-      <div className="flex-shrink-0 mt-1 w-10 h-10 flex items-center justify-center">{iconMap[type]}</div>
+      <div className="flex-shrink-0 mt-1 w-10 h-10 flex items-center justify-center">
+        {iconMap[type]}
+      </div>
       <div className="flex-grow">
         <h4 className="font-medium text-base">{title}</h4>
         <p className="text-sm text-muted-foreground mb-1">{description}</p>

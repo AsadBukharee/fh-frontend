@@ -135,7 +135,6 @@ export default function DriverDetailPage() {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingHealth, setIsEditingHealth] = useState(false);
-  const [isEditingCompetency, setIsEditingCompetency] = useState(false);
   const [editFormData, setEditFormData] = useState({
     full_name: "",
     display_name: "",
@@ -157,13 +156,11 @@ export default function DriverDetailPage() {
     rota_start_date: "",
     have_other_jobs: false,
     have_other_jobs_note: "",
-    avatar: "", // Added avatar field
+    avatar: "",
   });
   const [editHealthData, setEditHealthData] = useState<HealthAnswer[]>([]);
-  const [editCompetencyData, setEditCompetencyData] = useState<ProfessionalCompetency[]>([]);
   const [saving, setSaving] = useState(false);
   const [savingHealth, setSavingHealth] = useState(false);
-  const [savingCompetency, setSavingCompetency] = useState(false);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [contractsLoading, setContractsLoading] = useState(false);
@@ -173,12 +170,7 @@ export default function DriverDetailPage() {
   const [assigningSites, setAssigningSites] = useState(false);
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("driver-detail");
-  const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [reviewRemarks, setReviewRemarks] = useState("");
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const isPdfUrl = (url: string) => url.toLowerCase().endsWith(".pdf");
   const showToast = (message: string, type: string) => {
@@ -230,7 +222,7 @@ export default function DriverDetailPage() {
           rota_start_date: result.data.user.rota_start_date || "",
           have_other_jobs: result.data.have_other_jobs || false,
           have_other_jobs_note: result.data.have_other_jobs_note || "",
-          avatar: result.data.user.avatar || "", // Initialize avatar
+          avatar: result.data.user.avatar || "",
         });
       } else {
         throw new Error(result.message || "Failed to load driver data");
@@ -259,7 +251,6 @@ export default function DriverDetailPage() {
       const result = await response.json();
       if (result.success) {
         setCompetencyData(result.data);
-        setEditCompetencyData(result.data);
       } else {
         throw new Error(result.message || "Failed to load professional competency data");
       }
@@ -364,36 +355,6 @@ export default function DriverDetailPage() {
     fetchContracts();
     fetchSites();
   }, [cookies, sites.length]);
-
-  const handleFileUpload = (competencyId: number, url: string, isBackSide: boolean) => {
-    setEditCompetencyData((prev) =>
-      prev.map((item) => {
-        if (item.id === competencyId) {
-          let updatedUrls = [...item.urls];
-          const hasBackSide = item.has_back_side;
-
-          if (hasBackSide) {
-            if (isBackSide) {
-              updatedUrls[1] = url;
-            } else {
-              updatedUrls[0] = url;
-            }
-          } else {
-            updatedUrls = updatedUrls.length > 0 ? [url] : [url];
-          }
-
-          return {
-            ...item,
-            urls: updatedUrls,
-            has_document: true,
-            has_back_side: hasBackSide,
-          };
-        }
-        return item;
-      })
-    );
-    showToast("Document uploaded successfully", "success");
-  };
 
   const handleAssignContract = async () => {
     if (!selectedContractId) {
@@ -507,7 +468,7 @@ export default function DriverDetailPage() {
         rota_start_date: driverData?.user.rota_start_date || "",
         have_other_jobs: driverData?.have_other_jobs || false,
         have_other_jobs_note: driverData?.have_other_jobs_note || "",
-        avatar: driverData?.user.avatar || "", // Reset avatar
+        avatar: driverData?.user.avatar || "",
       });
     }
     setIsEditing(!isEditing);
@@ -520,13 +481,6 @@ export default function DriverDetailPage() {
     setIsEditingHealth(!isEditingHealth);
   };
 
-  const handleCompetencyEditToggle = () => {
-    if (isEditingCompetency) {
-      setEditCompetencyData(competencyData);
-    }
-    setIsEditingCompetency(!isEditingCompetency);
-  };
-
   const handleInputChange = (field: string, value: string | number | string[] | boolean) => {
     setEditFormData((prev) => ({
       ...prev,
@@ -537,42 +491,6 @@ export default function DriverDetailPage() {
   const handleHealthInputChange = (id: number, field: string, value: boolean | string) => {
     setEditHealthData((prev) =>
       prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
-  };
-
-  const handleCompetencyInputChange = (id: number, field: string, value: string) => {
-    setEditCompetencyData((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
-  };
-
-  const handleModuleInputChange = (competencyId: number, moduleId: number, field: string, value: string) => {
-    setEditCompetencyData((prev) =>
-      prev.map((competency) =>
-        competency.id === competencyId
-          ? {
-              ...competency,
-              modules: competency.modules.map((module) =>
-                module.id === moduleId ? { ...module, [field]: value } : module
-              ),
-            }
-          : competency
-      )
-    );
-  };
-
-  const handleNextFiveModulesChange = (competencyId: number, index: number, value: string) => {
-    setEditCompetencyData((prev) =>
-      prev.map((competency) =>
-        competency.id === competencyId
-          ? {
-              ...competency,
-              next_five_modules: competency.next_five_modules.map((module, i) =>
-                i === index ? value : module
-              ),
-            }
-          : competency
-      )
     );
   };
 
@@ -591,7 +509,7 @@ export default function DriverDetailPage() {
         paid_holidays: editFormData.paid_holidays,
         contract_signing_date: editFormData.contract_signing_date || null,
         rota_start_date: editFormData.rota_start_date || null,
-        avatar: editFormData.avatar || null, // Include avatar in userPayload
+        avatar: editFormData.avatar || null,
       };
       const userResponse = await fetch(`${API_URL}/users/${driverData?.user.id}/`, {
         method: "PATCH",
@@ -646,7 +564,7 @@ export default function DriverDetailPage() {
                   rota_start_date: editFormData.rota_start_date,
                   contract: contracts.find((c) => c.id.toString() === editFormData.contractId) || prev.user.contract,
                   site: sites.filter((s) => editFormData.siteIds.includes(s.id.toString())),
-                  avatar: editFormData.avatar || prev.user.avatar, // Update avatar in driverData
+                  avatar: editFormData.avatar || prev.user.avatar,
                 },
                 phone: editFormData.phone,
                 address: editFormData.address,
@@ -711,57 +629,10 @@ export default function DriverDetailPage() {
     }
   };
 
-  const handleSaveCompetency = async () => {
-    setSavingCompetency(true);
-    try {
-      const updates = editCompetencyData.map((item) => ({
-        id: item.id,
-        request_status: item.request_status,
-        expiry_date: item.expiry_date,
-        description: item.description,
-        urls: item.urls,
-        has_document: item.has_document,
-        has_back_side: item.has_back_side,
-        next_five_modules: item.next_five_modules,
-        modules: item.modules.map((module) => ({
-          id: module.id,
-          module_name: module.module_name,
-          description: module.description,
-          expiry_date: module.expiry_date,
-        })),
-      }));
-      const response = await fetch(`${API_URL}/api/profiles/professional-competency/bulk-update/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-        body: JSON.stringify({ professional_competencies: updates }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to update professional competencies");
-      }
-      const result = await response.json();
-      if (result.success) {
-        setCompetencyData(editCompetencyData);
-        setIsEditingCompetency(false);
-        showToast("Professional competencies updated successfully", "success");
-        fetchCompetencyData();
-      } else {
-        throw new Error(result.message || "Failed to update professional competencies");
-      }
-    } catch (error) {
-      console.error("Error updating professional competencies:", error);
-      showToast(error instanceof Error ? error.message : "Failed to update professional competencies", "error");
-    } finally {
-      setSavingCompetency(false);
-    }
-  };
-
   if (loading || competencyLoading || healthLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-orange-600"></div>
       </div>
     );
   }
@@ -779,34 +650,34 @@ export default function DriverDetailPage() {
   return (
     <div className="container p-8 space-y-8 bg-gray-100 min-h-screen">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-4 bg-white border border-purple-200 rounded-xl p-2 shadow-sm">
+        <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-4 bg-white border border-orange-200 rounded-xl p-2 shadow-sm">
           <TabsTrigger
             value="driver-detail"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-purple-100"
+            className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
           >
             Driver Detail
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
+            <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
           <TabsTrigger
             value="professional-competency"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-purple-100"
+            className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
           >
             Professional Competency
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
+            <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
           <TabsTrigger
             value="health-answer"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-purple-100"
+            className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
           >
-            Health Answer
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
+            Health Questions
+            <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
           <TabsTrigger
             value="sign-agreement"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-purple-100"
+            className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
           >
             Sign Agreement
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-purple-600 data-[state=active]:block hidden transition-all"></span>
+            <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value="driver-detail">
@@ -837,19 +708,12 @@ export default function DriverDetailPage() {
         <TabsContent value="professional-competency">
           <ProfessionalCompetencyTab
             competencyData={competencyData}
-            editCompetencyData={editCompetencyData}
-            isEditingCompetency={isEditingCompetency}
-            savingCompetency={savingCompetency}
             formatDate={formatDate}
             isPdfUrl={isPdfUrl}
-            selectedPdfUrl={selectedPdfUrl}
-            setSelectedPdfUrl={setSelectedPdfUrl}
-            handleCompetencyEditToggle={handleCompetencyEditToggle}
-            handleCompetencyInputChange={handleCompetencyInputChange}
-            handleModuleInputChange={handleModuleInputChange}
-            handleFileUpload={handleFileUpload}
-            handleSaveCompetency={handleSaveCompetency}
-            handleNextFiveModulesChange={handleNextFiveModulesChange}
+            showToast={showToast}
+            cookies={cookies}
+            API_URL={API_URL}
+            fetchCompetencyData={fetchCompetencyData}
           />
         </TabsContent>
         <TabsContent value="health-answer">
@@ -877,7 +741,7 @@ export default function DriverDetailPage() {
             <Button
               onClick={handleSaveProfile}
               disabled={saving}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all w-48"
+              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all w-48"
             >
               {saving ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
@@ -890,7 +754,7 @@ export default function DriverDetailPage() {
               variant="outline"
               onClick={handleEditToggle}
               disabled={saving}
-              className="border-purple-600 text-purple-600 hover:bg-purple-100 rounded-lg transition-all w-48"
+              className="border-orange-600 text-orange-600 hover:bg-orange-100 rounded-lg transition-all w-48"
             >
               <X className="h-5 w-5 mr-2" />
               Cancel
