@@ -1,5 +1,6 @@
 "use client"
 
+import ChangeShifts from "@/components/Rota/ChangeShifts"
 import { ShiftTable } from "@/components/Rota/ChildTab"
 import ParentTab from "@/components/Rota/ParentTab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -31,6 +32,12 @@ export default function Rota() {
           >
             Child Tab · 12 Month View
           </TabsTrigger>
+          <TabsTrigger
+            value="child2"
+            className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 "
+          >
+            Change Shift Requests
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="parent">
@@ -38,6 +45,9 @@ export default function Rota() {
         </TabsContent>
         <TabsContent value="child">
           <ShiftTable year={currentYear} month={currentMonth} />
+        </TabsContent>
+        <TabsContent value="child2">
+          <ChangeShifts/>
         </TabsContent>
       </Tabs>
     </div>

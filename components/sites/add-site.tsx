@@ -469,8 +469,6 @@ function AddSiteForm() {
         form.number_of_allocated_staff.toString(),
         10
       ),
-      operational_days: form.operational_days,
-      is_24_hour: form.is_24_hour,
       operational_notes: form.operational_notes,
       image: form.image || undefined,
       notes: form.notes || undefined,
@@ -497,6 +495,81 @@ function AddSiteForm() {
       }
 
       const result = await response.json();
+      const site_id = result.id;
+      console.log("Site created with ID:", site_id);
+
+      // Set operation hours using bulk API
+      try {
+        const hoursRes = await fetch(`${API_URL}/api/sites/${site_id}/hours/`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!hoursRes.ok) {
+          throw new Error("Failed to fetch hours");
+        }
+
+        const hours = await hoursRes.json();
+
+        const updatedHours = hours.map((hour: any) => {
+          const day_label = hour.day_label;
+          const isOperational = form.is_24_hour || form.operational_days.includes(day_label);
+
+          if (form.is_24_hour) {
+            return {
+              id: hour.id,
+              day_of_week: hour.day_of_week,
+              day_label: hour.day_label,
+              is_open_24_hours: true,
+              is_closed: false,
+              opens_at: null,
+              closes_at: null,
+            };
+          } else if (isOperational) {
+            return {
+              id: hour.id,
+              day_of_week: hour.day_of_week,
+              day_label: hour.day_label,
+              is_open_24_hours: false,
+              is_closed: false,
+              opens_at: "09:00:00",
+              closes_at: "17:00:00",
+            };
+          } else {
+            return {
+              id: hour.id,
+              day_of_week: hour.day_of_week,
+              day_label: hour.day_label,
+              is_open_24_hours: false,
+              is_closed: true,
+              opens_at: null,
+              closes_at: null,
+            };
+          }
+        });
+
+        const bulkRes = await fetch(`${API_URL}/api/sites/${site_id}/hours/bulk/`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(updatedHours),
+        });
+
+        if (!bulkRes.ok) {
+          const bulkError = await bulkRes.json().catch(() => ({}));
+          console.error("Failed to update hours:", bulkError);
+          showToast("Site created, but hours setup may need manual adjustment.", "error");
+        } else {
+          console.log("Hours updated successfully");
+        }
+      } catch (hoursError) {
+        console.error("Error setting hours:", hoursError);
+        showToast("Site created, but hours setup failed. Please check manually.", "error");
+      }
+
       showToast("Site added successfully!", "success");
       console.log("API response:", result);
       dispatch(resetForm());

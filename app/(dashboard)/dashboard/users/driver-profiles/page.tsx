@@ -1,23 +1,21 @@
 "use client"
-
 import type React from "react"
 import { useRef, useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu"
+
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu"
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +46,7 @@ import {
   Shield,
   FileText,
   Check,
+  XCircle,
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -147,12 +146,17 @@ interface DriverForm {
   manager_name: string
 }
 
+interface DisapprovePayload {
+  driver_id: number
+  remarks: string
+}
+
 export default function DriversPage() {
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false)
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [contracts, setContracts] = useState<Contract[]>([])
   const [roles, setRoles] = useState<Role[]>([])
@@ -164,9 +168,9 @@ export default function DriversPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
   const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null)
-  const [driverToReview, setDriverToReview] = useState<Driver | null>(null)
-  const [reviewRemarks, setReviewRemarks] = useState("")
-  const [reviewError, setReviewError] = useState<string | null>(null)
+  const [driverToDisapprove, setDriverToDisapprove] = useState<Driver | null>(null)
+  const [disapproveRemarks, setDisapproveRemarks] = useState("")
+  const [disapproveError, setDisapproveError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
@@ -177,7 +181,6 @@ export default function DriversPage() {
   })
   const { showToast } = useToast()
   const cookies = useCookies()
-
   const [formData, setFormData] = useState<DriverForm>({
     email: "",
     full_name: "",
@@ -223,50 +226,56 @@ export default function DriversPage() {
     }
   }
 
-  const handleReviewDriverClick = (driver: Driver) => {
-    setDriverToReview(driver)
-    setReviewRemarks("")
-    setReviewError(null)
-    setIsReviewModalOpen(true)
+  const handleDisapproveDriverClick = (driver: Driver) => {
+    setDriverToDisapprove(driver)
+    setDisapproveRemarks("")
+    setDisapproveError(null)
+    setIsDisapproveDialogOpen(true)
   }
 
-  const handleReviewSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!driverToReview) return
+  const handleDisapproveDriver = async () => {
+    if (!driverToDisapprove) return
 
-    if (reviewRemarks.length > 150) {
-      setReviewError("Remarks cannot exceed 150 characters")
+    if (!disapproveRemarks.trim()) {
+      setDisapproveError("Remarks are required")
       return
     }
 
-    setReviewLoading(true)
     try {
-      const response = await fetch(`${API_URL}/api/profiles/driver/review/`, {
+      const response = await fetch(`${API_URL}/api/profiles/driver/disapprove/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
         body: JSON.stringify({
-          driver_id: driverToReview.id,
-          remarks: reviewRemarks,
-        }),
+          driver_id: driverToDisapprove.id,
+          remarks: disapproveRemarks,
+        } as DisapprovePayload),
       })
 
       const data = await response.json()
+
+      if (response.status === 401) {
+        showToast("Session expired. Please log in again.", "error")
+        return
+      }
+
       if (data.success) {
-        showToast("Driver review submitted successfully", "success")
-        setIsReviewModalOpen(false)
-        setDriverToReview(null)
-        setReviewRemarks("")
+        showToast("Driver disapproved successfully", "success")
         await fetchDrivers()
       } else {
-        showToast(data.message || "Failed to submit review", "error")
+        setDisapproveError(data.message || "Failed to disapprove driver")
+        showToast(data.message || "Failed to disapprove driver", "error")
       }
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "An error occurred while submitting the review", "error")
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while disapproving the driver"
+      setDisapproveError(errorMessage)
+      showToast(errorMessage, "error")
     } finally {
-      setReviewLoading(false)
+      setIsDisapproveDialogOpen(false)
+      setDriverToDisapprove(null)
+      setDisapproveRemarks("")
     }
   }
 
@@ -281,7 +290,6 @@ export default function DriversPage() {
       if (filters.profileStatus.length > 0) queryParams.append("profile_status", filters.profileStatus.join(","))
       if (filters.hasContract !== null) queryParams.append("has_contract", filters.hasContract.toString())
       if (filters.hasWarnings !== null) queryParams.append("has_warnings", filters.hasWarnings.toString())
-
       const url = `${API_URL}/api/profiles/driver/?${queryParams.toString()}`
       const response = await fetch(url, {
         headers: {
@@ -412,7 +420,6 @@ export default function DriversPage() {
 
   const handleDeleteDriver = async () => {
     if (!driverToDelete) return
-
     try {
       const response = await fetch(`${API_URL}/api/profiles/driver/${driverToDelete.id}/`, {
         method: "DELETE",
@@ -421,14 +428,11 @@ export default function DriversPage() {
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
       })
-
       if (response.status === 401) {
         showToast("Session expired. Please log in again.", "error")
         return
       }
-
       const data = await response.json()
-
       if (response.ok && data.success) {
         showToast(data.message || `${driverToDelete.user.full_name} has been deleted successfully`, "success")
         await fetchDrivers()
@@ -452,21 +456,21 @@ export default function DriversPage() {
   }
 
   const handleFilterChange = (filterType: string, value: string | boolean | null) => {
-      setFilters((prev) => {
-        if (filterType === "profileStatus") {
-          const newStatus = prev.profileStatus.includes(value as string)
-            ? prev.profileStatus.filter((status) => status !== value)
-            : [...prev.profileStatus, value as string]
-          return { ...prev, profileStatus: newStatus }
-        } else if (filterType === "hasContract") {
-          return { ...prev, hasContract: value as boolean | null }
-        } else if (filterType === "hasWarnings") {
-          return { ...prev, hasWarnings: value as boolean | null }
-        }
-        return prev
-      })
-      setCurrentPage(1) // Reset to first page when filters change
-    }
+    setFilters((prev) => {
+      if (filterType === "profileStatus") {
+        const newStatus = prev.profileStatus.includes(value as string)
+          ? prev.profileStatus.filter((status) => status !== value)
+          : [...prev.profileStatus, value as string]
+        return { ...prev, profileStatus: newStatus }
+      } else if (filterType === "hasContract") {
+        return { ...prev, hasContract: value as boolean | null }
+      } else if (filterType === "hasWarnings") {
+        return { ...prev, hasWarnings: value as boolean | null }
+      }
+      return prev
+    })
+    setCurrentPage(1)
+  }
 
   return (
     <TooltipProvider>
@@ -546,7 +550,6 @@ export default function DriversPage() {
             </div>
           </div>
         </header>
-
         <div className="mb-6">
           <div
             className="relative w-80 gradient-border cursor-glow"
@@ -567,7 +570,6 @@ export default function DriversPage() {
             />
           </div>
         </div>
-
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin mr-2" />
@@ -581,8 +583,7 @@ export default function DriversPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {drivers.map((driver) => (
-              <Link
-                href={`/dashboard/users/driver-profiles/${driver.id}`}
+              <div
                 key={driver.id}
                 className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200"
               >
@@ -600,7 +601,9 @@ export default function DriversPage() {
                       )}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg">{driver.user.display_name}</h3>
+                      <Link href={`/dashboard/users/driver-profiles/${driver.id}`}>
+                        <h3 className="font-semibold text-lg hover:text-blue-600">{driver.user.display_name}</h3>
+                      </Link>
                       <p className="text-sm text-blue-600">{driver.user.email}</p>
                     </div>
                   </div>
@@ -619,14 +622,18 @@ export default function DriversPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-white">
-                      <DropdownMenuItem onClick={() => handleApproveDriverClick(driver.id)}>
-                        <Check className="w-4 h-4 mr-2" />
-                        Approve
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleReviewDriverClick(driver)}>
-                        <Star className="w-4 h-4 mr-2" />
-                        Review
-                      </DropdownMenuItem>
+                      {driver.profile_status !== "approved" && (
+                        <DropdownMenuItem onClick={() => handleApproveDriverClick(driver.id)}>
+                          <Check className="w-4 h-4 mr-2" />
+                          Approve
+                        </DropdownMenuItem>
+                      )}
+                      {driver.profile_status !== "not_approved" && (
+                        <DropdownMenuItem onClick={() => handleDisapproveDriverClick(driver)}>
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Disapprove
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteDriverClick(driver)}>
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete
@@ -641,7 +648,7 @@ export default function DriversPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-600">License Number:</span>
-                    <span className="text-sm">{driver.license_number || 'N/A'}</span>
+                    <span className="text-sm">{driver.license_number || "N/A"}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-600">Contract:</span>
@@ -668,18 +675,19 @@ export default function DriversPage() {
                       <TooltipContent>
                         <div className="flex flex-wrap w-[250px] h-fit max-h-[250px] overflow-auto">
                           {driver.warnings.map((warning, index) => (
-                            <Badge key={index} className="bg-red-100 m-1 w-fit h-fit text-red-600">{warning}</Badge>
+                            <Badge key={index} className="bg-red-100 m-1 w-fit h-fit text-red-600">
+                              {warning}
+                            </Badge>
                           ))}
                         </div>
                       </TooltipContent>
                     </Tooltip>
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}
-
         <div className="flex items-center justify-between mt-6">
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-600">Page</span>
@@ -730,77 +738,6 @@ export default function DriversPage() {
           </div>
         </div>
 
-        {/* Review Driver Dialog */}
-        <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Star className="w-5 h-5" />
-                Review Driver
-              </DialogTitle>
-              <DialogDescription>
-                Add remarks for {driverToReview?.user.full_name}&apos;s review (max 150 characters).
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleReviewSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="review-remarks">Remarks</Label>
-                <Input
-                  id="review-remarks"
-                  name="remarks"
-                  value={reviewRemarks}
-                  onChange={(e) => setReviewRemarks(e.target.value)}
-                  placeholder="Enter review remarks"
-                  maxLength={150}
-                  className={reviewError ? "border-red-500" : ""}
-                />
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>{reviewRemarks.length}/150</span>
-                  {reviewError && (
-                    <p className="text-red-500 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {reviewError}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsReviewModalOpen(false)
-                    setDriverToReview(null)
-                    setReviewRemarks("")
-                    setReviewError(null)
-                  }}
-                  disabled={reviewLoading}
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={reviewLoading}
-                  className="bg-gradient-to-r from-orange to-magenta hover:from-orange-700 hover:to-magenta-700"
-                >
-                  {reviewLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Submit Review
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
         {/* Delete Driver Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent>
@@ -811,7 +748,8 @@ export default function DriversPage() {
               </AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to delete{" "}
-                <span className="font-semibold">{driverToDelete?.user.full_name}</span>? This action cannot be undone, and all associated data will be permanently removed.
+                <span className="font-semibold">{driverToDelete?.user.full_name}</span>? This action
+                cannot be undone, and all associated data will be permanently removed.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="flex justify-end gap-2">
@@ -829,6 +767,57 @@ export default function DriversPage() {
                 className="bg-red-600 hover:bg-red-700"
               >
                 Delete
+              </AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Disapprove Driver Dialog */}
+        <AlertDialog open={isDisapproveDialogOpen} onOpenChange={setIsDisapproveDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-red-600" />
+                Disapprove Driver
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to disapprove{" "}
+                <span className="font-semibold">{driverToDisapprove?.user.full_name}</span>? Please
+                provide a reason for disapproval.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="disapprove-remarks">Remarks</Label>
+                <Input
+                  id="disapprove-remarks"
+                  value={disapproveRemarks}
+                  onChange={(e) => setDisapproveRemarks(e.target.value)}
+                  placeholder="Enter reason for disapproval"
+                  className="mt-1"
+                />
+                {disapproveError && (
+                  <p className="text-red-600 text-sm mt-1">{disapproveError}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <AlertDialogCancel
+                onClick={() => {
+                  setIsDisapproveDialogOpen(false)
+                  setDriverToDisapprove(null)
+                  setDisapproveRemarks("")
+                  setDisapproveError(null)
+                }}
+                className="border-gray-300"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDisapproveDriver}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Disapprove
               </AlertDialogAction>
             </div>
           </AlertDialogContent>

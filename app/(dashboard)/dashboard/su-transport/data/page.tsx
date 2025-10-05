@@ -1,8 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -64,6 +63,7 @@ interface ApiResponse {
   success: boolean;
   message: string;
   data: {
+    current_run_type: string;
     runs: ApiRun[];
     count: number;
     page: number;
@@ -91,7 +91,7 @@ interface Driver {
   email: string;
 }
 
-// Define types for your data structure
+// Define types for data structure
 type TimeSlotId = "early" | "shuttle1" | "shuttle2" | "shuttle3" | "night";
 
 interface LocationRow {
@@ -125,7 +125,6 @@ const fallbackTransportData: TransportData = {
   night: { timeRange: "7:00 PM - 4:59 AM", data: [], internalOps: { drivers: [] } },
 };
 
-// Fallback static lists for locations and drivers
 const fallbackLocations: Location[] = [
   { id: 15, name: "Braintree Bus Station" },
   { id: 16, name: "Braintree Borno Pharmacy" },
@@ -133,6 +132,7 @@ const fallbackLocations: Location[] = [
   { id: 18, name: "Braintree Police Station" },
   { id: 26, name: "Colchester Napier Road" },
 ];
+
 const fallbackDrivers: Driver[] = [
   { id: 1, full_name: "John David", avatar: null, email: "john.david@example.com" },
   { id: 2, full_name: "Jane Smith", avatar: null, email: "jane.smith@example.com" },
@@ -143,26 +143,26 @@ const fallbackDrivers: Driver[] = [
 const runNameToId: Record<string, TimeSlotId> = {
   Early: "early",
   "First Shuttle": "shuttle1",
-  "2nd Shuttle Run": "shuttle2",
-  "Third Shuttle": "shuttle3",
+  "Second Shuttle": "shuttle2",
+  "3rd Shuttle Run": "shuttle3",
   Night: "night",
 };
 
-const tabs: { id: TimeSlotId; label: string; color: string }[] = [
-  { id: "early", label: "Early", color: "bg-pink-100 text-pink-600 border-pink-200" },
-  { id: "shuttle1", label: "1st Shuttle", color: "bg-green-100 text-green-600 border-green-200" },
-  { id: "shuttle2", label: "2nd Shuttle", color: "bg-purple-100 text-purple-600 border-purple-200" },
-  { id: "shuttle3", label: "3rd Shuttle", color: "bg-orange-100 text-orange-600 border-orange-200" },
-  { id: "night", label: "Night", color: "bg-blue-100 text-blue-600 border-blue-200" },
+const tabs: { id: TimeSlotId; label: string; color: string; startTime: string; endTime: string }[] = [
+  { id: "early", label: "Early", color: "bg-pink-100 text-pink-600 border-pink-200", startTime: "5:00 AM", endTime: "9:20 AM" },
+  { id: "shuttle1", label: "1st Shuttle", color: "bg-green-100 text-green-600 border-green-200", startTime: "9:21 AM", endTime: "2:00 PM" },
+  { id: "shuttle2", label: "2nd Shuttle", color: "bg-purple-100 text-purple-600 border-purple-200", startTime: "2:01 PM", endTime: "4:30 PM" },
+  { id: "shuttle3", label: "3rd Shuttle", color: "bg-orange-100 text-orange-600 border-orange-200", startTime: "4:31 PM", endTime: "6:59 PM" },
+  { id: "night", label: "Night", color: "bg-blue-100 text-blue-600 border-blue-200", startTime: "7:00 PM", endTime: "4:59 AM" },
 ];
 
 export default function TransportDashboard() {
-  const [activeTab, setActiveTab] = useState<TimeSlotId>("early");
+  const [activeTab, setActiveTab] = useState<TimeSlotId | null>(null); // Initialize as null
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
+    from: new Date(),
+    to: new Date(),
   });
   const [direction, setDirection] = useState<string>("all");
   const [transportData, setTransportData] = useState<TransportData>(fallbackTransportData);
@@ -176,8 +176,25 @@ export default function TransportDashboard() {
     location_name: string;
     data: { driver_name: string; number: number; datetime: string; direction: string }[];
   } | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState<number>(30);
   const cookies = useCookies();
   const token = cookies.get("access_token");
+
+  // Clear Filters Function
+  const clearFilters = () => {
+    setSelectedLocation("all");
+    setSelectedDriver("all");
+    setDateRange({ from: new Date(), to: new Date() });
+    setDirection("all");
+    setPage(1);
+    setRefreshCounter(30);
+  };
+
+  // Refresh API Function
+  const refreshData = () => {
+    fetchData();
+    setRefreshCounter(30);
+  };
 
   // Fetch locations
   useEffect(() => {
@@ -235,69 +252,89 @@ export default function TransportDashboard() {
     fetchDrivers();
   }, [token]);
 
-  // Fetch transport data based on filters
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const today = new Date();
-        const defaultEndDate = today;
-        const defaultStartDate = new Date(today.setDate(today.getDate() - 7));
+  // Fetch transport data
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const today = new Date();
+      const defaultEndDate = today;
+      const defaultStartDate = new Date(today.setDate(today.getDate() - 7));
 
-        const queryParams = new URLSearchParams({
-          start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : format(defaultStartDate, "yyyy-MM-dd"),
-          end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(defaultEndDate, "yyyy-MM-dd"),
-          driver: selectedDriver !== "all" ? selectedDriver : "",
-          location: selectedLocation !== "all" ? selectedLocation : "",
-          direction: direction !== "all" ? direction : "",
-          page: page.toString(),
-          page_size: "20",
-        });
+      const queryParams = new URLSearchParams({
+        start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : format(defaultStartDate, "yyyy-MM-dd"),
+        end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(defaultEndDate, "yyyy-MM-dd"),
+        driver: selectedDriver !== "all" ? selectedDriver : "",
+        location: selectedLocation !== "all" ? selectedLocation : "",
+        direction: direction !== "all" ? direction : "",
+        page: page.toString(),
+        page_size: "20",
+      });
 
-        const response = await fetch(
-          `${API_URL}/activity/su-run/data-screen/?${queryParams}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        if (!response.ok) {
-          throw new Error("Failed to fetch data");
+      const response = await fetch(
+        `${API_URL}/activity/su-run/data-screen/?${queryParams}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
-        const apiData: ApiResponse = await response.json();
-
-        const newTransportData: TransportData = { ...fallbackTransportData };
-        apiData.data.runs.forEach((run) => {
-          const slotId = runNameToId[run.runName] || "early";
-          newTransportData[slotId] = {
-            timeRange: `${run.startTime} - ${run.endTime}`,
-            data: run.data,
-            internalOps: {
-              drivers: run.internalJobsList.map((job) => ({
-                name: job.name,
-                transfers: parseInt(job.Total),
-                jobs: parseInt(job.Total),
-                total: parseInt(job.Total),
-              })),
-            },
-          };
-        });
-        setTransportData(newTransportData);
-        setTotalPages(apiData.data.total_pages);
-        setError(null);
-      } catch (err) {
-        setError("Error fetching data. Using fallback data.");
-        console.error(err);
-      } finally {
-        setIsLoading(false);
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch data");
       }
-    };
-    fetchData();
+      const apiData: ApiResponse = await response.json();
+
+      const newTransportData: TransportData = { ...fallbackTransportData };
+      apiData.data.runs.forEach((run) => {
+        const slotId = runNameToId[run.runName] || "early";
+        newTransportData[slotId] = {
+          timeRange: `${run.startTime} - ${run.endTime}`,
+          data: run.data,
+          internalOps: {
+            drivers: run.internalJobsList.map((job) => ({
+              name: job.name,
+              transfers: job.name === "Internal Transfer" ? parseInt(job.Total) : 0,
+              jobs: job.name === "Internal Jobs" ? parseInt(job.Total) : 0,
+              total: parseInt(job.Total),
+            })),
+          },
+        };
+      });
+
+      setTransportData(newTransportData);
+      setTotalPages(apiData.data.total_pages);
+      setActiveTab(runNameToId[apiData.data.current_run_type] || "early");
+      setError(null);
+    } catch (err) {
+      setError("Error fetching data. Using fallback data.");
+      setActiveTab("early"); // Fallback to "early" on error
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   }, [dateRange.from, dateRange.to, selectedDriver, selectedLocation, direction, page, token]);
 
-  const currentData = transportData[activeTab];
+  // Fetch data on filter changes or initial load
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Auto-refresh every 30 seconds with counter
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshCounter((prev) => {
+        if (prev <= 1) {
+          fetchData();
+          return 30;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  // Use fallback tab if still loading
+  const currentData = activeTab ? transportData[activeTab] : transportData.early;
 
   const filteredData = currentData.data.filter((row: LocationRow) => {
     return selectedLocation === "all" || row.location === selectedLocation;
@@ -315,13 +352,8 @@ export default function TransportDashboard() {
     try {
       const queryParams = new URLSearchParams({
         location_name: locationName,
-        run_type: activeTab === "early" ? "Early" : 
-                  activeTab === "shuttle1" ? "First Shuttle" : 
-                  activeTab === "shuttle2" ? "2nd Shuttle Run" : 
-                  activeTab === "shuttle3" ? "Third Shuttle" : 
-                  "Night",
-        start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : "2025-09-08",
-        end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : "2025-09-08",
+        start_date: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       });
 
       const response = await fetch(
@@ -362,143 +394,193 @@ export default function TransportDashboard() {
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-900">SU Data Management</h1>
           </div>
-          <div>
-            <span className="text-sm text-gray-500">Last updated 12:58 PM</span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-500">Last updated {new Date().toLocaleTimeString()}</span>
+            <span className="text-sm text-gray-500">
+              Next refresh in {refreshCounter} seconds
+            </span>
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center mb-6 justify-between">
-        <div className="flex gap-2">
-          {tabs.map((tab) => (
-            <Badge
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setSelectedLocation("all");
-                setSelectedDriver("all");
-                setDateRange({ from: undefined, to: undefined });
-                setDirection("all");
-                setPage(1);
-              }}
-              className={`px-4 py-1 rounded-2xl text-sm font-medium border transition-colors ${
-                activeTab === tab.id ? tab.color : "text-gray-500 hover:text-gray-700 bg-white border-gray-200"
-              }`}
+      {!isLoading && activeTab && (
+        <div className="flex items-center mb-6 justify-between">
+          <div className="flex gap-2">
+            {tabs.map((tab) => (
+              <Badge
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setPage(1);
+                  setRefreshCounter(30);
+                }}
+                className={`px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer ${
+                  activeTab === tab.id ? tab.color : "text-gray-500 hover:text-gray-700 bg-white border-gray-200"
+                }`}
+              >
+                {tab.label}
+              </Badge>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <ExportButton data={filteredData} fileName="SU Data Management" />
+            <Button
+              variant="outline"
+              onClick={clearFilters}
+              className="text-sm"
             >
-              {tab.label}
-            </Badge>
-          ))}
-        </div>
-        <div className="flex items-center">
-          <ExportButton data={filteredData} fileName="SU data Management" />
-        </div>
-      </div>
-
-      {/* Section Header */}
-      <div className="mb-4">
-        <div className="mb-2">
-          <h2 className="text-lg font-semibold text-gray-900">Reports</h2>
-          <p className="text-sm text-gray-500">{currentData.timeRange} data</p>
-        </div>
-        {/* Filter Row */}
-        <div className="flex items-center gap-4 mb-6 text-sm text-gray-600">
-          <Select onValueChange={setDirection} value={direction}>
-            <SelectTrigger className="w-[180px] border-gray-300">
-              <SelectValue placeholder="Select Direction" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Directions</SelectItem>
-              <SelectItem value="in">In</SelectItem>
-              <SelectItem value="out">Out</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select onValueChange={setSelectedLocation} value={selectedLocation}>
-            <SelectTrigger className="w-[180px] border-gray-300">
-              <SelectValue placeholder="Select Location" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Locations</SelectItem>
-              {locations.map((loc) => (
-                <SelectItem key={loc.id} value={loc.id.toString()}>
-                  {loc.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select onValueChange={setSelectedDriver} value={selectedDriver}>
-            <SelectTrigger className="w-[180px] border-gray-300">
-              <SelectValue placeholder="Select Driver" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Drivers</SelectItem>
-              {drivers.map((driver) => (
-                <SelectItem key={driver.id} value={driver.id.toString()}>
-                  {driver.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-[140px] justify-start text-left font-normal",
-                    !dateRange.from && "text-muted-foreground"
-                  )}
-                >
-                  {dateRange.from ? format(dateRange.from, "LLL dd, yyyy") : "Start Date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-2">
-                <Calendar
-                  mode="single"
-                  selected={dateRange.from}
-                  onSelect={(date) => setDateRange((prev) => ({ ...prev, from: date }))}
-                  initialFocus
-                  className="rounded-md"
-                  defaultMonth={dateRange.from || new Date()}
-                />
-              </PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-[140px] justify-start text-left font-normal",
-                    !dateRange.to && "text-muted-foreground"
-                  )}
-                >
-                  {dateRange.to ? format(dateRange.to, "LLL dd, yyyy") : "End Date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-2">
-                <Calendar
-                  mode="single"
-                  selected={dateRange.to}
-                  onSelect={(date) => setDateRange((prev) => ({ ...prev, to: date }))}
-                  initialFocus
-                  className="rounded-md"
-                  defaultMonth={dateRange.to || new Date()}
-                />
-              </PopoverContent>
-            </Popover>
+              Clear Filters
+            </Button>
+            <Button
+              variant="outline"
+              onClick={refreshData}
+              className="text-sm"
+            >
+              Refresh
+            </Button>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Section Header */}
+      {!isLoading && activeTab && (
+        <div className="mb-4">
+          <div className="mb-2">
+            <h2 className="text-lg font-semibold text-gray-900">Reports</h2>
+            <p className="text-sm text-gray-500">{currentData.timeRange} data</p>
+          </div>
+          {/* Filter Row */}
+          <div className="flex items-center gap-4 mb-6 text-sm text-gray-600">
+            <Select onValueChange={setDirection} value={direction}>
+              <SelectTrigger className="w-[180px] border-gray-300">
+                <SelectValue placeholder="Select Direction" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Directions</SelectItem>
+                <SelectItem value="in">In</SelectItem>
+                <SelectItem value="out">Out</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select onValueChange={setSelectedLocation} value={selectedLocation}>
+              <SelectTrigger className="w-[180px] border-gray-300">
+                <SelectValue placeholder="Select Location" />
+              </SelectTrigger>
+              <SelectContent className="h-[150px]">
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id.toString()}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select onValueChange={setSelectedDriver} value={selectedDriver}>
+              <SelectTrigger className="w-[180px] border-gray-300">
+                <SelectValue placeholder="Select Driver" />
+              </SelectTrigger>
+              <SelectContent className="h-[150px]">
+                <SelectItem value="all">All Drivers</SelectItem>
+                {drivers.map((driver) => (
+                  <SelectItem key={driver.id} value={driver.id.toString()}>
+                    {driver.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-4">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !dateRange.from && "text-muted-foreground"
+                    )}
+                  >
+                    {dateRange.from ? format(dateRange.from, "LLL dd, yyyy") : "Start Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2">
+                  <Calendar
+                    mode="single"
+                    selected={dateRange.from}
+                    onSelect={(date) => {
+                      setDateRange((prev) => ({ ...prev, from: date }));
+                      setRefreshCounter(30);
+                    }}
+                    initialFocus
+                    className="rounded-md"
+                    defaultMonth={dateRange.from || new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !dateRange.to && "text-muted-foreground"
+                    )}
+                  >
+                    {dateRange.to ? format(dateRange.to, "LLL dd, yyyy") : "End Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2">
+                  <Calendar
+                    mode="single"
+                    selected={dateRange.to}
+                    onSelect={(date) => {
+                      setDateRange((prev) => ({ ...prev, to: date }));
+                      setRefreshCounter(30);
+                    }}
+                    initialFocus
+                    className="rounded-md"
+                    defaultMonth={dateRange.to || new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Loading and Error States */}
       {isLoading && <p className="text-gray-500">Loading data...</p>}
       {error && <p className="text-red-500">{error}</p>}
 
       {/* Pagination Controls */}
-   
+      {!isLoading && activeTab && totalPages > 1 && (
+        <div className="flex justify-between items-center mb-6">
+          <Button
+            variant="outline"
+            disabled={page === 1}
+            onClick={() => {
+              setPage((prev) => Math.max(prev - 1, 1));
+              setRefreshCounter(30);
+            }}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-gray-600">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            disabled={page === totalPages}
+            onClick={() => {
+              setPage((prev) => Math.min(prev + 1, totalPages));
+              setRefreshCounter(30);
+            }}
+          >
+            Next
+          </Button>
+        </div>
+      )}
 
       {/* Data Table */}
-      {!isLoading && (
+      {!isLoading && activeTab && (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
           <Table>
             <TableHeader>
@@ -639,7 +721,7 @@ export default function TransportDashboard() {
       )}
 
       {/* Internal Operations */}
-      {!isLoading && (
+      {!isLoading && activeTab && (
         <div className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Internal Operations</h3>

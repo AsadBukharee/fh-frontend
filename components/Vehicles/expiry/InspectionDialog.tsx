@@ -39,6 +39,8 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
   username,
   onUpdateSuccess,
 }) => {
+  const [reminderDateTime, setReminderDateTime] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [state, setState] = useState<State>({
     newPMIDate: lastPMIDate,
     step: "initial",
@@ -59,7 +61,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
     newPMIDate,
     step,
     documentUrl,
-    isLoading,
+   
     brakeTestPassed,
     maintenanceCorrect,
     notes,
@@ -67,7 +69,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
     vehicleStatus,
     driverErrors,
     selectedDrivers,
-    reminderDateTime,
+
     interimCertificate,
   } = state;
 
@@ -179,21 +181,52 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
     delayAndProceed("reminder", "Interim PMI Sign Off certificate saved with date and time stamp");
   };
 
-  const handleReminder = (type: "pmi" | "brake", reminderType: string) => {
-    if (!reminderDateTime) {
-      toast({
-        title: "Error",
-        description: "Please select a valid date and time",
-        variant: "destructive",
+  const handleReminder = async (type: "pmi" | "brake", reminderType: string) => {
+    setIsLoading(true);
+    try {
+      // Construct the API payload
+      const payload = {
+        title: `${reminderType} for ABC123`,
+        description: `Reminder for ${reminderType} for vehicle ABC123`,
+        priority: "medium",
+        start_date: reminderDateTime.split("T")[0], // Extract date (e.g., "2025-08-31")
+        recurrence: "daily",
+        recurrence_interval: 1,
+      };
+
+      // Replace with your API host (set in .env)
+      const apiUrl = `${process.env.REACT_APP_API_HOST}/api/reminders/`;
+
+      // Make the API call
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Add authentication headers if required, e.g.:
+          // "Authorization": `Bearer ${yourAuthToken}`,
+        },
+        body: JSON.stringify(payload),
       });
-      return;
+
+      // Check if the request was successful
+      if (!response.ok) {
+        throw new Error(`Failed to save reminder: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log("Reminder saved successfully:", result);
+
+      // Reset form and provide feedback
+      setReminderDateTime("");
+      alert("Reminder saved successfully!");
+    } catch (error) {
+      console.error("Error saving reminder:", error);
+      alert("Failed to save reminder. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-    toast({
-      title: "Success",
-      description: `Reminder set for ${reminderType} upload for ${vehicleRegistration}`,
-    });
-    setState(prev => ({ ...prev, step: "reminderConfirmation" })); // Transition to confirmation step
   };
+
 
   const handleFinalUpload = (type: "pmi" | "brake") => {
     if (!documentUrl) {
@@ -352,14 +385,13 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
               />
             )}
             {(step === "reminder" || step === "brakeReminder") && (
-              <ReminderStep
-                step={step}
-                vehicleRegistration={vehicleRegistration}
-                reminderDateTime={reminderDateTime}
-                setReminderDateTime={(value) => setState(prev => ({ ...prev, reminderDateTime: value }))}
-                handleReminder={handleReminder}
-                isLoading={isLoading}
-              />
+           <ReminderStep
+        step="reminder"
+        vehicleRegistration="ABC123"
+        reminderDateTime={reminderDateTime}
+        setReminderDateTime={setReminderDateTime}
+        
+      />
             )}
             {step === "reminderConfirmation" && (
               <ReminderConfirmationStep
