@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -16,7 +16,7 @@ interface NotificationCardProps {
   title: string;
   description: string;
   time: string;
-  created_at: string; // Store raw timestamp for filtering
+  created_at: string;
   read: boolean;
 }
 
@@ -39,10 +39,11 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationCardProps[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [loading, setLoading] = useState<boolean>(false);
-  const [initialLoading, setInitialLoading] = useState<boolean>(true); // Separate loading for initial fetch
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [nextPage, setNextPage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const token = useCookies().get('access_token');
+  const notificationIds = new Set(notifications.map((n) => n.id)); // For duplicate checking
 
   // Map API notification type to component type
   const mapNotificationType = (apiNotification: ApiNotification): NotificationCardProps['type'] => {
@@ -52,31 +53,23 @@ export default function NotificationsPage() {
     if (apiNotification.type === 'system') {
       return apiNotification.title.toLowerCase().includes('alert') ? 'alert' : 'update';
     }
-    return 'update'; // Default fallback
+    return 'update';
   };
 
-  // Normalize nextPage URL to match API_URL protocol
+  // Normalize nextPage URL
   const normalizeNextPageUrl = (url: string | null): string | null => {
     if (!url) return null;
-    // Use API_URL's protocol and host, keep the path and query
     const baseUrl = new URL(API_URL);
     const nextUrl = new URL(url);
     return `${baseUrl.origin}${nextUrl.pathname}${nextUrl.search}`;
   };
 
-  // Check if a notification already exists (by ID) to prevent duplicates
-  const hasDuplicate = (existingNotifications: NotificationCardProps[], newNotification: ApiNotification) => {
-    return existingNotifications.some((notif) => notif.id === newNotification.id.toString());
-  };
-
-  // Fetch notifications from API
-  const fetchNotifications = async (url: string) => {
-    if (loading) return; // Prevent multiple simultaneous fetches
+  // Fetch notifications
+  const fetchNotifications = useCallback(async (url: string) => {
+    if (loading || !token) return;
     setLoading(true);
     setError(null);
     try {
-      console.log('Fetching notifications from:', url);
-      console.log('Using token:', token);
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -84,44 +77,86 @@ export default function NotificationsPage() {
         },
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid or expired token. Please log in again.');
+        }
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
-      console.log('API response:', data);
       if (data.success) {
         const mappedNotifications: NotificationCardProps[] = data.data.results
-          .filter((item: ApiNotification) => !hasDuplicate(notifications, item)) // Filter out duplicates
+          .filter((item: ApiNotification) => !notificationIds.has(item.id.toString()))
           .map((item: ApiNotification) => ({
             id: item.id.toString(),
             type: mapNotificationType(item),
             title: item.title,
             description: item.body,
             time: formatDistanceToNow(new Date(item.created_at), { addSuffix: true }),
-            created_at: item.created_at, // Store raw timestamp
+            created_at: item.created_at,
             read: item.is_read,
           }));
 
-        // Log for debugging
-        if (mappedNotifications.length > 0) {
-          console.log('Mapped new notifications:', mappedNotifications.map(n => n.id));
-          console.log('Total notifications after append:', notifications.length + mappedNotifications.length);
-        }
-
         setNotifications((prev) => [...prev, ...mappedNotifications]);
+        mappedNotifications.forEach((n) => notificationIds.add(n.id));
         setNextPage(normalizeNextPageUrl(data.data.pagination.next));
       } else {
         throw new Error(data.message || 'API request failed');
       }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      setError('Failed to load notifications. Please try again.');
+    } catch (error: any) {
+      setError(error.message || 'Failed to load notifications. Please try again.');
     } finally {
       setLoading(false);
       setInitialLoading(false);
     }
+  }, [loading, token, notificationIds]);
+
+  // Mark a single notification as read
+  const markAsRead = async (id: string) => {
+    const originalNotifications = [...notifications];
+    setNotifications((prev) =>
+      prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif))
+    );
+    try {
+      const response = await fetch(`${API_URL}/api/notifications/${id}/mark-read/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to mark notification ${id} as read`);
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      setNotifications(originalNotifications); // Revert on failure
+      setError('Failed to mark notification as read.');
+    }
   };
 
-  // Initial fetch on mount
+  // Mark all notifications as read
+  const markAllAsRead = async () => {
+    const originalNotifications = [...notifications];
+    setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
+    try {
+      const response = await fetch(`${API_URL}/api/notifications/mark-all-read/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to mark all notifications as read');
+      }
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      setNotifications(originalNotifications); // Revert on failure
+      setError('Failed to mark all notifications as read.');
+    }
+  };
+
+  // Initial fetch
   useEffect(() => {
     if (token) {
       fetchNotifications(`${API_URL}/api/notification-inbox/?page=1`);
@@ -131,27 +166,13 @@ export default function NotificationsPage() {
     }
   }, [token]);
 
-  // Mark a single notification as read (local state update)
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif))
-    );
-    // TODO: Add API call to mark notification as read if endpoint exists
-  };
-
-  // Mark all notifications as read (local state update)
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
-    // TODO: Add API call to mark all notifications as read if endpoint exists
-  };
-
   // Filter notifications
   const filteredNotifications =
     activeFilter === 'all'
       ? notifications
       : notifications.filter((notif) => notif.type === activeFilter);
 
-  // Separate recent and earlier notifications (within last 24 hours)
+  // Separate recent and earlier notifications
   const recentNotifications = filteredNotifications.filter(
     (notif) => new Date().getTime() - new Date(notif.created_at).getTime() < 24 * 60 * 60 * 1000
   );
@@ -168,11 +189,11 @@ export default function NotificationsPage() {
   };
 
   // Load more notifications
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (nextPage && !loading) {
       fetchNotifications(nextPage);
     }
-  };
+  }, [nextPage, loading, fetchNotifications]);
 
   return (
     <div className="container mx-auto bg-white px-4 py-8 md:px-6 lg:px-8 max-w-full">
@@ -183,7 +204,7 @@ export default function NotificationsPage() {
           <p className="text-muted-foreground">See all your notifications here</p>
         </div>
         <Button
-          className="flex items-center gap-2 shadow-md outline-1 outline-gray-100 bg-transparent"
+          className="flex items-center border border-gray-300 text-black hover:text-white gap-2 shadow-md outline-1 outline-gray-100 bg-transparent"
           onClick={() => setActiveFilter('all')}
         >
           <Filter className="w-4 h-4" />
@@ -193,8 +214,11 @@ export default function NotificationsPage() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-md">
+        <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-md flex justify-between items-center">
           {error}
+          <Button variant="ghost" onClick={() => fetchNotifications(`${API_URL}/api/notification-inbox/?page=1`)}>
+            Retry
+          </Button>
         </div>
       )}
 
@@ -282,7 +306,7 @@ export default function NotificationsPage() {
               {recentNotifications.length > 0 ? (
                 recentNotifications.map((notification) => (
                   <NotificationCard
-                    key={notification.id} // Use stable ID-based key
+                    key={notification.id}
                     {...notification}
                     onMarkAsRead={() => markAsRead(notification.id)}
                   />
@@ -297,7 +321,7 @@ export default function NotificationsPage() {
               {earlierNotifications.length > 0 ? (
                 earlierNotifications.map((notification) => (
                   <NotificationCard
-                    key={notification.id} // Use stable ID-based key
+                    key={notification.id}
                     {...notification}
                     onMarkAsRead={() => markAsRead(notification.id)}
                   />

@@ -1,25 +1,24 @@
-"use server"
+"use server";
 
-import API_URL from "@/app/utils/ENV"
-import { cookies } from "next/headers"
+import API_URL from "@/app/utils/ENV";
+import { cookies } from "next/headers";
 
-// Helper to simulate API delay
+// Helper: Simulated delay
 const simulateApiCall = async (data: any, success: boolean, delay = 1000) => {
   return new Promise((resolve) => {
     setTimeout(() => {
       if (success) {
-        resolve({ success: true, data, message: "Operation successful" })
+        resolve({ success: true, data, message: "Operation successful" });
       } else {
-        resolve({ success: false, message: "Simulated API error", error_code: "SIMULATED_ERROR" })
+        resolve({ success: false, message: "Simulated API error", error_code: "SIMULATED_ERROR" });
       }
-    }, delay)
-  })
-}
+    }, delay);
+  });
+};
 
 // ==========================================
-// 1. PERSONAL INFO API (✅ FIXED)
+// 1. PERSONAL INFO API (✅ With Debug Logs)
 // ==========================================
-// Define the shape of the personal info data
 interface PersonalInfo {
   driver_name: string;
   date_of_birth: string;
@@ -35,7 +34,6 @@ interface PersonalInfo {
   have_other_jobs_note: string;
 }
 
-// Define the shape of the API payload
 interface ApiPayload {
   user_id: number;
   personal_info: {
@@ -55,7 +53,6 @@ interface ApiPayload {
   timestamp: string;
 }
 
-// Define the shape of the response
 interface SubmitResponse {
   success: boolean;
   message: string;
@@ -67,12 +64,12 @@ interface SubmitResponse {
   };
 }
 
-export async function submitPersonalInfo(
-  formData: FormData,
-  user_id: number
-): Promise<SubmitResponse> {
+export async function submitPersonalInfo(formData: FormData, user_id: number): Promise<SubmitResponse> {
+  console.log("[DEBUG] submitPersonalInfo called");
+  console.log("[DEBUG] user_id:", user_id);
+  console.log("[DEBUG] API_URL:", API_URL);
+
   try {
-    // Extract form data with type assertion
     const rawPersonalInfo: PersonalInfo = {
       driver_name: formData.get("driver_name") as string,
       date_of_birth: formData.get("date_of_birth") as string,
@@ -88,7 +85,8 @@ export async function submitPersonalInfo(
       have_other_jobs_note: formData.get("have_other_jobs_note") as string,
     };
 
-    // Validate required fields
+    console.log("[DEBUG] Raw form data:", rawPersonalInfo);
+
     const requiredFields: (keyof PersonalInfo)[] = [
       "driver_name",
       "date_of_birth",
@@ -104,6 +102,7 @@ export async function submitPersonalInfo(
 
     for (const field of requiredFields) {
       if (!rawPersonalInfo[field]) {
+        console.warn(`[DEBUG] Missing field: ${field}`);
         return {
           success: false,
           message: `Missing required field: ${field.replace(/_/g, " ")}`,
@@ -111,17 +110,15 @@ export async function submitPersonalInfo(
       }
     }
 
-    // Combine address1 and post_code to match API payload
     const address = `${rawPersonalInfo.address1}, ${rawPersonalInfo.post_code}, UK`;
 
-    // Construct API payload
     const payload: ApiPayload = {
       user_id,
       personal_info: {
         driver_name: rawPersonalInfo.driver_name,
         date_of_birth: rawPersonalInfo.date_of_birth,
         phone: rawPersonalInfo.phone,
-        address, // Combined address field
+        address,
         account_no: rawPersonalInfo.account_no,
         sort_code: rawPersonalInfo.sort_code,
         post_code: rawPersonalInfo.post_code,
@@ -129,26 +126,32 @@ export async function submitPersonalInfo(
         license_number: rawPersonalInfo.license_number,
         license_issue_number: rawPersonalInfo.license_issue_number,
         have_other_jobs: rawPersonalInfo.have_other_jobs,
-        have_other_jobs_note: rawPersonalInfo.have_other_jobs
-          ? rawPersonalInfo.have_other_jobs_note || ""
-          : "",
+        have_other_jobs_note: rawPersonalInfo.have_other_jobs ? rawPersonalInfo.have_other_jobs_note || "" : "",
       },
       timestamp: new Date().toISOString(),
     };
 
-    // Make API call
+    console.log("[DEBUG] API payload:", payload);
+
+    const token = (await cookies()).get("access_token");
+    console.log("[DEBUG] Access token present:", !!token?.value);
+
     const response = await fetch(`${API_URL}/api/profiles/driver/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${(await cookies()).get('access_token')}`
+        Authorization: `Bearer ${token?.value || ""}`,
       },
       body: JSON.stringify(payload),
     });
 
-    const result: { driver_id?: number; message?: string } = await response.json();
+    console.log("[DEBUG] Response status:", response.status);
+
+    const result = await response.json();
+    console.log("[DEBUG] API result:", result);
 
     if (!response.ok) {
+      console.error("[DEBUG] API error response:", result);
       return {
         success: false,
         message: result.message || "Failed to submit personal information",
@@ -159,13 +162,14 @@ export async function submitPersonalInfo(
       success: true,
       message: "Personal information submitted successfully",
       data: {
-        driver_id: result.driver_id || 123, // Fallback to simulated driver_id
+        driver_id: result.driver_id || 123,
         step_completed: "personal_info",
         next_step: "next_of_kin",
         updated_at: new Date().toISOString(),
       },
     };
   } catch (error: unknown) {
+    console.error("[DEBUG] submitPersonalInfo ERROR:", error);
     return {
       success: false,
       message: `Error submitting personal information: ${(error as Error).message}`,
@@ -174,117 +178,107 @@ export async function submitPersonalInfo(
 }
 
 // ==========================================
-// 2. NEXT OF KIN API
+// 2. NEXT OF KIN API (With Debug Logs)
 // ==========================================
-
-
 export async function submitNextOfKinInfo(prevState: any, formData: FormData) {
+  console.log("[DEBUG] submitNextOfKinInfo called");
+
   try {
     const driverId = formData.get("driver_id")?.toString();
+    console.log("[DEBUG] Driver ID:", driverId);
+
     if (!driverId) {
       return { success: false, message: "Driver ID is required." };
     }
 
-    // Prepare the payload from formData
     const payload = {
       next_of_kin_name: formData.get("kin_name")?.toString() || "",
       next_of_kin_relationship: formData.get("kin_relationship")?.toString() || "",
       next_of_kin_contact: formData.get("kin_contact")?.toString() || "",
-      next_of_kin_email: formData.get("kin_email")?.toString() || "", // Note: Add kin_email to form if needed
+      next_of_kin_email: formData.get("kin_email")?.toString() || "",
       next_of_kin_address: formData.get("kin_address")?.toString() || "",
+      driver_id: driverId,
     };
 
-    // Make the POST request
+    console.log("[DEBUG] Payload:", payload);
+
+    const token = (await cookies()).get("access_token");
+    console.log("[DEBUG] Access token present:", !!token?.value);
+
     const response = await fetch(`${API_URL}/api/profiles/driver/`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-           Authorization: `Bearer ${(await cookies()).get('access_token')}`
-        
+        Authorization: `Bearer ${token?.value || ""}`,
       },
-      body: JSON.stringify({ ...payload, driver_id: driverId }),
+      body: JSON.stringify(payload),
     });
 
+    console.log("[DEBUG] Response status:", response.status);
+
+    const data = await response.json();
+    console.log("[DEBUG] Response data:", data);
+
     if (!response.ok) {
-      const errorData = await response.json();
       return {
         success: false,
-        message: errorData.message || "Failed to submit next of kin information.",
+        message: data.message || "Failed to submit next of kin information.",
       };
     }
 
-    const data = await response.json();
-    return { success: true, message: "Next of kin information submitted successfully.", data };
+    return { success: true, message: "Next of kin info submitted successfully", data };
   } catch (error) {
-    console.error("Error submitting next of kin info:", error);
-    return { success: false, message: "An error occurred while submitting the information." };
+    console.error("[DEBUG] submitNextOfKinInfo ERROR:", error);
+    return { success: false, message: "An error occurred while submitting." };
   }
 }
 
 // ==========================================
-// 3. HEALTH QUESTIONS API
+// 3. HEALTH QUESTIONS API (With Debug Logs)
 // ==========================================
-export async function submitHealthQuestions(
-  prevState: any,
-  formData: FormData,
-): Promise<{ success: boolean; message: string; data?: any }> {
-  const driver_id = Number.parseInt(formData.get("driver_id") as string) // Get driver_id from hidden input
+export async function submitHealthQuestions(prevState: any, formData: FormData) {
+  console.log("[DEBUG] submitHealthQuestions called");
 
-  if (!driver_id) {
-    return { success: false, message: "Driver ID is missing. Please complete the previous steps." }
-  }
+  const driver_id = Number.parseInt(formData.get("driver_id") as string);
+  console.log("[DEBUG] Driver ID:", driver_id);
 
-  const healthQuestions: any[] = []
-  let answeredCount = 0
+  if (!driver_id) return { success: false, message: "Driver ID missing" };
 
-  // Example questions - in a real app, these would come from a database
+  const healthQuestions: any[] = [];
   const questions = [
     { id: 1, text: "Do you have any medical conditions?" },
     { id: 2, text: "Are you taking any medications?" },
     { id: 3, text: "Do you have any vision problems?" },
-  ]
+  ];
 
   questions.forEach((q) => {
-    const answer = formData.get(`question_${q.id}_answer`) === "true"
-    const note = formData.get(`question_${q.id}_note`) as string
-    healthQuestions.push({
-      question_id: q.id,
-      question_text: q.text,
-      answer: answer,
-      note: note || "",
-    })
-    answeredCount++
-  })
+    const answer = formData.get(`question_${q.id}_answer`) === "true";
+    const note = formData.get(`question_${q.id}_note`) as string;
+    healthQuestions.push({ question_id: q.id, question_text: q.text, answer, note: note || "" });
+  });
 
-  // const payload = {
-  //   driver_id: driver_id,
-  //   health_questions: healthQuestions,
-  //   completed_at: new Date().toISOString(),
-  //   total_questions: questions.length,
-  //   answers_provided: answeredCount,
-  // }
+  console.log("[DEBUG] Health questions payload:", healthQuestions);
 
-  // Simulate API call
   const apiResponse = await simulateApiCall(
     {
-      driver_id: driver_id,
+      driver_id,
       step_completed: "health_questions",
       next_step: "documents",
       health_assessment_status: "pending_review",
-      questions_answered: answeredCount,
+      questions_answered: healthQuestions.length,
       flagged_questions: healthQuestions.filter((q) => q.answer).length,
       updated_at: new Date().toISOString(),
     },
-    true,
-  )
+    true
+  );
 
-  return apiResponse as { success: boolean; message: string; data?: any }
+  console.log("[DEBUG] Simulated API response:", apiResponse);
+  return apiResponse as { success: boolean; message: string; data?: any };
 }
 
 // ==========================================
-// 4. DOCUMENTS API
+// 4. DOCUMENTS API (With Debug Logs)
 // ==========================================
-
 interface ProfessionalCompetency {
   driver: number;
   document_name: string;
@@ -298,18 +292,6 @@ interface ProfessionalCompetency {
   has_description: boolean;
   modules: { module_name: string; description: string; expiry_date: string }[];
 }
-// types/professionalCompetency.ts
-export interface Module {
-  module_name: string;
-  description: string;
-  expiry_date: string;
-}
-
-
-
-interface ServerProfessionalCompetency extends ProfessionalCompetency {
-  driver: number;
-}
 
 export async function submitDocuments({
   driverId,
@@ -318,54 +300,51 @@ export async function submitDocuments({
   driverId: number;
   competencies: { [key: string]: ProfessionalCompetency };
 }) {
+  console.log("[DEBUG] submitDocuments called");
+  console.log("[DEBUG] driverId:", driverId);
+  console.log("[DEBUG] competencies keys:", Object.keys(competencies));
+
   try {
-    // Prepare the payload for the bulk API
-    const professional_competencies: ServerProfessionalCompetency[] = Object.values(competencies)
-      .filter((competency) => competency.has_document || competency.description) // Only include competencies with data
-      .map((competency) => ({
+    const professional_competencies = Object.values(competencies)
+      .filter((c) => c.has_document || c.description)
+      .map((c) => ({
+        ...c,
         driver: driverId,
-        document_name: competency.document_name,
-        has_expiry: competency.has_expiry,
-        description: competency.description,
-        expiry_date: competency.expiry_date || "",
-        has_document: competency.has_document,
-        has_back_side: competency.has_back_side,
-        urls: competency.urls.filter((url) => url), // Remove empty URLs
-        request_status: competency.request_status,
-        has_description: competency.has_description,
-        modules: competency.modules || [],
+        urls: c.urls.filter(Boolean),
       }));
 
-    // Make the API call
-    const response = await fetch(`${process.env.API_BASE_URL}/api/profiles/professional-competency/bulk-create/`, {
+ console.log(
+  "[DEBUG] Payload:",
+  professional_competencies.map((c) => ({
+    modules: c.modules.map((m) => m), // Return the module object itself
+  }))
+);
+professional_competencies.forEach((c, index) => {
+  if (c.modules.length > 0) {
+    console.log(`[DEBUG] Competency ${index + 1} Modules:`, c.modules);
+    // Or for deeper inspection:
+    console.dir(c.modules, { depth: null });
+  }
+});
+const token = (await cookies()).get("access_token")?.value;
+
+    const response = await fetch(`${API_URL}/api/profiles/professional-competency/bulk-create/`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Add authentication headers if required (e.g., Authorization: Bearer <token>)
-      },
+      headers: { "Content-Type": "application/json",
+    Authorization: token ? `Bearer ${token}` : "",
+       },
       body: JSON.stringify({ professional_competencies }),
     });
 
+    console.log("[DEBUG] Response status:", response.status);
     const result = await response.json();
+    console.log("[DEBUG] API response:", result);
 
-    if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || "Failed to submit documents.",
-      };
-    }
+    if (!response.ok) return { success: false, message: result.message || "Failed to submit documents." };
 
-    // Revalidate cache if needed
-
-    return {
-      success: true,
-      message: "Documents submitted successfully.",
-    };
+    return { success: true, message: "Documents submitted successfully." };
   } catch (error) {
-    console.error("Error submitting documents:", error);
-    return {
-      success: false,
-      message: "An error occurred while submitting documents.",
-    };
+    console.error("[DEBUG] submitDocuments ERROR:", error);
+    return { success: false, message: "Error submitting documents." };
   }
 }

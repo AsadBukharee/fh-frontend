@@ -1,145 +1,123 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Bell, RefreshCw } from "lucide-react";
-import { NotificationItem } from "./NotificationItem";
-import { ApiResponse, Notification } from "@/app/lib/types";
-import { useButtonMouseMove } from "@/app/lib/utils";
-import { useCookies } from "next-client-cookies";
-import API_URL from "@/app/utils/ENV";
+import { useState } from "react";
+import { Bell } from "lucide-react";
+import { cn } from "@/lib/utils"; // Assuming a utility for className concatenation
+import { Button } from "../ui/button";
 
-export function NotificationsDropdown() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState("all");
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const handleMouseMove = useButtonMouseMove();
-  const apiUrl =API_URL
-  const token=useCookies().get("access_token")
- const fetchNotifications = async () => {
-      setIsLoading(true);
-    fetch(`${apiUrl}/api/notification-inbox/?page=${page}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data: ApiResponse) => {
-        if (data.success) {
-          setNotifications((prev) => (page === 1 ? data.data.results : [...prev, ...data.data.results]));
-          setUnreadCount(data.data.stats.unread_count);
-          setHasMore(!!data.data.pagination.next);
-        } else {
-          setError("Failed to fetch notifications");
-        }
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        setError("Error fetching notifications");
-        setIsLoading(false);
-        console.error(err);
-      });
-  }
-  // Fetch notifications
-  useEffect(() => {
-    fetchNotifications();
- 
-  }, [page]);
-
-  const filteredNotifications =
-    activeFilter === "all" ? notifications : notifications.filter((n) => n.type === activeFilter);
-
-  const getFilterColor = (type: string) => {
-    switch (type) {
-      case "system":
-        return "bg-gray-100 text-gray-700 hover:bg-gray-200";
-      default:
-        return "bg-gray-100 text-gray-700 hover:bg-gray-200";
-    }
+// Define Notification type (same as in Header.tsx)
+interface Notification {
+  id: number;
+  user: {
+    id: number;
+    email: string;
+    full_name: string;
+    role: string;
+    avatar: string | null;
   };
+  roles: string[];
+  title: string;
+  body: string;
+  type: string;
+  category: string;
+  data: Record<string, any>;
+  is_read: boolean;
+  created_at: string;
+  read_by: null | any;
+}
+
+interface NotificationsDropdownProps {
+  notifications: Notification[];
+  pagination?: {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    current_page: number;
+    total_pages: number;
+    page_size: number;
+  };
+  onPaginate: (url: string) => void;
+  selectedCategory: string;
+}
+
+export function NotificationsDropdown({ notifications, pagination, onPaginate, selectedCategory }: NotificationsDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          ref={buttonRef}
-          variant="ghost"
-          size="sm"
-          className="relative cursor-pointer bg-gray-100 hover:bg-gray-200 w-10 h-10 rounded-full flex items-center justify-center"
-          onMouseMove={handleMouseMove(buttonRef)}
-        >
-          <Bell className="w-5 h-5 text-gray-700" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 opacity-50 hover:opacity-100 text-white text-xs font-semibold rounded-full flex items-center justify-center">
-              {unreadCount}
-            </span>
+    <div className="relative">
+      <Button
+        variant="outline"
+        className="flex items-center gap-2"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-label="Toggle notifications dropdown"
+      >
+        <Bell className="w-5 h-5" />
+        <span className="hidden sm:inline">Notifications</span>
+        {notifications.length > 0 && (
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
+            {notifications.length}
+          </span>
+        )}
+      </Button>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto z-10">
+          <div className="p-4 border-b">
+            <h3 className="text-lg font-semibold">
+              {selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Notifications
+            </h3>
+          </div>
+          {notifications.length === 0 ? (
+            <p className="p-4 text-gray-500 text-center">No notifications available</p>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {notifications.map((notification) => (
+                <li
+                  key={notification.id}
+                  className={cn(
+                    "p-4 hover:bg-gray-50",
+                    notification.is_read ? "bg-gray-100" : "bg-white"
+                  )}
+                >
+                  <h4 className="font-medium text-gray-900">{notification.title}</h4>
+                  <p className="text-sm text-gray-600">{notification.body}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {new Date(notification.created_at).toLocaleString("en-GB", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    From: {notification.user.full_name} ({notification.user.role})
+                  </p>
+                </li>
+              ))}
+            </ul>
           )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-96 bg-white">
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">Notifications</h3>
-            <div className=" flex gap-3">
-              <RefreshCw className="w-5 h-5 text-gray-400 hover:text-gray-700 cursor-pointer"  onClick={()=>fetchNotifications()} />
-              {/* <Badge variant="secondary">{filteredNotifications.length}</Badge> */}
-
+          {pagination && (
+            <div className="p-4 border-t flex justify-between items-center">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!pagination.previous}
+                onClick={() => pagination.previous && onPaginate(pagination.previous)}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-gray-600">
+                Page {pagination.current_page} of {pagination.total_pages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!pagination.next}
+                onClick={() => pagination.next && onPaginate(pagination.next)}
+              >
+                Next
+              </Button>
             </div>
-          </div>
-          {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-          <div className="flex flex-wrap gap-2">
-            <Badge
-              variant={activeFilter === "all" ? "default" : "secondary"}
-              className={`cursor-pointer ripple ${
-                activeFilter === "all" ? "bg-gray-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-              onClick={() => setActiveFilter("all")}
-            >
-              All
-            </Badge>
-            <Badge
-              variant="secondary"
-              className={`cursor-pointer ripple ${getFilterColor("system")} ${
-                activeFilter === "system" ? "ring-2 ring-gray-300" : ""
-              }`}
-              onClick={() => setActiveFilter("system")}
-            >
-              System
-            </Badge>
-          </div>
-        </div>
-        <div className="max-h-96 overflow-y-auto">
-          {filteredNotifications.length === 0 && !isLoading && (
-            <p className="p-4 text-gray-500">No notifications found.</p>
-          )}
-          {filteredNotifications.map((notification) => (
-            <NotificationItem key={notification.id} notification={notification} />
-          ))}
-          {isLoading && <p className="p-4 text-gray-500">Loading...</p>}
-          {hasMore && !isLoading && (
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={() => setPage((prev) => prev + 1)}
-            >
-              Load More
-            </Button>
           )}
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      )}
+    </div>
   );
 }

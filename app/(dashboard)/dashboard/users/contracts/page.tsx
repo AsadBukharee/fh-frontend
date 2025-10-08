@@ -5,12 +5,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Edit,
   Save,
   Trash2,
   Clock,
-  PoundSterling,
   FileText,
   Building2,
   Plus,
@@ -21,8 +21,9 @@ import {
   Loader2,
   ChevronDown,
   Check,
-  Zap,
-  HandCoins ,
+  HandCoins,
+  Filter,
+  LayoutGrid,
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -81,7 +82,6 @@ interface ShiftTemplate {
   updated_at: string
 }
 
-// Utility function to format time
 const formatTime = (time: string): string => {
   if (!time) return ""
   const [hours, minutes] = time.split(":")
@@ -91,7 +91,6 @@ const formatTime = (time: string): string => {
   return `${formattedHours}:${minutes} ${period}`
 }
 
-// Memoized ShiftCard component
 const ShiftCard = memo(
   ({
     shift,
@@ -99,14 +98,12 @@ const ShiftCard = memo(
     contracts,
     handleEdit,
     handleDelete,
-    handleQuickAssign,
     handleSaveShift,
     handleSaveTemplate,
     isEditing,
     editedTemplate,
     setEditedTemplate,
     saving,
-    assigningTemplate,
     isSelected,
     onSelect,
   }: {
@@ -115,48 +112,35 @@ const ShiftCard = memo(
     contracts: Contract[]
     handleEdit: (item: Shift | ShiftTemplate) => void
     handleDelete: (id: number, isShift: boolean) => Promise<void>
-    handleQuickAssign: (templateId: number, contractId: number | null) => Promise<void>
     handleSaveShift: (shift: Shift) => Promise<void>
     handleSaveTemplate: (template: ShiftTemplate) => Promise<void>
     isEditing: number | null
     editedTemplate: Shift | ShiftTemplate | null
     setEditedTemplate: (template: Shift | ShiftTemplate | null) => void
     saving: boolean
-    assigningTemplate: number | null
     isSelected?: boolean
     onSelect?: (id: number) => void
   }) => {
     const isEditingThis = isEditing === shift.id
-    const isAssigning = assigningTemplate === shift.id
     const assignedContract = shift.contract ? contracts.find((c) => c.id === shift.contract) : null
 
     return (
       <div
         className={`
-        group relative bg-white rounded-xl shadow-sm border transition-all duration-200
-        ${isTemplate ? "border-amber-200 hover:shadow-amber-100" : "border-gray-200 hover:shadow-md"}
-        ${isEditingThis ? "ring-2 ring-blue-500 shadow-lg" : "hover:border-gray-300"}
-        ${isSelected ? "ring-2 ring-blue-300" : ""}
+        group relative bg-white rounded-lg shadow-sm border transition-all duration-200
+        ${isTemplate ? "border-blue-100 hover:border-blue-200" : "border-gray-200"}
+        ${isEditingThis ? "ring-2 ring-orange shadow-md" : "hover:shadow-md"}
+        ${isSelected ? "ring-2 ring-orange border-orange" : ""}
       `}
       >
-        <div className="absolute top-0 left-0 w-1 h-full rounded-l-xl" style={{ backgroundColor: shift.colors }} />
-        {isTemplate && (
-          <div className="absolute top-1 left-2">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onSelect && onSelect(shift.id)}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-              disabled={isEditingThis || saving || isAssigning}
-            />
-          </div>
-        )}
-        <div className="p-5 pl-6">
+        <div className="absolute top-0 left-0 w-1 h-full rounded-l-lg" style={{ backgroundColor: shift.colors }} />
+        
+        <div className="p-4 pl-5">
           {isEditingThis && editedTemplate ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                  {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  {saving && <Loader2 className="h-4 w-4 animate-spin text-orange" />}
                   {isTemplate ? "Edit Template" : "Edit Shift"}
                 </h4>
                 <Button
@@ -164,45 +148,51 @@ const ShiftCard = memo(
                   size="sm"
                   onClick={() => setEditedTemplate(null)}
                   disabled={saving}
-                  className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
+                  className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
+              
               <div className="space-y-3">
-                <Input
-                  placeholder="Shift name"
-                  value={editedTemplate.name}
-                  onChange={(e) => setEditedTemplate({ ...editedTemplate, name: e.target.value })}
-                  disabled={saving}
-                  className="font-medium"
-                />
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1.5 block">Shift Name</label>
+                  <Input
+                    placeholder="e.g., Morning Shift"
+                    value={editedTemplate.name}
+                    onChange={(e) => setEditedTemplate({ ...editedTemplate, name: e.target.value })}
+                    disabled={saving}
+                    className="h-9"
+                  />
+                </div>
+                
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-500">Start Time</label>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">Start Time</label>
                     <Input
                       type="time"
                       value={editedTemplate.hours_from}
                       onChange={(e) => setEditedTemplate({ ...editedTemplate, hours_from: e.target.value })}
                       disabled={saving}
-                      className="text-sm"
+                      className="h-9"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-500">End Time</label>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">End Time</label>
                     <Input
                       type="time"
                       value={editedTemplate.hours_to}
                       onChange={(e) => setEditedTemplate({ ...editedTemplate, hours_to: e.target.value })}
                       disabled={saving}
-                      className="text-sm"
+                      className="h-9"
                     />
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-500">Rate per Hour</label>
+                
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1.5 block">Hourly Rate</label>
                   <div className="relative">
-                  <HandCoins  className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <HandCoins className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       type="number"
                       step="0.01"
@@ -214,179 +204,129 @@ const ShiftCard = memo(
                         })
                       }
                       disabled={saving}
-                      className="pl-10"
+                      className="pl-9 h-9"
                       placeholder="0.00"
                     />
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-500">Notes</label>
+                
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1.5 block">Notes (Optional)</label>
                   <Input
                     value={editedTemplate.shift_note || ""}
                     onChange={(e) => setEditedTemplate({ ...editedTemplate, shift_note: e.target.value })}
                     disabled={saving}
-                    placeholder="Add shift notes..."
+                    placeholder="Add any additional details..."
+                    className="h-9"
                   />
                 </div>
+                
                 <div className="flex items-center gap-3">
-                  <label className="text-xs font-medium text-gray-500">Color</label>
+                  <label className="text-xs font-medium text-gray-600">Color Label</label>
                   <input
                     type="color"
-                    className="w-8 h-8 rounded border border-gray-200 cursor-pointer disabled:cursor-not-allowed"
+                    className="w-10 h-9 rounded border border-gray-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                     value={editedTemplate.colors || "#3B82F6"}
                     onChange={(e) => setEditedTemplate({ ...editedTemplate, colors: e.target.value })}
                     disabled={saving}
                   />
                 </div>
-                {isTemplate && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-500">Assign to Contract</label>
-                    <select
-                      className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                      value={editedTemplate.contract || ""}
-                      onChange={(e) =>
-                        setEditedTemplate({
-                          ...editedTemplate,
-                          contract: e.target.value ? Number.parseInt(e.target.value) : null,
-                        })
-                      }
-                      disabled={saving}
-                    >
-                      <option value="">No Contract</option>
-                      {contracts.map((contract: Contract) => (
-                        <option key={contract.id} value={contract.id}>
-                          {contract.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
-              <div className="flex gap-2 pt-2">
-                <Button
-                  onClick={() => (isTemplate ? handleSaveTemplate(shift as ShiftTemplate) : handleSaveShift(shift as Shift))}
-                  disabled={saving}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                  size="sm"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  {saving ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
+              
+              <Button
+                onClick={() => (isTemplate ? handleSaveTemplate(shift as ShiftTemplate) : handleSaveShift(shift as Shift))}
+                disabled={saving}
+                className="w-full bg-orange hover:bg-orange/90 h-9"
+                size="sm"
+              >
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-1">{shift.name}</h3>
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      <span>
+                <div className="flex-1 min-w-0">
+                  {isTemplate && onSelect && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => onSelect(shift.id)}
+                        className="h-4 w-4 text-orange border-gray-300 rounded focus:ring-2 focus:ring-orange"
+                        disabled={isEditingThis || saving}
+                      />
+                      <span className="text-xs text-gray-500">Select for bulk action</span>
+                    </div>
+                  )}
+                  <h3 className="font-semibold text-gray-900 mb-1.5 truncate">{shift.name}</h3>
+                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-xs">
                         {formatTime(shift.hours_from)} - {formatTime(shift.hours_to)}
                       </span>
                     </div>
                   </div>
                 </div>
-                <Badge className="bg-green-50 text-green-700 border-green-200">
+                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 ml-2 shrink-0">
                   £{shift.rate_per_hours?.toFixed(2) || "0.00"}
                 </Badge>
               </div>
-              {/* {isTemplate && (
-                <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-amber-600" />
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <span className="text-sm font-medium text-amber-800">Add to contract</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Add this shift to the selected contract</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    {assignedContract && (
-                      <Badge variant="outline" className="text-xs">
-                        {assignedContract.name}
-                      </Badge>
-                    )}
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isAssigning}
-                        className="h-8 text-xs bg-white hover:bg-amber-50 border-amber-300"
-                      >
-                        {isAssigning ? (
-                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                        ) : (
-                          <Building2 className="h-3 w-3 mr-1" />
-                        )}
-                        {isAssigning ? "Assigning..." : "Assign"}
-                        <ChevronDown className="h-3 w-3 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => handleQuickAssign(shift.id, null)} className="text-sm">
-                        <X className="h-4 w-4 mr-2 text-gray-400" />
-                        No Contract
-                        {!shift.contract && <Check className="h-4 w-4 ml-auto text-green-600" />}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {contracts.map((contract) => (
-                        <DropdownMenuItem
-                          key={contract.id}
-                          onClick={() => handleQuickAssign(shift.id, contract.id)}
-                          className="text-sm"
-                        >
-                          <Building2 className="h-4 w-4 mr-2 text-blue-500" />
-                          <div className="flex-1">
-                            <div className="font-medium">{contract.name}</div>
-                            <div className="text-xs text-gray-500 truncate">{contract.shifts.length} shifts</div>
-                          </div>
-                          {shift.contract === contract.id && <Check className="h-4 w-4 ml-2 text-green-600" />}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )} */}
-              {shift.shift_note && (
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <FileText className="h-4 w-4 mt-0.5 text-gray-400" />
-                  <span>{shift.shift_note}</span>
+
+              {assignedContract && (
+                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-orange/10 rounded border border-orange/20">
+                  <Building2 className="h-3.5 w-3.5 text-orange" />
+                  <span className="text-xs font-medium text-orange">{assignedContract.name}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between pt-2">
+
+              {shift.shift_note && (
+                <div className="flex items-start gap-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                  <FileText className="h-3.5 w-3.5 mt-0.5 text-gray-400 shrink-0" />
+                  <span className="line-clamp-2">{shift.shift_note}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                 <div className="flex items-center gap-2">
                   <div
-                    className="w-3 h-3 rounded-full border border-white shadow-sm"
+                    className="w-2.5 h-2.5 rounded-full border border-white shadow-sm"
                     style={{ backgroundColor: shift.colors }}
                   />
                   <span className="text-xs text-gray-500">
-                    Updated {new Date(shift.updated_at).toLocaleDateString("en-GB")}
+                    {new Date(shift.updated_at).toLocaleDateString("en-GB")}
                   </span>
                 </div>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEdit(shift)}
-                    disabled={saving || isAssigning}
-                    className="h-8 text-gray-600 hover:text-gray-900"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    className="mx-2"
-                    onClick={() => handleDelete(shift.id, !isTemplate)}
-                    variant="destructive"
-                    disabled={saving}
-                    size="sm"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(shift)}
+                        disabled={saving}
+                        className="h-7 w-7 p-0 text-gray-600 hover:text-orange hover:bg-orange/10"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Edit</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => handleDelete(shift.id, !isTemplate)}
+                        variant="ghost"
+                        disabled={saving}
+                        size="sm"
+                        className="h-7 w-7 p-0 text-gray-600 hover:text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Delete</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             </div>
@@ -406,7 +346,6 @@ const ShiftManagement = () => {
   const [editedTemplate, setEditedTemplate] = useState<Shift | ShiftTemplate | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [saving, setSaving] = useState<boolean>(false)
-  const [assigningTemplate, setAssigningTemplate] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300)
@@ -419,11 +358,11 @@ const ShiftManagement = () => {
   })
   const [newTemplate, setNewTemplate] = useState({
     name: "",
-    hours_from: "06:00:00",
-    hours_to: "14:00:00",
+    hours_from: "09:00",
+    hours_to: "17:00",
     shift_note: "",
     rate_per_hours: 0,
-    colors: "#FFB6D1",
+    colors: "#FF6B35",
     contract: null as number | null,
   })
   const [selectedTemplates, setSelectedTemplates] = useState<number[]>([])
@@ -518,7 +457,7 @@ const ShiftManagement = () => {
 
   const handleDeleteContract = useCallback(
     async (id: number) => {
-      if (!confirm("Are you sure you want to delete this contract?")) return
+      if (!confirm("Are you sure you want to delete this contract? All associated shifts will also be removed.")) return
 
       setSaving(true)
       try {
@@ -574,11 +513,11 @@ const ShiftManagement = () => {
       setIsAddModalOpen(false)
       setNewTemplate({
         name: "",
-        hours_from: "06:00:00",
-        hours_to: "14:00:00",
+        hours_from: "09:00",
+        hours_to: "17:00",
         shift_note: "",
         rate_per_hours: 0,
-        colors: "#FFB6D1",
+        colors: "#FF6B35",
         contract: null,
       })
     } catch (err: any) {
@@ -588,39 +527,6 @@ const ShiftManagement = () => {
       setSaving(false)
     }
   }, [newTemplate, cookies, showToast, fetchData])
-
-  const handleQuickAssign = useCallback(
-    async (templateId: number, contractId: number | null) => {
-      setAssigningTemplate(templateId)
-      try {
-        const template = shiftTemplates.find((t) => t.id === templateId)
-        if (!template) throw new Error("Template not found")
-
-        const response = await fetch(`${API_URL}/api/staff/shifts/${templateId}/add-to-contract/${contractId}/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get("access_token")}`,
-          },
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || "Failed to assign template")
-        }
-
-        await fetchData()
-        const contractName = contractId ? contracts.find((c) => c.id === contractId)?.name : "No Contract"
-        showToast(`Template assigned to ${contractName} successfully.`, "success")
-      } catch (err: any) {
-        console.error("Error assigning template:", err)
-        showToast(err.message || "Failed to assign template.", "error")
-      } finally {
-        setAssigningTemplate(null)
-      }
-    },
-    [shiftTemplates, contracts, cookies, showToast, fetchData]
-  )
 
   const handleToggleTemplate = useCallback((id: number) => {
     setSelectedTemplates((prev) =>
@@ -637,7 +543,7 @@ const ShiftManagement = () => {
   }, [shiftTemplates])
 
   const handleBulkAssign = useCallback(async () => {
-    if (!bulkContractId && bulkContractId !== null) {
+    if (bulkContractId === null) {
       showToast("Please select a contract for assignment.", "error")
       return
     }
@@ -669,7 +575,7 @@ const ShiftManagement = () => {
 
       await fetchData()
       const contractName = bulkContractId ? contracts.find((c) => c.id === bulkContractId)?.name : "No Contract"
-      showToast(`Selected templates assigned to ${contractName} successfully.`, "success")
+      showToast(`${selectedTemplates.length} template(s) assigned to ${contractName}.`, "success")
       setSelectedTemplates([])
       setIsBulkAssignModalOpen(false)
       setBulkContractId(null)
@@ -703,25 +609,22 @@ const ShiftManagement = () => {
 
       setSaving(true)
       try {
-        const response = await fetch(
-          `${API_URL}/api/staff/shifts/${shift.id}/`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${cookies.get("access_token")}`,
-            },
-            body: JSON.stringify({
-              name,
-              hours_from,
-              hours_to,
-              shift_note: editedTemplate.shift_note || "",
-              rate_per_hours: editedTemplate.rate_per_hours || 0,
-              colors: editedTemplate.colors,
-              contract,
-            }),
-          }
-        )
+        const response = await fetch(`${API_URL}/api/staff/shifts/${shift.id}/`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+          body: JSON.stringify({
+            name,
+            hours_from,
+            hours_to,
+            shift_note: editedTemplate.shift_note || "",
+            rate_per_hours: editedTemplate.rate_per_hours || 0,
+            colors: editedTemplate.colors,
+            contract,
+          }),
+        })
 
         if (!response.ok) {
           const errorData = await response.json()
@@ -844,12 +747,21 @@ const ShiftManagement = () => {
     )
   }, [contracts, selectedContract, debouncedSearchTerm])
 
+  const filteredTemplates = useMemo(() => {
+    if (!debouncedSearchTerm) return shiftTemplates
+    return shiftTemplates.filter(
+      (template) =>
+        template.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        template.shift_note?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+    )
+  }, [shiftTemplates, debouncedSearchTerm])
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-orange mx-auto mb-4" />
-          <p className="text-gray-600">Loading shift management...</p>
+          <p className="text-gray-600 font-medium">Loading shift management...</p>
         </div>
       </div>
     )
@@ -857,14 +769,14 @@ const ShiftManagement = () => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="text-red-500 mb-4">
-            <X className="h-12 w-12 mx-auto mb-2" />
-            <p className="text-lg font-semibold">Error Loading Data</p>
-          </div>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={fetchData}>Try Again</Button>
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <div className="text-center max-w-md">
+          <X className="h-12 w-12 mx-auto mb-4 text-red-500" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Data</h3>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <Button onClick={fetchData} className="bg-orange hover:bg-orange/90">
+            Try Again
+          </Button>
         </div>
       </div>
     )
@@ -872,143 +784,209 @@ const ShiftManagement = () => {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-6 py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Shift Management</h1>
-                <p className="text-gray-600 mt-1">Manage contracts, shifts, and templates</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={() => setIsAddModalOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Template
-                </Button>
-                <GradientButton
-                  text="New Contract"
-                  onClick={() => setIsContractModalOpen(true)}
-                  Icon={Plus}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-4 mt-6">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search contracts and shifts..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <select
-                value={selectedContract}
-                onChange={(e) => setSelectedContract(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Contracts</option>
-                {contracts.map((contract: Contract) => (
-                  <option key={contract.id} value={contract.id.toString()}>
-                    {contract.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <div className="p-6 space-y-6 bg-white min-h-screen">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Contracts & Shift Management</h1>
+            <p className="text-gray-600 text-sm mt-1">Manage contracts, shifts, and templates</p>
+          </div>
+          <div className="flex items-center gap-3">
+           
+        
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 mt-2 gap-6">
-          <Card>
-            <CardContent className="p-6">
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="border border-gray-200">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Contracts</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Contracts</p>
                   <p className="text-2xl font-bold text-gray-900">{contracts.length}</p>
                 </div>
-                <Building2 className="h-8 w-8 text-orange" />
+                <div className="p-3 bg-orange/10 rounded-lg">
+                  <Building2 className="h-6 w-6 text-orange" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-6">
+          
+          <Card className="border border-gray-200">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Active Shifts</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Active Shifts</p>
                   <p className="text-2xl font-bold text-gray-900">{totalShifts}</p>
                 </div>
-                <Clock className="h-8 w-8 text-magenta" />
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <Clock className="h-6 w-6 text-purple-600" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-6">
+          
+          <Card className="border border-gray-200">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Templates</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Templates</p>
                   <p className="text-2xl font-bold text-gray-900">{totalTemplates}</p>
                 </div>
-                <Settings className="h-8 w-8 text-rose" />
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Settings className="h-6 w-6 text-blue-600" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-6">
+          
+          <Card className="border border-gray-200">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Avg. Rate</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Average Rate</p>
                   <p className="text-2xl font-bold text-gray-900">£{averageRate.toFixed(2)}</p>
                 </div>
-              <HandCoins  className="h-8 w-8 text-purple-600" />
+                <div className="p-3 bg-emerald-100 rounded-lg">
+                  <HandCoins className="h-6 w-6 text-emerald-600" />
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <Building2 className="h-5 w-5 text-orange" />
-                <h2 className="text-lg font-semibold text-gray-900">Active Contracts</h2>
-                <Badge variant="secondary">{filteredContracts.length}</Badge>
-              </div>
-              <Accordion type="single" collapsible className="space-y-4">
+
+        {/* Search and Filter */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 z-1 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by name, description, or notes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <Tabs defaultValue="contracts" className="w-full">
+          <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden">
+            <TabsTrigger
+              value="contracts"
+              className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
+            >
+              <Building2 className="h-4 w-4 mr-2" />
+              Contracts Management
+              <Badge variant="secondary" className="ml-2 bg-white/50">
+                {contracts.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger
+              value="templates"
+              className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Shift Templates
+              <Badge variant="secondary" className="ml-2 bg-white/50">
+                {shiftTemplates.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Contracts Tab Content */}
+          <TabsContent value="contracts" className="mt-6 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">All Contracts</h2>
+             <div className=" flex gap-2">
+                   <GradientButton
+              text="New Contract"
+              onClick={() => setIsContractModalOpen(true)}
+              Icon={Plus}
+            />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    {selectedContract === "all" ? "All Contracts" : contracts.find(c => c.id.toString() === selectedContract)?.name}
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => setSelectedContract("all")}>
+                    <LayoutGrid className="h-4 w-4 mr-2" />
+                    All Contracts
+                    {selectedContract === "all" && <Check className="h-4 w-4 ml-auto text-orange" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {contracts.map((contract) => (
+                    <DropdownMenuItem
+                      key={contract.id}
+                      onClick={() => setSelectedContract(contract.id.toString())}
+                    >
+                      <Building2 className="h-4 w-4 mr-2" />
+                      {contract.name}
+                      {selectedContract === contract.id.toString() && (
+                        <Check className="h-4 w-4 ml-auto text-orange" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+             </div>
+            </div>
+
+            {filteredContracts.length > 0 ? (
+              <Accordion type="single" collapsible className="space-y-3">
                 {filteredContracts.map((contract: Contract) => (
                   <AccordionItem
                     key={contract.id}
                     value={`contract-${contract.id}`}
-                    className="border border-gray-200 rounded-xl bg-white shadow-sm group"
+                    className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden"
                   >
-                    <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                    <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between w-full text-left">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-orange transition-colors">
-                            {contract.name}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">{contract.description}</p>
+                        <div className="flex-1 min-w-0 mr-4">
+                          <div className="flex items-center gap-3 mb-1">
+                            <h3 className="font-semibold text-gray-900 text-base truncate">
+                              {contract.name}
+                            </h3>
+                            <Badge className="bg-orange/10 text-orange border-0 shrink-0">
+                              {contract.shifts.length} {contract.shifts.length === 1 ? 'shift' : 'shifts'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 line-clamp-1">{contract.description || "No description"}</p>
+                          <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(contract.updated_at).toLocaleDateString("en-GB")}
+                            </span>
+                            {contract.updated_by_name && (
+                              <span>• {contract.updated_by_name}</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 ml-4">
-                          <Badge className="bg-blue-50 text-blue-700 border-blue-200">
-                            {contract.shifts.length} shifts
-                          </Badge>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
                             <Button
-                              variant="destructive"
+                              variant="ghost"
                               size="sm"
                               onClick={(e) => {
-                                e.stopPropagation() // Prevent accordion toggle
+                                e.stopPropagation()
                                 handleDeleteContract(contract.id)
                               }}
                               disabled={saving}
-                              className="h-8 w-8 p-0"
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 shrink-0"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                          </div>
-                        </div>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete contract</TooltipContent>
+                        </Tooltip>
                       </div>
                     </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6">
-                      <div className="grid gap-4">
+                    <AccordionContent className="px-5 pb-5 bg-gray-50/50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-3">
                         {contract.shifts.map((shift: Shift) => (
                           <ShiftCard
                             key={shift.id}
@@ -1016,72 +994,115 @@ const ShiftManagement = () => {
                             contracts={contracts}
                             handleEdit={handleEdit}
                             handleDelete={handleDelete}
-                            handleQuickAssign={handleQuickAssign}
                             handleSaveShift={handleSaveShift}
                             handleSaveTemplate={handleSaveTemplate}
                             isEditing={isEditing}
                             editedTemplate={editedTemplate}
                             setEditedTemplate={setEditedTemplate}
                             saving={saving}
-                            assigningTemplate={assigningTemplate}
                           />
                         ))}
-                        {contract.shifts.length === 0 && (
-                          <div className="text-center py-8 text-gray-500">
-                            <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                            <p>No shifts assigned to this contract</p>
-                          </div>
-                        )}
                       </div>
+                      {contract.shifts.length === 0 && (
+                        <div className="text-center py-10 text-gray-500">
+                          <Calendar className="h-10 w-10 mx-auto mb-2 text-gray-300" />
+                          <p className="font-medium text-sm">No shifts assigned</p>
+                          <p className="text-xs mt-1">Add shifts from templates to get started</p>
+                        </div>
+                      )}
                     </AccordionContent>
                   </AccordionItem>
                 ))}
               </Accordion>
-              {filteredContracts.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <Building2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No contracts found</p>
-                </div>
-              )}
-            </div>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Settings className="h-5 w-5 text-amber-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Shift Templates</h2>
-                  <Badge variant="secondary">{shiftTemplates.length}</Badge>
+            ) : (
+              <Card className="border border-gray-200">
+                <CardContent className="text-center py-12">
+                  <Building2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <h3 className="text-base font-semibold text-gray-900 mb-1">No contracts found</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {searchTerm ? "Try adjusting your search terms" : "Create your first contract to get started"}
+                  </p>
+                  {!searchTerm && (
+                    <Button onClick={() => setIsContractModalOpen(true)} className="bg-orange hover:bg-orange/90">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Contract
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Templates Tab Content */}
+          <TabsContent value="templates" className="mt-6 space-y-4">
+            {selectedTemplates.length > 0 && (
+              <div className="flex items-center justify-between p-4 bg-orange/10 border border-orange/20 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-orange" />
+                  <span className="font-medium text-orange text-sm">
+                    {selectedTemplates.length} template{selectedTemplates.length !== 1 ? 's' : ''} selected
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {shiftTemplates.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleToggleSelectAll}
-                      disabled={saving}
-                    >
-                      {selectedTemplates.length === shiftTemplates.length ? (
-                        <X className="h-3 w-3 mr-1" />
-                      ) : (
-                        <Check className="h-3 w-3 mr-1" />
-                      )}
-                      {selectedTemplates.length === shiftTemplates.length ? "Deselect All" : "Select All"}
-                    </Button>
-                  )}
-                  {shiftTemplates.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsBulkAssignModalOpen(true)}
-                      disabled={selectedTemplates.length === 0 || saving}
-                    >
-                      <Building2 className="h-4 w-4 mr-2" />
-                      Assign Selected ({selectedTemplates.length})
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedTemplates([])}
+                    className="border-orange/30 text-orange hover:bg-orange/10 h-8"
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsBulkAssignModalOpen(true)}
+                    className="bg-orange hover:bg-orange/90 h-8"
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Assign to Contract
+                  </Button>
                 </div>
               </div>
-              <div className="grid gap-4">
-                {shiftTemplates.map((template: ShiftTemplate) => (
+            )}
+
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">All Templates</h2>
+           <div className=" flex gap-2">
+                <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsAddModalOpen(true)}
+              className="border-gray-300 hover:bg-gray-50"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Template
+            </Button>
+              {shiftTemplates.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleToggleSelectAll}
+                  disabled={saving}
+                  className="text-orange hover:text-orange/90 hover:bg-orange/10"
+                >
+                  {selectedTemplates.length === shiftTemplates.length ? (
+                    <>
+                      <X className="h-4 w-4 mr-2" />
+                      Deselect All
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Select All
+                    </>
+                  )}
+                </Button>
+              )}
+           </div>
+            </div>
+
+            {filteredTemplates.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filteredTemplates.map((template: ShiftTemplate) => (
                   <ShiftCard
                     key={template.id}
                     shift={template}
@@ -1089,68 +1110,80 @@ const ShiftManagement = () => {
                     contracts={contracts}
                     handleEdit={handleEdit}
                     handleDelete={handleDelete}
-                    handleQuickAssign={handleQuickAssign}
                     handleSaveShift={handleSaveShift}
                     handleSaveTemplate={handleSaveTemplate}
                     isEditing={isEditing}
                     editedTemplate={editedTemplate}
                     setEditedTemplate={setEditedTemplate}
                     saving={saving}
-                    assigningTemplate={assigningTemplate}
                     isSelected={selectedTemplates.includes(template.id)}
                     onSelect={handleToggleTemplate}
                   />
                 ))}
-                {shiftTemplates.length === 0 && (
-                  <div className="text-center py-12 text-gray-500">
-                    <Settings className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>No templates found</p>
-                  </div>
-                )}
               </div>
-            </div>
-          </div>
-        </div>
-        {/* Shift Template Modal */}
+            ) : (
+              <Card className="border border-gray-200">
+                <CardContent className="text-center py-12">
+                  <Settings className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <h3 className="text-base font-semibold text-gray-900 mb-1">No templates found</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {searchTerm ? "Try adjusting your search terms" : "Create reusable shift templates for quick assignment"}
+                  </p>
+                  {!searchTerm && (
+                    <Button onClick={() => setIsAddModalOpen(true)} className="bg-orange hover:bg-orange/90">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Template
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Create Template Modal */}
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
-              <DialogTitle>Create New Shift Template</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">Create New Shift Template</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-500">Template Name</label>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Template Name *</label>
                 <Input
-                  placeholder="Enter template name"
+                  placeholder="e.g., Morning Shift, Night Shift"
                   value={newTemplate.name}
                   onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
                   disabled={saving}
+                  className="h-10"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-500">Start Time</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Start Time *</label>
                   <Input
                     type="time"
                     value={newTemplate.hours_from}
                     onChange={(e) => setNewTemplate({ ...newTemplate, hours_from: e.target.value })}
                     disabled={saving}
+                    className="h-10"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-500">End Time</label>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">End Time *</label>
                   <Input
                     type="time"
                     value={newTemplate.hours_to}
                     onChange={(e) => setNewTemplate({ ...newTemplate, hours_to: e.target.value })}
                     disabled={saving}
+                    className="h-10"
                   />
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-500">Rate per Hour</label>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Hourly Rate</label>
                 <div className="relative">
-                  <HandCoins   className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <HandCoins className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     type="number"
                     step="0.01"
@@ -1162,43 +1195,45 @@ const ShiftManagement = () => {
                       })
                     }
                     disabled={saving}
-                    className="pl-10"
+                    className="pl-10 h-10"
                     placeholder="0.00"
                   />
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-500">Notes</label>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Notes (Optional)</label>
                 <Input
                   value={newTemplate.shift_note}
                   onChange={(e) => setNewTemplate({ ...newTemplate, shift_note: e.target.value })}
                   disabled={saving}
-                  placeholder="Add shift notes..."
+                  placeholder="Add any additional details..."
+                  className="h-10"
                 />
               </div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-medium text-gray-500">Color</label>
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700">Color Label</label>
                 <input
                   type="color"
-                  className="w-8 h-8 rounded border border-gray-200 cursor-pointer disabled:cursor-not-allowed"
+                  className="w-12 h-10 rounded border border-gray-300 cursor-pointer disabled:cursor-not-allowed"
                   value={newTemplate.colors}
                   onChange={(e) => setNewTemplate({ ...newTemplate, colors: e.target.value })}
                   disabled={saving}
                 />
+                <span className="text-sm text-gray-500">{newTemplate.colors}</span>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
                   setIsAddModalOpen(false)
                   setNewTemplate({
                     name: "",
-                    hours_from: "06:00:00",
-                    hours_to: "14:00:00",
+                    hours_from: "09:00",
+                    hours_to: "17:00",
                     shift_note: "",
                     rate_per_hours: 0,
-                    colors: "#FFB6D1",
+                    colors: "#FF6B35",
                     contract: null,
                   })
                 }}
@@ -1209,41 +1244,44 @@ const ShiftManagement = () => {
               <Button
                 onClick={handleAddTemplate}
                 disabled={saving}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-orange hover:bg-orange/90"
               >
-                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                 {saving ? "Creating..." : "Create Template"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        {/* Contract Modal */}
+
+        {/* Create Contract Modal */}
         <Dialog open={isContractModalOpen} onOpenChange={setIsContractModalOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
-              <DialogTitle>Create New Contract</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">Create New Contract</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-500">Contract Name</label>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Contract Name *</label>
                 <Input
-                  placeholder="Enter contract name"
+                  placeholder="e.g., Full-Time Staff, Part-Time Workers"
                   value={newContract.name}
                   onChange={(e) => setNewContract({ ...newContract, name: e.target.value })}
                   disabled={saving}
+                  className="h-10"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-500">Description</label>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Description</label>
                 <Input
-                  placeholder="Enter contract description"
+                  placeholder="Brief description of the contract..."
                   value={newContract.description}
                   onChange={(e) => setNewContract({ ...newContract, description: e.target.value })}
                   disabled={saving}
+                  className="h-10"
                 />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1257,44 +1295,47 @@ const ShiftManagement = () => {
               <Button
                 onClick={handleAddContract}
                 disabled={saving}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-orange hover:bg-orange/90"
               >
-                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                 {saving ? "Creating..." : "Create Contract"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
         {/* Bulk Assign Modal */}
         <Dialog open={isBulkAssignModalOpen} onOpenChange={setIsBulkAssignModalOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
-              <DialogTitle>Assign Selected Templates</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">Assign Templates to Contract</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-500">Select Contract</label>
+              <div className="p-4 bg-orange/10 rounded-lg border border-orange/20">
+                <p className="text-sm font-medium text-orange">
+                  {selectedTemplates.length} template{selectedTemplates.length !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Select Contract</label>
                 <select
-                  className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  className="w-full h-10 px-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange focus:border-orange disabled:bg-gray-100"
                   value={bulkContractId ?? ""}
                   onChange={(e) =>
                     setBulkContractId(e.target.value ? Number.parseInt(e.target.value) : null)
                   }
                   disabled={saving}
                 >
-                  <option value="">No Contract</option>
+                  <option value="">Select a contract...</option>
                   {contracts.map((contract: Contract) => (
                     <option key={contract.id} value={contract.id}>
-                      {contract.name}
+                      {contract.name} ({contract.shifts.length} shifts)
                     </option>
                   ))}
                 </select>
               </div>
-              <p className="text-sm text-gray-600">
-                {selectedTemplates.length} template(s) selected for assignment
-              </p>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1307,10 +1348,10 @@ const ShiftManagement = () => {
               </Button>
               <Button
                 onClick={handleBulkAssign}
-                disabled={saving}
-                className="bg-green-600 hover:bg-green-700"
+                disabled={saving || bulkContractId === null}
+                className="bg-orange hover:bg-orange/90"
               >
-                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Building2 className="h-4 w-4 mr-2" />}
                 {saving ? "Assigning..." : "Assign Templates"}
               </Button>
             </DialogFooter>
