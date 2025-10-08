@@ -1,28 +1,46 @@
-// lib/types.ts
+// @/app/lib/types.ts
 export interface Notification {
   id: number;
   user: {
     id: number;
     email: string;
     full_name: string;
-    role: string | null;
+    role: string;
     avatar: string | null;
   };
+  roles: string[];
   title: string;
   body: string;
   type: string;
-  data: {
-    [key: string]: any; // Flexible for varying data fields
-  };
+  category: string;
+  data: Record<string, any>;
   is_read: boolean;
   created_at: string;
+  read_by: string | null;
 }
 
 export interface ApiResponse {
   success: boolean;
   message: string;
   data: {
-    results: Notification[];
+    categories: {
+      drivers: Notification[];
+      vehicles: Notification[];
+      walkarounds: Notification[];
+      rotas: Notification[];
+      duty_logs: Notification[];
+      mechanic: Notification[];
+      other: Notification[];
+    };
+    counts: {
+      drivers: number;
+      vehicles: number;
+      walkarounds: number;
+      rotas: number;
+      duty_logs: number;
+      mechanic: number;
+      other: number;
+    };
     pagination: {
       count: number;
       next: string | null;
@@ -31,17 +49,8 @@ export interface ApiResponse {
       total_pages: number;
       page_size: number;
     };
-    stats: {
-      total_count: number;
-      unread_count: number;
-      read_count: number;
-      system_count: number;
-      announcement_count: number;
-      event_count: number;
-    };
   };
 }
-  
   export interface User {
     id: number
     name: string

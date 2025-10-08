@@ -1,8 +1,17 @@
 "use client";
 
 import React from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useStepper } from "./DriverStepper";
 import { useCookies } from "next-client-cookies";
 import API_URL from "@/app/utils/ENV";
@@ -81,8 +90,8 @@ export function ConfirmationStep({
   ];
 
   const handleSubmit = async () => {
-    if (driverId === null || driverId === undefined) {
-      setError("Driver ID is missing. Please complete previous steps.");
+    if (!driverId) {
+      setError("Driver ID missing. Complete previous steps first.");
       return;
     }
 
@@ -91,7 +100,7 @@ export function ConfirmationStep({
 
     const token = cookies.get("access_token");
     if (!token) {
-      setError("Authentication token is missing. Please log in again.");
+      setError("Missing authentication token. Please log in again.");
       setSubmitting(false);
       return;
     }
@@ -112,115 +121,148 @@ export function ConfirmationStep({
       });
 
       const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to submit application");
-      }
+      if (!response.ok) throw new Error(result.message || "Submission failed");
 
       alert("Application submitted successfully!");
     } catch (err) {
-      setError(`Error submitting application: ${(err as Error).message}`);
+      setError(`Error: ${(err as Error).message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Step 5: Confirmation</CardTitle>
-        <CardDescription>Review your details and confirm your submission.</CardDescription>
+    <Card className="border border-muted shadow-md rounded-lg bg-white dark:bg-neutral-900 transition-all">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-2xl font-semibold text-primary">
+          Step 5: Confirmation
+        </CardTitle>
+        <CardDescription>
+          Review all entered information carefully before submitting.
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6 min-h-[200px]">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Personal Information</h3>
-          <p>
-            <strong>Name:</strong> {personalInfoData?.driver_name || "N/A"}
-          </p>
-          <p>
-            <strong>DOB:</strong> {personalInfoData?.date_of_birth || "N/A"}
-          </p>
-          <p>
-            <strong>Phone:</strong> {personalInfoData?.phone || "N/A"}
-          </p>
-          <p>
-            <strong>Address:</strong> {personalInfoData?.address1 || "N/A"}
-          </p>
-          <p>
-            <strong>NI No:</strong> {personalInfoData?.national_insurance_no || "N/A"}
-          </p>
-          <p>
-            <strong>Other Job:</strong> {personalInfoData?.have_other_job === "on" ? "Yes" : "No"}
-          </p>
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Next of Kin</h3>
-          <p>
-            <strong>Name:</strong> {nextOfKinData?.next_of_kin_name || "N/A"}
-          </p>
-          <p>
-            <strong>Contact:</strong> {nextOfKinData?.next_of_kin_contact || "N/A"}
-          </p>
-          <p>
-            <strong>Relationship:</strong> {nextOfKinData?.next_of_kin_relationship || "N/A"}
-          </p>
-          <p>
-            <strong>Address:</strong> {nextOfKinData?.next_of_kin_address || "N/A"}
-          </p>
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Health Questions</h3>
-          {healthQuestionsList.map((q) => (
-            <p key={q.id}>
-              <strong>{q.text}</strong>{" "}
-              {healthQuestionsData?.[`question_${q.id}_answer`] === "true" ? "Yes" : "No"}
-              {healthQuestionsData?.[`question_${q.id}_note`] &&
-                ` (Note: ${healthQuestionsData[`question_${q.id}_note`]})`}
-            </p>
-          ))}
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Documents</h3>
-          {documentTypes.map((docType) => (
-            <p key={docType.id}>
-              <strong>{docType.label}:</strong>{" "}
-              {(documentsData[docType.id] as ProfessionalCompetency)?.has_document
-                ? "Uploaded"
-                : documentsData?.[`${docType.id}_reason`]
-                ? `Not Provided (Reason: ${documentsData[`${docType.id}_reason`]})`
-                : "Not Provided"}
-              {(documentsData[docType.id] as ProfessionalCompetency)?.expiry_date &&
-                ` (Expiry: ${(documentsData[docType.id] as ProfessionalCompetency).expiry_date})`}
-            </p>
-          ))}
-        </div>
-        {error && (
-          <p className="text-sm text-red-500 mt-4" aria-live="polite">
-            {error}
-          </p>
-        )}
-        <div className="mt-4 text-center text-lg font-medium text-green-600">
-          All steps completed! Your application is ready for review.
+
+      <CardContent className="space-y-8">
+        <Section title="Personal Information">
+          <DataRow label="Name" value={personalInfoData?.driver_name} />
+          <DataRow label="Date of Birth" value={personalInfoData?.date_of_birth} />
+          <DataRow label="Phone" value={personalInfoData?.phone} />
+          <DataRow label="Address" value={personalInfoData?.address1} />
+          <DataRow label="NI Number" value={personalInfoData?.national_insurance_no} />
+          <DataRow
+            label="Have Other Job"
+            value={personalInfoData?.have_other_job === "on" ? "Yes" : "No"}
+          />
+        </Section>
+
+        <Separator />
+
+        <Section title="Next of Kin">
+          <DataRow label="Name" value={nextOfKinData?.next_of_kin_name} />
+          <DataRow label="Contact" value={nextOfKinData?.next_of_kin_contact} />
+          <DataRow label="Relationship" value={nextOfKinData?.next_of_kin_relationship} />
+          <DataRow label="Address" value={nextOfKinData?.next_of_kin_address} />
+        </Section>
+
+        <Separator />
+
+        <Section title="Health Questions">
+          {healthQuestionsList.map((q) => {
+            const answer = healthQuestionsData?.[`question_${q.id}_answer`] === "true" ? "Yes" : "No";
+            const note = healthQuestionsData?.[`question_${q.id}_note`];
+            return (
+              <div
+                key={q.id}
+                className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-muted/40 last:border-none"
+              >
+                <span className="font-medium text-gray-800 dark:text-gray-200">{q.text}</span>
+                <span className="flex items-center gap-2">
+                  <Badge variant={answer === "Yes" ? "default" : "secondary"}>{answer}</Badge>
+                  {note && (
+                    <span className="text-sm text-muted-foreground">(Note: {note})</span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </Section>
+
+        <Separator />
+
+        <Section title="Documents">
+          {documentTypes.map((docType) => {
+            const doc = documentsData[docType.id] as ProfessionalCompetency;
+            const status = doc?.has_document
+              ? "Uploaded"
+              : documentsData?.[`${docType.id}_reason`]
+              ? `Not Provided (Reason: ${documentsData[`${docType.id}_reason`]})`
+              : "Not Provided";
+
+            return (
+              <div
+                key={docType.id}
+                className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-muted/40 last:border-none"
+              >
+                <span className="font-medium text-gray-800 dark:text-gray-200">
+                  {docType.label}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Badge
+                    variant={doc?.has_document ? "default" : "destructive"}
+                    className="text-xs"
+                  >
+                    {status}
+                  </Badge>
+                  {doc?.expiry_date && (
+                    <span className="text-sm text-muted-foreground">
+                      Expiry: {doc.expiry_date}
+                    </span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </Section>
+
+        {error && <p className="text-sm text-red-500">{error}</p>}
+
+        <div className="text-center text-green-600 font-medium">
+          ✅ All steps completed. Ready for submission.
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
+
+      <CardFooter className="flex justify-between pt-6">
         <Button
-          type="button"
           variant="outline"
-          className="border border-magenta text-magenta hover:bg-magenta-50"
           onClick={goToPreviousStep}
           disabled={disableBack || submitting}
         >
           Previous
         </Button>
-        <Button
-          type="button"
-          className="bg-magenta text-white hover:bg-magenta-600"
-          onClick={handleSubmit}
-          disabled={submitting}
-        >
+        <Button onClick={handleSubmit} disabled={submitting}>
           {submitting ? "Submitting..." : "Submit Application"}
         </Button>
       </CardFooter>
     </Card>
+  );
+}
+
+// Helper section block
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="text-lg font-semibold mb-3 text-primary">{title}</h3>
+      <div className="space-y-1 text-sm">{children}</div>
+    </div>
+  );
+}
+
+// Helper data row
+function DataRow({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex justify-between py-1">
+      <span className="font-medium text-gray-800 dark:text-gray-200">{label}</span>
+      <span className="text-gray-600 dark:text-gray-400">{value || "N/A"}</span>
+    </div>
   );
 }

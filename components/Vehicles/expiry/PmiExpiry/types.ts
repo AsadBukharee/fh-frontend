@@ -15,11 +15,12 @@ export type StepType =
   | "interimUpload"
   | "reminder"
   | "brakeReminder"
-  | "reminderConfirmation" // Added new step
+  | "reminderConfirmation"
   | "brakeUpload";
 
 export interface State {
-  newPMIDate: string;
+  currentInspectionDate: string; // Existing inspection date
+  newInspectionDate: string; // New date for API payload
   step: StepType;
   documentUrl: string | null;
   isLoading: boolean;
@@ -27,7 +28,7 @@ export interface State {
   maintenanceCorrect: boolean | null;
   notes: string;
   createMechanicJob: boolean | null;
-  vehicleStatus: "Minor Defect Roadworthy" | "Minor Defect Unroadworthy" | "Major Defect Unroadworthy" | null;
+  vehicleStatus: string | null;
   driverErrors: boolean | null;
   selectedDrivers: string[];
   reminderDateTime: string;
