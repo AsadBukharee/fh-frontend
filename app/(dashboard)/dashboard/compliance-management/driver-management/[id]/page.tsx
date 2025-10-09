@@ -171,6 +171,7 @@ export default function DriverDetailPage() {
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("driver-detail");
   const [currentStep, setCurrentStep] = useState(0);
+  const [user_id,setUser_id]=useState(0)
 
   const isPdfUrl = (url: string) => url.toLowerCase().endsWith(".pdf");
   const showToast = (message: string, type: string) => {
@@ -201,6 +202,7 @@ export default function DriverDetailPage() {
       const result = await response.json();
       if (result.success) {
         setDriverData(result.data);
+        setUser_id(result.data.user.id)
         setEditFormData({
           full_name: result.data.user.full_name,
           display_name: result.data.user.display_name,
@@ -264,8 +266,9 @@ export default function DriverDetailPage() {
 
   const fetchHealthData = async () => {
     setHealthLoading(true);
+    
     try {
-      const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${id}`, {
+      const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${user_id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
