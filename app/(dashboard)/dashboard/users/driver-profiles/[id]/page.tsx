@@ -658,14 +658,14 @@ export default function DriverDetailPage() {
             value="driver-detail"
             className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
           >
-            Driver Detail
+            Driver Details
             <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
           <TabsTrigger
             value="professional-competency"
             className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
           >
-            Professional Competency
+            Professional Details
             <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
           <TabsTrigger
@@ -679,7 +679,7 @@ export default function DriverDetailPage() {
             value="sign-agreement"
             className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
           >
-            Sign Agreement
+            Signed Agreements
             <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
         </TabsList>
@@ -693,6 +693,7 @@ export default function DriverDetailPage() {
             setSelectedContractId={setSelectedContractId}
             selectedSiteIds={selectedSiteIds}
             setSelectedSiteIds={setSelectedSiteIds}
+            //@ts-expect-error ab thk ha
             currentStep={currentStep}
             setCurrentStep={setCurrentStep}
             steps={steps}

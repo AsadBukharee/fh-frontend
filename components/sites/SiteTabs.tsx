@@ -18,14 +18,8 @@ import {
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useToast } from "@/app/Context/ToastContext";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+
+import ExportButton from "@/app/utils/ExportButton";
 
 // Define interfaces
 interface OperationHour {
@@ -190,13 +184,14 @@ export default function SiteGrid() {
 
   return (
     <TooltipProvider>
-      <section className="p-8 bg-gray-50 min-h-screen">
+      <section className="p-8 bg-white min-h-screen">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
             <h1 className="text-2xl font-bold">Sites</h1>
             <p className="text-sm text-gray-500">Browse all available sites</p>
           </div>
           <div className="flex gap-4 items-center">
+            <ExportButton data={sites} fileName="Site_data"/>
             <button
               type="button"
               disabled={loading}

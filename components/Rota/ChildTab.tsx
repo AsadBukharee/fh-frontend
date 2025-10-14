@@ -43,6 +43,7 @@ import {
   Tooltip,
 } from "recharts";
 import React from "react";
+import ExportButton from "@/app/utils/ExportButton";
 
 // Interfaces remain unchanged
 interface Shift {
@@ -689,6 +690,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <ExportButton data={childRotaUsers}/>
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
@@ -777,6 +779,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
         <CardHeader className="flex justify-between flex-row w-full items-center">
           <div>
             <CardTitle className="text-lg">Shift Schedule</CardTitle>
+
             <CardDescription>
               {selectedUser
                 ? `Showing shifts for ${
@@ -786,296 +789,169 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full table-auto border-collapse">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="sticky left-0 z-10 border-b border-r px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider bg-gray-50">
-                    Day
-                  </th>
+       <CardContent>
+  <div className="table-container overflow-x-auto rounded-lg border">
+
+    <table className="w-full table-auto border-collapse">
+      <thead className="bg-gray-50 sticky-thead">
+        <tr>
+          <th className="sticky left-0 z-30 border-b border-r px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider bg-gray-50">
+            Day
+          </th>
+          {(selectedUser
+            ? childRotaUsers.filter((u) => u.id === selectedUser)
+            : filteredUsers
+          ).map((user) => (
+            <th
+              key={user.id}
+              className="border-b w-[200px] border-r px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[200px]"
+            >
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={user.avatar || undefined} />
+                  <AvatarFallback className="text-xs">
+                    {user.full_name?.split(" ").map((n) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-medium">{user.full_name}</div>
+                  {user.role && (
+                    <Badge
+                      variant="outline"
+                      className={cn("text-xs mt-1", getRoleColor(user.role))}
+                    >
+                      {user.role}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </th>
+          ))}
+          <th className="sticky right-[300px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-30">
+            Daily Salary
+          </th>
+          <th className="sticky right-[200px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-30">
+            Total Staff
+          </th>
+          <th className="sticky right-[100px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-30">
+            Total Drivers
+          </th>
+          <th className="sticky right-[0px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-30">
+            Total Holidays
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {weeks.map((week, weekIndex) => (
+          <React.Fragment key={weekIndex}>
+            <tr className="bg-gray-100">
+              <td
+                colSpan={(selectedUser ? 1 : filteredUsers.length) + 4}
+                className="px-4 py-2 text-sm font-semibold"
+                style={{ backgroundColor: week.weekColor, color: "#fff" }}
+              >
+                {week.weekLabel}
+              </td>
+            </tr>
+            {week.days.map((dayData, dayIndex) => {
+              const dayStr = format(dayData, "yyyy-MM-dd");
+              const totalDailySalary = filteredShifts
+                .filter((shift) => shift.date === dayStr)
+                .reduce((sum, shift) => sum + shift.daily_salary, 0);
+              const dailyStats = stats?.dailyStats.find(
+                (stat) => stat.date === dayStr
+              ) || {
+                users_working: 0,
+                total_staff: 0,
+                total_drivers: 0,
+                total_holidays: 0,
+                total_salary: 0,
+              };
+
+              return (
+                <tr
+                  key={dayStr}
+                  className={dayIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                >
+                  <td
+                    className="sticky max-w-[200px] left-0 z-10 whitespace-nowrap border-r px-4 py-2 text-sm font-medium bg-inherit"
+                    style={{ color: getWeekColor(dayData) }}
+                  >
+                    <div>
+                      <div className="font-semibold flex items-center gap-2">
+                        {getDayName(dayData)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(dayData, "dd/MM/yyyy")}
+                      </div>
+                    </div>
+                  </td>
                   {(selectedUser
                     ? childRotaUsers.filter((u) => u.id === selectedUser)
                     : filteredUsers
-                  ).map((user) => (
-                    <th
-                      key={user.id}
-                      className="border-b w-[200px] border-r px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[200px]"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={user.avatar || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {user.full_name
-                              ?.split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{user.full_name}</div>
-                          {user.role && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-xs mt-1",
-                                getRoleColor(user.role)
-                              )}
-                            >
-                              {user.role}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </th>
-                  ))}
-                  <th className="sticky right-[300px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
-                    Daily Salary
-                  </th>
-                  <th className="sticky right-[200px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
-                    Total Staff
-                  </th>
-                  <th className="sticky right-[100px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
-                    Total Drivers
-                  </th>
-                  <th className="sticky right-[0px] border-b w-[50px] px-4 py-3 text-center justify-center text-xs font-medium uppercase tracking-wider min-w-[100px] bg-gray-50 z-10">
-                    Total Holidays
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {weeks.map((week, weekIndex) => (
-                  <React.Fragment key={weekIndex}>
-                    <tr className="bg-gray-100">
-                      <td
-                        colSpan={(selectedUser ? 1 : filteredUsers.length) + 4}
-                        className="px-4 py-2 text-sm font-semibold"
-                        style={{ backgroundColor: week.weekColor, color: "#fff" }}
-                      >
-                        {week.weekLabel}
+                  ).map((user) => {
+                    const userShift = filteredShifts.find(
+                      (shift) =>
+                        shift.date === dayStr && shift.user?.id === user.id
+                    );
+                    return (
+                      <td key={user.id} className="border-r p-2 align-top">
+                        {userShift ? (
+                          <ShiftCard
+                            shiftType={userShift.shift_detail.name}
+                            shift_cell_id={userShift.id}
+                            onShiftUpdate={fetchData}
+                            shift_id={userShift.shift_detail.id}
+                            shift_list={userShift?.user?.shifts ?? []}
+                            shift_daily_salary={userShift.daily_salary}
+                            color={
+                              userShift.shift_detail.colors ||
+                              DEFAULT_SHIFT_COLOR
+                            }
+                            rate={userShift.shift_detail.rate_per_hours}
+                            total_hours={userShift.daily_hours}
+                          />
+                        ) : (
+                          <div className="h-16 w-[200px] rounded-md bg-gray-100/50 border-2 border-dashed border-gray-200 flex items-center justify-center">
+                            <span className="text-xs text-gray-400">
+                              No shift
+                            </span>
+                          </div>
+                        )}
                       </td>
-                    </tr>
-                    {week.days.map((dayData, dayIndex) => {
-                      const dayStr = format(dayData, "yyyy-MM-dd");
-                      const totalDailySalary = filteredShifts
-                        .filter((shift) => shift.date === dayStr)
-                        .reduce((sum, shift) => sum + shift.daily_salary, 0);
-                      const dailyStats = stats?.dailyStats.find(
-                        (stat) => stat.date === dayStr
-                      ) || {
-                        users_working: 0,
-                        total_staff: 0,
-                        total_drivers: 0,
-                        total_holidays: 0,
-                        total_salary: 0,
-                      };
-
-                      return (
-                        <tr
-                          key={dayStr}
-                          className={
-                            dayIndex % 2 === 0 ? "bg-white" : "bg-gray-50"
-                          }
-                        >
-                          <td
-                            className="sticky max-w-[200px] left-0 z-10 whitespace-nowrap border-r px-4 py-2 text-sm font-medium bg-inherit"
-                            style={{ color: getWeekColor(dayData) }}
-                          >
-                            <div>
-                              <div className="font-semibold flex items-center gap-2">
-                                {getDayName(dayData)}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {format(dayData, "dd/MM/yyyy")}
-                              </div>
-                            </div>
-                          </td>
-                          {(selectedUser
-                            ? childRotaUsers.filter(
-                                (u) => u.id === selectedUser
-                              )
-                            : filteredUsers
-                          ).map((user) => {
-                            const userShift = filteredShifts.find(
-                              (shift) =>
-                                shift.date === dayStr &&
-                                shift.user?.id === user.id
-                            );
-                            return (
-                              <td
-                                key={user.id}
-                                className="border-r p-2 align-top"
-                              >
-                                {userShift ? (
-                                  <ShiftCard
-                                    shiftType={userShift.shift_detail.name}
-                                    shift_cell_id={userShift.id}
-                                    onShiftUpdate={fetchData}
-                                    shift_id={userShift.shift_detail.id}
-                                    shift_list={userShift?.user?.shifts ?? []}
-                                    shift_daily_salary={userShift.daily_salary}
-                                    color={userShift.shift_detail.colors || DEFAULT_SHIFT_COLOR}
-                                    rate={userShift.shift_detail.rate_per_hours}
-                                    total_hours={userShift.shift_detail.total_hours}
-                                  />
-                                ) : (
-                                  <div className="h-16 w-[200px] rounded-md bg-gray-100/50 border-2 border-dashed border-gray-200 flex items-center justify-center">
-                                    <span className="text-xs text-gray-400">
-                                      No shift
-                                    </span>
-                                  </div>
-                                )}
-                              </td>
-                            );
-                          })}
-                          <td className="sticky right-[300px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
-                            £{totalDailySalary.toFixed(2)}
-                          </td>
-                          <td className="sticky right-[200px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
-                            {dailyStats.total_staff}
-                          </td>
-                          <td className="sticky right-[100px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
-                            {dailyStats.total_drivers}
-                          </td>
-                          <td className="sticky right-[0px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
-                            {dailyStats.total_holidays}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {weekIndex < weeks.length - 1 && (
-                      <tr className="h-2 bg-gray-200">
-                        <td
-                          colSpan={(selectedUser ? 1 : filteredUsers.length) + 4}
-                        ></td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
+                    );
+                  })}
+                  <td className="sticky right-[300px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
+                    £{totalDailySalary.toFixed(2)}
+                  </td>
+                  <td className="sticky right-[200px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
+                    {dailyStats.total_staff}
+                  </td>
+                  <td className="sticky right-[100px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
+                    {dailyStats.total_drivers}
+                  </td>
+                  <td className="sticky right-[0px] p-2 align-top text-sm text-center justify-center font-medium bg-gray-50 z-10">
+                    {dailyStats.total_holidays}
+                  </td>
+                </tr>
+              );
+            })}
+            {weekIndex < weeks.length - 1 && (
+              <tr className="h-2 bg-gray-200">
+                <td
+                  colSpan={(selectedUser ? 1 : filteredUsers.length) + 4}
+                ></td>
+              </tr>
+            )}
+          </React.Fragment>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</CardContent>
       </Card>
 
-      {/* User Information Panel (unchanged) */}
-      {selectedUser && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">User Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const user = childRotaUsers.find((u) => u.id === selectedUser);
-              if (!user) return null;
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={user.avatar || undefined} />
-                        <AvatarFallback>
-                          {user.full_name
-                            ?.split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-semibold">{user.full_name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Role:</span>
-                        {user.role ? (
-                          <Badge className={getRoleColor(user.role)}>
-                            {user.role}
-                          </Badge>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            No role assigned
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Status:</span>
-                        <Badge
-                          variant={user.is_active ? "default" : "secondary"}
-                        >
-                          {user.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {user.contract ? (
-                      <div>
-                        <h4 className="font-medium mb-2">
-                          Contract Information
-                        </h4>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">
-                            {user.contract.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {user.contract.description}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <h4 className="font-medium mb-2">
-                          Contract Information
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          No contract assigned
-                        </p>
-                      </div>
-                    )}
-                    <div>
-                      <h4 className="font-medium mb-2">Rota Status</h4>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Parent Rota:</span>
-                          <Badge
-                            variant={
-                              user.parent_rota_completed
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {user.parent_rota_completed
-                              ? "Completed"
-                              : "Pending"}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Child Rota:</span>
-                          <Badge
-                            variant={
-                              user.child_rota_completed
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {user.child_rota_completed
-                              ? "Completed"
-                              : "Pending"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      )}
+ 
     </div>
   );
 }

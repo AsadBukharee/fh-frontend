@@ -38,7 +38,16 @@ interface Walkaround {
   };
   conducted_by: string | null;
   walkaround_assignee: string | null;
-  status: "pending" | "failed" | "completed" | "custom";
+  status:
+    | "pending"
+    | "completed"
+    | "failed"
+    | "minor_roadworthy_defect"
+    | "minor_unroadworthy_defect"
+    | "major_unroadworthy_defect"
+    | "in_progress"
+    | "further_work_required";
+
   date: string;
   time: string;
   mileage: number;
@@ -90,10 +99,17 @@ const WalkaroundQuestion: React.FC<{
   );
 };
 
-const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: PlusWalkaroundProps) => {
+const PlusWalkaround = ({
+  setOpen,
+  refreshWalkarounds,
+  parentId,
+  walkaround,
+}: PlusWalkaroundProps) => {
   const [formData, setFormData] = useState({
     driver: walkaround?.driver.id.toString() || "",
-    walkaround_assignee: walkaround?.walkaround_assignee ? walkaround.walkaround_assignee : "none",
+    walkaround_assignee: walkaround?.walkaround_assignee
+      ? walkaround.walkaround_assignee
+      : "none",
     vehicle: walkaround?.vehicle.id.toString() || "",
     date: new Date().toISOString().split("T")[0], // Current date in YYYY-MM-DD format
     time: new Date().toTimeString().split(" ")[0].slice(0, 5), // Current time in HH:MM format
@@ -115,21 +131,34 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
   const sigCanvas = useRef<SignatureCanvas>(null);
   const cookies = useCookies();
   const { toast } = useToast();
+  const STATUS_CHOICES: { value: Walkaround["status"]; label: string }[] = [
+    { value: "pending", label: "Pending" },
+    { value: "completed", label: "Completed" },
+    { value: "failed", label: "Failed" },
+    { value: "minor_roadworthy_defect", label: "Minor Roadworthy Defect" },
+    { value: "minor_unroadworthy_defect", label: "Minor Unroadworthy Defect" },
+    { value: "major_unroadworthy_defect", label: "Major Unroadworthy Defect" },
+    { value: "in_progress", label: "In Progress" },
+    { value: "further_work_required", label: "Further Work Required" },
+  ];
 
   // Fetch drivers, managers, and vehicles
   useEffect(() => {
     const fetchProfiles = async (
       type: string,
-      setData: React.Dispatch<React.SetStateAction<Profile[]>>,
+      setData: React.Dispatch<React.SetStateAction<Profile[]>>
     ) => {
       try {
-        const response = await fetch(`${API_URL}/users/list-names/?role=${type}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get("access_token")}`,
-          },
-        });
+        const response = await fetch(
+          `${API_URL}/users/list-names/?role=${type}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cookies.get("access_token")}`,
+            },
+          }
+        );
         if (!response.ok) {
           throw new Error(`Failed to fetch ${type}s: ${response.statusText}`);
         }
@@ -141,7 +170,10 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
         }
       } catch (err) {
         setErrors({
-          [type]: err instanceof Error ? err.message : `An error occurred while fetching ${type}s`,
+          [type]:
+            err instanceof Error
+              ? err.message
+              : `An error occurred while fetching ${type}s`,
         });
       }
     };
@@ -164,14 +196,17 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             result.data.map((vehicle: any) => ({
               id: vehicle.id,
               name: `${vehicle.vehicle_type_name} (${vehicle.registration_number})`,
-            })),
+            }))
           );
         } else {
           setErrors({ vehicle: result.message || "Failed to fetch vehicles" });
         }
       } catch (err) {
         setErrors({
-          vehicle: err instanceof Error ? err.message : "An error occurred while fetching vehicles",
+          vehicle:
+            err instanceof Error
+              ? err.message
+              : "An error occurred while fetching vehicles",
         });
       }
     };
@@ -187,7 +222,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
 
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -207,7 +244,10 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
       setFormData((prev) => ({ ...prev, signature: signatureData }));
       setErrors((prev) => ({ ...prev, signature: undefined }));
     } else {
-      setErrors((prev) => ({ ...prev, signature: "Please provide a signature." }));
+      setErrors((prev) => ({
+        ...prev,
+        signature: "Please provide a signature.",
+      }));
     }
   };
 
@@ -303,7 +343,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
     // Reset form and close everything after questions are completed
     setFormData({
       driver: walkaround?.driver.id.toString() || "",
-      walkaround_assignee: walkaround?.walkaround_assignee ? walkaround.walkaround_assignee : "none",
+      walkaround_assignee: walkaround?.walkaround_assignee
+        ? walkaround.walkaround_assignee
+        : "none",
       vehicle: walkaround?.vehicle.id.toString() || "",
       date: new Date().toISOString().split("T")[0],
       time: new Date().toTimeString().split(" ")[0].slice(0, 5),
@@ -328,7 +370,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
           <Label>Vehicle</Label>
           <Select
             value={formData.vehicle}
-            onValueChange={(value) => setFormData((prev) => ({ ...prev, vehicle: value }))}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, vehicle: value }))
+            }
             disabled
           >
             <SelectTrigger>
@@ -346,7 +390,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             Current: {walkaround?.vehicle.registration_number || "N/A"} (
             {walkaround?.vehicle.vehicles_type_name || "N/A"})
           </p>
-          {errors.vehicle && <div className="text-red-500 text-sm">{errors.vehicle}</div>}
+          {errors.vehicle && (
+            <div className="text-red-500 text-sm">{errors.vehicle}</div>
+          )}
         </div>
 
         {/* Driver */}
@@ -354,7 +400,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
           <Label>Driver</Label>
           <Select
             value={formData.driver}
-            onValueChange={(value) => setFormData((prev) => ({ ...prev, driver: value }))}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, driver: value }))
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="Select driver" />
@@ -362,15 +410,20 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             <SelectContent>
               {drivers.map((driver) => (
                 <SelectItem key={driver.id} value={driver.id.toString()}>
-                  {`${formatName(driver.full_name)} (${driver.sites.map((site) => site.name).join(", ")})`}
+                  {`${formatName(driver.full_name)} (${driver.sites
+                    .map((site) => site.name)
+                    .join(", ")})`}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <p className="text-sm text-gray-500 mt-1">
-            Current: {walkaround?.driver.full_name || walkaround?.driver.email || "N/A"}
+            Current:{" "}
+            {walkaround?.driver.full_name || walkaround?.driver.email || "N/A"}
           </p>
-          {errors.driver && <div className="text-red-500 text-sm">{errors.driver}</div>}
+          {errors.driver && (
+            <div className="text-red-500 text-sm">{errors.driver}</div>
+          )}
         </div>
 
         {/* Walkaround Assignee */}
@@ -389,7 +442,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
               <SelectItem value="none">None</SelectItem>
               {managers.map((manager) => (
                 <SelectItem key={manager.id} value={manager.id.toString()}>
-                  {`${formatName(manager.full_name)} (${manager.sites.map((site) => site.name).join(", ")})`}
+                  {`${formatName(manager.full_name)} (${manager.sites
+                    .map((site) => site.name)
+                    .join(", ")})`}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -398,7 +453,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             Current: {walkaround?.walkaround_assignee || "None"}
           </p>
           {errors.walkaround_assignee && (
-            <div className="text-red-500 text-sm">{errors.walkaround_assignee}</div>
+            <div className="text-red-500 text-sm">
+              {errors.walkaround_assignee}
+            </div>
           )}
         </div>
 
@@ -416,7 +473,9 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
           <p className="text-sm text-gray-500 mt-1">
             Previous: {walkaround?.mileage || "N/A"}
           </p>
-          {errors.milage && <div className="text-red-500 text-sm">{errors.milage}</div>}
+          {errors.milage && (
+            <div className="text-red-500 text-sm">{errors.milage}</div>
+          )}
         </div>
 
         {/* Signature */}
@@ -431,31 +490,50 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             />
           </div>
           <div className="mt-2">
-            <Button type="button" variant="outline" onClick={clearSignature} className="mr-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={clearSignature}
+              className="mr-2"
+            >
               Clear Signature
             </Button>
           </div>
-          {errors.signature && <div className="text-red-500 text-sm">{errors.signature}</div>}
+          {errors.signature && (
+            <div className="text-red-500 text-sm">{errors.signature}</div>
+          )}
         </div>
 
         {/* Note */}
         <div>
           <Label>Note</Label>
-          <Textarea name="note" value={formData.note} onChange={handleFormChange} />
+          <Textarea
+            name="note"
+            value={formData.note}
+            onChange={handleFormChange}
+          />
           <p className="text-sm text-gray-500 mt-1">
             Previous: {walkaround?.notes || "None"}
           </p>
-          {errors.note && <div className="text-red-500 text-sm">{errors.note}</div>}
+          {errors.note && (
+            <div className="text-red-500 text-sm">{errors.note}</div>
+          )}
         </div>
 
         {/* Defects */}
         <div>
           <Label>Defects</Label>
-          <Textarea name="defects" value={formData.defects} onChange={handleFormChange} />
+          <Textarea
+            name="defects"
+            value={formData.defects}
+            onChange={handleFormChange}
+          />
           <p className="text-sm text-gray-500 mt-1">
             Previous: {walkaround?.defects || "None"}
           </p>
-          {errors.defects && <div className="text-red-500 text-sm">{errors.defects}</div>}
+          {errors.defects && (
+            <div className="text-red-500 text-sm">{errors.defects}</div>
+          )}
         </div>
 
         {/* Status */}
@@ -466,7 +544,15 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
             onValueChange={(value) =>
               setFormData((prev) => ({
                 ...prev,
-                status: value as "pending" | "failed" | "completed" | "custom",
+                status: value as
+                  | "pending"
+                  | "completed"
+                  | "failed"
+                  | "minor_roadworthy_defect"
+                  | "minor_unroadworthy_defect"
+                  | "major_unroadworthy_defect"
+                  | "in_progress"
+                  | "further_work_required",
               }))
             }
           >
@@ -474,16 +560,19 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
+              {STATUS_CHOICES.map(({ value, label }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <p className="text-sm text-gray-500 mt-1">
             Previous: {walkaround?.status || "N/A"}
           </p>
-          {errors.status && <div className="text-red-500 text-sm">{errors.status}</div>}
+          {errors.status && (
+            <div className="text-red-500 text-sm">{errors.status}</div>
+          )}
         </div>
 
         {/* Walkaround Step */}
@@ -501,7 +590,11 @@ const PlusWalkaround = ({ setOpen, refreshWalkarounds, parentId, walkaround }: P
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
             Cancel
           </Button>
           <Button type="submit" disabled={loading}>

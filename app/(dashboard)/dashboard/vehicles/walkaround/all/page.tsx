@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Car, Plus, RefreshCcw, User, CalendarDays, Clock, MoveRight } from "lucide-react";
+import { Eye, Car, Plus, RefreshCcw, User, CalendarDays, Clock, MoveRight, Edit } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -413,7 +413,10 @@ const WalkaroundPage = () => {
                           Driver: <span className="text-gray-500">{root.conducted_by || "N/A"}</span>
                         </p>
                         <p className="text-sm font-semibold">
-                          Status: <Badge className={`${getStatusClasses(root.status)}`}>{root.status.charAt(0).toUpperCase() + root.status.slice(1)}</Badge>
+                          Status: <Badge className={`${getStatusClasses(root.status)}`}>   {root.status
+                .split("_")
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" ")}</Badge>
                         </p>
                         <p className="text-sm font-semibold">
                           Date: <span className="text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span>
@@ -421,7 +424,8 @@ const WalkaroundPage = () => {
                         <p className="text-sm font-semibold">
                           Time: <span className="text-gray-500">{root.time}</span>
                         </p>
-                        <Button
+                      <div className="flex gap-2">
+                          <Button
                           variant="outline"
                           className="text-xs mt-2"
                           onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${root.id}`)}
@@ -429,6 +433,15 @@ const WalkaroundPage = () => {
                         >
                           <Eye className="h-4 w-4 mr-1" /> Details
                         </Button>
+                         <Button
+                          variant="outline"
+                          className="text-xs mt-2"
+                          onClick={()=>handleViewDetails(root)}
+                          aria-label={`View details for walkaround ${root.id}`}
+                        >
+                          <Edit className="h-4 w-4 mr-1" /> Update
+                        </Button>
+                      </div>
                       </div>
                       {children.length > 0 && (
                         <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
@@ -447,7 +460,10 @@ const WalkaroundPage = () => {
                             Driver: <span className="text-gray-500">{child.conducted_by || "N/A"}</span>
                           </p>
                           <p className="text-sm font-semibold">
-                            Status: <Badge className={`${getStatusClasses(child.status)}`}>{child.status.charAt(0).toUpperCase() + child.status.slice(1)}</Badge>
+                            Status: <Badge className={`${getStatusClasses(child.status)}`}>   {child.status
+                .split("_")
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" ")}</Badge>
                           </p>
                           <p className="text-sm font-semibold">
                             Date: <span className="text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span>
@@ -455,7 +471,8 @@ const WalkaroundPage = () => {
                           <p className="text-sm font-semibold">
                             Time: <span className="text-gray-500">{child.time}</span>
                           </p>
-                          <Button
+                     <div className="flex gap-2 ite">
+                           <Button
                             variant="outline"
                             className="text-xs mt-2"
                             onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${child.id}`)}
@@ -463,6 +480,15 @@ const WalkaroundPage = () => {
                           >
                             <Eye className="h-4 w-4 mr-1" /> Details
                           </Button>
+                             <Button
+                          variant="outline"
+                          className="text-xs mt-2"
+                          onClick={()=>handleViewDetails(child)}
+                          aria-label={`View details for walkaround ${child.id}`}
+                        >
+                          <Edit className="h-4 w-4 mr-1" /> Update
+                        </Button>
+                     </div>
                         </div>
                         {idx < children.length - 1 && (
                           <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
@@ -527,6 +553,7 @@ const WalkaroundPage = () => {
       <WalkaroundDetailsDialog
         walkaround={selectedWalkaround}
         open={openDetailsDialog}
+        oncomplete={fetchWalkarounds}
         onOpenChange={setOpenDetailsDialog}
       />
     </div>
