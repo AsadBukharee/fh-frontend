@@ -6,7 +6,32 @@
     font-family: 'Outfit', sans-serif;
   }
 }
+/* Ensure the table header sticks to the top of the viewport */
+.sticky-thead {
+  position: sticky;
+  top: 0;
+  z-index: 20; /* Above other content but below sticky columns in thead */
+  background-color: #f9fafb; /* Matches bg-gray-50 from Tailwind */
+}
 
+/* Ensure individual th elements in thead are sticky and inherit background */
+.sticky-thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: inherit;
+}
+
+/* Increase z-index for sticky columns in thead to avoid overlap */
+.sticky-thead th.sticky {
+  z-index: 30; /* Higher than thead to ensure sticky columns are visible */
+}
+
+/* Ensure the table container doesn’t restrict sticky behavior */
+.table-container {
+  position: relative; /* Ensures sticky positioning is relative to this container */
+  overflow-x: auto; /* Maintains horizontal scrolling */
+}
 
 @layer components {
   .all-\[unset\] {

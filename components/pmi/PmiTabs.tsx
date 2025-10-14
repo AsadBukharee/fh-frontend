@@ -1000,8 +1000,13 @@ const PMITabs: FC = () => {
     <div className="min-h-screen bg-white p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-1">
+          <h1 className="text-2xl flex items-center font-semibold text-gray-900 mb-1">
             PMI Analysis - Maintenance
+              <RefreshCcw
+                
+                  className="w-4 h-4 text-gray-400 mx-4 hover:text-gray-700 cursor-pointer"
+                  onClick={() => fetchPmiData()}
+                />
           </h1>
           <p className="text-sm text-gray-600 mb-6">
             Comprehensive vehicle inspection data with action controls
@@ -1044,11 +1049,9 @@ const PMITabs: FC = () => {
                   className="pl-10"
                 />
               </div>
+              
               <div className="flex space-x-2 items-center">
-                <RefreshCcw
-                  className="w-10 h-10 text-gray-400 mx-4 hover:text-gray-700 cursor-pointer"
-                  onClick={() => fetchPmiData()}
-                />
+               
                 <Popover open={showDateFilter} onOpenChange={setShowDateFilter}>
                   <PopoverTrigger asChild>
                     <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
@@ -1065,25 +1068,7 @@ const PMITabs: FC = () => {
                     />
                   </PopoverContent>
                 </Popover>
-                <Popover
-                  open={showTyrePressureFilter}
-                  onOpenChange={setShowTyrePressureFilter}
-                >
-                  <PopoverTrigger asChild>
-                    <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
-                      <Gauge className="w-4 h-4 mr-2" />
-                      Filter by Tyre Pressure
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <TyrePressureFilter
-                      minPressure={tyrePressureRange[0]}
-                      maxPressure={tyrePressureRange[1]}
-                      onChange={setTyrePressureRange}
-                      onClose={() => setShowTyrePressureFilter(false)}
-                    />
-                  </PopoverContent>
-                </Popover>
+               
                 <Select
                   value={selectedVehicle || "all"}
                   onValueChange={(value) =>

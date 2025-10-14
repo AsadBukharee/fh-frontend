@@ -367,7 +367,7 @@ const WalkaroundPage = () => {
                       setOpen={setOpenPlus}
                       refreshWalkarounds={debouncedFetchWalkarounds}
                       parentId={walkaround.id}
-                      walkaround={walkaround}
+                      walkaround={walkaround as any}
                     />
                   </DialogContent>
                 </Dialog>
@@ -411,9 +411,10 @@ const WalkaroundPage = () => {
       </div>
 
       <WalkaroundDetailsDialog
-        walkaround={selectedWalkaround}
+        walkaround={selectedWalkaround as any}
         open={openDetailsDialog}
         onOpenChange={setOpenDetailsDialog}
+        oncomplete={fetchWalkarounds}
       />
     </div>
   );

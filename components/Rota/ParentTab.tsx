@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import StartRota from "./StartRota";
+import ExportButton from "@/app/utils/ExportButton";
 
 // TypeScript Interfaces
 interface ShiftDetail {
@@ -1068,6 +1069,7 @@ const ParentTab: React.FC = () => {
           <p className="text-sm text-gray-500">User-specific shifts only</p>
         </div>
         <div className="flex space-x-2">
+          <ExportButton data={days} />
           {["week1", "week2", "week3", "week4"].map((week) => (
             <Badge
               key={week}

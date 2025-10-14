@@ -1074,7 +1074,7 @@ const ShiftManagement = () => {
               className="border-gray-300 hover:bg-gray-50"
             >
               <Plus className="h-4 w-4 mr-2" />
-              New Template
+              New Shift Template
             </Button>
               {shiftTemplates.length > 0 && (
                 <Button
@@ -1132,7 +1132,7 @@ const ShiftManagement = () => {
                   {!searchTerm && (
                     <Button onClick={() => setIsAddModalOpen(true)} className="bg-orange hover:bg-orange/90">
                       <Plus className="h-4 w-4 mr-2" />
-                      Create Template
+                      Create Shift Template
                     </Button>
                   )}
                 </CardContent>

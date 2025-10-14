@@ -454,7 +454,34 @@ export default function DriversPage() {
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1)
   }
+const handleResendActivation = async (userId: number) => {
+  try {
+    const response = await fetch(`${API_URL}/auth/resend-activation/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cookies.get("access_token")}`,
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
 
+    const data = await response.json();
+
+    if (response.status === 401) {
+      showToast("Session expired. Please log in again.", "error");
+      return;
+    }
+
+    if (data.success) {
+      showToast("Activation email resent successfully", "success");
+    } else {
+      showToast(data.message || "Failed to resend activation email", "error");
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "An error occurred while resending activation email";
+    showToast(errorMessage, "error");
+  }
+};
   const handleFilterChange = (filterType: string, value: string | boolean | null) => {
     setFilters((prev) => {
       if (filterType === "profileStatus") {
@@ -582,107 +609,157 @@ export default function DriversPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {drivers.map((driver) => (
+           {drivers.map((driver) => (
               <div
                 key={driver.id}
-                className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200"
+                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:border-gray-300 transition-all duration-300 group"
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                      {driver.user.avatar ? (
-                        <img
-                          src={driver.user.avatar}
-                          alt={driver.user.display_name}
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        <User className="w-6 h-6 text-gray-500" />
-                      )}
+                {/* Header Section with Gradient */}
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 border-b border-gray-200">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="relative">
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center ring-4 ring-white shadow-md">
+                          {driver.user.avatar ? (
+                            <img
+                              src={driver.user.avatar}
+                              alt={driver.user.display_name}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                          ) : (
+                            <User className="w-7 h-7 text-orange-600" />
+                          )}
+                        </div>
+                        {driver.user.is_active && (
+                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/dashboard/users/driver-profiles/${driver.id}`}>
+                          <h3 className="font-semibold text-base text-gray-900 hover:text-orange-600 transition-colors truncate">
+                            {driver.user.display_name}
+                          </h3>
+                        </Link>
+                        <p className="text-xs text-gray-600 truncate flex items-center gap-1 mt-0.5">
+                          <Mail className="w-3 h-3" />
+                          {driver.user.email}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge className={`${getProfileStatusColor(driver.profile_status)} text-[9px] px-2 py-0.5`}>
+                            {driver.profile_status.replace("_", " ").toUpperCase()}
+                          </Badge>
+                          <span className="text-[10px] text-gray-500">ID: {driver.id}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <Link href={`/dashboard/users/driver-profiles/${driver.id}`}>
-                        <h3 className="font-semibold text-lg hover:text-blue-600">{driver.user.display_name}</h3>
-                      </Link>
-                      <p className="text-sm text-blue-600">{driver.user.email}</p>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          ref={(el: HTMLButtonElement | null) => {
+                            buttonRefs.current[`action-${driver.id}`] = el
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="ripple cursor-glow h-8 w-8 p-0 hover:bg-white/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                          onMouseMove={handleMouseMove(`action-${driver.id}`)}
+                        >
+                          <MoreHorizontal className="w-4 h-4 relative z-10 text-gray-600" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                   <DropdownMenuContent align="end" className="bg-white w-48">
+  {driver.profile_status !== "approved" && (
+    <DropdownMenuItem onClick={() => handleApproveDriverClick(driver.id)} className="cursor-pointer">
+      <Check className="w-4 h-4 mr-2 text-green-600" />
+      <span>Approve Profile</span>
+    </DropdownMenuItem>
+  )}
+  {driver.profile_status !== "not_approved" && (
+    <DropdownMenuItem onClick={() => handleDisapproveDriverClick(driver)} className="cursor-pointer">
+      <XCircle className="w-4 h-4 mr-2 text-orange-600" />
+      <span>Deactivate</span>
+    </DropdownMenuItem>
+  )}
+  {driver.profile_status === "not_approved" && (
+    <DropdownMenuItem onClick={() => handleResendActivation(driver.user.id)} className="cursor-pointer">
+      <Mail className="w-4 h-4 mr-2 text-blue-600" />
+      <span>Resend Activation</span>
+    </DropdownMenuItem>
+  )}
+  <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => handleDeleteDriverClick(driver)}>
+    <Trash2 className="w-4 h-4 mr-2" />
+    <span>Delete Driver</span>
+  </DropdownMenuItem>
+</DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        ref={(el: HTMLButtonElement | null) => {
-                          buttonRefs.current[`action-${driver.id}`] = el
-                        }}
-                        variant="ghost"
-                        size="sm"
-                        className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-                        onMouseMove={handleMouseMove(`action-${driver.id}`)}
-                      >
-                        <MoreHorizontal className="w-4 h-4 relative z-10" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-white">
-                      {driver.profile_status !== "approved" && (
-                        <DropdownMenuItem onClick={() => handleApproveDriverClick(driver.id)}>
-                          <Check className="w-4 h-4 mr-2" />
-                          Approve
-                        </DropdownMenuItem>
-                      )}
-                      {driver.profile_status !== "not_approved" && (
-                        <DropdownMenuItem onClick={() => handleDisapproveDriverClick(driver)}>
-                          <XCircle className="w-4 h-4 mr-2" />
-                          Disapprove
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteDriverClick(driver)}>
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-600">ID:</span>
-                    <span className="text-sm">{driver.id}</span>
+
+                {/* Content Section */}
+                <div className="p-4 space-y-3">
+                  {/* License Info */}
+                  <div className="flex items-center gap-2 p-2.5 bg-orange-50 rounded-lg border border-orange-100">
+                    <Shield className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-orange-600 font-medium uppercase tracking-wide">License Number</p>
+                      <p className="text-sm font-semibold text-gray-900 truncate">{driver.license_number || "Not Provided"}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-600">License Number:</span>
-                    <span className="text-sm">{driver.license_number || "N/A"}</span>
+
+                  {/* Contract Status */}
+                  <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-100">
+                    <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-gray-600 font-medium uppercase tracking-wide">Contract</p>
+                      {driver.user.contract ? (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          <p className="text-sm font-semibold text-gray-900 truncate">{driver.user.contract.name}</p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                          <p className="text-sm font-semibold text-red-600">No Contract</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-600">Contract:</span>
-                    {driver.user.contract ? (
-                      <Badge className="bg-green-100 text-green-500">{driver.user.contract.name}</Badge>
-                    ) : (
-                      <Badge className="bg-red-100 text-red-600">No Contract</Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-600">Profile Status:</span>
-                    <Badge className={getProfileStatusColor(driver.profile_status)}>
-                      {driver.profile_status.replace("_", " ").toUpperCase()}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-600">Warnings:</span>
+
+                  {/* Warnings Section */}
+                  {driver.warnings && driver.warnings.length > 0 ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex justify-center items-center bg-red-300 cursor-pointer text-sm rounded-full w-8 h-8">
-                          {driver?.warnings?.length || 0}
+                        <div className="flex items-center gap-2 p-2.5 bg-red-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors">
+                          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-[10px] text-red-600 font-medium uppercase tracking-wide">Active Warnings</p>
+                            <p className="text-sm font-semibold text-red-700">{driver.warnings.length} Warning{driver.warnings.length > 1 ? 's' : ''}</p>
+                          </div>
+                          <div className="flex justify-center items-center bg-red-600 text-white text-xs font-bold rounded-full w-7 h-7">
+                            {driver.warnings.length}
+                          </div>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="flex flex-wrap w-[250px] h-fit max-h-[250px] overflow-auto">
+                      <TooltipContent className="max-w-xs">
+                        <div className="space-y-1 max-h-48 overflow-auto">
+                          <p className="font-semibold text-xs mb-2">Warning Details:</p>
                           {driver.warnings.map((warning, index) => (
-                            <Badge key={index} className="bg-red-100 m-1 w-fit h-fit text-red-600">
-                              {warning}
-                            </Badge>
+                            <div key={index} className="flex items-start gap-1.5 text-xs">
+                              <span className="text-red-500 mt-0.5">•</span>
+                              <span>{warning}</span>
+                            </div>
                           ))}
                         </div>
                       </TooltipContent>
                     </Tooltip>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-2.5 bg-green-50 rounded-lg border border-green-100">
+                      <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-[10px] text-green-600 font-medium uppercase tracking-wide">Status</p>
+                        <p className="text-sm font-semibold text-green-700">No Active Warnings</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

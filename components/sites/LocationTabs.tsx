@@ -25,6 +25,7 @@ import AddLocation from "./AddLocation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import API_URL from "@/app/utils/ENV"
+import ExportButton from "@/app/utils/ExportButton"
 
 // Define the shape of the location data
 interface Location {
@@ -252,7 +253,7 @@ const LocationTabs = () => {
 
   return (
     <TooltipProvider>
-      <section className="p-4 md:p-8 bg-gray-50 min-h-screen">
+      <section className="p-4 md:p-8 bg-white min-h-screen">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
@@ -262,6 +263,7 @@ const LocationTabs = () => {
               </p>
             </div>
             <div className="flex gap-3 items-center">
+              <ExportButton data={filteredLocations} fileName="Location_data"/>
               <Button
                 variant="outline"
                 size="sm"

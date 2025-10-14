@@ -38,7 +38,7 @@ interface ShiftCardProps {
   color: string;
   rate: number;
   shift_daily_salary: number;
-  total_hours: string;
+  total_hours: number;
   shift_list: Shift[];
   onShiftUpdate: () => void;
 }
@@ -77,7 +77,7 @@ export function ShiftCard({
   // Editable states
   const [newShift, setNewShift] = useState<number>(shift_id);
   const [newSalary, setNewSalary] = useState<number>(rate);
-  const [newHours, setNewHours] = useState<string>(total_hours);
+  const [newHours, setNewHours] = useState<number>(total_hours);
 
   const cookies = useCookies();
 
@@ -98,7 +98,7 @@ export function ShiftCard({
         method: "PUT",
         headers,
         body: JSON.stringify({
-          daily_hours: parseFloat(newHours),
+          daily_hours: newHours,
         }),
       }
     );
@@ -195,8 +195,8 @@ export function ShiftCard({
                 <Input
                   type="text"
                   step="0.5"
-                  value={newHours||"123"}
-                  onChange={(e) => setNewHours(e.target.value)}
+                  value={newHours||0}
+                  onChange={(e) => setNewHours(parseFloat(e.target.value))}
                   disabled={isLoading}
                 />
               </div>
@@ -226,7 +226,7 @@ export function ShiftCard({
       <div className="flex justify-between w-full text-xs text-gray-600">
         <span className="cursor-pointer ">Daily Pay:  ({formatPrice(shift_daily_salary)})</span>
         
-        <span>{formatHours(total_hours)}</span>
+        <span>{total_hours} Hr</span>
       </div>
     </div>
   );
