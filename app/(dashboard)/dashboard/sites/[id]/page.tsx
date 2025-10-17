@@ -45,7 +45,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Separator } from "@/components/ui/separator";
+
 import ImageUploader from "@/components/Media/UploadImage";
 import Image from "next/image";
 
@@ -144,41 +144,10 @@ const getDisplayStatus = (status: string) => {
   return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
-const getSeverityBadgeColors = (severity: string) => {
-  switch (severity) {
-    case "High":
-      return "bg-red-100 text-red-800";
-    case "Medium":
-      return "bg-yellow-100 text-yellow-800";
-    case "Low":
-      return "bg-gray-100 text-gray-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-};
 
-const getComplianceBadgeColors = (status: string) => {
-  switch (status) {
-    case "Over Capacity":
-      return "bg-red-100 text-red-700";
-    case "In Compliance":
-      return "bg-green-100 text-green-700";
-    default:
-      return "bg-gray-100 text-gray-700";
-  }
-};
 
-const deriveSeverity = (warnings: string[]) => {
-  if (
-    warnings.some((w) =>
-      ["overdue", "breach", "incidents"].some((k) => w.toLowerCase().includes(k))
-    )
-  ) {
-    return "High";
-  }
-  if (warnings.some((w) => w.toLowerCase().includes("adequate"))) return "Low";
-  return "Medium";
-};
+
+
 
 const getStaffBreakdown = (staff: Staff) => [
   { role: "Driver", count: staff.driver },
@@ -258,22 +227,7 @@ export default function SiteDetails() {
     setStatusDialogOpen(false);
   };
 
-  const handleStaffChange = (role: keyof Omit<Staff, 'total'>, value: number) => {
-    setEditSite((prev) => {
-      if (!prev) return prev;
-      const updatedStaff = { ...prev.staff, [role]: value };
-      updatedStaff.total = updatedStaff.driver + updatedStaff.admin + updatedStaff.mechanic;
-      return { ...prev, staff: updatedStaff };
-    });
-  };
-
-  const handlePresenceChange = (shift: keyof Presence, value: string) => {
-    setEditSite((prev) => {
-      if (!prev) return prev;
-      const updatedPresence = { ...prev.presence, [shift]: value };
-      return { ...prev, presence: updatedPresence };
-    });
-  };
+ 
 
   const handleOperationHourChange = (
     index: number,
@@ -401,12 +355,11 @@ export default function SiteDetails() {
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    e.currentTarget.src = "/placeholder-image.jpg"; // Replace with your placeholder image path
+    e.currentTarget.src = "/logos/logo.png"; // Replace with your placeholder image path
   };
 
-  const complianceStatus = site && site.staff.total > site.max_staff_allowed ? "Over Capacity" : "In Compliance";
   const staffBreakdown = site ? getStaffBreakdown(site.staff) : [];
-  const utilization = site ? `${Math.round((site.staff.total / site.max_staff_allowed) * 100)}%` : "0%";
+
 
   const buildFuelData = () => {
     return [
@@ -429,7 +382,7 @@ export default function SiteDetails() {
   if (!site || !editSite) return <div className="p-6 text-gray-700">Site not found</div>;
 
   return (
-    <div className="p-6 bg-white min-h-screen text-gray-700">
+    <div className="p-6 bg-white h-fit text-gray-700">
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Sites Details</h1>
@@ -750,9 +703,11 @@ export default function SiteDetails() {
                   <Image 
                     src={editSite.image} 
                     width={400} 
+                    unoptimized
                     height={300} 
                     className="w-full h-full object-cover" 
                     alt="site"
+                    
                     onError={handleImageError}
                   />
                 ) : (

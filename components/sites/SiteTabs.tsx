@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, MapPin, Truck, Users, MoveUpRight, RefreshCcw } from "lucide-react";
 import GradientButton from "@/app/utils/GradientButton";
@@ -18,7 +19,6 @@ import {
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useToast } from "@/app/Context/ToastContext";
-
 import ExportButton from "@/app/utils/ExportButton";
 
 // Define interfaces
@@ -49,7 +49,7 @@ interface Site {
   id: number;
   name: string;
   image: string | null;
-  status:string;
+  status: string;
   notes: string | null;
   postcode: string;
   address: string;
@@ -79,6 +79,7 @@ export default function SiteGrid() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [shiftFilter, setShiftFilter] = useState<string>("all");
   const [vehicleFilter, setVehicleFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const cookies = useCookies();
   const token = cookies.get("access_token");
   const { showToast } = useToast();
@@ -109,7 +110,7 @@ export default function SiteGrid() {
       const data: Site[] = await response.json();
       console.log("Fetched sites:", data);
       setSites([...data]);
-      setFilteredSites([...data]); // Initialize filtered sites
+      setFilteredSites([...data]);
       showToast("Sites refreshed successfully", "success");
     } catch (err: unknown) {
       console.error("Fetch error:", err);
@@ -124,6 +125,16 @@ export default function SiteGrid() {
   // Apply filters whenever filter states or sites change
   useEffect(() => {
     let filtered = [...sites];
+
+    // Filter by search query
+    if (searchQuery) {
+      filtered = filtered.filter((site) =>
+        [site.name, site.address, site.postcode]
+          .join(" ")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
+      );
+    }
 
     // Filter by status
     if (statusFilter !== "all") {
@@ -150,7 +161,7 @@ export default function SiteGrid() {
     }
 
     setFilteredSites(filtered);
-  }, [sites, statusFilter, shiftFilter, vehicleFilter]);
+  }, [sites, statusFilter, shiftFilter, vehicleFilter, searchQuery]);
 
   useEffect(() => {
     fetchSites();
@@ -190,7 +201,13 @@ export default function SiteGrid() {
             <h1 className="text-2xl font-bold">Sites</h1>
             <p className="text-sm text-gray-500">Browse all available sites</p>
           </div>
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-4 items-center w-full sm:w-auto">
+            <Input
+              placeholder="Search by name, address, or postcode..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-sm"
+            />
             <ExportButton data={sites} fileName="Site_data"/>
             <button
               type="button"
@@ -213,8 +230,6 @@ export default function SiteGrid() {
             </Dialog>
           </div>
         </div>
-
-   
 
         <div className="flex justify-evenly items-center flex-wrap gap-6">
           {filteredSites.map((site) => (

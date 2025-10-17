@@ -202,6 +202,7 @@ export default function DriverDetailPage() {
       const result = await response.json();
       if (result.success) {
         setDriverData(result.data);
+        console.log(result.data.user.id)
         setUser_id(result.data.user.id)
         setEditFormData({
           full_name: result.data.user.full_name,
@@ -299,7 +300,7 @@ export default function DriverDetailPage() {
       fetchCompetencyData();
       fetchHealthData();
     }
-  }, [id, cookies]);
+  }, [id, cookies,user_id]);
 
   useEffect(() => {
     const fetchContracts = async () => {

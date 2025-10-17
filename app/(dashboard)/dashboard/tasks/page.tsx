@@ -1,15 +1,61 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Filter, CheckCheck, Clock, Check, X, TriangleAlert, ClockArrowUp } from 'lucide-react';
+import {
+  Filter,
+  CheckCheck,
+  Clock,
+  Check,
+  X,
+  TriangleAlert,
+  ClockArrowUp,
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 
-// Define the notification type
+// Define API response types
+interface ApiNotificationData {
+  action?: string;
+  category?: string;
+  new_status?: string;
+  site_ids?: number[];
+  pmi_id?: number;
+  vehicle_id?: number;
+  vehicle_reg?: string;
+  analysis_date?: string;
+  pmi_driver_id?: number;
+  pmi_analysis_id?: number;
+  [key: string]: any;
+}
+
+interface ApiUser {
+  id: number;
+  email: string;
+  full_name: string;
+  role: string;
+  avatar: string | null;
+}
+
+interface ApiNotification {
+  id: number;
+  title: string;
+  body: string;
+  type: string;
+  category?: string;
+  data: ApiNotificationData;
+  is_read: boolean;
+  created_at: string;
+  user: ApiUser;
+  roles: string[];
+  read_by: any;
+}
+
+// Define UI notification type
 interface NotificationCardProps {
   id: string;
   type: 'approved' | 'update' | 'denied' | 'alert';
@@ -20,32 +66,23 @@ interface NotificationCardProps {
   read: boolean;
 }
 
-// API response type
-interface ApiNotification {
-  id: number;
-  title: string;
-  body: string;
-  type: string;
-  data: {
-    new_status?: string;
-    event_type?: string;
-    [key: string]: any;
-  };
-  is_read: boolean;
-  created_at: string;
+interface NotificationCardPropsWithAction extends NotificationCardProps {
+  onMarkAsRead: () => void;
 }
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationCardProps[]>([]);
+  const [categories, setCategories] = useState<Record<string, ApiNotification[]>>({});
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [loading, setLoading] = useState<boolean>(false);
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [nextPage, setNextPage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [markingRead, setMarkingRead] = useState<string[]>([]);
   const token = useCookies().get('access_token');
-  const notificationIds = new Set(notifications.map((n) => n.id)); // For duplicate checking
+  const notificationIds = useMemo(() => new Set<string>(), []);
 
-  // Map API notification type to component type
+  // Map API notification type to UI type
   const mapNotificationType = (apiNotification: ApiNotification): NotificationCardProps['type'] => {
     if (apiNotification.type === 'profile_status') {
       return apiNotification.data.new_status === 'approved' ? 'approved' : 'denied';
@@ -56,103 +93,128 @@ export default function NotificationsPage() {
     return 'update';
   };
 
-  // Normalize nextPage URL
+  // Normalize pagination URL
   const normalizeNextPageUrl = (url: string | null): string | null => {
     if (!url) return null;
-    const baseUrl = new URL(API_URL);
-    const nextUrl = new URL(url);
-    return `${baseUrl.origin}${nextUrl.pathname}${nextUrl.search}`;
+    try {
+      const baseUrl = new URL(API_URL);
+      const nextUrl = new URL(url, baseUrl);
+      return nextUrl.toString();
+    } catch {
+      console.warn('Invalid next page URL:', url);
+      return null;
+    }
   };
 
   // Fetch notifications
-  const fetchNotifications = useCallback(async (url: string) => {
-    if (loading || !token) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid or expired token. Please log in again.');
+  const fetchNotifications = useCallback(
+    async (url: string) => {
+      if (loading || !token) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          if (response.status === 401) throw new Error('Please log in again.');
+          if (response.status === 404) throw new Error('Notifications not found.');
+          throw new Error(`HTTP error ${response.status}`);
         }
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      if (data.success) {
-        const mappedNotifications: NotificationCardProps[] = data.data.results
-          .filter((item: ApiNotification) => !notificationIds.has(item.id.toString()))
-          .map((item: ApiNotification) => ({
-            id: item.id.toString(),
-            type: mapNotificationType(item),
-            title: item.title,
-            description: item.body,
-            time: formatDistanceToNow(new Date(item.created_at), { addSuffix: true }),
-            created_at: item.created_at,
-            read: item.is_read,
-          }));
+        const data = await response.json();
+        if (data.success) {
+          const allCategories: Record<string, ApiNotification[]> = data.data.categories || {};
+          setCategories(allCategories);
 
-        setNotifications((prev) => [...prev, ...mappedNotifications]);
-        mappedNotifications.forEach((n) => notificationIds.add(n.id));
-        setNextPage(normalizeNextPageUrl(data.data.pagination.next));
-      } else {
-        throw new Error(data.message || 'API request failed');
+          const allNotifications: ApiNotification[] = Object.values(allCategories).flat();
+
+          const mappedNotifications: NotificationCardProps[] = allNotifications
+            .filter((item: ApiNotification) => !notificationIds.has(item.id.toString()))
+            .map((item: ApiNotification) => {
+              const createdAt = new Date(item.created_at);
+              return {
+                id: item.id.toString(),
+                type: mapNotificationType(item),
+                title: item.title,
+                description: item.body,
+                time:
+                  createdAt.getTime() > Date.now() - 60000
+                    ? 'Just now'
+                    : formatDistanceToNow(createdAt, { addSuffix: true }),
+                created_at: item.created_at,
+                read: item.is_read,
+              };
+            });
+
+          setNotifications((prev) => [...prev, ...mappedNotifications]);
+          mappedNotifications.forEach((n) => notificationIds.add(n.id));
+          setNextPage(normalizeNextPageUrl(data.data.pagination?.next || null));
+        } else {
+          throw new Error(data.message || 'Failed to load notifications');
+        }
+      } catch (error: any) {
+        setError(error.message || 'An unexpected error occurred while fetching notifications.');
+      } finally {
+        setLoading(false);
+        setInitialLoading(false);
       }
-    } catch (error: any) {
-      setError(error.message || 'Failed to load notifications. Please try again.');
-    } finally {
-      setLoading(false);
-      setInitialLoading(false);
-    }
-  }, [loading, token, notificationIds]);
+    },
+    [loading, token, notificationIds]
+  );
+
+  // Reset notifications and fetch first page
+  const resetNotifications = useCallback(() => {
+    notificationIds.clear();
+    setNotifications([]);
+    fetchNotifications(`${API_URL}/api/notification-inbox/?page=1`);
+  }, [fetchNotifications, notificationIds]);
 
   // Mark a single notification as read
   const markAsRead = async (id: string) => {
-    const originalNotifications = [...notifications];
-    setNotifications((prev) =>
-      prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif))
-    );
+    if (markingRead.includes(id)) return;
+    setMarkingRead((prev) => [...prev, id]);
+    const original = [...notifications];
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     try {
-      const response = await fetch(`${API_URL}/api/notifications/${id}/mark-read/`, {
+      const res = await fetch(`${API_URL}/api/notifications/${id}/mark-read/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-      if (!response.ok) {
-        throw new Error(`Failed to mark notification ${id} as read`);
-      }
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      setNotifications(originalNotifications); // Revert on failure
+      if (!res.ok) throw new Error(`Failed to mark notification ${id} as read.`);
+    } catch {
+      setNotifications(original);
       setError('Failed to mark notification as read.');
+    } finally {
+      setMarkingRead((prev) => prev.filter((m) => m !== id));
     }
   };
 
   // Mark all notifications as read
   const markAllAsRead = async () => {
-    const originalNotifications = [...notifications];
-    setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
+    if (markingRead.includes('all')) return;
+    setMarkingRead((prev) => [...prev, 'all']);
+    const original = [...notifications];
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     try {
-      const response = await fetch(`${API_URL}/api/notifications/mark-all-read/`, {
+      const res = await fetch(`${API_URL}/api/notifications/mark-all-read/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-      if (!response.ok) {
-        throw new Error('Failed to mark all notifications as read');
-      }
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-      setNotifications(originalNotifications); // Revert on failure
+      if (!res.ok) throw new Error('Failed to mark all notifications as read.');
+    } catch {
+      setNotifications(original);
       setError('Failed to mark all notifications as read.');
+    } finally {
+      setMarkingRead((prev) => prev.filter((m) => m !== 'all'));
     }
   };
 
@@ -161,43 +223,35 @@ export default function NotificationsPage() {
     if (token) {
       fetchNotifications(`${API_URL}/api/notification-inbox/?page=1`);
     } else {
-      setError('No access token found. Please log in.');
+      setError('Please log in to view notifications.');
       setInitialLoading(false);
+      // Optionally redirect: window.location.href = '/login';
     }
   }, [token]);
 
-  // Filter notifications
-  const filteredNotifications =
-    activeFilter === 'all'
-      ? notifications
-      : notifications.filter((notif) => notif.type === activeFilter);
-
-  // Separate recent and earlier notifications
-  const recentNotifications = filteredNotifications.filter(
-    (notif) => new Date().getTime() - new Date(notif.created_at).getTime() < 24 * 60 * 60 * 1000
-  );
-  const earlierNotifications = filteredNotifications.filter(
-    (notif) => new Date().getTime() - new Date(notif.created_at).getTime() >= 24 * 60 * 60 * 1000
+  // Filter notifications by category
+  const filteredNotifications = useMemo(
+    () =>
+      activeFilter === 'all'
+        ? notifications
+        : notifications.filter((notif) =>
+            categories[activeFilter]?.some((c) => c.id.toString() === notif.id)
+          ),
+    [notifications, activeFilter, categories]
   );
 
-  // Calculate badge counts
-  const getBadgeCount = (type: string) => {
-    if (type === 'all') {
-      return notifications.length;
-    }
-    return notifications.filter((notif) => notif.type === type).length;
-  };
+  // Calculate badge counts efficiently
+  const allNotifications = useMemo(() => Object.values(categories).flat(), [categories]);
+  const getBadgeCount = (key: string) =>
+    key === 'all' ? allNotifications.length : (categories[key] || []).length;
 
   // Load more notifications
   const loadMore = useCallback(() => {
-    if (nextPage && !loading) {
-      fetchNotifications(nextPage);
-    }
+    if (nextPage && !loading) fetchNotifications(nextPage);
   }, [nextPage, loading, fetchNotifications]);
 
   return (
     <div className="container mx-auto bg-white px-4 py-8 md:px-6 lg:px-8 max-w-full">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Notifications</h1>
@@ -205,24 +259,31 @@ export default function NotificationsPage() {
         </div>
         <Button
           className="flex items-center border border-gray-300 text-black hover:text-white gap-2 shadow-md outline-1 outline-gray-100 bg-transparent"
-          onClick={() => setActiveFilter('all')}
+          onClick={() => {
+            setActiveFilter('all');
+            resetNotifications();
+          }}
+          disabled={loading}
         >
           <Filter className="w-4 h-4" />
           Clear Filter
         </Button>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-md flex justify-between items-center">
           {error}
-          <Button variant="ghost" onClick={() => fetchNotifications(`${API_URL}/api/notification-inbox/?page=1`)}>
+          <Button
+            variant="ghost"
+            onClick={resetNotifications}
+            disabled={loading}
+          >
             Retry
           </Button>
         </div>
       )}
 
-      {/* Categories and Mark as Read */}
+      {/* Category badges */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
         <div className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold">Categories</h2>
@@ -236,119 +297,74 @@ export default function NotificationsPage() {
               }`}
               onClick={() => setActiveFilter('all')}
             >
-              <span>See All</span>
+              All
               <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
                 {getBadgeCount('all')}
               </span>
             </Badge>
-            <Badge
-              variant="outline"
-              className={`cursor-pointer ${
-                activeFilter === 'approved'
-                  ? 'border-green-500 text-green-500 bg-green-50'
-                  : 'text-green-500 bg-green-100 border-0'
-              }`}
-              onClick={() => setActiveFilter('approved')}
-            >
-              <span>Requests</span>
-              <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
-                {getBadgeCount('approved')}
-              </span>
-            </Badge>
-            <Badge
-              variant="outline"
-              className={`cursor-pointer ${
-                activeFilter === 'update'
-                  ? 'border-pink-500 text-pink-500 bg-pink-50'
-                  : 'text-pink-500 bg-pink-100 border-0'
-              }`}
-              onClick={() => setActiveFilter('update')}
-            >
-              <span>Updates</span>
-              <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
-                {getBadgeCount('update')}
-              </span>
-            </Badge>
-            <Badge
-              variant="outline"
-              className={`cursor-pointer ${
-                activeFilter === 'alert'
-                  ? 'border-orange-500 text-orange-500 bg-orange-50'
-                  : 'text-orange-500 border-0 bg-orange-100'
-              }`}
-              onClick={() => setActiveFilter('alert')}
-            >
-              <span>Alerts</span>
-              <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
-                {getBadgeCount('alert')}
-              </span>
-            </Badge>
+
+            {Object.keys(categories).map((key) => (
+              <Badge
+                key={key}
+                variant="outline"
+                className={`cursor-pointer capitalize ${
+                  activeFilter === key
+                    ? 'border-green-500 text-green-500 bg-green-50'
+                    : 'text-green-500 bg-green-100 border-0'
+                }`}
+                onClick={() => setActiveFilter(key)}
+              >
+                {key.replace('_', ' ')}
+                <span className="flex items-center justify-center ml-1 bg-white p-1 w-5 h-5 rounded-full text-xs">
+                  {getBadgeCount(key)}
+                </span>
+              </Badge>
+            ))}
           </div>
         </div>
+
         <Button
           variant="ghost"
           className="flex items-center gap-2 self-start md:self-auto"
           onClick={markAllAsRead}
+          disabled={markingRead.includes('all') || loading}
         >
           <CheckCheck className="w-4 h-4" />
           Mark all as read
         </Button>
       </div>
 
-      {/* Notifications List */}
-      <ScrollArea className="h-[calc(100vh-250px)] pr-4">
-        {initialLoading ? (
-          <p className="text-muted-foreground">Loading notifications...</p>
-        ) : (
-          <>
-            <h3 className="text-xl font-semibold mb-4">Recent</h3>
-            <div className="grid gap-4 mb-8">
-              {recentNotifications.length > 0 ? (
-                recentNotifications.map((notification) => (
-                  <NotificationCard
-                    key={notification.id}
-                    {...notification}
-                    onMarkAsRead={() => markAsRead(notification.id)}
-                  />
-                ))
-              ) : (
-                <p className="text-muted-foreground">No recent notifications</p>
-              )}
-            </div>
+      {initialLoading ? (
+        <p className="text-muted-foreground">Loading notifications...</p>
+      ) : (
+        <div className="grid gap-4">
+          {filteredNotifications.length > 0 ? (
+            <ScrollArea className="h-[calc(100vh-200px)]">
+              {filteredNotifications.map((notification) => (
+                <NotificationCard
+                  key={notification.id}
+                  {...notification}
+                  onMarkAsRead={() => markAsRead(notification.id)}
+                />
+              ))}
+            </ScrollArea>
+          ) : (
+            <p className="text-muted-foreground">No notifications found</p>
+          )}
+        </div>
+      )}
 
-            <h3 className="text-xl font-semibold mb-4">Earlier</h3>
-            <div className="grid gap-4">
-              {earlierNotifications.length > 0 ? (
-                earlierNotifications.map((notification) => (
-                  <NotificationCard
-                    key={notification.id}
-                    {...notification}
-                    onMarkAsRead={() => markAsRead(notification.id)}
-                  />
-                ))
-              ) : (
-                <p className="text-muted-foreground">No earlier notifications</p>
-              )}
-            </div>
-          </>
-        )}
-
-        {nextPage && !initialLoading && (
-          <Button
-            className="mt-4 w-full"
-            onClick={loadMore}
-            disabled={loading}
-          >
-            {loading ? 'Loading...' : 'Load More'}
-          </Button>
-        )}
-      </ScrollArea>
+      {nextPage && !initialLoading && (
+        <Button
+          className="mt-4 w-full"
+          onClick={loadMore}
+          disabled={loading}
+        >
+          {loading ? 'Loading...' : 'Load More'}
+        </Button>
+      )}
     </div>
   );
-}
-
-interface NotificationCardPropsWithAction extends NotificationCardProps {
-  onMarkAsRead: () => void;
 }
 
 function NotificationCard({
@@ -401,7 +417,7 @@ function NotificationCard({
       {!read && (
         <div
           className="flex-shrink-0 w-2 h-2 bg-orange-500 rounded-full absolute top-4 right-4"
-          aria-label="Unread notification"
+          title="Unread notification"
         ></div>
       )}
     </Card>

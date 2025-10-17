@@ -299,7 +299,7 @@ export default function DriverDetailPage() {
       fetchCompetencyData();
       fetchHealthData();
     }
-  }, [id, cookies]);
+  }, [id, cookies,user_id]);
 
   useEffect(() => {
     const fetchContracts = async () => {

@@ -470,7 +470,7 @@ const TyreCheck: FC = () => {
   const [tyreData, setTyreData] = useState<TyreCheckRow[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "All Data" | "Tyre Depth" | "Tyre Pressure" | "Tyre Dates" | "Torque"
+    "All Data" | "Tyre Depth" | "Tyre Pressure" | "Tyre Dates" | "Tyre Torque"
   >("All Data");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
@@ -496,7 +496,7 @@ const TyreCheck: FC = () => {
     { label: "Tyre Depth", icon: Scale },
     { label: "Tyre Pressure", icon: Car },
     { label: "Tyre Dates", icon: CalendarDays },
-    { label: "Torque", icon: Settings },
+    { label: "Tyre Torque", icon: Settings },
   ] as const;
 
   // Safe state setter
@@ -838,11 +838,11 @@ const TyreCheck: FC = () => {
                 key={tab.label}
                 onClick={() => setActiveTab(tab.label)}
                 className={cn(
-                  "relative flex items-center gap-2 px-6 py-3 text-sm justify-start font-medium transition-colors clip-tab",
-                  activeTab === tab.label
-                    ? "bg-white text-orange-500 border-b-2 border-orange-500"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                )}
+  "relative flex items-center h-[30px] gap-2 px-10 py-4 text-xs font-medium whitespace-nowrap justify-start transition-colors clip-tab",
+  activeTab === tab.label
+    ? "bg-orange-500 text-white border-b-2 border-orange-500"
+    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+)}
               >
                 <Icon size={16} />
                 {tab.label}
@@ -1070,7 +1070,7 @@ const TyreCheck: FC = () => {
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 )}
-                {activeTab === "Torque" && (
+                {activeTab === "Tyre Torque" && (
                   <TableRow>
                     <TableHead
                       className="cursor-pointer"
@@ -1253,7 +1253,7 @@ const TyreCheck: FC = () => {
                       </TableRow>
                     );
                   }
-                  if (activeTab === "Torque") {
+                  if (activeTab === "Tyre Torque") {
                     return (
                       <TableRow key={row.id}>
                         <TableCell>{row.tyre_check_date}</TableCell>

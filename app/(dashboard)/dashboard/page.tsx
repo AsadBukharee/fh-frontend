@@ -3,10 +3,7 @@
 import { useState, useEffect } from "react"
 import { DashboardCard } from "@/components/dashboard-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
 import {  Calendar, Car, MapPin,  HandCoins  } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
@@ -128,42 +125,6 @@ export default function Dashboard() {
       ]
     : []
 
-  // Placeholder for recent bookings
-  const recentBookings = [
-    {
-      id: "#15654",
-      customer: "Jenny Wilson",
-      avatar: "JW",
-      car: "Honda",
-      date: "07/9/2025",
-      time: "10:30 AM",
-      amount: "£400",
-      status: "Accepted",
-    },
-    {
-      id: "#15655",
-      customer: "John Doe",
-      avatar: "JD",
-      car: "Toyota",
-      date: "08/9/2025",
-      time: "2:00 PM",
-      amount: "£350",
-      status: "Pending",
-    },
-  ]
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Accepted":
-        return "bg-green-100 text-green-700"
-      case "Pending":
-        return "bg-yellow-100 text-yellow-700"
-      case "Rejected":
-        return "bg-red-100 text-red-700"
-      default:
-        return "text-gray-700"
-    }
-  }
 
   if (loading) {
     return (

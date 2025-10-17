@@ -1019,12 +1019,12 @@ const PMITabs: FC = () => {
               <button
                 key={tab.label}
                 onClick={() => setActiveTab(tab.label)}
-                className={cn(
-                  "relative flex items-center gap-2 px-6 py-3 text-sm justify-start font-medium transition-colors clip-tab",
-                  activeTab === tab.label
-                    ? "bg-white text-orange-500 border-b-2 border-orange-500"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                )}
+              className={cn(
+  "relative flex items-center h-[30px] gap-2 px-10 py-4 text-xs font-medium whitespace-nowrap justify-start transition-colors clip-tab",
+  activeTab === tab.label
+    ? "bg-orange-500 text-white border-b-2 border-orange-500"
+    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+)}
               >
                 <Icon size={16} />
                 {tab.label}

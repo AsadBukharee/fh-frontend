@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useRef, useCallback, useMemo, FC, lazy, Suspense } from "react";
+
+import { useState, useEffect, useRef, useCallback, useMemo, FC } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +25,7 @@ import FileUploader from "../Media/MediaUpload";
 import DefectsInput from "../ui/DefectsInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
+// Interfaces
 interface Vehicle {
   id: number;
   registration_number: string;
@@ -86,7 +88,7 @@ const initialFormData: FormData = {
   vehicle: "",
   defects: "",
   notes: "",
-  status: "pending",
+  status: "created",
   file_url: "",
   Correct_DTP_Code_Used: "",
   brake_imbalance: "",
@@ -247,17 +249,24 @@ const AddPMI: FC = () => {
     setFormErrors((prev) => ({ ...prev, file_url: undefined }));
   }, []);
 
-  const flattenFormData = useCallback((data: FormData): Record<string, any> => {
-    const flattened: Record<string, any> = { ...data };
-    ["tyre_pressure", "tyre_depth", "tyre_date"].forEach((field) => {
-      
-      Object.entries((data as Record<string, any>)[field] || {}).forEach(([key, value]) => {
-        flattened[`${field}_${key}`] = value;
-      });
-      delete flattened[field];
+const flattenFormData = useCallback((data: FormData): Record<string, any> => {
+  const flattened: Record<string, any> = { ...data };
+
+  ["tyre_pressure", "tyre_depth", "tyre_date"].forEach((field) => {
+    Object.entries((data as Record<string, any>)[field] || {}).forEach(([key, value]) => {
+      // convert "" → null for numeric fields
+      if (field !== "tyre_date") {
+        flattened[`${field}_${key}`] = value === "" ? null : Number(value);
+      } else {
+        flattened[`${field}_${key}`] = value === "" ? null : value;
+      }
     });
-    return flattened;
-  }, []);
+    delete flattened[field];
+  });
+
+  return flattened;
+}, []);
+
 
   const validateForm = useCallback((): boolean => {
     const errors: FormErrors = {};
@@ -473,6 +482,28 @@ const AddPMI: FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status *
+                  </label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => handleChange("status", value)}
+                    aria-required="true"
+                  >
+                    <SelectTrigger className={cn(formErrors.status && "border-red-500")}>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="created">Created</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formErrors.status && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.status}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     File Upload
                   </label>
                   <FileUploader onUploadSuccess={handleFileUploadSuccess} />
@@ -621,6 +652,7 @@ const AddPMI: FC = () => {
                       value={formData.tyre_pressure[pos]}
                       onChange={(e) => debouncedHandleTyreChange("tyre_pressure", pos, e.target.value)}
                       className={cn(getSafetyColor(formData.tyre_pressure[pos], "tyre_pressure"), formErrors.tyre_pressure?.[pos] && "border-red-500")}
+                      required
                     />
                     {formErrors.tyre_pressure?.[pos] && (
                       <p className="text-red-500 text-sm mt-1">{formErrors.tyre_pressure[pos]}</p>
@@ -637,6 +669,7 @@ const AddPMI: FC = () => {
                       value={formData.tyre_depth[pos]}
                       onChange={(e) => debouncedHandleTyreChange("tyre_depth", pos, e.target.value)}
                       className={cn(getSafetyColor(formData.tyre_depth[pos], "tyre_depth"), formErrors.tyre_depth?.[pos] && "border-red-500")}
+                      required
                     />
                     {formErrors.tyre_depth?.[pos] && (
                       <p className="text-red-500 text-sm mt-1">{formErrors.tyre_depth[pos]}</p>
