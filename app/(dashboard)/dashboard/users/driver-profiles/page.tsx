@@ -776,7 +776,7 @@ export default function DriversPage() {
                           {driver.profile_status !== "not_approved" && (
                             <DropdownMenuItem onClick={() => handleDisapproveDriverClick(driver)} className="cursor-pointer">
                               <XCircle className="w-4 h-4 mr-2 text-orange-600" />
-                              <span>Deactivate</span>
+                              <span>Not Approved</span>
                             </DropdownMenuItem>
                           )}
                           {driver.profile_status === "not_approved" && (
@@ -945,7 +945,7 @@ export default function DriversPage() {
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <XCircle className="w-5 h-5 text-red-600" />
-                Disapprove Driver
+                Not Approve Driver
               </AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to disapprove{" "}

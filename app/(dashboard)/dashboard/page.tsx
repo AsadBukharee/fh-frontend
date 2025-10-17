@@ -73,7 +73,7 @@ export default function Dashboard() {
           value: dashboardData.dashboard_metrics.vehicles_onsite.toString(),
           change: 0,
           icon: <Car className="w-4 h-4 text-purple-600" />,
-          progress: (dashboardData.dashboard_metrics.vehicles_onsite / 10) * 100, // Assuming max 10 vehicles
+          progress: (dashboardData.dashboard_metrics.vehicles_onsite / 20) * 100, // Assuming max 10 vehicles
           progressColor: "bg-purple-500",
         },
         {
@@ -81,7 +81,7 @@ export default function Dashboard() {
           value: dashboardData.dashboard_metrics.daily_drivers_count.toString(),
           change: 0,
           icon: <MapPin className="w-4 h-4 text-orange-600" />,
-          progress: (dashboardData.dashboard_metrics.daily_drivers_count / 5) * 100, // Assuming max 5 drivers
+          progress: (dashboardData.dashboard_metrics.daily_drivers_count / 20) * 100, // Assuming max 5 drivers
           progressColor: "bg-orange-500",
         },
         {
@@ -89,7 +89,7 @@ export default function Dashboard() {
           value: dashboardData.dashboard_metrics.monthly_jobs_count.toString(),
           change: 0,
           icon: <Calendar className="w-4 h-4 text-red-600" />,
-          progress: (dashboardData.dashboard_metrics.monthly_jobs_count / 10) * 100, // Assuming max 10 jobs
+          progress: (dashboardData.dashboard_metrics.monthly_jobs_count / 20) * 100, // Assuming max 10 jobs
           progressColor: "bg-red-500",
         },
         {
@@ -97,7 +97,7 @@ export default function Dashboard() {
           value: `£${dashboardData.dashboard_metrics.monthly_salary_count.toLocaleString("en-GB")}`,
           change: 0,
           icon: <HandCoins  className="w-4 h-4 text-green-600" />,
-          progress: (dashboardData.dashboard_metrics.monthly_salary_count / 20) * 100, // Assuming max £20
+          progress: (dashboardData.dashboard_metrics.monthly_salary_count / 70) * 100, // Assuming max £20
           progressColor: "bg-green-500",
         },
       ]

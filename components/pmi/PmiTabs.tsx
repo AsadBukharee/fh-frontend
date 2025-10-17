@@ -464,74 +464,7 @@ const DateRangePicker: FC<{
   );
 };
 
-const TyrePressureFilter: FC<{
-  minPressure: number | null;
-  maxPressure: number | null;
-  onChange: (range: [number | null, number | null]) => void;
-  onClose: () => void;
-}> = ({ minPressure, maxPressure, onChange, onClose }) => {
-  const [tempMinPressure, setTempMinPressure] = useState<number | null>(minPressure);
-  const [tempMaxPressure, setTempMaxPressure] = useState<number | null>(maxPressure);
 
-  return (
-    <div className="space-y-4 p-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Min Pressure (PSI)
-          </label>
-          <Input
-            type="number"
-            value={tempMinPressure ?? ""}
-            onChange={(e) =>
-              setTempMinPressure(e.target.value ? Number(e.target.value) : null)
-            }
-            placeholder="e.g., 25"
-            className="w-full"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Max Pressure (PSI)
-          </label>
-          <Input
-            type="number"
-            value={tempMaxPressure ?? ""}
-            onChange={(e) =>
-              setTempMaxPressure(e.target.value ? Number(e.target.value) : null)
-            }
-            placeholder="e.g., 50"
-            className="w-full"
-          />
-        </div>
-      </div>
-      <div className="flex justify-end space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setTempMinPressure(null);
-            setTempMaxPressure(null);
-            onChange([null, null]);
-            onClose();
-          }}
-        >
-          Clear
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => {
-            onChange([tempMinPressure, tempMaxPressure]);
-            onClose();
-          }}
-          className="bg-orange-500 hover:bg-orange-600"
-        >
-          Apply
-        </Button>
-      </div>
-    </div>
-  );
-};
 
 const PMITabs: FC = () => {
   const [pmiData, setPmiData] = useState<PmiRow[]>([]);
@@ -561,8 +494,7 @@ const PMITabs: FC = () => {
   const [tyrePressureRange, setTyrePressureRange] = useState<
     [number | null, number | null]
   >([null, null]);
-  const [showTyrePressureFilter, setShowTyrePressureFilter] =
-    useState<boolean>(false);
+
   const token = useCookies().get("access_token");
 
   const tabs = [

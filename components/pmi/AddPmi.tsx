@@ -444,6 +444,8 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                     type="date"
                     value={formData.analysis_date}
                     onChange={(e) => handleChange("analysis_date", e.target.value)}
+                    max={new Date().toISOString().split("T")[0]}
+
                     required
                     aria-required="true"
                     className={cn(formErrors.analysis_date && "border-red-500")}
@@ -731,6 +733,12 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
           <DialogHeader>
             <DialogTitle>Confirm PMI Submission</DialogTitle>
             <DialogDescription>
+                   {error && (
+            <div className="bg-red-100 text-red-700 p-3 rounded mb-4 flex items-center">
+              <AlertTriangle className="mr-2" />
+              {error}
+            </div>
+          )}
               Are you sure you want to submit this PMI record? Please review the details:
               <ul className="mt-2 space-y-1">
                 <li><strong>Vehicle:</strong> {vehicles.find(v => v.id === Number(formData.vehicle))?.registration_number || "N/A"}</li>
