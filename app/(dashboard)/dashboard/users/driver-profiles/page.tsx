@@ -180,31 +180,7 @@ export default function DriversPage() {
   })
   const { showToast } = useToast()
   const cookies = useCookies()
-  const [formData, setFormData] = useState<DriverForm>({
-    email: "",
-    full_name: "",
-    role: "driver",
-    contractId: "none",
-    is_active: true,
-    password: "",
-    password_confirm: "",
-    date_of_birth: "",
-    phone: "",
-    address: "",
-    account_no: "",
-    sort_code: "",
-    post_code: "",
-    national_insurance_no: "",
-    license_number: "",
-    license_issue_number: "",
-    next_of_kin_name: "",
-    next_of_kin_relationship: "",
-    next_of_kin_contact: "",
-    next_of_kin_email: "",
-    next_of_kin_address: "",
-    manager_name: "",
-  })
-  const [formErrors, setFormErrors] = useState<Partial<DriverForm>>({})
+
   const perPage = 10
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -495,34 +471,7 @@ export default function DriversPage() {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1)
   }
 
-  const handleResendActivation = async (userId: number) => {
-    try {
-      const response = await fetch(`${API_URL}/auth/resend-activation/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-        body: JSON.stringify({ user_id: userId }),
-      })
-
-      const data = await response.json()
-
-      if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
-      }
-
-      if (data.success) {
-        showToast("Activation email resent successfully", "success")
-      } else {
-        showToast(data.message || "Failed to resend activation email", "error")
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while resending activation email"
-      showToast(errorMessage, "error")
-    }
-  }
+ 
 
   const handleFilterChange = (filterType: string, value: string | boolean | null) => {
     setFilters((prev) => {
@@ -710,152 +659,166 @@ export default function DriversPage() {
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {currentDrivers.map((driver) => (
-                <div
-                  key={driver.id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:border-gray-300 transition-all duration-300 group"
-                >
-                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 border-b border-gray-200">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="relative">
-                          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center ring-4 ring-white shadow-md">
-                            {driver.user.avatar ? (
-                              <img
-                                src={driver.user.avatar}
-                                alt={driver.user.display_name}
-                                className="w-full h-full rounded-full object-cover"
-                              />
-                            ) : (
-                              <User className="w-7 h-7 text-orange-600" />
-                            )}
-                          </div>
-                          {driver.user.is_active && (
-                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <Link href={`/dashboard/users/driver-profiles/${driver.id}`}>
-                            <h3 className="font-semibold text-base text-gray-900 hover:text-orange-600 transition-colors truncate">
-                              {driver.user.display_name}
-                            </h3>
-                          </Link>
-                          <p className="text-xs text-gray-600 truncate flex items-center gap-1 mt-0.5">
-                            <Mail className="w-3 h-3" />
-                            {driver.user.email}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge className={`${getProfileStatusColor(driver.profile_status)} text-[9px] px-2 py-0.5`}>
-                              {driver.profile_status.replace("_", " ").toUpperCase()}
-                            </Badge>
-                            <span className="text-[10px] text-gray-500">ID: {driver.id}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            ref={(el: HTMLButtonElement | null) => {
-                              buttonRefs.current[`action-${driver.id}`] = el
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            className="ripple cursor-glow h-8 w-8 p-0 hover:bg-white/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                            onMouseMove={handleMouseMove(`action-${driver.id}`)}
-                          >
-                            <MoreHorizontal className="w-4 h-4 relative z-10 text-gray-600" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-white w-48">
-                          {driver.profile_status !== "approved" && (
-                            <DropdownMenuItem onClick={() => handleApproveDriverClick(driver.id)} className="cursor-pointer">
-                              <Check className="w-4 h-4 mr-2 text-green-600" />
-                              <span>Approve Profile</span>
-                            </DropdownMenuItem>
-                          )}
-                          {driver.profile_status !== "not_approved" && (
-                            <DropdownMenuItem onClick={() => handleDisapproveDriverClick(driver)} className="cursor-pointer">
-                              <XCircle className="w-4 h-4 mr-2 text-orange-600" />
-                              <span>Not Approved</span>
-                            </DropdownMenuItem>
-                          )}
-                          {driver.profile_status === "not_approved" && (
-                            <DropdownMenuItem onClick={() => handleResendActivation(driver.user.id)} className="cursor-pointer">
-                              <Mail className="w-4 h-4 mr-2 text-blue-600" />
-                              <span>Resend Activation</span>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => handleDeleteDriverClick(driver)}>
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            <span>Delete Driver</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                  <div className="p-4 space-y-3">
-                    <div className="flex items-center gap-2 p-2.5 bg-orange-50 rounded-lg border border-orange-100">
-                      <Shield className="w-4 h-4 text-orange-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-orange-600 font-medium uppercase tracking-wide">License Number</p>
-                        <p className="text-sm font-semibold text-gray-900 truncate">{driver.license_number || "Not Provided"}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-100">
-                      <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-gray-600 font-medium uppercase tracking-wide">Contract</p>
-                        {driver.user.contract ? (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                            <p className="text-sm font-semibold text-gray-900 truncate">{driver.user.contract.name}</p>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                            <p className="text-sm font-semibold text-red-600">No Contract</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {driver.warnings && driver.warnings.length > 0 ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-2 p-2.5 bg-red-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors">
-                            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                            <div className="flex-1">
-                              <p className="text-[10px] text-red-600 font-medium uppercase tracking-wide">Active Warnings</p>
-                              <p className="text-sm font-semibold text-red-700">{driver.warnings.length} Warning{driver.warnings.length > 1 ? 's' : ''}</p>
-                            </div>
-                            <div className="flex justify-center items-center bg-red-600 text-white text-xs font-bold rounded-full w-7 h-7">
-                              {driver.warnings.length}
-                            </div>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <div className="space-y-1 max-h-48 overflow-auto">
-                            <p className="font-semibold text-xs mb-2">Warning Details:</p>
-                            {driver.warnings.map((warning, index) => (
-                              <div key={index} className="flex items-start gap-1.5 text-xs">
-                                <span className="text-red-500 mt-0.5">•</span>
-                                <span>{warning}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <div className="flex items-center gap-2 p-2.5 bg-green-50 rounded-lg border border-green-100">
-                        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-[10px] text-green-600 font-medium uppercase tracking-wide">Status</p>
-                          <p className="text-sm font-semibold text-green-700">No Active Warnings</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+             {currentDrivers.map((driver) => (
+  <Link
+    key={driver.id}
+    href={`/dashboard/users/driver-profiles/${driver.id}`}
+    className="block rounded-xl"
+  >
+    <div
+      className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:border-gray-300 transition-all duration-300 group"
+      onClick={(e) => {
+        // Prevent navigation if clicking on interactive elements
+        if (
+          e.target instanceof HTMLElement &&
+          (e.target.closest("button") ||
+            // e.target.closest("a") ||
+            e.target.closest(".dropdown-menu"))
+        ) {
+          e.preventDefault()
+        }
+      }}
+    >
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 border-b border-gray-200">
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center ring-4 ring-white shadow-md">
+                {driver.user.avatar ? (
+                  <img
+                    src={driver.user.avatar}
+                    alt={driver.user.display_name}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <User className="w-7 h-7 text-orange-600" />
+                )}
+              </div>
+              {driver.user.is_active && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base text-gray-900 hover:text-orange-600 transition-colors truncate">
+                {driver.user.display_name}
+              </h3>
+              <p className="text-xs text-gray-600 truncate flex items-center gap-1 mt-0.5">
+                <Mail className="w-3 h-3" />
+                {driver.user.email}
+              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge className={`${getProfileStatusColor(driver.profile_status)} text-[9px] px-2 py-0.5`}>
+                  {driver.profile_status.replace("_", " ").toUpperCase()}
+                </Badge>
+                <span className="text-[10px] text-gray-500">ID: {driver.id}</span>
+              </div>
+            </div>
+          </div>
+          {/* <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                ref={(el: HTMLButtonElement | null) => {
+                  buttonRefs.current[`action-${driver.id}`] = el
+                }}
+                variant="ghost"
+                size="sm"
+                className="ripple cursor-glow h-8 w-8 p-0 hover:bg-white/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                onMouseMove={handleMouseMove(`action-${driver.id}`)}
+              >
+                <MoreHorizontal className="w-4 h-4 relative z-10 text-gray-600" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-white w-48">
+              {driver.profile_status !== "approved" && (
+                <DropdownMenuItem onClick={() => handleApproveDriverClick(driver.id)} className="cursor-pointer">
+                  <Check className="w-4 h-4 mr-2 text-green-600" />
+                  <span>Approve Profile</span>
+                </DropdownMenuItem>
+              )}
+              {driver.profile_status !== "not_approved" && (
+                <DropdownMenuItem onClick={() => handleDisapproveDriverClick(driver)} className="cursor-pointer">
+                  <XCircle className="w-4 h-4 mr-2 text-orange-600" />
+                  <span>Not Approved</span>
+                </DropdownMenuItem>
+              )}
+              {driver.profile_status === "not_approved" && (
+                <DropdownMenuItem onClick={() => handleResendActivation(driver.user.id)} className="cursor-pointer">
+                  <Mail className="w-4 h-4 mr-2 text-blue-600" />
+                  <span>Resend Activation</span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => handleDeleteDriverClick(driver)}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                <span>Delete Driver</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu> */}
+        </div>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="flex items-center gap-2 p-2.5 bg-orange-50 rounded-lg border border-orange-100">
+          <Shield className="w-4 h-4 text-orange-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-orange-600 font-medium uppercase tracking-wide">License Number</p>
+            <p className="text-sm font-semibold text-gray-900 truncate">{driver.license_number || "Not Provided"}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-100">
+          <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-gray-600 font-medium uppercase tracking-wide">Contract</p>
+            {driver.user.contract ? (
+              <div className="flex items-center gap-1 mt-0.5">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                <p className="text-sm font-semibold text-gray-900 truncate">{driver.user.contract.name}</p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 mt-0.5">
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                <p className="text-sm font-semibold text-red-600">No Contract</p>
+              </div>
+            )}
+          </div>
+        </div>
+        {driver.warnings && driver.warnings.length > 0 ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2 p-2.5 bg-red-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[10px] text-red-600 font-medium uppercase tracking-wide">Active Warnings</p>
+                  <p className="text-sm font-semibold text-red-700">{driver.warnings.length} Warning{driver.warnings.length > 1 ? 's' : ''}</p>
                 </div>
-              ))}
+                <div className="flex justify-center items-center bg-red-600 text-white text-xs font-bold rounded-full w-7 h-7">
+                  {driver.warnings.length}
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <div className="space-y-1 max-h-48 overflow-auto">
+                <p className="font-semibold text-xs mb-2">Warning Details:</p>
+                {driver.warnings.map((warning, index) => (
+                  <div key={index} className="flex items-start gap-1.5 text-xs">
+                    <span className="text-red-500 mt-0.5">•</span>
+                    <span>{warning}</span>
+                  </div>
+                ))}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <div className="flex items-center gap-2 p-2.5 bg-green-50 rounded-lg border border-green-100">
+            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-[10px] text-green-600 font-medium uppercase tracking-wide">Status</p>
+              <p className="text-sm font-semibold text-green-700">No Active Warnings</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  </Link>
+))}
             </div>
           </>
         )}

@@ -131,6 +131,11 @@ export default function VehicleDashboard() {
     start: Date | null;
     end: Date | null;
   }>({ start: null, end: null });
+  const [editingField, setEditingField] = useState<{
+    vehicleId: number | null;
+    field: string | null;
+    value: string;
+  }>({ vehicleId: null, field: null, value: "" });
   const cookies = useCookies();
   const perPage = 10;
 
@@ -187,20 +192,22 @@ export default function VehicleDashboard() {
 
   const filterOptions = [
     { key: "All Data", label: "All Data", icon: null },
-    { key: "MOT", label: "MOT", icon: Calendar },
-    { key: "PMI Inspection", label: "PMI Inspection", icon: Wrench },
-    {
-      key: "Vehicle Tacho Download",
-      label: "Vehicle Tacho Download",
-      icon: Download,
-    },
-    {
-      key: "Tyre Maintenance Check",
-      label: "Tyre Maintenance Check",
-      icon: Circle,
-    },
-    { key: "Insurance & Check", label: "Insurance & Check", icon: Shield },
-    { key: "Calibrations", label: "Calibrations", icon: Settings },
+    { key: "MOT Expiry", label: "MOT Expiry", icon: Calendar },
+    { key: "Book Next MOT From", label: "Book Next MOT From", icon: Calendar },
+    { key: "Next MOT Booked Date", label: "Next MOT Booked Date", icon: Calendar },
+    { key: "Time MOT Booked", label: "Time MOT Booked", icon: Calendar },
+    { key: "MOT Status", label: "MOT Status", icon: Calendar },
+    { key: "Last PMI Date", label: "Last PMI Date", icon: Wrench },
+    { key: "Next PMI Date", label: "Next PMI Date", icon: Wrench },
+    { key: "Book Next PMI From", label: "Book Next PMI From", icon: Wrench },
+    { key: "Last Download", label: "Last Download", icon: Download },
+    { key: "Next Download", label: "Next Download", icon: Download },
+    { key: "Last Check", label: "Last Check", icon: Circle },
+    { key: "Next Check", label: "Next Check", icon: Circle },
+    { key: "Insurance Expiry", label: "Insurance Expiry", icon: Shield },
+    { key: "Tax Expiry", label: "Tax Expiry", icon: Shield },
+    { key: "Tacho Expiry", label: "Tacho Expiry", icon: Settings },
+    { key: "LOLER Expiry", label: "LOLER Expiry", icon: Settings },
   ];
 
   const statusFilterOptions = ["All Statuses", "Expired", "Upcoming", "TBC"];
@@ -261,20 +268,20 @@ export default function VehicleDashboard() {
     if (!fullApiData) return [];
     const deduplicateByLatest = <
       T extends {
-        vehicle: number;
+        id: number;
         vehicle_reg: string;
-        mot_expiry?: string;
-        next_pmi_date?: string;
-        tax_expiry?: string;
-        tacho_expiry?: string;
-        loller_expiry?: string;
+        mot_expiry?: string | null;
+        next_pmi_date?: string | null;
+        tax_expiry?: string | null;
+        tacho_expiry?: string | null;
+        loller_expiry?: string | null;
       }
     >(
       items: T[]
     ): T[] => {
       const map = new Map<number, T>();
       items.forEach((item) => {
-        const existing = map.get(item.vehicle);
+        const existing = map.get(item.id);
         const itemDate =
           item.mot_expiry ||
           item.next_pmi_date ||
@@ -298,9 +305,9 @@ export default function VehicleDashboard() {
                 return itemDateObj.getTime() > existingDateObj.getTime();
               }
               return !!itemDateObj;
-            })()))
-        {
-          map.set(item.vehicle, item);
+            })())
+        ) {
+          map.set(item.id, item);
         }
       });
       return Array.from(map.values());
@@ -390,77 +397,147 @@ export default function VehicleDashboard() {
           };
         });
         break;
-      case "MOT":
+      case "MOT Expiry":
         data = deduplicateByLatest(
           fullApiData.data.mot.map((item) => ({
             id: item.vehicle,
-            vehicle: item.vehicle,
             vehicle_reg: item.vehicle_reg,
             mot_expiry: item.mot_expiry,
+          }))
+        );
+        break;
+      case "Book Next MOT From":
+        data = deduplicateByLatest(
+          fullApiData.data.mot.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
             book_next_mot_from: item.book_next_mot_from,
+          }))
+        );
+        break;
+      case "Next MOT Booked Date":
+        data = deduplicateByLatest(
+          fullApiData.data.mot.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
             next_mot_booked_date: item.next_mot_booked_date,
+          }))
+        );
+        break;
+      case "Time MOT Booked":
+        data = deduplicateByLatest(
+          fullApiData.data.mot.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
             time_mot_booked: item.time_mot_booked,
+          }))
+        );
+        break;
+      case "MOT Status":
+        data = deduplicateByLatest(
+          fullApiData.data.mot.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
             mot_status: item.mot_status,
           }))
         );
         break;
-      case "PMI Inspection":
+      case "Last PMI Date":
         data = deduplicateByLatest(
           fullApiData.data.pmi.map((item) => ({
             id: item.vehicle,
-            vehicle: item.vehicle,
             vehicle_reg: item.vehicle_reg,
             last_pmi_date: item.last_pmi_date,
-            book_next_pmi_from: item.book_next_pmi_from,
-            next_pmi_date: item.next_pmi_date,
-            hover: item.hover,
           }))
         );
         break;
-      case "Vehicle Tacho Download":
+      case "Next PMI Date":
+        data = deduplicateByLatest(
+          fullApiData.data.pmi.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
+            next_pmi_date: item.next_pmi_date,
+          }))
+        );
+        break;
+      case "Book Next PMI From":
+        data = deduplicateByLatest(
+          fullApiData.data.pmi.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
+            book_next_pmi_from: item.book_next_pmi_from,
+          }))
+        );
+        break;
+      case "Last Download":
         data = deduplicateByLatest(
           fullApiData.data.tacho.map((item) => ({
             id: item.vehicle,
-                        vehicle: item.vehicle,
-
             vehicle_reg: item.vehicle_reg,
             last_download: item.last_download,
+          }))
+        );
+        break;
+      case "Next Download":
+        data = deduplicateByLatest(
+          fullApiData.data.tacho.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
             next_download: item.next_download,
           }))
         );
         break;
-      case "Tyre Maintenance Check":
+      case "Last Check":
         data = deduplicateByLatest(
           fullApiData.data.tyre.map((item) => ({
             id: item.vehicle,
-                        vehicle: item.vehicle,
-
             vehicle_reg: item.vehicle_reg,
             last_check: item.last_check,
+          }))
+        );
+        break;
+      case "Next Check":
+        data = deduplicateByLatest(
+          fullApiData.data.tyre.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
             next_check: item.next_check,
           }))
         );
         break;
-      case "Insurance & Check":
+      case "Insurance Expiry":
         data = deduplicateByLatest(
           fullApiData.data.insurance.map((item) => ({
             id: item.vehicle,
-            vehicle: item.vehicle,
             vehicle_reg: item.vehicle_reg,
             insurance_expiry: item.expiry,
+          }))
+        );
+        break;
+      case "Tax Expiry":
+        data = deduplicateByLatest(
+          fullApiData.data.insurance.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
             tax_expiry: item.tax_expiry,
           }))
         );
         break;
-      case "Calibrations":
+      case "Tacho Expiry":
         data = deduplicateByLatest(
           fullApiData.data.calibrations.map((item) => ({
             id: item.vehicle,
-                        vehicle: item.vehicle,
-
             vehicle_reg: item.vehicle_reg,
             tacho_expiry: item.tacho_expiry,
-            loller_expiry: item.loller_expiry ?? undefined,
+          }))
+        );
+        break;
+      case "LOLER Expiry":
+        data = deduplicateByLatest(
+          fullApiData.data.calibrations.map((item) => ({
+            id: item.vehicle,
+            vehicle_reg: item.vehicle_reg,
+            loller_expiry: item.loller_expiry,
           }))
         );
         break;
@@ -472,7 +549,7 @@ export default function VehicleDashboard() {
     let data = getDataForActiveFilter();
     if (searchQuery) {
       data = data.filter((d) =>
-        d.id.toString().toLowerCase().includes(searchQuery.toLowerCase())
+        d.vehicle_reg.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     if (vehicleIdFilter !== "All Registrations") {
@@ -483,34 +560,54 @@ export default function VehicleDashboard() {
     setCurrentPage(1);
   }, [getDataForActiveFilter, searchQuery, vehicleIdFilter, perPage]);
 
-  const getStatusBadge = (status?: string | null, expiry?: string | null) => {
+  const getStatusBadge = (status?: string | null, expiry?: string | null, isMotStatus: boolean = false) => {
     if (!status && !expiry) return <span className="text-gray-400">-</span>;
+
+    if (isMotStatus && status) {
+      if (status === "TBC") {
+        return (
+          <Popover>
+            <PopoverTrigger asChild>
+              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800 cursor-pointer">
+                TBC
+              </span>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+              <div className="text-sm whitespace-pre-line">
+                To Be Confirmed as of {format(new Date(), "dd/MM/yyyy HH:mm")} PKT
+              </div>
+            </PopoverContent>
+          </Popover>
+        );
+      }
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+          booked
+        </span>
+      );
+    }
+
     if (expiry) {
       try {
         const parsed = parseFlexibleDate(expiry);
         if (!parsed) throw new Error("Invalid date");
         const today = new Date();
         const daysDiff = differenceInDays(parsed, today);
-        if (daysDiff < 0) {
-          return (
-            <Popover>
-              <PopoverTrigger asChild>
-                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 cursor-pointer">
-                  Expired {Math.abs(daysDiff)} days ago
-                </span>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-2">
-                <div className="text-sm whitespace-pre-line">
-                  {getDaysInfo(expiry, "Expiry Date")}
-                </div>
-              </PopoverContent>
-            </Popover>
-          );
-        }
+        const isExpired = daysDiff < 0;
+        const isAuditExpiry = daysDiff >= 0 && daysDiff <= 30;
+
+        const bgColor = isExpired
+          ? "bg-red-100 text-red-800"
+          : isAuditExpiry
+          ? "bg-amber-100 text-amber-800"
+          : "bg-green-100 text-green-800";
+
         return (
           <Popover>
             <PopoverTrigger asChild>
-              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 cursor-pointer">
+              <span
+                className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${bgColor} cursor-pointer`}
+              >
                 {formatDateDmy(expiry)}
               </span>
             </PopoverTrigger>
@@ -525,23 +622,34 @@ export default function VehicleDashboard() {
         return <span className="text-gray-900">{formatDateDmy(expiry)}</span>;
       }
     }
-    if (typeof status === "string" && status === "TBC") {
-      return (
-        <Popover>
-          <PopoverTrigger asChild>
-            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800 cursor-pointer">
-              TBC
-            </span>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-2">
-            <div className="text-sm whitespace-pre-line">
-              To Be Confirmed as of {format(new Date(), "dd/MM/yyyy HH:mm")} PKT
-            </div>
-          </PopoverContent>
-        </Popover>
-      );
-    }
+
     return <span className="text-gray-900">{status}</span>;
+  };
+
+  const handleEditStart = (vehicleId: number, field: string, currentValue: string) => {
+    setEditingField({ vehicleId, field, value: currentValue || "" });
+  };
+
+  const handleEditChange = (value: string) => {
+    setEditingField((prev) => (prev ? { ...prev, value } : prev));
+  };
+
+  const handleEditSave = async (vehicleId: number, field: string, value: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/vehicles/compliance/${vehicleId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!response.ok) throw new Error("Failed to update");
+      await fetchData();
+      setEditingField({ vehicleId: null, field: null, value: "" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error updating data");
+    }
   };
 
   const renderTableHeaders = () => {
@@ -643,100 +751,116 @@ export default function VehicleDashboard() {
             </tr>
           </>
         );
-      case "MOT":
+      case "MOT Expiry":
         return (
           <tr className="border-b border-gray-200 bg-orange-50">
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle ID
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              MOT Expiry
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Book Next MOT From
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Next MOT Booked Date
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Time MOT Booked
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              MOT Status
-            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">MOT Expiry</th>
           </tr>
         );
-      case "PMI Inspection":
+      case "Book Next MOT From":
+        return (
+          <tr className="border-b border-gray-200 bg-orange-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Book Next MOT From</th>
+          </tr>
+        );
+      case "Next MOT Booked Date":
+        return (
+          <tr className="border-b border-gray-200 bg-orange-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next MOT Booked Date</th>
+          </tr>
+        );
+      case "Time MOT Booked":
+        return (
+          <tr className="border-b border-gray-200 bg-orange-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Time MOT Booked</th>
+          </tr>
+        );
+      case "MOT Status":
+        return (
+          <tr className="border-b border-gray-200 bg-orange-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">MOT Status</th>
+          </tr>
+        );
+      case "Last PMI Date":
         return (
           <tr className="border-b border-gray-200 bg-pink-50">
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle ID
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Last PMI Date
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Next PMI Date
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Book Next PMI From
-            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Last PMI Date</th>
           </tr>
         );
-      case "Vehicle Tacho Download":
+      case "Next PMI Date":
+        return (
+          <tr className="border-b border-gray-200 bg-pink-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next PMI Date</th>
+          </tr>
+        );
+      case "Book Next PMI From":
+        return (
+          <tr className="border-b border-gray-200 bg-pink-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Book Next PMI From</th>
+          </tr>
+        );
+      case "Last Download":
         return (
           <tr className="border-b border-gray-200 bg-blue-50">
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle ID
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Last Download
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Next Download
-            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Last Download</th>
           </tr>
         );
-      case "Tyre Maintenance Check":
+      case "Next Download":
+        return (
+          <tr className="border-b border-gray-200 bg-blue-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next Download</th>
+          </tr>
+        );
+      case "Last Check":
         return (
           <tr className="border-b border-gray-200 bg-purple-50">
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle ID
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Last Check
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Next Check
-            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Last Check</th>
           </tr>
         );
-      case "Insurance & Check":
+      case "Next Check":
+        return (
+          <tr className="border-b border-gray-200 bg-purple-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Next Check</th>
+          </tr>
+        );
+      case "Insurance Expiry":
         return (
           <tr className="border-b border-gray-200 bg-green-50">
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle ID
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Insurance Expiry
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Tax Expiry
-            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Insurance Expiry</th>
           </tr>
         );
-      case "Calibrations":
+      case "Tax Expiry":
+        return (
+          <tr className="border-b border-gray-200 bg-green-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Tax Expiry</th>
+          </tr>
+        );
+      case "Tacho Expiry":
         return (
           <tr className="border-b border-gray-200 bg-yellow-50">
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Vehicle ID
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              Tacho Expiry
-            </th>
-            <th className="text-left p-3 text-sm font-medium text-gray-900">
-              LOLER Expiry
-            </th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Tacho Expiry</th>
+          </tr>
+        );
+      case "LOLER Expiry":
+        return (
+          <tr className="border-b border-gray-200 bg-yellow-50">
+            <th className="text-left p-3 text-sm font-medium text-gray-900">Vehicle ID</th>
+            <th className="text-left p-3 text-sm font-medium text-gray-900">LOLER Expiry</th>
           </tr>
         );
       default:
@@ -753,6 +877,8 @@ export default function VehicleDashboard() {
     const insuranceData = vehicleData?.insurance;
     const calibrationData = vehicleData?.calibrations;
 
+    const isEditing = (field: string) => editingField.vehicleId === item.id && editingField.field === field;
+
     switch (activeFilter) {
       case "All Data":
         return (
@@ -764,9 +890,7 @@ export default function VehicleDashboard() {
               <div className="flex items-center gap-2">
                 <div
                   className={`w-2 h-2 rounded-full ${
-                    motData?.time_mot_booked === "TBC"
-                      ? "bg-orange-500/30"
-                      : "bg-green-500/30"
+                    motData?.time_mot_booked === "TBC" ? "bg-orange-500/30" : "bg-green-500/30"
                   }`}
                 ></div>
                 <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
@@ -781,13 +905,65 @@ export default function VehicleDashboard() {
               {formatDateDmy(motData?.book_next_mot_from)}
             </td>
             <td className="p-2 text-sm text-gray-900 border-gray-200">
-              {formatDateDmy(motData?.next_mot_booked_date)}
+              {isEditing("next_mot_booked_date") ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={editingField.value}
+                    onChange={(e) => handleEditChange(e.target.value)}
+                    className="w-32"
+                    placeholder="dd/MM/yyyy"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => handleEditSave(item.id, "next_mot_booked_date", editingField.value)}
+                  >
+                    Save
+                  </Button>
+                </div>
+              ) : (
+                <span
+                  className="cursor-pointer"
+                  onClick={() => handleEditStart(item.id, "next_mot_booked_date", motData?.next_mot_booked_date || "")}
+                >
+                  {formatDateDmy(motData?.next_mot_booked_date)}
+                </span>
+              )}
             </td>
             <td className="p-2 text-sm border-gray-200">
-              {getStatusBadge(motData?.time_mot_booked)}
+              {isEditing("time_mot_booked") ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={editingField.value}
+                    onChange={(e) => handleEditChange(e.target.value)}
+                    className="w-32"
+                    placeholder="HH:mm"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => handleEditSave(item.id, "time_mot_booked", editingField.value)}
+                  >
+                    Save
+                  </Button>
+                </div>
+              ) : (
+                <span
+                  className="cursor-pointer"
+                  onClick={() => handleEditStart(item.id, "time_mot_booked", motData?.time_mot_booked || "")}
+                >
+                  {getStatusBadge(motData?.time_mot_booked, null, true)}
+                </span>
+              )}
             </td>
             <td className="p-2 text-sm border-gray-200">
-              {getStatusBadge(motData?.mot_status)}
+              {getStatusBadge(
+                motData?.next_mot_booked_date && motData?.time_mot_booked && motData?.time_mot_booked !== "TBC"
+                  ? "booked"
+                  : motData?.mot_expiry && parseFlexibleDate(motData.mot_expiry) && differenceInDays(parseFlexibleDate(motData.mot_expiry)!, new Date()) < 0
+                  ? "Expired"
+                  : "TBC",
+                null,
+                true
+              )}
             </td>
             <td className="p-2 text-sm text-gray-900 border-gray-200">
               <Popover>
@@ -816,10 +992,10 @@ export default function VehicleDashboard() {
               </Popover>
             </td>
             <td className="p-2 text-sm border-gray-200">
-              {getStatusBadge(null, pmiData?.next_pmi_date)}
+              {getStatusBadge(null, pmiData?.next_pmi_date || "TBC")}
             </td>
             <td className="p-2 text-sm border-gray-200">
-              {getStatusBadge(pmiData?.book_next_pmi_from)}
+              {pmiData?.next_pmi_date ? "booked" : formatDateDmy(pmiData?.book_next_pmi_from)}
             </td>
             <td className="p-2 text-sm text-gray-900 border-gray-200">
               <Popover>
@@ -839,7 +1015,7 @@ export default function VehicleDashboard() {
               <Popover>
                 <PopoverTrigger asChild>
                   <span className="cursor-pointer">
-                    {formatDateDmy(tachoData?.next_download)}
+                    {getStatusBadge(null, tachoData?.next_download)}
                   </span>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-2">
@@ -867,7 +1043,7 @@ export default function VehicleDashboard() {
               <Popover>
                 <PopoverTrigger asChild>
                   <span className="cursor-pointer">
-                    {formatDateDmy(tyreData?.next_check)}
+                    {getStatusBadge(null, tyreData?.next_check)}
                   </span>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-2">
@@ -891,47 +1067,131 @@ export default function VehicleDashboard() {
             </td>
           </tr>
         );
-      case "MOT":
+      case "MOT Expiry":
         return (
-          <tr
-            key={`${item.id}-${index}`}
-            className="border-b border-gray-100 hover:bg-orange-50"
-          >
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-orange-50">
             <td className="p-3 font-medium text-gray-900">
               <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
-              {item.vehicle_reg}
+                {item.vehicle_reg}
+              </Link>
+            </td>
+            <td className="p-3 text-sm text-gray-900">{getStatusBadge(null, item.mot_expiry)}</td>
+          </tr>
+        );
+      case "Book Next MOT From":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-orange-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
+              </Link>
+            </td>
+            <td className="p-3 text-sm text-gray-900">{formatDateDmy(item.book_next_mot_from)}</td>
+          </tr>
+        );
+      case "Next MOT Booked Date":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-orange-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
               </Link>
             </td>
             <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(null, item.mot_expiry)}
+              {isEditing("next_mot_booked_date") ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={editingField.value}
+                    onChange={(e) => handleEditChange(e.target.value)}
+                    className="w-32"
+                    placeholder="dd/MM/yyyy"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => handleEditSave(item.id, "next_mot_booked_date", editingField.value)}
+                  >
+                    Save
+                  </Button>
+                </div>
+              ) : (
+                <span
+                  className="cursor-pointer"
+                  onClick={() => handleEditStart(item.id, "next_mot_booked_date", item.next_mot_booked_date || "")}
+                >
+                  {formatDateDmy(item.next_mot_booked_date)}
+                </span>
+              )}
             </td>
-            <td className="p-3 text-sm text-gray-900">
-              {formatDateDmy(item.book_next_mot_from)}
-            </td>
-            <td className="p-3 text-sm text-gray-900">
-              {formatDateDmy(item.next_mot_booked_date)}
-            </td>
-            <td className="p-3 text-sm">{getStatusBadge(item.time_mot_booked)}</td>
-            <td className="p-3 text-sm">{getStatusBadge(item.mot_status)}</td>
           </tr>
         );
-      case "PMI Inspection":
+      case "Time MOT Booked":
         return (
-          <tr
-            key={`${item.id}-${index}`}
-            className="border-b border-gray-100 hover:bg-pink-50"
-          >
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-orange-50">
             <td className="p-3 font-medium text-gray-900">
               <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
-              {item.vehicle_reg}
+                {item.vehicle_reg}
+              </Link>
+            </td>
+            <td className="p-3 text-sm">
+              {isEditing("time_mot_booked") ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={editingField.value}
+                    onChange={(e) => handleEditChange(e.target.value)}
+                    className="w-32"
+                    placeholder="HH:mm"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => handleEditSave(item.id, "time_mot_booked", editingField.value)}
+                  >
+                    Save
+                  </Button>
+                </div>
+              ) : (
+                <span
+                  className="cursor-pointer"
+                  onClick={() => handleEditStart(item.id, "time_mot_booked", item.time_mot_booked || "")}
+                >
+                  {getStatusBadge(item.time_mot_booked, null, true)}
+                </span>
+              )}
+            </td>
+          </tr>
+        );
+      case "MOT Status":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-orange-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
+              </Link>
+            </td>
+            <td className="p-3 text-sm">
+              {getStatusBadge(
+                item.next_mot_booked_date && item.time_mot_booked && item.time_mot_booked !== "TBC"
+                  ? "booked"
+                  : item.mot_expiry && parseFlexibleDate(item.mot_expiry) && differenceInDays(parseFlexibleDate(item.mot_expiry)!, new Date()) < 0
+                  ? "Expired"
+                  : "TBC",
+                null,
+                true
+              )}
+            </td>
+          </tr>
+        );
+      case "Last PMI Date":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-pink-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
               </Link>
             </td>
             <td className="p-3 text-sm text-gray-900">
               <Popover>
                 <PopoverTrigger asChild>
-                  <span className="cursor-pointer">
-                    {formatDateDmy(item.last_pmi_date)}
-                  </span>
+                  <span className="cursor-pointer">{formatDateDmy(item.last_pmi_date)}</span>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-2">
                   <div className="text-sm whitespace-pre-line">
@@ -952,31 +1212,44 @@ export default function VehicleDashboard() {
                 </PopoverContent>
               </Popover>
             </td>
-            <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(null, item.next_pmi_date)}
+          </tr>
+        );
+      case "Next PMI Date":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-pink-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
+              </Link>
+            </td>
+            <td className="p-3 text-sm text-gray-900">{getStatusBadge(null, item.next_pmi_date || "TBC")}</td>
+          </tr>
+        );
+      case "Book Next PMI From":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-pink-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
+              </Link>
             </td>
             <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(item.book_next_pmi_from)}
+              {item.next_pmi_date ? "booked" : formatDateDmy(item.book_next_pmi_from)}
             </td>
           </tr>
         );
-      case "Vehicle Tacho Download":
+      case "Last Download":
         return (
-          <tr
-            key={`${item.id}-${index}`}
-            className="border-b border-gray-100 hover:bg-blue-50"
-          >
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-blue-50">
             <td className="p-3 font-medium text-gray-900">
               <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
-              {item.vehicle_reg}
+                {item.vehicle_reg}
               </Link>
             </td>
             <td className="p-3 text-sm text-gray-900">
               <Popover>
                 <PopoverTrigger asChild>
-                  <span className="cursor-pointer">
-                    {formatDateDmy(item.last_download)}
-                  </span>
+                  <span className="cursor-pointer">{formatDateDmy(item.last_download)}</span>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-2">
                   <div className="text-sm whitespace-pre-line">
@@ -985,12 +1258,20 @@ export default function VehicleDashboard() {
                 </PopoverContent>
               </Popover>
             </td>
+          </tr>
+        );
+      case "Next Download":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-blue-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
+              </Link>
+            </td>
             <td className="p-3 text-sm text-gray-900">
               <Popover>
                 <PopoverTrigger asChild>
-                  <span className="cursor-pointer">
-                    {formatDateDmy(item.next_download)}
-                  </span>
+                  <span className="cursor-pointer">{getStatusBadge(null, item.next_download)}</span>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-2">
                   <div className="text-sm whitespace-pre-line">
@@ -1001,23 +1282,18 @@ export default function VehicleDashboard() {
             </td>
           </tr>
         );
-      case "Tyre Maintenance Check":
+      case "Last Check":
         return (
-          <tr
-            key={`${item.id}-${index}`}
-            className="border-b border-gray-100 hover:bg-purple-50"
-          >
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-purple-50">
             <td className="p-3 font-medium text-gray-900">
               <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
-              {item.vehicle_reg}
+                {item.vehicle_reg}
               </Link>
             </td>
             <td className="p-3 text-sm text-gray-900">
               <Popover>
                 <PopoverTrigger asChild>
-                  <span className="cursor-pointer">
-                    {formatDateDmy(item.last_check)}
-                  </span>
+                  <span className="cursor-pointer">{formatDateDmy(item.last_check)}</span>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-2">
                   <div className="text-sm whitespace-pre-line">
@@ -1026,12 +1302,20 @@ export default function VehicleDashboard() {
                 </PopoverContent>
               </Popover>
             </td>
+          </tr>
+        );
+      case "Next Check":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-purple-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
+              </Link>
+            </td>
             <td className="p-3 text-sm text-gray-900">
               <Popover>
                 <PopoverTrigger asChild>
-                  <span className="cursor-pointer">
-                    {formatDateDmy(item.next_check)}
-                  </span>
+                  <span className="cursor-pointer">{getStatusBadge(null, item.next_check)}</span>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-2">
                   <div className="text-sm whitespace-pre-line">
@@ -1042,42 +1326,48 @@ export default function VehicleDashboard() {
             </td>
           </tr>
         );
-      case "Insurance & Check":
+      case "Insurance Expiry":
         return (
-          <tr
-            key={`${item.id}-${index}`}
-            className="border-b border-gray-100 hover:bg-green-50"
-          >
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-green-50">
             <td className="p-3 font-medium text-gray-900">
               <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
-              {item.vehicle_reg}
+                {item.vehicle_reg}
               </Link>
             </td>
-            <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(null, item.insurance_expiry)}
-            </td>
-            <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(null, item.tax_expiry)}
-            </td>
+            <td className="p-3 text-sm text-gray-900">{getStatusBadge(null, item.insurance_expiry)}</td>
           </tr>
         );
-      case "Calibrations":
+      case "Tax Expiry":
         return (
-          <tr
-            key={`${item.id}-${index}`}
-            className="border-b border-gray-100 hover:bg-yellow-50"
-          >
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-green-50">
             <td className="p-3 font-medium text-gray-900">
               <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
-              {item.vehicle_reg}
+                {item.vehicle_reg}
               </Link>
             </td>
-            <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(null, item.tacho_expiry)}
+            <td className="p-3 text-sm text-gray-900">{getStatusBadge(null, item.tax_expiry)}</td>
+          </tr>
+        );
+      case "Tacho Expiry":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-yellow-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
+              </Link>
             </td>
-            <td className="p-3 text-sm text-gray-900">
-              {getStatusBadge(null, item.loller_expiry)}
+            <td className="p-3 text-sm text-gray-900">{getStatusBadge(null, item.tacho_expiry)}</td>
+          </tr>
+        );
+      case "LOLER Expiry":
+        return (
+          <tr key={`${item.id}-${index}`} className="border-b border-gray-100 hover:bg-yellow-50">
+            <td className="p-3 font-medium text-gray-900">
+              <Link href={`/dashboard/compliance-management/vehicle-management/${item.id}`}>
+                {item.vehicle_reg}
+              </Link>
             </td>
+            <td className="p-3 text-sm text-gray-900">{getStatusBadge(null, item.loller_expiry)}</td>
           </tr>
         );
       default:
@@ -1257,17 +1547,7 @@ export default function VehicleDashboard() {
                       colSpan={
                         activeFilter === "All Data"
                           ? 16
-                          : activeFilter === "MOT"
-                          ? 6
-                          : activeFilter === "PMI Inspection"
-                          ? 4
-                          : activeFilter === "Vehicle Tacho Download"
-                          ? 3
-                          : activeFilter === "Tyre Maintenance Check"
-                          ? 3
-                          : activeFilter === "Insurance & Check"
-                          ? 3
-                          : 3
+                          : 2
                       }
                       className="text-center py-12 text-gray-500/30"
                     >

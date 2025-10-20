@@ -24,6 +24,8 @@ import { debounce } from "lodash";
 import FileUploader from "../Media/MediaUpload";
 import DefectsInput from "../ui/DefectsInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { DatePickerField } from "../ui/DatePicker";
+import { format } from "date-fns";
 
 // Interfaces
 interface Vehicle {
@@ -440,16 +442,17 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Analysis Date *
                   </label>
-                  <Input
-                    type="date"
-                    value={formData.analysis_date}
-                    onChange={(e) => handleChange("analysis_date", e.target.value)}
-                    max={new Date().toISOString().split("T")[0]}
+              <DatePickerField
+  label="Analysis Date"
+  value={formData.analysis_date}
+  onDateSelected={(date) =>
+    handleChange("analysis_date", format(date, "dd/MM/yyyy"))
+  }
+  startDate={-36500} // optional, ~100 years ago
+  lastDate={0} // up to today
+  validator={(val) => (!val ? "Enter analysis date" : undefined)}
+/>
 
-                    required
-                    aria-required="true"
-                    className={cn(formErrors.analysis_date && "border-red-500")}
-                  />
                   {formErrors.analysis_date && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.analysis_date}</p>
                   )}

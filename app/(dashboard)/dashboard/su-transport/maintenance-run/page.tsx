@@ -441,7 +441,7 @@ const MaintenanceRunsPage = () => {
 
       <div className="p-6">
         {/* Navigation Tabs */}
-        <div className="flex items-center justify-between mb-6">
+        {/* <div className="flex items-center justify-between mb-6">
           <div className="flex gap-2">
             {tabs.map((tab) => (
               <Badge
@@ -465,10 +465,10 @@ const MaintenanceRunsPage = () => {
           >
             Clear Filters
           </Button>
-        </div>
+        </div> */}
 
         {/* Active Filters Display */}
-        <div className="flex items-center gap-4 mb-4">
+        {/* <div className="flex items-center gap-4 mb-4">
           <p className="text-sm text-gray-600">
             Active Filters:
             <span className="ml-2">
@@ -487,15 +487,15 @@ const MaintenanceRunsPage = () => {
               {runType !== 'all' ? `Run Type: ${runType}` : 'All Run Types'}
             </span>
           </p>
-        </div>
+        </div> */}
 
         {/* Main Content */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">
+              {/* <h2 className="text-xl font-semibold text-gray-900">
                 {tabs.find((tab) => tab.id === activeTab)?.label} Run
-              </h2>
+              </h2> */}
               <p className="text-sm text-gray-500">Maintenance run data</p>
             </div>
             <div className="flex items-center gap-4">

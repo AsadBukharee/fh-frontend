@@ -111,7 +111,7 @@ export default function DailyLogsManagement() {
                 <TableRow key={emp.id} className="hover:bg-muted/30">
                   <TableCell>{emp.id}</TableCell>
                   <TableCell>{emp.name}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <Badge className={getStatusColor(emp.currentWeek as Status)}>{emp.currentWeek}</Badge>
                   </TableCell>
                   <TableCell className="text-center"><Badge className=" text-yellow-600 bg-yellow-100">{emp.allocatedShifts}</Badge></TableCell>
