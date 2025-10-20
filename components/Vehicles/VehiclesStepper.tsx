@@ -404,7 +404,6 @@ function AddVehicleStepper() {
   } = useSelector((state: RootState) => state.vehicle)
   const cookies = useCookies()
 
-  let progress = 0
 
   // Handle file upload success
   const handleFileUploadSuccess = (field: keyof VehicleFormData) => (url: string) => {
@@ -542,9 +541,7 @@ function AddVehicleStepper() {
 
     if (activeStep === 0) {
       // Vehicle Type Details
-      const regError = validateRegistrationNumber(formData.registration_number)
-      if (regError) errors.registration_number = regError
-
+    
       const makeError = validateRequiredString(formData.make, "Make")
       if (makeError) errors.make = makeError
 
@@ -1723,26 +1720,11 @@ function AddVehicleStepper() {
       ),
     },
   ]
-  const totalSteps = steps.length
-  progress = Math.round(((activeStep + 1) / totalSteps) * 100)
 
   return (
     <TooltipProvider>
       <div className="max-w-4xl mx-auto p-6">
-        {/* Top progress indicator */}
-        <div className="mb-6">
-          <div className="h-2 w-full rounded-full bg-muted">
-            <div
-              className="h-2 rounded-full bg-rose transition-all"
-              style={{ width: `${progress}%` }}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progress}
-              role="progressbar"
-            />
-          </div>
-          <div className="mt-2 text-right text-xs text-muted-foreground">{progress}%</div>
-        </div>
+   
 
         <form onSubmit={(e) => e.preventDefault()}>
           <Stepper

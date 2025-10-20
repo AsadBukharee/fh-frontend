@@ -1,32 +1,28 @@
 import * as React from "react"
-import { CircleX, X } from "lucide-react"
+import { CircleX } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, value, onChange, ...props }, ref) => {
-    const [inputValue, setInputValue] = React.useState(value || "");
+    const [inputValue, setInputValue] = React.useState(value || "")
 
-    // Handle input change
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInputValue(e.target.value);
-      onChange?.(e);
-    };
+      setInputValue(e.target.value)
+      onChange?.(e)
+    }
 
-    // Handle clear button click
     const handleClear = () => {
-      setInputValue("");
-      // Trigger onChange with empty value
+      setInputValue("")
       if (onChange) {
         const event = {
           target: { value: "" },
-        } as React.ChangeEvent<HTMLInputElement>;
-        onChange(event);
+        } as React.ChangeEvent<HTMLInputElement>
+        onChange(event)
       }
-      // Focus the input after clearing
       if (ref && "current" in ref && ref.current) {
-        ref.current.focus();
+        ref.current.focus()
       }
-    };
+    }
 
     return (
       <div
@@ -42,7 +38,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         <input
           type={type}
           className={cn(
-            "flex h-10 min-w-[120px] rounded-md border-0 bg-transparent pl-1 pt-1   text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+            "flex h-10 w-full min-w-[120px] rounded-md border-0 bg-transparent pl-2 pr-8 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
             className
           )}
           ref={ref}
@@ -50,14 +46,15 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           onChange={handleChange}
           {...props}
         />
+
         {inputValue && (
           <button
             type="button"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
             onClick={handleClear}
             aria-label="Clear input"
           >
-            <CircleX className="h-3 w-3" />
+            <CircleX className="h-4 w-4" />
           </button>
         )}
       </div>

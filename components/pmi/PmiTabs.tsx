@@ -1054,14 +1054,7 @@ const PMITabs: FC = () => {
                         {sortConfig?.key === "vehicle_reg" &&
                           (sortConfig.direction === "asc" ? "↑" : "↓")}
                       </TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() => handleSort("status")}
-                      >
-                        Status{" "}
-                        {sortConfig?.key === "status" &&
-                          (sortConfig.direction === "asc" ? "↑" : "↓")}
-                      </TableHead>
+                   
                       <TableHead
                         colSpan={tyreColumns.length}
                         className="text-center bg-orange-50 border-l border-r border-orange-200"
@@ -1120,14 +1113,7 @@ const PMITabs: FC = () => {
                       {sortConfig?.key === "vehicle_reg" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-                    <TableHead
-                      className="cursor-pointer"
-                      onClick={() => handleSort("status")}
-                    >
-                      Status{" "}
-                      {sortConfig?.key === "status" &&
-                        (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableHead>
+               
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
                         {col}
@@ -1155,14 +1141,7 @@ const PMITabs: FC = () => {
                       {sortConfig?.key === "vehicle_reg" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-                    <TableHead
-                      className="cursor-pointer"
-                      onClick={() => handleSort("status")}
-                    >
-                      Status{" "}
-                      {sortConfig?.key === "status" &&
-                        (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableHead>
+                   
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
                         {col}
@@ -1190,14 +1169,7 @@ const PMITabs: FC = () => {
                       {sortConfig?.key === "vehicle_reg" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-                    <TableHead
-                      className="cursor-pointer"
-                      onClick={() => handleSort("status")}
-                    >
-                      Status{" "}
-                      {sortConfig?.key === "status" &&
-                        (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableHead>
+                
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
                         {col}
@@ -1256,7 +1228,6 @@ const PMITabs: FC = () => {
                         <TableCell className="font-medium">
                           {row.vehicle_reg}
                         </TableCell>
-                        <TableCell>{getStatusBadge(row.status)}</TableCell>
                         {tyreColumns.map((col) => (
                           <TableCell key={col} className="text-center">
                             <StatusCell

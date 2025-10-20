@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo, FC } from "react";
@@ -11,7 +12,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+// import { input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,13 @@ import GradientButton from "@/app/utils/GradientButton";
 import { debounce } from "lodash";
 import FileUploader from "../Media/MediaUpload";
 import DefectsInput from "../ui/DefectsInput";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { DatePickerField } from "../ui/DatePicker";
 import { format } from "date-fns";
 
@@ -44,6 +51,10 @@ interface Vehicle {
   tyre_expiry_front_passenger: string;
   tyre_expiry_rear_outer_driver: string;
   tyre_expiry_rear_outer_passenger: string;
+  tyre_torque_front_driver: string; // Added
+  tyre_torque_front_passenger: string; // Added
+  tyre_torque_rear_outer_driver: string; // Added
+  tyre_torque_rear_outer_passenger: string; // Added
   warnings: string[];
   vehicle_status: string;
   is_roadworthy: boolean;
@@ -73,6 +84,7 @@ interface FormData {
   tyre_pressure: Record<string, number | string>;
   tyre_depth: Record<string, number | string>;
   tyre_date: Record<string, string>;
+  tyre_torque: Record<string, number | string>; // Added
 }
 
 interface FormErrors {
@@ -83,6 +95,7 @@ interface FormErrors {
   tyre_pressure?: Record<string, string>;
   tyre_depth?: Record<string, string>;
   tyre_date?: Record<string, string>;
+  tyre_torque?: Record<string, string>; // Added
 }
 
 const initialFormData: FormData = {
@@ -124,29 +137,57 @@ const initialFormData: FormData = {
     OSR_Inner: "",
     NSR_Inner: "",
   },
+  tyre_torque: {
+    // Added
+    OSF: "",
+    NSF: "",
+    OSR_Outer: "",
+    NSR_Outer: "",
+    OSR_Inner: "",
+    NSR_Inner: "",
+  },
 };
 
-const getSafetyColor = (value: number | string | null | undefined, field: string): string => {
-  if (value === null || value === undefined || isNaN(Number(value))) return "bg-gray-100 text-gray-800";
+const getSafetyColor = (
+  value: number | string | null | undefined,
+  field: string
+): string => {
+  if (value === null || value === undefined || isNaN(Number(value)))
+    return "bg-gray-100 text-gray-800";
 
   const numValue = Number(value);
 
   if (field === "tyre_depth") {
-    if (numValue < 1.5) return "bg-red-100 text-red-800";
-    if (numValue <= 2) return "bg-orange-100 text-orange-800";
-    if (numValue <= 8) return "bg-green-100 text-green-800";
-    return "bg-gray-100 text-gray-800";
+    if (numValue < 1.5) return "bg-red-100 p-2 border border-gray-200 rounded hover:border-gray-500 text-red-800";
+    if (numValue <= 2) return "bg-orange-100 p-2 border border-gray-200 rounded hover:border-gray-500 text-orange-800";
+    if (numValue <= 8) return "bg-green-100 p-2 border border-gray-200 rounded hover:border-gray-500 text-green-800";
+    return "bg-gray-100 text-gray-800 p-2 border border-gray-200 rounded hover:border-gray-500";
   }
 
   if (field === "tyre_pressure") {
-    if (numValue < 25 || numValue > 50) return "bg-red-100 text-red-800";
-    if ((numValue >= 26 && numValue <= 28) || (numValue >= 44 && numValue <= 48))
+    if (numValue < 25 || numValue > 50) return "bg-red-100 p-2 border border-gray-200 rounded hover:border-gray-500 text-red-800";
+    if (
+      (numValue >= 26 && numValue <= 28) ||
+      (numValue >= 44 && numValue <= 48)
+    )
       return "bg-orange-100 text-orange-800";
-    if (numValue >= 29 && numValue <= 42) return "bg-green-100 text-green-800";
+    if (numValue >= 29 && numValue <= 42) return "bg-green-100  p-2 border border-gray-200 rounded hover:border-gray-500text-green-800";
     return "bg-gray-100 text-gray-800";
   }
 
-  return "bg-gray-100 text-gray-800";
+  if (field === "tyre_torque") {
+    // Example ranges for torque (adjust as needed)
+    if (numValue < 50 || numValue > 150) return "bg-red-100 p-2 border border-gray-200 rounded hover:border-gray-500 text-red-800";
+    if (
+      (numValue >= 50 && numValue <= 70) ||
+      (numValue >= 130 && numValue <= 150)
+    )
+      return "bg-orange-100 text-orange-800";
+    if (numValue >= 71 && numValue <= 129) return "bg-green-100 p-2 border border-gray-200 rounded hover:border-gray-500 text-green-800";
+    return "bg-gray-100 text-gray-800 p-2 border border-gray-200 rounded hover:border-gray-500";
+  }
+
+  return "bg-gray-100 text-gray-800 p-2 border border-gray-200 rounded hover:border-gray-500";
 };
 
 const AddPMI: FC = () => {
@@ -160,7 +201,10 @@ const AddPMI: FC = () => {
   const [signatureSaved, setSignatureSaved] = useState(false);
   const signatureCanvasRef = useRef<any>(null);
   const token = useCookies().get("access_token");
-  const tyrePositions = useMemo(() => ["OSF", "NSF", "OSR_Outer", "NSR_Outer", "OSR_Inner", "NSR_Inner"], []);
+  const tyrePositions = useMemo(
+    () => ["OSF", "NSF", "OSR_Outer", "NSR_Outer", "OSR_Inner", "NSR_Inner"],
+    []
+  );
   const [formData, setFormData] = useState<FormData>(initialFormData);
 
   // Cache vehicles to prevent refetching
@@ -192,23 +236,36 @@ const AddPMI: FC = () => {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Failed to fetch vehicles: ${errorData.message || "Unknown error"}`);
+        throw new Error(
+          `Failed to fetch vehicles: ${errorData.message || "Unknown error"}`
+        );
       }
       const data = await response.json();
       if (data.success) {
-        const uniqueVehicles = data.data.reduce((acc: Vehicle[], vehicle: Vehicle) => {
-          if (!acc.some(v => v.registration_number === vehicle.registration_number && v.vehicle_type_name === vehicle.vehicle_type_name)) {
-            acc.push(vehicle);
-          }
-          return acc;
-        }, []);
+        const uniqueVehicles = data.data.reduce(
+          (acc: Vehicle[], vehicle: Vehicle) => {
+            if (
+              !acc.some(
+                (v) =>
+                  v.registration_number === vehicle.registration_number &&
+                  v.vehicle_type_name === vehicle.vehicle_type_name
+              )
+            ) {
+              acc.push(vehicle);
+            }
+            return acc;
+          },
+          []
+        );
         vehicleCache.current = uniqueVehicles;
         setVehicles(uniqueVehicles);
       } else {
         setError("Failed to load vehicles");
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to load vehicles");
+      setError(
+        error instanceof Error ? error.message : "Failed to load vehicles"
+      );
     } finally {
       setVehiclesLoading(false);
     }
@@ -221,7 +278,10 @@ const AddPMI: FC = () => {
   }, [open, token, fetchVehicles]);
 
   const handleChange = useCallback(
-    (field: keyof FormData, value: string | number | Record<string, string | number>) => {
+    (
+      field: keyof FormData,
+      value: string | number | Record<string, string | number>
+    ) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
       setFormErrors((prev) => ({ ...prev, [field]: undefined }));
     },
@@ -231,7 +291,11 @@ const AddPMI: FC = () => {
   const debouncedHandleTyreChange = useMemo(
     () =>
       debounce(
-        (field: "tyre_pressure" | "tyre_depth" | "tyre_date", position: string, value: string) => {
+        (
+          field: "tyre_pressure" | "tyre_depth" | "tyre_date" | "tyre_torque",
+          position: string,
+          value: string
+        ) => {
           setFormData((prev) => ({
             ...prev,
             [field]: { ...prev[field], [position]: value },
@@ -251,24 +315,27 @@ const AddPMI: FC = () => {
     setFormErrors((prev) => ({ ...prev, file_url: undefined }));
   }, []);
 
-const flattenFormData = useCallback((data: FormData): Record<string, any> => {
-  const flattened: Record<string, any> = { ...data };
+  const flattenFormData = useCallback((data: FormData): Record<string, any> => {
+    const flattened: Record<string, any> = { ...data };
 
-  ["tyre_pressure", "tyre_depth", "tyre_date"].forEach((field) => {
-    Object.entries((data as Record<string, any>)[field] || {}).forEach(([key, value]) => {
-      // convert "" → null for numeric fields
-      if (field !== "tyre_date") {
-        flattened[`${field}_${key}`] = value === "" ? null : Number(value);
-      } else {
-        flattened[`${field}_${key}`] = value === "" ? null : value;
+    ["tyre_pressure", "tyre_depth", "tyre_date", "tyre_torque"].forEach(
+      (field) => {
+        Object.entries((data as Record<string, any>)[field] || {}).forEach(
+          ([key, value]) => {
+            // convert "" → null for numeric fields
+            if (field !== "tyre_date") {
+              flattened[`${field}_${key}`] = value === "" ? null : Number(value);
+            } else {
+              flattened[`${field}_${key}`] = value === "" ? null : value;
+            }
+          }
+        );
+        delete flattened[field];
       }
-    });
-    delete flattened[field];
-  });
+    );
 
-  return flattened;
-}, []);
-
+    return flattened;
+  }, []);
 
   const validateForm = useCallback((): boolean => {
     const errors: FormErrors = {};
@@ -286,7 +353,10 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
       errors.status = "Status is required";
       isValid = false;
     }
-    if (formData.file_url && !/^https?:\/\/[^\s$.?#].[^\s]*$/.test(formData.file_url)) {
+    if (
+      formData.file_url &&
+      !/^https?:\/\/[^\s$.?#].[^\s]*$/.test(formData.file_url)
+    ) {
       errors.file_url = "Invalid URL format";
       isValid = false;
     }
@@ -295,32 +365,77 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
       tyre_pressure: {} as Record<string, string>,
       tyre_depth: {} as Record<string, string>,
       tyre_date: {} as Record<string, string>,
+      tyre_torque: {} as Record<string, string>, // Added
     };
 
     for (const pos of tyrePositions) {
-      if (formData.tyre_pressure[pos] && isNaN(Number(formData.tyre_pressure[pos]))) {
-        tyreErrors.tyre_pressure[pos] = `Tyre pressure for ${pos} must be a valid number`;
+      if (
+        formData.tyre_pressure[pos] &&
+        isNaN(Number(formData.tyre_pressure[pos]))
+      ) {
+        tyreErrors.tyre_pressure[
+          pos
+        ] = `Tyre pressure for ${pos} must be a valid number`;
         isValid = false;
-      } else if (formData.tyre_pressure[pos] && (Number(formData.tyre_pressure[pos]) < 0 || Number(formData.tyre_pressure[pos]) > 100)) {
-        tyreErrors.tyre_pressure[pos] = `Tyre pressure for ${pos} must be between 0 and 100 PSI`;
+      } else if (
+        formData.tyre_pressure[pos] &&
+        (Number(formData.tyre_pressure[pos]) < 0 ||
+          Number(formData.tyre_pressure[pos]) > 100)
+      ) {
+        tyreErrors.tyre_pressure[
+          pos
+        ] = `Tyre pressure for ${pos} must be between 0 and 100 PSI`;
         isValid = false;
       }
       if (formData.tyre_depth[pos] && isNaN(Number(formData.tyre_depth[pos]))) {
-        tyreErrors.tyre_depth[pos] = `Tyre depth for ${pos} must be a valid number`;
+        tyreErrors.tyre_depth[
+          pos
+        ] = `Tyre depth for ${pos} must be a valid number`;
         isValid = false;
-      } else if (formData.tyre_depth[pos] && (Number(formData.tyre_depth[pos]) < 0 || Number(formData.tyre_depth[pos]) > 10)) {
-        tyreErrors.tyre_depth[pos] = `Tyre depth for ${pos} must be between 0 and 10 mm`;
+      } else if (
+        formData.tyre_depth[pos] &&
+        (Number(formData.tyre_depth[pos]) < 0 ||
+          Number(formData.tyre_depth[pos]) > 10)
+      ) {
+        tyreErrors.tyre_depth[
+          pos
+        ] = `Tyre depth for ${pos} must be between 0 and 10 mm`;
         isValid = false;
       }
       if (formData.tyre_date[pos] && !/^\d{4}$/.test(formData.tyre_date[pos])) {
-        tyreErrors.tyre_date[pos] = `Tyre date for ${pos} must be in YYWW format (e.g., 2325)`;
+        tyreErrors.tyre_date[
+          pos
+        ] = `Tyre date for ${pos} must be in YYWW format (e.g., 2325)`;
+        isValid = false;
+      }
+      if (
+        formData.tyre_torque[pos] &&
+        isNaN(Number(formData.tyre_torque[pos]))
+      ) {
+        tyreErrors.tyre_torque[
+          pos
+        ] = `Tyre torque for ${pos} must be a valid number`;
+        isValid = false;
+      } else if (
+        formData.tyre_torque[pos] &&
+        (Number(formData.tyre_torque[pos]) < 0 ||
+          Number(formData.tyre_torque[pos]) > 200)
+      ) {
+        tyreErrors.tyre_torque[
+          pos
+        ] = `Tyre torque for ${pos} must be between 0 and 200 Nm`;
         isValid = false;
       }
     }
 
-    if (Object.keys(tyreErrors.tyre_pressure).length) errors.tyre_pressure = tyreErrors.tyre_pressure;
-    if (Object.keys(tyreErrors.tyre_depth).length) errors.tyre_depth = tyreErrors.tyre_depth;
-    if (Object.keys(tyreErrors.tyre_date).length) errors.tyre_date = tyreErrors.tyre_date;
+    if (Object.keys(tyreErrors.tyre_pressure).length)
+      errors.tyre_pressure = tyreErrors.tyre_pressure;
+    if (Object.keys(tyreErrors.tyre_depth).length)
+      errors.tyre_depth = tyreErrors.tyre_depth;
+    if (Object.keys(tyreErrors.tyre_date).length)
+      errors.tyre_date = tyreErrors.tyre_date;
+    if (Object.keys(tyreErrors.tyre_torque).length)
+      errors.tyre_torque = tyreErrors.tyre_torque;
 
     setFormErrors(errors);
     if (!isValid) setError("Please fix the errors in the form");
@@ -349,7 +464,9 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`API request failed: ${errorData.message || "Unknown error"}`);
+        throw new Error(
+          `API request failed: ${errorData.message || "Unknown error"}`
+        );
       }
 
       setOpen(false);
@@ -358,64 +475,115 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
       setSignatureSaved(false);
       signatureCanvasRef.current?.clear();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to create PMI record");
+      setError(
+        error instanceof Error ? error.message : "Failed to create PMI record"
+      );
     } finally {
       setLoading(false);
     }
   }, [formData, token, flattenFormData]);
 
-  const handleVehicleChange = useCallback((vehicleId: string) => {
-    const selectedVehicle = vehicles.find((v) => v.id === Number(vehicleId));
-    const errors: string[] = [];
-    
-    if (selectedVehicle) {
-      if (Number(selectedVehicle.tyre_pressure_front_passenger) > 100) {
-        errors.push(`Front passenger tyre pressure (${selectedVehicle.tyre_pressure_front_passenger} PSI) is unrealistic`);
-      }
-      if (Number(selectedVehicle.tyre_depth_front_passenger) > 10) {
-        errors.push(`Front passenger tyre depth (${selectedVehicle.tyre_depth_front_passenger} mm) is unrealistic`);
-      }
-      setError(errors.length ? errors.join("; ") : null);
+  const handleVehicleChange = useCallback(
+    (vehicleId: string) => {
+      const selectedVehicle = vehicles.find((v) => v.id === Number(vehicleId));
+      const errors: string[] = [];
 
-      setFormData((prev) => ({
-        ...prev,
-        vehicle: vehicleId,
-        tyre_pressure: {
-          OSF: selectedVehicle.tyre_pressure_front_driver || "",
-          NSF: selectedVehicle.tyre_pressure_front_passenger || "",
-          OSR_Outer: selectedVehicle.tyre_pressure_rear_outer_driver || "",
-          NSR_Outer: selectedVehicle.tyre_pressure_rear_outer_passenger || "",
-          OSR_Inner: "",
-          NSR_Inner: "",
-        },
-        tyre_depth: {
-          OSF: selectedVehicle.tyre_depth_front_driver || "",
-          NSF: selectedVehicle.tyre_depth_front_passenger || "",
-          OSR_Outer: selectedVehicle.tyre_depth_rear_outer_driver || "",
-          NSR_Outer: selectedVehicle.tyre_depth_rear_outer_passenger || "",
-          OSR_Inner: "",
-          NSR_Inner: "",
-        },
-        tyre_date: {
-          OSF: selectedVehicle.tyre_expiry_front_driver || "",
-          NSF: selectedVehicle.tyre_expiry_front_passenger || "",
-          OSR_Outer: selectedVehicle.tyre_expiry_rear_outer_driver || "",
-          NSR_Outer: selectedVehicle.tyre_expiry_rear_outer_passenger || "",
-          OSR_Inner: "",
-          NSR_Inner: "",
-        },
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        vehicle: vehicleId,
-        tyre_pressure: { OSF: "", NSF: "", OSR_Outer: "", NSR_Outer: "", OSR_Inner: "", NSR_Inner: "" },
-        tyre_depth: { OSF: "", NSF: "", OSR_Outer: "", NSR_Outer: "", OSR_Inner: "", NSR_Inner: "" },
-        tyre_date: { OSF: "", NSF: "", OSR_Outer: "", NSR_Outer: "", OSR_Inner: "", NSR_Inner: "" },
-      }));
-    }
-    setFormErrors((prev) => ({ ...prev, vehicle: undefined }));
-  }, [vehicles]);
+      if (selectedVehicle) {
+        if (Number(selectedVehicle.tyre_pressure_front_passenger) > 100) {
+          errors.push(
+            `Front passenger tyre pressure (${selectedVehicle.tyre_pressure_front_passenger} PSI) is unrealistic`
+          );
+        }
+        if (Number(selectedVehicle.tyre_depth_front_passenger) > 10) {
+          errors.push(
+            `Front passenger tyre depth (${selectedVehicle.tyre_depth_front_passenger} mm) is unrealistic`
+          );
+        }
+        if (Number(selectedVehicle.tyre_torque_front_passenger) > 200) {
+          errors.push(
+            `Front passenger tyre torque (${selectedVehicle.tyre_torque_front_passenger} Nm) is unrealistic`
+          );
+        }
+        setError(errors.length ? errors.join("; ") : null);
+
+        setFormData((prev) => ({
+          ...prev,
+          vehicle: vehicleId,
+          tyre_pressure: {
+            OSF: selectedVehicle.tyre_pressure_front_driver || "",
+            NSF: selectedVehicle.tyre_pressure_front_passenger || "",
+            OSR_Outer: selectedVehicle.tyre_pressure_rear_outer_driver || "",
+            NSR_Outer: selectedVehicle.tyre_pressure_rear_outer_passenger || "",
+            OSR_Inner: "",
+            NSR_Inner: "",
+          },
+          tyre_depth: {
+            OSF: selectedVehicle.tyre_depth_front_driver || "",
+            NSF: selectedVehicle.tyre_depth_front_passenger || "",
+            OSR_Outer: selectedVehicle.tyre_depth_rear_outer_driver || "",
+            NSR_Outer: selectedVehicle.tyre_depth_rear_outer_passenger || "",
+            OSR_Inner: "",
+            NSR_Inner: "",
+          },
+          tyre_date: {
+            OSF: selectedVehicle.tyre_expiry_front_driver || "",
+            NSF: selectedVehicle.tyre_expiry_front_passenger || "",
+            OSR_Outer: selectedVehicle.tyre_expiry_rear_outer_driver || "",
+            NSR_Outer: selectedVehicle.tyre_expiry_rear_outer_passenger || "",
+            OSR_Inner: "",
+            NSR_Inner: "",
+          },
+          tyre_torque: {
+            OSF: selectedVehicle.tyre_torque_front_driver || "",
+            NSF: selectedVehicle.tyre_torque_front_passenger || "",
+            OSR_Outer: selectedVehicle.tyre_torque_rear_outer_driver || "",
+            NSR_Outer: selectedVehicle.tyre_torque_rear_outer_passenger || "",
+            OSR_Inner: "",
+            NSR_Inner: "",
+          },
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          vehicle: vehicleId,
+          tyre_pressure: {
+            OSF: "",
+            NSF: "",
+            OSR_Outer: "",
+            NSR_Outer: "",
+            OSR_Inner: "",
+            NSR_Inner: "",
+          },
+          tyre_depth: {
+            OSF: "",
+            NSF: "",
+            OSR_Outer: "",
+            NSR_Outer: "",
+            OSR_Inner: "",
+            NSR_Inner: "",
+          },
+          tyre_date: {
+            OSF: "",
+            NSF: "",
+            OSR_Outer: "",
+            NSR_Outer: "",
+            OSR_Inner: "",
+            NSR_Inner: "",
+          },
+          tyre_torque: {
+            OSF: "",
+            NSF: "",
+            OSR_Outer: "",
+            NSR_Outer: "",
+            OSR_Inner: "",
+            NSR_Inner: "",
+          },
+        }));
+      }
+      setFormErrors((prev) => ({ ...prev, vehicle: undefined }));
+    },
+    [vehicles]
+  );
 
   const memoizedVehicles = useMemo(() => vehicles, [vehicles]);
 
@@ -442,19 +610,22 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Analysis Date *
                   </label>
-              <DatePickerField
-  label="Analysis Date"
-  value={formData.analysis_date}
-  onDateSelected={(date) =>
-    handleChange("analysis_date", format(date, "dd/MM/yyyy"))
-  }
-  startDate={-36500} // optional, ~100 years ago
-  lastDate={0} // up to today
-  validator={(val) => (!val ? "Enter analysis date" : undefined)}
-/>
-
+                  <DatePickerField
+                    label="Analysis Date"
+                    value={formData.analysis_date}
+                    onDateSelected={(date) =>
+                      handleChange("analysis_date", format(date, "yyyy-MM-dd"))
+                    }
+                    startDate={-36500} // optional, ~100 years ago
+                    lastDate={0} // up to today
+                    validator={(val) =>
+                      !val ? "Enter analysis date" : undefined
+                    }
+                  />
                   {formErrors.analysis_date && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.analysis_date}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.analysis_date}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -467,22 +638,38 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                     disabled={vehiclesLoading}
                     aria-required="true"
                   >
-                    <SelectTrigger className={cn(formErrors.vehicle && "border-red-500")}>
-                      <SelectValue placeholder={vehiclesLoading ? "Loading vehicles..." : "Select a vehicle"} />
+                    <SelectTrigger
+                      className={cn(formErrors.vehicle && "border-red-500")}
+                    >
+                      <SelectValue
+                        placeholder={
+                          vehiclesLoading
+                            ? "Loading vehicles..."
+                            : "Select a vehicle"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {memoizedVehicles.map((vehicle) => (
-                        <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
-                          {vehicle.registration_number} ({vehicle.vehicle_type_name})
+                        <SelectItem
+                          key={vehicle.id}
+                          value={vehicle.id.toString()}
+                        >
+                          {vehicle.registration_number} (
+                          {vehicle.vehicle_type_name})
                           {vehicle.warnings.length > 0 && (
-                            <span className="ml-2 text-red-500">⚠️ {vehicle.warnings.length} issues</span>
+                            <span className="ml-2 text-red-500">
+                              ⚠️ {vehicle.warnings.length} issues
+                            </span>
                           )}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {formErrors.vehicle && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.vehicle}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.vehicle}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -494,7 +681,9 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                     onValueChange={(value) => handleChange("status", value)}
                     aria-required="true"
                   >
-                    <SelectTrigger className={cn(formErrors.status && "border-red-500")}>
+                    <SelectTrigger
+                      className={cn(formErrors.status && "border-red-500")}
+                    >
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -504,7 +693,9 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                     </SelectContent>
                   </Select>
                   {formErrors.status && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.status}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.status}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -513,16 +704,21 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                   </label>
                   <FileUploader onUploadSuccess={handleFileUploadSuccess} />
                   {formErrors.file_url && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.file_url}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.file_url}
+                    </p>
                   )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Maintenance Provider Error
                   </label>
-                  <Input
+                  <input      className=" p-2 border border-gray-200 rounded hover:border-gray-500"
+             
                     value={formData.maintenence_provider_error}
-                    onChange={(e) => handleChange("maintenence_provider_error", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("maintenence_provider_error", e.target.value)
+                    }
                   />
                 </div>
               </div>
@@ -549,18 +745,22 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Brake Imbalance
                   </label>
-                  <Input
+                  <input      className=" p-2 border border-gray-200 rounded hover:border-gray-500"
                     value={formData.brake_imbalance}
-                    onChange={(e) => handleChange("brake_imbalance", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("brake_imbalance", e.target.value)
+                    }
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Brake Imbalance Note
                   </label>
-                  <Input
+                  <input      className=" p-2 border border-gray-200 rounded hover:border-gray-500"
                     value={formData.brake_imbalance_note}
-                    onChange={(e) => handleChange("brake_imbalance_note", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("brake_imbalance_note", e.target.value)
+                    }
                   />
                 </div>
                 <div>
@@ -569,19 +769,30 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                   </label>
                   <RadioGroup
                     value={formData.brake_test_not_recorded}
-                    onValueChange={(value) => handleChange("brake_test_not_recorded", value)}
+                    onValueChange={(value) =>
+                      handleChange("brake_test_not_recorded", value)
+                    }
                     className="flex space-x-4"
                   >
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="yes" id="brake_test_not_recorded_yes" />
+                      <RadioGroupItem
+                        value="yes"
+                        id="brake_test_not_recorded_yes"
+                      />
                       <Label htmlFor="brake_test_not_recorded_yes">Yes</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="no" id="brake_test_not_recorded_no" />
+                      <RadioGroupItem
+                        value="no"
+                        id="brake_test_not_recorded_no"
+                      />
                       <Label htmlFor="brake_test_not_recorded_no">No</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="NA" id="brake_test_not_recorded_na" />
+                      <RadioGroupItem
+                        value="NA"
+                        id="brake_test_not_recorded_na"
+                      />
                       <Label htmlFor="brake_test_not_recorded_na">NA</Label>
                     </div>
                   </RadioGroup>
@@ -592,19 +803,32 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                   </label>
                   <RadioGroup
                     value={formData.brake_test_report_attached}
-                    onValueChange={(value) => handleChange("brake_test_report_attached", value)}
+                    onValueChange={(value) =>
+                      handleChange("brake_test_report_attached", value)
+                    }
                     className="flex space-x-4"
                   >
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="yes" id="brake_test_report_attached_yes" />
-                      <Label htmlFor="brake_test_report_attached_yes">Yes</Label>
+                      <RadioGroupItem
+                        value="yes"
+                        id="brake_test_report_attached_yes"
+                      />
+                      <Label htmlFor="brake_test_report_attached_yes">
+                        Yes
+                      </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="no" id="brake_test_report_attached_no" />
+                      <RadioGroupItem
+                        value="no"
+                        id="brake_test_report_attached_no"
+                      />
                       <Label htmlFor="brake_test_report_attached_no">No</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="NA" id="brake_test_report_attached_na" />
+                      <RadioGroupItem
+                        value="NA"
+                        id="brake_test_report_attached_na"
+                      />
                       <Label htmlFor="brake_test_report_attached_na">NA</Label>
                     </div>
                   </RadioGroup>
@@ -615,19 +839,30 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                   </label>
                   <RadioGroup
                     value={formData.maintenance_error_answer}
-                    onValueChange={(value) => handleChange("maintenance_error_answer", value)}
+                    onValueChange={(value) =>
+                      handleChange("maintenance_error_answer", value)
+                    }
                     className="flex space-x-4"
                   >
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="yes" id="maintenance_error_answer_yes" />
+                      <RadioGroupItem
+                        value="yes"
+                        id="maintenance_error_answer_yes"
+                      />
                       <Label htmlFor="maintenance_error_answer_yes">Yes</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="no" id="maintenance_error_answer_no" />
+                      <RadioGroupItem
+                        value="no"
+                        id="maintenance_error_answer_no"
+                      />
                       <Label htmlFor="maintenance_error_answer_no">No</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="NA" id="maintenance_error_answer_na" />
+                      <RadioGroupItem
+                        value="NA"
+                        id="maintenance_error_answer_na"
+                      />
                       <Label htmlFor="maintenance_error_answer_na">NA</Label>
                     </div>
                   </RadioGroup>
@@ -636,9 +871,11 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Maintenance Error Note
                   </label>
-                  <Input
+                  <input      className=" p-2 border border-gray-200 rounded hover:border-gray-500"
                     value={formData.maintenance_error_note}
-                    onChange={(e) => handleChange("maintenance_error_note", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("maintenance_error_note", e.target.value)
+                    }
                   />
                 </div>
               </div>
@@ -652,15 +889,28 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Tyre Pressure {pos} (PSI)
                     </label>
-                    <Input
+                    <input      
                       type="number"
                       value={formData.tyre_pressure[pos]}
-                      onChange={(e) => debouncedHandleTyreChange("tyre_pressure", pos, e.target.value)}
-                      className={cn(getSafetyColor(formData.tyre_pressure[pos], "tyre_pressure"), formErrors.tyre_pressure?.[pos] && "border-red-500")}
-                      required
+                      onChange={(e) =>
+                        debouncedHandleTyreChange(
+                          "tyre_pressure",
+                          pos,
+                          e.target.value
+                        )
+                      }
+                      className={cn(
+                        getSafetyColor(
+                          formData.tyre_pressure[pos],
+                          "tyre_pressure"
+                        ),
+                        formErrors.tyre_pressure?.[pos] && "border-red-500 "
+                      )}
                     />
                     {formErrors.tyre_pressure?.[pos] && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.tyre_pressure[pos]}</p>
+                      <p className="text-red-500 text-sm mt-1">
+                        {formErrors.tyre_pressure[pos]}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -669,15 +919,25 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Tyre Depth {pos} (mm)
                     </label>
-                    <Input
+                    <input     
                       type="number"
                       value={formData.tyre_depth[pos]}
-                      onChange={(e) => debouncedHandleTyreChange("tyre_depth", pos, e.target.value)}
-                      className={cn(getSafetyColor(formData.tyre_depth[pos], "tyre_depth"), formErrors.tyre_depth?.[pos] && "border-red-500")}
-                      required
+                      onChange={(e) =>
+                        debouncedHandleTyreChange(
+                          "tyre_depth",
+                          pos,
+                          e.target.value
+                        )
+                      }
+                      className={cn(
+                        getSafetyColor(formData.tyre_depth[pos], "tyre_depth"),
+                        formErrors.tyre_depth?.[pos] && "border-red-500"
+                      )}
                     />
                     {formErrors.tyre_depth?.[pos] && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.tyre_depth[pos]}</p>
+                      <p className="text-red-500 text-sm mt-1">
+                        {formErrors.tyre_depth[pos]}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -686,14 +946,51 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Tyre Date {pos} (YYWW)
                     </label>
-                    <Input
+                    <input      
                       value={formData.tyre_date[pos]}
-                      onChange={(e) => debouncedHandleTyreChange("tyre_date", pos, e.target.value)}
+                      onChange={(e) =>
+                        debouncedHandleTyreChange(
+                          "tyre_date",
+                          pos,
+                          e.target.value
+                        )
+                      }
                       placeholder="e.g., 2325"
-                      className={cn(formErrors.tyre_date?.[pos] && "border-red-500")}
+                      className={cn(
+                        `${formErrors.tyre_date?.[pos]} p-2 border border-gray-200 rounded hover:border-gray-500` && "p-2 border  rounded hover:border-gray-500 border-red-500"
+                      )}
                     />
                     {formErrors.tyre_date?.[pos] && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.tyre_date[pos]}</p>
+                      <p className="text-red-500 text-sm mt-1">
+                        {formErrors.tyre_date[pos]}
+                      </p>
+                    )}
+                  </div>
+                ))}
+                {tyrePositions?.map((pos) => (
+                  <div key={pos}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tyre Torque {pos} (Nm)
+                    </label>
+                    <input      
+                      type="number"
+                      value={formData?.tyre_torque[pos]}
+                      onChange={(e) =>
+                        debouncedHandleTyreChange(
+                          "tyre_torque",
+                          pos,
+                          e.target.value
+                        )
+                      }
+                      className={cn(
+                        getSafetyColor(formData.tyre_torque[pos], "tyre_torque"),
+                        formErrors.tyre_torque?.[pos] && "border-red-500"
+                      )}
+                    />
+                    {formErrors.tyre_torque?.[pos] && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {formErrors.tyre_torque[pos]}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -736,20 +1033,64 @@ const flattenFormData = useCallback((data: FormData): Record<string, any> => {
           <DialogHeader>
             <DialogTitle>Confirm PMI Submission</DialogTitle>
             <DialogDescription>
-                   {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded mb-4 flex items-center">
-              <AlertTriangle className="mr-2" />
-              {error}
-            </div>
-          )}
-              Are you sure you want to submit this PMI record? Please review the details:
+              {error && (
+                <div className="bg-red-100 text-red-700 p-3 rounded mb-4 flex items-center">
+                  <AlertTriangle className="mr-2" />
+                  {error}
+                </div>
+              )}
+              Are you sure you want to submit this PMI record? Please review the
+              details:
               <ul className="mt-2 space-y-1">
-                <li><strong>Vehicle:</strong> {vehicles.find(v => v.id === Number(formData.vehicle))?.registration_number || "N/A"}</li>
-                <li><strong>Analysis Date:</strong> {formData.analysis_date || "N/A"}</li>
-                <li><strong>Status:</strong> {formData.status || "N/A"}</li>
-                <li><strong>File URL:</strong> {formData.file_url || "N/A"}</li>
-                <li><strong>Tyre Pressures:</strong> {tyrePositions.map(pos => `${pos}: ${formData.tyre_pressure[pos] || "N/A"} PSI`).join(", ")}</li>
-                <li><strong>Tyre Depths:</strong> {tyrePositions.map(pos => `${pos}: ${formData.tyre_depth[pos] || "N/A"} mm`).join(", ")}</li>
+                <li>
+                  <strong>Vehicle:</strong>{" "}
+                  {vehicles.find((v) => v.id === Number(formData.vehicle))
+                    ?.registration_number || "N/A"}
+                </li>
+                <li>
+                  <strong>Analysis Date:</strong>{" "}
+                  {formData.analysis_date || "N/A"}
+                </li>
+                <li>
+                  <strong>Status:</strong> {formData.status || "N/A"}
+                </li>
+                <li>
+                  <strong>File URL:</strong> {formData.file_url || "N/A"}
+                </li>
+                <li>
+                  <strong>Tyre Pressures:</strong>{" "}
+                  {tyrePositions
+                    .map(
+                      (pos) =>
+                        `${pos}: ${formData.tyre_pressure[pos] || "N/A"} PSI`
+                    )
+                    .join(", ")}
+                </li>
+                <li>
+                  <strong>Tyre Depths:</strong>{" "}
+                  {tyrePositions
+                    .map(
+                      (pos) => `${pos}: ${formData.tyre_depth[pos] || "N/A"} mm`
+                    )
+                    .join(", ")}
+                </li>
+                <li>
+                  <strong>Tyre Dates:</strong>{" "}
+                  {tyrePositions
+                    .map(
+                      (pos) => `${pos}: ${formData.tyre_date[pos] || "N/A"}`
+                    )
+                    .join(", ")}
+                </li>
+                <li>
+                  <strong>Tyre Torques:</strong>{" "}
+                  {tyrePositions
+                    .map(
+                      (pos) =>
+                        `${pos}: ${formData.tyre_torque[pos] || "N/A"} Nm`
+                    )
+                    .join(", ")}
+                </li>
               </ul>
             </DialogDescription>
           </DialogHeader>

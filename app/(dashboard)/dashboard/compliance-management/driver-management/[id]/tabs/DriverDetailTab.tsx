@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,11 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Save, User, Calendar, Phone, MapPin, AlertTriangle, CheckCircle2, Mail, Users, Briefcase, Building2, ExternalLink, CircleCheck } from "lucide-react";
+import { Save, User, Calendar, Phone, MapPin, AlertTriangle, CheckCircle2, Mail, Users, Briefcase, Building2, ExternalLink, CircleCheck, Edit, X } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import ImageUploader from "@/components/Media/UploadImage";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/app/Context/ToastContext";
 
 interface DriverDetailTabProps {
   driverData: any;
@@ -36,6 +38,9 @@ interface DriverDetailTabProps {
   sitesLoading: boolean;
   assigningContract: boolean;
   assigningSites: boolean;
+  handleEditToggle: () => void;
+  handleSaveProfile: () => Promise<void>; // Added to props
+  saving: boolean; // Added to props
 }
 
 interface Manager {
@@ -89,6 +94,9 @@ export default function DriverDetailTab({
   sitesLoading,
   assigningContract,
   assigningSites,
+  handleEditToggle,
+  handleSaveProfile,
+  saving,
 }: DriverDetailTabProps) {
   const [managers, setManagers] = useState<Manager[]>([]);
   const [managersLoading, setManagersLoading] = useState(true);
@@ -98,6 +106,7 @@ export default function DriverDetailTab({
   const [brightHRData, setBrightHRData] = useState<BrightHRAssignment[]>([]);
   const [brightHRLLoading, setBrightHRLLoading] = useState(true);
   const cookies = useCookies();
+  const { showToast } = useToast()
 
   useEffect(() => {
     const fetchManagers = async () => {
@@ -245,6 +254,45 @@ export default function DriverDetailTab({
                   </DialogTitle>
                 </DialogHeader>
                 <div className="p-6 space-y-8">
+                  {/* Edit Profile Buttons */}
+                  {(index === 0 || index === 1 || index === 2) && ( // Only show edit buttons for editable sections
+                    <div className="flex justify-end gap-2">
+                      {isEditing ? (
+                        <>
+                          <Button
+                            onClick={handleSaveProfile}
+                            disabled={saving}
+                            className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
+                          >
+                            {saving ? (
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                            ) : (
+                              <Save className="h-5 w-5 mr-2" />
+                            )}
+                            Save Changes
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={handleEditToggle}
+                            disabled={saving}
+                            className="border-orange-600 text-orange-600 hover:bg-orange-100 rounded-lg transition-all"
+                          >
+                            <X className="h-5 w-5 mr-2" />
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          onClick={handleEditToggle}
+                          className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
+                        >
+                          <Edit className="h-5 w-5 mr-2" />
+                          Edit Profile
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Personal Information */}
                   {index === 0 && (
                     <div className="space-y-8">
@@ -381,42 +429,41 @@ export default function DriverDetailTab({
                               </div>
                             </CardContent>
                           </Card>
-                        ):(
+                        ) : (
                           <Card className="border border-gray-200 shadow-sm">
                             <CardHeader className="bg-gray-50 border-b">
                               <CardTitle className="text-lg font-semibold text-gray-900">Account Settings</CardTitle>
-                              </CardHeader>
-                              <CardContent className="p-6 space-y-4">
-                                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                                  <User className="h-5 w-5 text-gray-600 mt-0.5" />
-                                  <div>
-                                    <p className="text-xs text-gray-500 font-medium mb-1">Full Name</p>
-                                    <p className="text-sm font-semibold text-gray-900">{driverData.user.full_name || "Not provided"}</p>
-                                  </div>
+                            </CardHeader>
+                            <CardContent className="p-6 space-y-4">
+                              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                <User className="h-5 w-5 text-gray-600 mt-0.5" />
+                                <div>
+                                  <p className="text-xs text-gray-500 font-medium mb-1">Full Name</p>
+                                  <p className="text-sm font-semibold text-gray-900">{driverData.user.full_name || "Not provided"}</p>
                                 </div>
-                            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                                  <User className="h-5 w-5 text-gray-600 mt-0.5" />
-                                  <div>
-                                    <p className="text-xs text-gray-500 font-medium mb-1">Display Name</p>
-                                    <p className="text-sm font-semibold text-gray-900">{driverData.user.display_name || "Not provided"}</p>
-                                  </div>
+                              </div>
+                              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                <User className="h-5 w-5 text-gray-600 mt-0.5" />
+                                <div>
+                                  <p className="text-xs text-gray-500 font-medium mb-1">Display Name</p>
+                                  <p className="text-sm font-semibold text-gray-900">{driverData.user.display_name || "Not provided"}</p>
                                 </div>
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                                  <Mail className="h-5 w-5 text-gray-600 mt-0.5" />
-                                  <div>
-                                    <p className="text-xs text-gray-500 font-medium mb-1">Email</p>
-                                    <p className="text-sm font-semibold text-gray-900">{driverData.email || "Not provided"}</p>
-                                  </div>
+                              </div>
+                              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                <Mail className="h-5 w-5 text-gray-600 mt-0.5" />
+                                <div>
+                                  <p className="text-xs text-gray-500 font-medium mb-1">Email</p>
+                                  <p className="text-sm font-semibold text-gray-900">{driverData.user.email || "Not provided"}</p>
                                 </div>
-                                 <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                                  <CircleCheck  className="h-5 w-5 text-gray-600 mt-0.5" />
-                                  <div>
-                                    <p className="text-xs text-gray-500 font-medium mb-1">Status</p>
-                                    <p className="text-sm font-semibold text-gray-900">{driverData.status || "Not provided"}</p>
-                                  </div>
+                              </div>
+                              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                <CircleCheck className="h-5 w-5 text-gray-600 mt-0.5" />
+                                <div>
+                                  <p className="text-xs text-gray-500 font-medium mb-1">Status</p>
+                                  <p className="text-sm font-semibold text-gray-900">{driverData.user.is_active ? "Active" : "Inactive"}</p>
                                 </div>
-
-                              </CardContent>
+                              </div>
+                            </CardContent>
                           </Card>
                         )}
 
