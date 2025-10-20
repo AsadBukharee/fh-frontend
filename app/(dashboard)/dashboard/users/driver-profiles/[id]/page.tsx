@@ -292,14 +292,37 @@ export default function DriverDetailPage() {
       setHealthLoading(false);
     }
   };
+ const handleResendActivation = async (userId: number) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/resend-activation/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({ user_id: userId }),
+      })
 
+      const data = await response.json()
+
+      if (response.status === 401) {
+        alert("Session expired. Please log in again.")
+        return
+      }
+        alert("Activation email resent successfully")
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while resending activation email"
+      showToast(errorMessage, "error")
+    }
+  }
   useEffect(() => {
     if (id) {
       fetchData();
       fetchCompetencyData();
       fetchHealthData();
     }
-  }, [id, cookies]);
+  }, [id, cookies,user_id]);
 
   useEffect(() => {
     const fetchContracts = async () => {
@@ -426,7 +449,7 @@ export default function DriverDetailPage() {
     }
   };
 
-  const handleApproveDriverClick = async (driverId: number) => {
+  const handleApproveDriverClick = async (driverId: number | undefined) => {
     try {
       const response = await fetch(`${API_URL}/api/profiles/driver/approve/`, {
         method: "POST",
@@ -684,30 +707,33 @@ export default function DriverDetailPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="driver-detail">
-          <DriverDetailTab
-            driverData={driverData}
-            editFormData={editFormData}
-            contracts={contracts}
-            sites={sites}
-            selectedContractId={selectedContractId}
-            setSelectedContractId={setSelectedContractId}
-            selectedSiteIds={selectedSiteIds}
-            setSelectedSiteIds={setSelectedSiteIds}
-            //@ts-expect-error ab thk ha
-            currentStep={currentStep}
-            setCurrentStep={setCurrentStep}
-            steps={steps}
-            getInitials={getInitials}
-            formatDate={formatDate}
-            isEditing={isEditing}
-            handleInputChange={handleInputChange}
-            handleAssignContract={handleAssignContract}
-            handleAssignSites={handleAssignSites}
-            contractsLoading={contractsLoading}
-            sitesLoading={sitesLoading}
-            assigningContract={assigningContract}
-            assigningSites={assigningSites}
-          />
+       <DriverDetailTab
+       driverData={driverData}
+       editFormData={editFormData}
+       contracts={contracts}
+       sites={sites}
+       selectedContractId={selectedContractId}
+       setSelectedContractId={setSelectedContractId}
+       selectedSiteIds={selectedSiteIds}
+       setSelectedSiteIds={setSelectedSiteIds}
+       //@ts-expect-error any
+       currentStep={currentStep}
+       setCurrentStep={setCurrentStep}
+       steps={steps}
+       getInitials={getInitials}
+       formatDate={formatDate}
+       isEditing={isEditing}
+       handleInputChange={handleInputChange}
+       handleAssignContract={handleAssignContract}
+       handleAssignSites={handleAssignSites}
+       contractsLoading={contractsLoading}
+       sitesLoading={sitesLoading}
+       assigningContract={assigningContract}
+       assigningSites={assigningSites}
+       handleEditToggle={handleEditToggle}
+       handleSaveProfile={handleSaveProfile} // Add this
+       saving={saving} // Add this
+     />
         </TabsContent>
         <TabsContent value="professional-competency">
           <ProfessionalCompetencyTab
@@ -780,6 +806,15 @@ export default function DriverDetailPage() {
               >
                 <CheckCircle className="h-5 w-5 mr-2" />
                 Approve Driver
+              </Button>
+            )}
+             {driverData.profile_status !== "approved" && (
+              <Button
+                onClick={() =>handleResendActivation(id as unknown as number)}
+                className="bg-rose-600 hover:bg-rose-700 text-white px-6 py-2 rounded-lg transition-all w-48"
+              >
+                <CheckCircle className="h-5 w-5 mr-2" />
+                Resend Email
               </Button>
             )}
           </div>

@@ -40,7 +40,7 @@ interface Vehicle {
     name: string;
     description: string;
   };
-  site_allocated?: Site;
+  site_allocated?: Site | Site[]; // can be a single Site or an array of Sites
   warnings: string[];
   missing_attributes: string[];
   mot_expiry: string;
@@ -154,64 +154,68 @@ export default function VehicleDetailPage() {
     setIsEditing(!isEditing);
   };
 
-  const handleSave = async () => {
-    if (!editVehicle || !token) return;
-    setSaving(true);
-    try {
-      const vehicleData = {
-        registration_number: editVehicle.registration_number,
-        vehicle_status: editVehicle.vehicle_status,
-        is_roadworthy: editVehicle.is_roadworthy,
-        mot_expiry: editVehicle.mot_expiry,
-        tax_expiry: editVehicle.tax_expiry,
-        insurance_expiry: editVehicle.insurance_expiry,
-        inspection_expire: editVehicle.inspection_expire,
-        tacho_calibration_expiry: editVehicle.tacho_calibration_expiry,
-        walkaround_count: editVehicle.walkaround_count,
-        last_mileage: editVehicle.last_mileage,
-        vehicles_type: editVehicle.vehicles_type.id,
-        site_allocated: editVehicle.site_allocated?.id ?? null,
-        vehicle_cost: editVehicle.vehicle_cost,
-        tyre_expiry_front_driver: editVehicle.tyre_expiry_front_driver,
-        tyre_expiry_front_passenger: editVehicle.tyre_expiry_front_passenger,
-        tyre_expiry_rear_outer_driver: editVehicle.tyre_expiry_rear_outer_driver,
-        tyre_expiry_rear_outer_passenger: editVehicle.tyre_expiry_rear_outer_passenger,
-        tyre_pressure_front_driver: editVehicle.tyre_pressure_front_driver,
-        tyre_pressure_front_passenger: editVehicle.tyre_pressure_front_passenger,
-        tyre_pressure_rear_outer_driver: editVehicle.tyre_pressure_rear_outer_driver,
-        tyre_pressure_rear_outer_passenger: editVehicle.tyre_pressure_rear_outer_passenger,
-        tyre_depth_front_driver: editVehicle.tyre_depth_front_driver,
-        tyre_depth_front_passenger: editVehicle.tyre_depth_front_passenger,
-        tyre_depth_rear_outer_driver: editVehicle.tyre_depth_rear_outer_driver,
-        tyre_depth_rear_outer_passenger: editVehicle.tyre_depth_rear_outer_passenger,
-      };
+ const handleSave = async () => {
+  if (!editVehicle || !token) return;
+  setSaving(true);
+  try {
+    const vehicleData = {
+      registration_number: editVehicle.registration_number,
+      vehicle_status: editVehicle.vehicle_status,
+      is_roadworthy: editVehicle.is_roadworthy,
+      mot_expiry: editVehicle.mot_expiry,
+      tax_expiry: editVehicle.tax_expiry,
+      insurance_expiry: editVehicle.insurance_expiry,
+      inspection_expire: editVehicle.inspection_expire,
+      tacho_calibration_expiry: editVehicle.tacho_calibration_expiry,
+      walkaround_count: editVehicle.walkaround_count,
+      last_mileage: editVehicle.last_mileage,
+      vehicles_type: editVehicle.vehicles_type.id,
+      site_allocated: (() => {
+        // handle Site | Site[] | undefined and return an array of IDs
+        if (!editVehicle.site_allocated) return [];
+        if (Array.isArray(editVehicle.site_allocated)) return editVehicle.site_allocated.map(s => s.id);
+        return [editVehicle.site_allocated.id];
+      })(),
+      vehicle_cost: editVehicle.vehicle_cost,
+      tyre_expiry_front_driver: editVehicle.tyre_expiry_front_driver,
+      tyre_expiry_front_passenger: editVehicle.tyre_expiry_front_passenger,
+      tyre_expiry_rear_outer_driver: editVehicle.tyre_expiry_rear_outer_driver,
+      tyre_expiry_rear_outer_passenger: editVehicle.tyre_expiry_rear_outer_passenger,
+      tyre_pressure_front_driver: editVehicle.tyre_pressure_front_driver,
+      tyre_pressure_front_passenger: editVehicle.tyre_pressure_front_passenger,
+      tyre_pressure_rear_outer_driver: editVehicle.tyre_pressure_rear_outer_driver,
+      tyre_pressure_rear_outer_passenger: editVehicle.tyre_pressure_rear_outer_passenger,
+      tyre_depth_front_driver: editVehicle.tyre_depth_front_driver,
+      tyre_depth_front_passenger: editVehicle.tyre_depth_front_passenger,
+      tyre_depth_rear_outer_driver: editVehicle.tyre_depth_rear_outer_driver,
+      tyre_depth_rear_outer_passenger: editVehicle.tyre_depth_rear_outer_passenger,
+    };
 
-      const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(vehicleData),
-      });
+    const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(vehicleData),
+    });
 
-      const updatedData = await res.json();
-      if (res.ok && updatedData.success) {
-        setVehicle(updatedData.data);
-        setEditVehicle(updatedData.data);
-        setIsEditing(false);
-        showToast("Vehicle updated successfully", "success");
-      } else {
-        showToast(updatedData.message || "Failed to update vehicle", "error");
-        throw new Error(updatedData.message || "Failed to update vehicle");
-      }
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to update", "error");
-    } finally {
-      setSaving(false);
+    const updatedData = await res.json();
+    if (res.ok && updatedData.success) {
+      setVehicle(updatedData.data);
+      setEditVehicle(updatedData.data);
+      setIsEditing(false);
+      showToast("Vehicle updated successfully", "success");
+    } else {
+      showToast(updatedData.message || "Failed to update vehicle", "error");
+      throw new Error(updatedData.message || "Failed to update vehicle");
     }
-  };
-
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : "Failed to update", "error");
+  } finally {
+    setSaving(false);
+  }
+};
   const handleInputChange = (field: keyof Vehicle, value: any) => {
     setEditVehicle((prev) => (prev ? { ...prev, [field]: value } : prev));
   };
@@ -1007,10 +1011,10 @@ vehicleId={Number(Array.isArray(id) ? id[0] : id) || 0}
               </h3>
               {vehicle.site_allocated ? (
                 <div className="space-y-6">
-                  {vehicle.site_allocated.image && (
+                  {(Array.isArray(vehicle.site_allocated) ? vehicle.site_allocated[0]?.image : vehicle.site_allocated?.image) && (
                     <div className="relative group">
                       <img 
-                        src={vehicle.site_allocated.image} 
+                        src={Array.isArray(vehicle.site_allocated) ? vehicle.site_allocated[0]?.image : vehicle.site_allocated?.image} 
                         alt="Site" 
                         className="w-full h-64 object-cover rounded-xl shadow-lg" 
                       />
@@ -1018,7 +1022,7 @@ vehicleId={Number(Array.isArray(id) ? id[0] : id) || 0}
                         <Button 
                           size="sm" 
                           className="bg-white text-gray-900"
-                          onClick={() => window.open(vehicle.site_allocated?.image, '_blank')}
+                          onClick={() => window.open(Array.isArray(vehicle.site_allocated) ? vehicle.site_allocated[0]?.image || "" : vehicle.site_allocated?.image || "", '_blank')}
                         >
                           <ExternalLink className="w-4 h-4 mr-2" />
                           View Full Image
@@ -1031,7 +1035,7 @@ vehicleId={Number(Array.isArray(id) ? id[0] : id) || 0}
                       <Label className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2 block">Site Name</Label>
                       {isEditing ? (
                         <select
-                          value={editVehicle.site_allocated?.id || ""}
+                          value={Array.isArray(vehicle.site_allocated) ? vehicle.site_allocated[0]?.id : vehicle.site_allocated?.id}
                           onChange={(e) => {
                             const site = sites.find(s => s.id === Number(e.target.value));
                             handleInputChange("site_allocated", site);
@@ -1044,21 +1048,12 @@ vehicleId={Number(Array.isArray(id) ? id[0] : id) || 0}
                           ))}
                         </select>
                       ) : (
-                        <p className="text-xl font-bold text-gray-900">{vehicle.site_allocated.name}</p>
+                        <p className="text-xl font-bold text-gray-900">
+                          {Array.isArray(vehicle.site_allocated) ? vehicle.site_allocated[0]?.name : vehicle.site_allocated?.name}
+                        </p>
                       )}
                     </div>
-                    <div className="bg-green-50 p-5 rounded-xl">
-                      <Label className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2 block">Contact Name</Label>
-                      <p className="text-xl font-bold text-gray-900">{vehicle.site_allocated.contact_name || "N/A"}</p>
-                    </div>
-                    <div className="bg-purple-50 p-5 rounded-xl">
-                      <Label className="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-2 block">Address</Label>
-                      <p className="text-lg font-semibold text-gray-900">{vehicle.site_allocated.address || "N/A"}</p>
-                    </div>
-                    <div className="bg-orange-50 p-5 rounded-xl">
-                      <Label className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2 block">Postcode</Label>
-                      <p className="text-xl font-bold text-gray-900">{vehicle.site_allocated.postcode || "N/A"}</p>
-                    </div>
+                
                   </div>
                 </div>
               ) : (
@@ -1067,7 +1062,7 @@ vehicleId={Number(Array.isArray(id) ? id[0] : id) || 0}
                   <p className="text-gray-500 text-lg mb-4">No site allocated to this vehicle</p>
                   {isEditing && (
                     <select
-                      value={editVehicle.site_allocated?.id || ""}
+                      value={Array.isArray(editVehicle.site_allocated) ? editVehicle.site_allocated[0]?.id : editVehicle.site_allocated?.id}
                       onChange={(e) => {
                         const site = sites.find(s => s.id === Number(e.target.value));
                         handleInputChange("site_allocated", site);

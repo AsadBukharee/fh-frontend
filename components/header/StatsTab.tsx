@@ -157,7 +157,7 @@ const StatsTab: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <span className="px-3 py-1 text-sm font-semibold bg-red-100 text-red-700 rounded-full">
-            ❌ Errors: {errorCount}
+            ❌ Warnings : {errorCount}
           </span>
         </div>
       </div>

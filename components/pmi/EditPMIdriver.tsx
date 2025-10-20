@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import DefectsInput from "../ui/DefectsInput";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -63,7 +70,12 @@ export default function EditPMI({ record, onEdit }: EditPMIProps) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${yourToken}`,
           },
-          body: JSON.stringify(editRecord),
+          body: JSON.stringify({
+            ...editRecord,
+            // Ensure dates are in the correct format if needed by the API
+            pmi_report_date: editRecord.pmi_report_date || null,
+            pmi_expiry: editRecord.pmi_expiry || null,
+          }),
         }
       );
       if (!response.ok) {
@@ -94,13 +106,17 @@ export default function EditPMI({ record, onEdit }: EditPMIProps) {
           variant="ghost"
           size="sm"
           className="h-8 w-full flex justify-start py-1 px-2 text-gray-700"
-          onClick={() => setEditOpen(true)}
+          onClick={() => {
+            setEditRecord({ ...record }); // Reset to original record
+            setError(null); // Clear any errors
+            setEditOpen(true);
+          }}
         >
           <Edit className="w-4 h-4" />
-          <span>Edit</span>
+          <span className="ml-2">Edit</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="h-[500px] overflow-y-auto rounded-2xl shadow-lg">
+      <DialogContent className="h-[600px] overflow-y-auto rounded-2xl shadow-lg">
         <DialogHeader>
           <DialogTitle>Edit PMI Report</DialogTitle>
           <DialogDescription>Editing record #{editRecord.id}</DialogDescription>
@@ -171,6 +187,46 @@ export default function EditPMI({ record, onEdit }: EditPMIProps) {
               className="min-h-[80px]"
               aria-describedby="action-taken-description"
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="identified_by_driver">Identified by Driver</Label>
+            <Select
+              value={editRecord.identified_by_driver ? "yes" : "no"}
+              onValueChange={(value) =>
+                setEditRecord({
+                  ...editRecord,
+                  identified_by_driver: value === "yes",
+                })
+              }
+            >
+              <SelectTrigger id="identified_by_driver">
+                <SelectValue placeholder="Select option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="defect_previously_noted">Previously Noted</Label>
+            <Select
+              value={editRecord.defect_previously_noted ? "yes" : "no"}
+              onValueChange={(value) =>
+                setEditRecord({
+                  ...editRecord,
+                  defect_previously_noted: value === "yes",
+                })
+              }
+            >
+              <SelectTrigger id="defect_previously_noted">
+                <SelectValue placeholder="Select option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter className="flex justify-end gap-3">

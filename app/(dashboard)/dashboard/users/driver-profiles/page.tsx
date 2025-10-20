@@ -1,11 +1,10 @@
 "use client"
 import type React from "react"
-import { useRef, useState, useEffect, useCallback } from "react"
+import { useRef, useState, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -153,14 +151,16 @@ interface DisapprovePayload {
 
 export default function DriversPage() {
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false)
-  const [drivers, setDrivers] = useState<Driver[]>([])
+  const [allDrivers, setAllDrivers] = useState<Driver[]>([])
   const [contracts, setContracts] = useState<Contract[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [reviewLoading, setReviewLoading] = useState(false)
   const [contractsLoading, setContractsLoading] = useState(false)
@@ -172,7 +172,6 @@ export default function DriversPage() {
   const [disapproveRemarks, setDisapproveRemarks] = useState("")
   const [disapproveError, setDisapproveError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState({
     profileStatus: [] as string[],
@@ -181,32 +180,44 @@ export default function DriversPage() {
   })
   const { showToast } = useToast()
   const cookies = useCookies()
-  const [formData, setFormData] = useState<DriverForm>({
-    email: "",
-    full_name: "",
-    role: "driver",
-    contractId: "none",
-    is_active: true,
-    password: "",
-    password_confirm: "",
-    date_of_birth: "",
-    phone: "",
-    address: "",
-    account_no: "",
-    sort_code: "",
-    post_code: "",
-    national_insurance_no: "",
-    license_number: "",
-    license_issue_number: "",
-    next_of_kin_name: "",
-    next_of_kin_relationship: "",
-    next_of_kin_contact: "",
-    next_of_kin_email: "",
-    next_of_kin_address: "",
-    manager_name: "",
-  })
-  const [formErrors, setFormErrors] = useState<Partial<DriverForm>>({})
+
   const perPage = 10
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const filteredDrivers = useMemo(() => {
+    return allDrivers.filter((driver) => {
+      let matches = true
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase()
+        matches =
+          matches &&
+          (driver.user.full_name.toLowerCase().includes(query) ||
+            driver.user.display_name.toLowerCase().includes(query) ||
+            driver.user.email.toLowerCase().includes(query))
+      }
+      // Profile status filter
+      if (filters.profileStatus.length > 0) {
+        matches = matches && filters.profileStatus.includes(driver.profile_status.toLowerCase())
+      }
+      // Contract filter
+      if (filters.hasContract !== null) {
+        matches = matches && (driver.user.contract !== null) === filters.hasContract
+      }
+      // Warnings filter
+      if (filters.hasWarnings !== null) {
+        matches = matches && (driver.warnings.length > 0) === filters.hasWarnings
+      }
+      return matches
+    })
+  }, [allDrivers, filters, searchQuery])
+
+  const totalPages = useMemo(() => Math.ceil(filteredDrivers.length / perPage), [filteredDrivers])
+
+  const currentDrivers = useMemo(
+    () => filteredDrivers.slice((currentPage - 1) * perPage, currentPage * perPage),
+    [filteredDrivers, currentPage]
+  )
 
   const handleApproveDriverClick = async (driverId: number) => {
     const response = await fetch(`${API_URL}/api/profiles/driver/approve/`, {
@@ -281,46 +292,52 @@ export default function DriversPage() {
 
   const fetchDrivers = useCallback(async () => {
     setLoading(true)
+    setSearchLoading(true)
+    let allData: Driver[] = []
+    let page = 1
+    let total_pages = 1
     try {
-      const queryParams = new URLSearchParams({
-        page: currentPage.toString(),
-        per_page: perPage.toString(),
-      })
-      if (searchQuery) queryParams.append("q", searchQuery)
-      if (filters.profileStatus.length > 0) queryParams.append("profile_status", filters.profileStatus.join(","))
-      if (filters.hasContract !== null) queryParams.append("has_contract", filters.hasContract.toString())
-      if (filters.hasWarnings !== null) queryParams.append("has_warnings", filters.hasWarnings.toString())
-      const url = `${API_URL}/api/profiles/driver/?${queryParams.toString()}`
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-      })
-      if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
+      while (page <= total_pages) {
+        const queryParams = new URLSearchParams({
+          page: page.toString(),
+          per_page: "100",
+        })
+        const url = `${API_URL}/api/profiles/driver/?${queryParams.toString()}`
+        const response = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+        })
+        if (response.status === 401) {
+          showToast("Session expired. Please log in again.", "error")
+          return
+        }
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`)
+        }
+        const data = await response.json()
+        if (data.success) {
+          allData = [...allData, ...data.data.results]
+          total_pages = data.data.pagination.total_pages || 1
+        } else {
+          setError(data.message || "Failed to fetch drivers")
+          showToast(data.message || "Failed to fetch drivers", "error")
+          return
+        }
+        page++
       }
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`)
-      }
-      const data = await response.json()
-      if (data.success) {
-        setDrivers(data.data.results)
-        setTotalPages(data.data.pagination.total_pages || 1)
-        setError(null)
-      } else {
-        setError(data.message || "Failed to fetch drivers")
-        showToast(data.message || "Failed to fetch drivers", "error")
-      }
+      setAllDrivers(allData)
+      setError(null)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching drivers"
       setError(errorMessage)
       showToast(errorMessage, "error")
     } finally {
       setLoading(false)
+      setSearchLoading(false)
     }
-  }, [cookies, showToast, currentPage, searchQuery, filters])
+  }, [cookies, showToast])
 
   const fetchRoles = useCallback(async () => {
     setRolesLoading(true)
@@ -346,7 +363,6 @@ export default function DriversPage() {
         setRoles([])
       }
     } catch (error) {
-      console.log(error)
       showToast("Failed to fetch roles", "error")
       setRoles([])
     } finally {
@@ -454,34 +470,9 @@ export default function DriversPage() {
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1)
   }
-const handleResendActivation = async (userId: number) => {
-  try {
-    const response = await fetch(`${API_URL}/auth/resend-activation/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${cookies.get("access_token")}`,
-      },
-      body: JSON.stringify({ user_id: userId }),
-    });
 
-    const data = await response.json();
+ 
 
-    if (response.status === 401) {
-      showToast("Session expired. Please log in again.", "error");
-      return;
-    }
-
-    if (data.success) {
-      showToast("Activation email resent successfully", "success");
-    } else {
-      showToast(data.message || "Failed to resend activation email", "error");
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "An error occurred while resending activation email";
-    showToast(errorMessage, "error");
-  }
-};
   const handleFilterChange = (filterType: string, value: string | boolean | null) => {
     setFilters((prev) => {
       if (filterType === "profileStatus") {
@@ -498,6 +489,40 @@ const handleResendActivation = async (userId: number) => {
     })
     setCurrentPage(1)
   }
+
+  // Debounced search handler
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchQuery(value)
+    setCurrentPage(1)
+  }
+
+  // Handle keyboard events
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      setCurrentPage(1)
+    } else if (e.key === "Escape") {
+      handleClearSearch()
+    }
+  }
+
+  // Clear search handler
+  const handleClearSearch = () => {
+    setSearchQuery("")
+    setCurrentPage(1)
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }
+
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [])
 
   return (
     <TooltipProvider>
@@ -565,7 +590,7 @@ const handleResendActivation = async (userId: number) => {
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <ExportButton data={drivers} fileName="Driver Managements" />
+              <ExportButton data={filteredDrivers} fileName="Driver Managements" />
               <button
                 onClick={fetchDrivers}
                 disabled={loading}
@@ -590,11 +615,23 @@ const handleResendActivation = async (userId: number) => {
           >
             <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
             <Input
-              placeholder="Search drivers"
-              className="pl-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+              ref={searchInputRef}
+              placeholder="Search drivers by name"
+              className="pl-10 pr-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
+              onKeyDown={handleSearchKeyDown}
+              aria-label="Search drivers by name"
             />
+            {searchQuery && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                aria-label="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
         {loading ? (
@@ -607,163 +644,183 @@ const handleResendActivation = async (userId: number) => {
             <AlertCircle className="w-5 h-5 mr-2" />
             {error}
           </div>
+        ) : currentDrivers.length === 0 ? (
+          <div className="flex items-center justify-center py-12 text-gray-600">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            {searchQuery || filters.profileStatus.length > 0 || filters.hasContract !== null || filters.hasWarnings !== null
+              ? "No drivers match the current filters or search query"
+              : "No drivers found"}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-           {drivers.map((driver) => (
-              <div
-                key={driver.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:border-gray-300 transition-all duration-300 group"
+          <>
+            {(searchQuery || filters.profileStatus.length > 0 || filters.hasContract !== null || filters.hasWarnings !== null) && (
+              <div className="mb-4 text-sm text-gray-600">
+                Found {filteredDrivers.length} driver{filteredDrivers.length !== 1 ? 's' : ''}{searchQuery && ` for "${searchQuery}"`}
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+             {currentDrivers.map((driver) => (
+  <Link
+    key={driver.id}
+    href={`/dashboard/users/driver-profiles/${driver.id}`}
+    className="block rounded-xl"
+  >
+    <div
+      className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:border-gray-300 transition-all duration-300 group"
+      onClick={(e) => {
+        // Prevent navigation if clicking on interactive elements
+        if (
+          e.target instanceof HTMLElement &&
+          (e.target.closest("button") ||
+            // e.target.closest("a") ||
+            e.target.closest(".dropdown-menu"))
+        ) {
+          e.preventDefault()
+        }
+      }}
+    >
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 border-b border-gray-200">
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center ring-4 ring-white shadow-md">
+                {driver.user.avatar ? (
+                  <img
+                    src={driver.user.avatar}
+                    alt={driver.user.display_name}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <User className="w-7 h-7 text-orange-600" />
+                )}
+              </div>
+              {driver.user.is_active && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base text-gray-900 hover:text-orange-600 transition-colors truncate">
+                {driver.user.display_name}
+              </h3>
+              <p className="text-xs text-gray-600 truncate flex items-center gap-1 mt-0.5">
+                <Mail className="w-3 h-3" />
+                {driver.user.email}
+              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge className={`${getProfileStatusColor(driver.profile_status)} text-[9px] px-2 py-0.5`}>
+                  {driver.profile_status.replace("_", " ").toUpperCase()}
+                </Badge>
+                <span className="text-[10px] text-gray-500">ID: {driver.id}</span>
+              </div>
+            </div>
+          </div>
+          {/* <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                ref={(el: HTMLButtonElement | null) => {
+                  buttonRefs.current[`action-${driver.id}`] = el
+                }}
+                variant="ghost"
+                size="sm"
+                className="ripple cursor-glow h-8 w-8 p-0 hover:bg-white/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                onMouseMove={handleMouseMove(`action-${driver.id}`)}
               >
-                {/* Header Section with Gradient */}
-                <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 border-b border-gray-200">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="relative">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center ring-4 ring-white shadow-md">
-                          {driver.user.avatar ? (
-                            <img
-                              src={driver.user.avatar}
-                              alt={driver.user.display_name}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-                            <User className="w-7 h-7 text-orange-600" />
-                          )}
-                        </div>
-                        {driver.user.is_active && (
-                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <Link href={`/dashboard/users/driver-profiles/${driver.id}`}>
-                          <h3 className="font-semibold text-base text-gray-900 hover:text-orange-600 transition-colors truncate">
-                            {driver.user.display_name}
-                          </h3>
-                        </Link>
-                        <p className="text-xs text-gray-600 truncate flex items-center gap-1 mt-0.5">
-                          <Mail className="w-3 h-3" />
-                          {driver.user.email}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge className={`${getProfileStatusColor(driver.profile_status)} text-[9px] px-2 py-0.5`}>
-                            {driver.profile_status.replace("_", " ").toUpperCase()}
-                          </Badge>
-                          <span className="text-[10px] text-gray-500">ID: {driver.id}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          ref={(el: HTMLButtonElement | null) => {
-                            buttonRefs.current[`action-${driver.id}`] = el
-                          }}
-                          variant="ghost"
-                          size="sm"
-                          className="ripple cursor-glow h-8 w-8 p-0 hover:bg-white/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                          onMouseMove={handleMouseMove(`action-${driver.id}`)}
-                        >
-                          <MoreHorizontal className="w-4 h-4 relative z-10 text-gray-600" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                   <DropdownMenuContent align="end" className="bg-white w-48">
-  {driver.profile_status !== "approved" && (
-    <DropdownMenuItem onClick={() => handleApproveDriverClick(driver.id)} className="cursor-pointer">
-      <Check className="w-4 h-4 mr-2 text-green-600" />
-      <span>Approve Profile</span>
-    </DropdownMenuItem>
-  )}
-  {driver.profile_status !== "not_approved" && (
-    <DropdownMenuItem onClick={() => handleDisapproveDriverClick(driver)} className="cursor-pointer">
-      <XCircle className="w-4 h-4 mr-2 text-orange-600" />
-      <span>Deactivate</span>
-    </DropdownMenuItem>
-  )}
-  {driver.profile_status === "not_approved" && (
-    <DropdownMenuItem onClick={() => handleResendActivation(driver.user.id)} className="cursor-pointer">
-      <Mail className="w-4 h-4 mr-2 text-blue-600" />
-      <span>Resend Activation</span>
-    </DropdownMenuItem>
-  )}
-  <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => handleDeleteDriverClick(driver)}>
-    <Trash2 className="w-4 h-4 mr-2" />
-    <span>Delete Driver</span>
-  </DropdownMenuItem>
-</DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                <MoreHorizontal className="w-4 h-4 relative z-10 text-gray-600" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-white w-48">
+              {driver.profile_status !== "approved" && (
+                <DropdownMenuItem onClick={() => handleApproveDriverClick(driver.id)} className="cursor-pointer">
+                  <Check className="w-4 h-4 mr-2 text-green-600" />
+                  <span>Approve Profile</span>
+                </DropdownMenuItem>
+              )}
+              {driver.profile_status !== "not_approved" && (
+                <DropdownMenuItem onClick={() => handleDisapproveDriverClick(driver)} className="cursor-pointer">
+                  <XCircle className="w-4 h-4 mr-2 text-orange-600" />
+                  <span>Not Approved</span>
+                </DropdownMenuItem>
+              )}
+              {driver.profile_status === "not_approved" && (
+                <DropdownMenuItem onClick={() => handleResendActivation(driver.user.id)} className="cursor-pointer">
+                  <Mail className="w-4 h-4 mr-2 text-blue-600" />
+                  <span>Resend Activation</span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => handleDeleteDriverClick(driver)}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                <span>Delete Driver</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu> */}
+        </div>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="flex items-center gap-2 p-2.5 bg-orange-50 rounded-lg border border-orange-100">
+          <Shield className="w-4 h-4 text-orange-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-orange-600 font-medium uppercase tracking-wide">License Number</p>
+            <p className="text-sm font-semibold text-gray-900 truncate">{driver.license_number || "Not Provided"}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-100">
+          <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-gray-600 font-medium uppercase tracking-wide">Contract</p>
+            {driver.user.contract ? (
+              <div className="flex items-center gap-1 mt-0.5">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                <p className="text-sm font-semibold text-gray-900 truncate">{driver.user.contract.name}</p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 mt-0.5">
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                <p className="text-sm font-semibold text-red-600">No Contract</p>
+              </div>
+            )}
+          </div>
+        </div>
+        {driver.warnings && driver.warnings.length > 0 ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2 p-2.5 bg-red-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[10px] text-red-600 font-medium uppercase tracking-wide">Active Warnings</p>
+                  <p className="text-sm font-semibold text-red-700">{driver.warnings.length} Warning{driver.warnings.length > 1 ? 's' : ''}</p>
                 </div>
-
-                {/* Content Section */}
-                <div className="p-4 space-y-3">
-                  {/* License Info */}
-                  <div className="flex items-center gap-2 p-2.5 bg-orange-50 rounded-lg border border-orange-100">
-                    <Shield className="w-4 h-4 text-orange-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-orange-600 font-medium uppercase tracking-wide">License Number</p>
-                      <p className="text-sm font-semibold text-gray-900 truncate">{driver.license_number || "Not Provided"}</p>
-                    </div>
-                  </div>
-
-                  {/* Contract Status */}
-                  <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-100">
-                    <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-gray-600 font-medium uppercase tracking-wide">Contract</p>
-                      {driver.user.contract ? (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                          <p className="text-sm font-semibold text-gray-900 truncate">{driver.user.contract.name}</p>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                          <p className="text-sm font-semibold text-red-600">No Contract</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Warnings Section */}
-                  {driver.warnings && driver.warnings.length > 0 ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2 p-2.5 bg-red-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors">
-                          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="text-[10px] text-red-600 font-medium uppercase tracking-wide">Active Warnings</p>
-                            <p className="text-sm font-semibold text-red-700">{driver.warnings.length} Warning{driver.warnings.length > 1 ? 's' : ''}</p>
-                          </div>
-                          <div className="flex justify-center items-center bg-red-600 text-white text-xs font-bold rounded-full w-7 h-7">
-                            {driver.warnings.length}
-                          </div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <div className="space-y-1 max-h-48 overflow-auto">
-                          <p className="font-semibold text-xs mb-2">Warning Details:</p>
-                          {driver.warnings.map((warning, index) => (
-                            <div key={index} className="flex items-start gap-1.5 text-xs">
-                              <span className="text-red-500 mt-0.5">•</span>
-                              <span>{warning}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <div className="flex items-center gap-2 p-2.5 bg-green-50 rounded-lg border border-green-100">
-                      <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-[10px] text-green-600 font-medium uppercase tracking-wide">Status</p>
-                        <p className="text-sm font-semibold text-green-700">No Active Warnings</p>
-                      </div>
-                    </div>
-                  )}
+                <div className="flex justify-center items-center bg-red-600 text-white text-xs font-bold rounded-full w-7 h-7">
+                  {driver.warnings.length}
                 </div>
               </div>
-            ))}
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <div className="space-y-1 max-h-48 overflow-auto">
+                <p className="font-semibold text-xs mb-2">Warning Details:</p>
+                {driver.warnings.map((warning, index) => (
+                  <div key={index} className="flex items-start gap-1.5 text-xs">
+                    <span className="text-red-500 mt-0.5">•</span>
+                    <span>{warning}</span>
+                  </div>
+                ))}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <div className="flex items-center gap-2 p-2.5 bg-green-50 rounded-lg border border-green-100">
+            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-[10px] text-green-600 font-medium uppercase tracking-wide">Status</p>
+              <p className="text-sm font-semibold text-green-700">No Active Warnings</p>
+            </div>
           </div>
+        )}
+      </div>
+    </div>
+  </Link>
+))}
+            </div>
+          </>
         )}
         <div className="flex items-center justify-between mt-6">
           <div className="flex items-center space-x-2">
@@ -814,8 +871,6 @@ const handleResendActivation = async (userId: number) => {
             </Button>
           </div>
         </div>
-
-        {/* Delete Driver Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -848,14 +903,12 @@ const handleResendActivation = async (userId: number) => {
             </div>
           </AlertDialogContent>
         </AlertDialog>
-
-        {/* Disapprove Driver Dialog */}
         <AlertDialog open={isDisapproveDialogOpen} onOpenChange={setIsDisapproveDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <XCircle className="w-5 h-5 text-red-600" />
-                Disapprove Driver
+                Not Approve Driver
               </AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to disapprove{" "}

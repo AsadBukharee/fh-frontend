@@ -11,13 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -91,21 +84,9 @@ interface ApiResponse {
 const DriverManagementPage = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [filteredDrivers, setFilteredDrivers] = useState<Driver[]>([]);
+  const [showfilters,setShowFilters] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false);
-  const [tempFilters, setTempFilters] = useState({
-    full_name: '',
-    profile_status: '',
-    email: '',
-    driver_licence_expiry: '',
-    last_driver_check_code_date: '',
-    next_driver_check_code_due: '',
-    tacho_expiry: '',
-    dbs_expiry_date: '',
-    night_worker_assessment_expiry: '',
-    last_driver_tacho_download: '',
-    next_driver_tacho_download: '',
-  });
+  const [showMoreFilters, setShowMoreFilters] = useState<boolean>(false);
   const [filters, setFilters] = useState({
     full_name: '',
     profile_status: '',
@@ -126,7 +107,7 @@ const DriverManagementPage = () => {
   useEffect(() => {
     const fetchDrivers = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/profiles/driver/compliance/`,{
+        const response = await fetch(`${API_URL}/api/profiles/driver/compliance/`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -175,28 +156,10 @@ const DriverManagementPage = () => {
   }, [filters, drivers]);
 
   const handleFilterChange = (field: string, value: string) => {
-    setTempFilters((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const applyFiltersFromModal = () => {
-    setFilters(tempFilters);
-    setIsFilterModalOpen(false);
+    setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
   const clearFilters = () => {
-    setTempFilters({
-      full_name: '',
-      profile_status: '',
-      email: '',
-      driver_licence_expiry: '',
-      last_driver_check_code_date: '',
-      next_driver_check_code_due: '',
-      tacho_expiry: '',
-      dbs_expiry_date: '',
-      night_worker_assessment_expiry: '',
-      last_driver_tacho_download: '',
-      next_driver_tacho_download: '',
-    });
     setFilters({
       full_name: '',
       profile_status: '',
@@ -210,7 +173,7 @@ const DriverManagementPage = () => {
       last_driver_tacho_download: '',
       next_driver_tacho_download: '',
     });
-    setIsFilterModalOpen(false);
+    setShowMoreFilters(false);
   };
 
   const handleDoubleClick = (id: number, field: string, value: string) => {
@@ -291,38 +254,38 @@ const DriverManagementPage = () => {
     }
   };
 
-const getDaysInfo = (dateString: string, label: string) => {
-  if (!dateString) return (
-    <div>
-      <span className="font-bold">{label}</span>: No date provided
-    </div>
-  );
+  const getDaysInfo = (dateString: string, label: string) => {
+    if (!dateString) return (
+      <div>
+        <span className="font-bold">{label}</span>: No date provided
+      </div>
+    );
 
-  try {
-    const date = parseISO(dateString);
-    const daysDiff = differenceInDays(date, new Date());
+    try {
+      const date = parseISO(dateString);
+      const daysDiff = differenceInDays(date, new Date());
 
-    if (isPast(date)) {
+      if (isPast(date)) {
+        return (
+          <div>
+            <span className="font-bold">{label}</span>: Expired {Math.abs(daysDiff)} days ago
+          </div>
+        );
+      }
+
       return (
         <div>
-          <span className="font-bold">{label}</span>: Expired {Math.abs(daysDiff)} days ago
+          <span className="font-bold">{label}</span>: {daysDiff} days remaining
+        </div>
+      );
+    } catch {
+      return (
+        <div>
+          <span className="font-bold">{label}</span>: Invalid date
         </div>
       );
     }
-
-    return (
-      <div>
-        <span className="font-bold">{label}</span>: {daysDiff} days remaining
-      </div>
-    );
-  } catch {
-    return (
-      <div>
-        <span className="font-bold">{label}</span>: Invalid date
-      </div>
-    );
-  }
-};
+  };
 
   const renderDateCell = (id: number, field: string, value: string, driver: Driver) => {
     const isExpired = isDateExpired(value);
@@ -336,12 +299,12 @@ const getDaysInfo = (dateString: string, label: string) => {
       { key: 'last_driver_tacho_download', label: 'Last Tacho Download' },
       { key: 'next_driver_tacho_download', label: 'Next Tacho Download' },
     ];
-const tooltipContent = dateFields.map(({ key, label }) =>
-  getDaysInfo(
-    driver.driver_compliance[key as keyof Driver['driver_compliance']],
-    label
-  )
-);
+    const tooltipContent = dateFields.map(({ key, label }) =>
+      getDaysInfo(
+        driver.driver_compliance[key as keyof Driver['driver_compliance']],
+        label
+      )
+    );
 
     return (
       <TableCell
@@ -378,115 +341,129 @@ const tooltipContent = dateFields.map(({ key, label }) =>
   if (loading) return <div className="text-center py-4">Loading...</div>;
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container bg-white mx-auto p-4">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Driver Compliance</h1>
-     <div className=" gap-2 flex">
-         <Button
-          variant="outline"
-          style={{
+      <div className="flex gap-2 items-center">
+          <Button
+        className=''
+        onClick={() => setShowFilters(!showfilters)}
+           style={{
             background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
             width: 'auto',
             height: 'auto',
           }}
-          className='text-white'
-          onClick={() => setIsFilterModalOpen(true)}
         >
-          Filter Drivers
+          Filters
         </Button>
         <ExportButton data={filteredDrivers} fileName="driver_data" />
-     </div>
+      </div>
       </div>
 
-      <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
-        <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Filter Drivers</DialogTitle>
-          </DialogHeader>
+      {/* Filter Section */}
+{
+  showfilters && (
+     <div className="p-6 shadow my-4 bg-white">
+  <div className="space-y-6">
+    {/* Identity Section */}
+    <section>
+      <h3 className="text-base font-semibold  text-gray-800 mb-4">Identity</h3>
+      <div className="grid sm:grid-cols-2 gap-5">
+        <div>
+          <Label className="text-sm font-medium text-gray-700">Driver Name</Label>
+          <Input
+            placeholder="Enter driver name"
+            value={filters.full_name}
+            onChange={(e) => handleFilterChange("full_name", e.target.value)}
+            className="mt-1"
+          />
+        </div>
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              Identity
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Driver Name</Label>
-                <Input
-                  placeholder="Enter name"
-                  value={tempFilters.full_name}
-                  onChange={(e) => handleFilterChange("full_name", e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Email</Label>
-                <Input
-                  placeholder="Enter email"
-                  value={tempFilters.email}
-                  onChange={(e) => handleFilterChange("email", e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Profile Status</Label>
-                <Select
-                  value={tempFilters.profile_status}
-                  onValueChange={(value) =>
-                    handleFilterChange("profile_status", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="review">Review</SelectItem>
-                    <SelectItem value="not_approved">Not Approved</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <div>
+          <Label className="text-sm font-medium text-gray-700">Profile Status</Label>
+          <Select
+            value={filters.profile_status}
+            onValueChange={(value) => handleFilterChange("profile_status", value)}
+          >
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="review">Under Review</SelectItem>
+              <SelectItem value="not_approved">Not Approved</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </section>
+
+    <Separator />
+
+    {/* Compliance Dates */}
+    <section>
+      <h3 className="text-base font-semibold text-gray-800 mb-4">Key Compliance Dates</h3>
+      <div className="grid sm:grid-cols-2 gap-5">
+        {renderDatePicker("License Expiry", "driver_licence_expiry", filters.driver_licence_expiry)}
+        {renderDatePicker("DBS Expiry", "dbs_expiry_date", filters.dbs_expiry_date)}
+      </div>
+    </section>
+
+    {showMoreFilters && (
+      <>
+        <Separator />
+        <section>
+          <h3 className="text-base font-semibold text-gray-800 mb-4">Additional Filters</h3>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Email</Label>
+              <Input
+                placeholder="Enter email"
+                value={filters.email}
+                onChange={(e) => handleFilterChange("email", e.target.value)}
+                className="mt-1"
+              />
             </div>
+
+            {renderDatePicker("Tacho Expiry", "tacho_expiry", filters.tacho_expiry)}
+            {renderDatePicker("DOC Expiry", "night_worker_assessment_expiry", filters.night_worker_assessment_expiry)}
+            {renderDatePicker("Last Check", "last_driver_check_code_date", filters.last_driver_check_code_date)}
+            {renderDatePicker("Next Check", "next_driver_check_code_due", filters.next_driver_check_code_due)}
+            {renderDatePicker("Last Tacho", "last_driver_tacho_download", filters.last_driver_tacho_download)}
+            {renderDatePicker("Next Tacho", "next_driver_tacho_download", filters.next_driver_tacho_download)}
           </div>
+        </section>
+      </>
+    )}
 
-          <Separator className="my-4" />
+    {/* Buttons */}
+    <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setShowMoreFilters(!showMoreFilters)}
+        className="text-sm text-blue-600 hover:text-blue-800"
+      >
+        {showMoreFilters ? "Show Fewer Filters" : "Show More Filters"}
+      </Button>
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              License & Compliance
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              {renderDatePicker("License Expiry", "driver_licence_expiry", tempFilters.driver_licence_expiry)}
-              {renderDatePicker("DBS Expiry", "dbs_expiry_date", tempFilters.dbs_expiry_date)}
-              {renderDatePicker("DOC Expiry", "night_worker_assessment_expiry", tempFilters.night_worker_assessment_expiry)}
-              {renderDatePicker("Tacho Expiry", "tacho_expiry", tempFilters.tacho_expiry)}
-            </div>
-          </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={clearFilters}
+        className="text-sm font-medium"
+      >
+        Clear Filters
+      </Button>
+    </div>
+  </div>
+</div>
+  )
+}
 
-          <Separator className="my-4" />
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground">Checks</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {renderDatePicker("Last Check", "last_driver_check_code_date", tempFilters.last_driver_check_code_date)}
-              {renderDatePicker("Next Check", "next_driver_check_code_due", tempFilters.next_driver_check_code_due)}
-              {renderDatePicker("Last Tacho", "last_driver_tacho_download", tempFilters.last_driver_tacho_download)}
-              {renderDatePicker("Next Tacho", "next_driver_tacho_download", tempFilters.next_driver_tacho_download)}
-            </div>
-          </div>
-
-          <DialogFooter className="mt-6 flex justify-between">
-            <Button variant="outline" onClick={clearFilters}>
-              Clear Filters
-            </Button>
-            <Button
-              onClick={applyFiltersFromModal}
-              disabled={Object.values(tempFilters).every((val) => !val)}
-            >
-              Apply Filters
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      {/* Table Section */}
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -517,13 +494,10 @@ const tooltipContent = dateFields.map(({ key, label }) =>
                     className="font-medium whitespace-nowrap"
                     onDoubleClick={() => handleDoubleClick(driver.id, 'full_name', driver.user.full_name)}
                   >
-                  
-                     <Link href={`/dashboard/compliance-management/driver-management/${driver.id}`} className="text-blue-600 hover:underline"> 
-                     {driver.user.full_name} </Link>
-                    
+                    <Link href={`/dashboard/compliance-management/driver-management/${driver.id}`} className="text-blue-600 hover:underline">
+                      {driver.user.full_name}
+                    </Link>
                   </TableCell>
-             
-                
                   <TableCell className="whitespace-nowrap">{driver.user.license_number || "-"}</TableCell>
                   {renderDateCell(driver.id, 'driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                   {renderDateCell(driver.id, 'last_driver_check_code_date', driver.driver_compliance.last_driver_check_code_date, driver)}
@@ -533,7 +507,6 @@ const tooltipContent = dateFields.map(({ key, label }) =>
                   {renderDateCell(driver.id, 'night_worker_assessment_expiry', driver.driver_compliance.night_worker_assessment_expiry, driver)}
                   {renderDateCell(driver.id, 'last_driver_tacho_download', driver.driver_compliance.last_driver_tacho_download, driver)}
                   {renderDateCell(driver.id, 'next_driver_tacho_download', driver.driver_compliance.next_driver_tacho_download, driver)}
-                 
                 </TableRow>
               ))
             )}

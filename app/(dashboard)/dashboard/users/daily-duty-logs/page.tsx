@@ -12,15 +12,15 @@ import Link from "next/link"
 
 // Sample data
 const employeeData = [
-  { id: 1, name: "Jenny Wilson", currentWeek: "Complete", workingDays: 2, offDays: 2, logsCompleted: 2 },
-  { id: 2, name: "Jenny Wilson", currentWeek: "Waiting", workingDays: 2, offDays: 2, logsCompleted: 2 },
-  { id: 3, name: "Jenny Wilson", currentWeek: "Incomplete", workingDays: 2, offDays: 2, logsCompleted: 2 },
-  { id: 4, name: "Jenny Wilson", currentWeek: "Complete", workingDays: 0, offDays: 0, logsCompleted: 0 },
-  { id: 5, name: "Jenny Wilson", currentWeek: "Complete", workingDays: 2, offDays: 2, logsCompleted: 2 },
-  { id: 6, name: "Jenny Wilson", currentWeek: "Incomplete", workingDays: 2, offDays: 2, logsCompleted: 2 },
-  { id: 7, name: "Jenny Wilson", currentWeek: "Incomplete", workingDays: 2, offDays: 2, logsCompleted: 2 },
-  { id: 8, name: "Jenny Wilson", currentWeek: "Waiting", workingDays: 0, offDays: 0, logsCompleted: 0 },
-  { id: 9, name: "Jenny Wilson", currentWeek: "Complete", workingDays: 0, offDays: 0, logsCompleted: 0 },
+  { id: 1, name: "Jenny Wilson", currentWeek: "Complete", allocatedShifts: 2, restDays: 2, missingLogs: 2 },
+  { id: 2, name: "Jenny Wilson", currentWeek: "Waiting", allocatedShifts: 2, restDays: 2, missingLogs: 2 },
+  { id: 3, name: "Jenny Wilson", currentWeek: "Incomplete", allocatedShifts: 2, restDays: 2, missingLogs: 2 },
+  { id: 4, name: "Jenny Wilson", currentWeek: "Complete", allocatedShifts: 0, restDays: 0, missingLogs: 0 },
+  { id: 5, name: "Jenny Wilson", currentWeek: "Complete", allocatedShifts: 2, restDays: 2, missingLogs: 2 },
+  { id: 6, name: "Jenny Wilson", currentWeek: "Incomplete", allocatedShifts: 2, restDays: 2, missingLogs: 2 },
+  { id: 7, name: "Jenny Wilson", currentWeek: "Incomplete", allocatedShifts: 2, restDays: 2, missingLogs: 2 },
+  { id: 8, name: "Jenny Wilson", currentWeek: "Waiting", allocatedShifts: 0, restDays: 0, missingLogs: 0 },
+  { id: 9, name: "Jenny Wilson", currentWeek: "Complete", allocatedShifts: 0, restDays: 0, missingLogs: 0 },
 ]
 
 type Status = "Complete" | "Waiting" | "Incomplete";
@@ -30,7 +30,6 @@ const getStatusColor = (status: Status) => ({
   Waiting: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
   Incomplete: "bg-red-100 text-red-800 hover:bg-red-200",
 }[status] || "bg-gray-100 text-gray-800 hover:bg-gray-200");
-
 
 export default function DailyLogsManagement() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -97,14 +96,14 @@ export default function DailyLogsManagement() {
         <Card>
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Index</TableHead>
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Current Week</TableHead>
-                <TableHead className="font-semibold">Working Days</TableHead>
-                <TableHead className="font-semibold">Off Days</TableHead>
-                <TableHead className="font-semibold">Logs Completed</TableHead>
-                <TableHead className="font-semibold">Action</TableHead>
+              <TableRow className="bg-muted/50 text-center">
+                <TableHead className="font-semibold text-center">Index</TableHead>
+                <TableHead className="font-semibold text-center">Name</TableHead>
+                <TableHead className="font-semibold text-center">Current Week</TableHead>
+                <TableHead className="font-semibold text-center">Allocated Shifts</TableHead>
+                <TableHead className="font-semibold text-center">Rest Days</TableHead>
+                <TableHead className="font-semibold text-center">Missing Logs</TableHead>
+                <TableHead className="font-semibold text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -112,12 +111,12 @@ export default function DailyLogsManagement() {
                 <TableRow key={emp.id} className="hover:bg-muted/30">
                   <TableCell>{emp.id}</TableCell>
                   <TableCell>{emp.name}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <Badge className={getStatusColor(emp.currentWeek as Status)}>{emp.currentWeek}</Badge>
                   </TableCell>
-                  <TableCell className="text-center"><Badge className=" text-yellow-600 bg-yellow-100">{emp.workingDays}</Badge></TableCell>
-                  <TableCell className="text-center"><Badge className=" text-yellow-600 bg-yellow-100">{emp.offDays}</Badge></TableCell>
-                  <TableCell className="text-center"><Badge className=" text-yellow-600 bg-yellow-100">{emp.logsCompleted}</Badge></TableCell>
+                  <TableCell className="text-center"><Badge className=" text-yellow-600 bg-yellow-100">{emp.allocatedShifts}</Badge></TableCell>
+                  <TableCell className="text-center"><Badge className=" text-yellow-600 bg-yellow-100">{emp.restDays}</Badge></TableCell>
+                  <TableCell className="text-center"><Badge className=" text-yellow-600 bg-yellow-100">{emp.missingLogs}</Badge></TableCell>
                   <TableCell className="flex justify-center">
                     <Link href={`/dashboard/users/daily-duty-logs/${emp.id}`} className="text-muted-foreground hover:text-foreground">
                       <Eye className="h-4 w-4" />

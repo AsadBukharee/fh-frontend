@@ -29,13 +29,11 @@ import {
 } from "@/components/ui/select";
 import {
   AlertTriangle,
-  CheckCircle,
-  Clock,
   Search,
   Eye,
   Trash,
   MoreHorizontal,
-  Plus,
+  Wrench,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -57,8 +55,10 @@ import { useCookies } from "next-client-cookies";
 import API_URL from "@/app/utils/ENV";
 import BadgeList from "../BadgeList";
 import { Label } from "../ui/label";
-import EditPMI from "./EditPMIdriver";
+
 import { formatDmy } from "@/lib/utils";
+import EditPMI from "./EditPMIdriver";
+import MechanicJobDialog from "./MechinicJob";
 
 interface PMIRecord {
   id: number;
@@ -105,6 +105,8 @@ export default function PMIDashboard() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehiclesLoading, setVehiclesLoading] = useState(false);
   const [vehiclesError, setVehiclesError] = useState<string | null>(null);
+  const [mechanicJobOpen, setMechanicJobOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<PMIRecord | null>(null);
   const cookies = useCookies();
   const yourToken = cookies.get("access_token");
 
@@ -121,7 +123,7 @@ export default function PMIDashboard() {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${yourToken}`,
+          Authorization: `Bearer ${yourToken}`,
         },
       });
       if (!response.ok) {
@@ -143,11 +145,6 @@ export default function PMIDashboard() {
     }
   };
 
-  // Fetch PMI records from API
-  useEffect(() => {
-    fetchPMIData();
-  }, [yourToken]);
-
   // Fetch vehicles from API
   useEffect(() => {
     const fetchVehicles = async () => {
@@ -158,7 +155,7 @@ export default function PMIDashboard() {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${yourToken}`,
+            Authorization: `Bearer ${yourToken}`,
           },
         });
         if (!response.ok) {
@@ -178,7 +175,7 @@ export default function PMIDashboard() {
         setVehiclesLoading(false);
       }
     };
-
+    fetchPMIData();
     fetchVehicles();
   }, [yourToken]);
 
@@ -231,34 +228,6 @@ export default function PMIDashboard() {
     setFilteredData(filtered);
   }, [searchTerm, statusFilter, vehicleTypeFilter, dateFrom, dateTo, pmiData, vehicles]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return (
-          <Badge variant="default" className="bg-green-100 text-green-800">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Completed
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-            <Clock className="w-3 h-3 mr-1" />
-            Pending
-          </Badge>
-        );
-      case "created":
-        return (
-          <Badge variant="outline">
-            <Plus className="w-3 h-3 mr-1" />
-            Created
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
   const handleDelete = async (id: number) => {
     setLoading(true);
     setError(null);
@@ -267,7 +236,7 @@ export default function PMIDashboard() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${yourToken}`,
+          Authorization: `Bearer ${yourToken}`,
         },
       });
       if (!response.ok) {
@@ -286,6 +255,15 @@ export default function PMIDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Check if a record is eligible for mechanic job creation
+  const isEligibleForMechanicJob = (record: PMIRecord) => {
+    return (
+      record.identified_by_driver &&
+      !record.defect_previously_noted &&
+      record.defects?.trim().length > 0
+    );
   };
 
   if (loading) {
@@ -353,11 +331,10 @@ export default function PMIDashboard() {
             </div>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-2">
               <div className="w-[200px]">
-                <Label htmlFor="status-filter" className="mb-1 block">Status</Label>
-                <Select
-                  value={statusFilter}
-                  onValueChange={setStatusFilter}
-                >
+                <Label htmlFor="status-filter" className="mb-1 block">
+                  Status
+                </Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger id="status-filter">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -370,7 +347,9 @@ export default function PMIDashboard() {
                 </Select>
               </div>
               <div className="w-[200px]">
-                <Label htmlFor="vehicle-type-filter" className="mb-1 block">Vehicle Type</Label>
+                <Label htmlFor="vehicle-type-filter" className="mb-1 block">
+                  Vehicle Type
+                </Label>
                 <Select
                   value={vehicleTypeFilter}
                   onValueChange={setVehicleTypeFilter}
@@ -389,7 +368,9 @@ export default function PMIDashboard() {
                 </Select>
               </div>
               <div className="w-[200px]">
-                <Label htmlFor="date-from" className="mb-1 block">From Date</Label>
+                <Label htmlFor="date-from" className="mb-1 block">
+                  From Date
+                </Label>
                 <Input
                   id="date-from"
                   type="date"
@@ -398,7 +379,9 @@ export default function PMIDashboard() {
                 />
               </div>
               <div className="w-[200px]">
-                <Label htmlFor="date-to" className="mb-1 block">To Date</Label>
+                <Label htmlFor="date-to" className="mb-1 block">
+                  To Date
+                </Label>
                 <Input
                   id="date-to"
                   type="date"
@@ -417,6 +400,7 @@ export default function PMIDashboard() {
                   <TableHead>Report Date</TableHead>
                   <TableHead>Vehicle Reg</TableHead>
                   <TableHead>Defects</TableHead>
+                  <TableHead>Identified By A Driver</TableHead>
                   <TableHead>Previously Noted</TableHead>
                   <TableHead>Action Required</TableHead>
                   <TableHead>Actions</TableHead>
@@ -426,7 +410,9 @@ export default function PMIDashboard() {
                 {filteredData.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">
-                      {record.pmi_report_date ? formatDmy(record.pmi_report_date) : "N/A"}
+                      {record.pmi_report_date
+                        ? formatDmy(record.pmi_report_date)
+                        : "N/A"}
                     </TableCell>
                     <TableCell>
                       <Badge className="shrink-0">{record.vehicle_reg}</Badge>
@@ -439,7 +425,18 @@ export default function PMIDashboard() {
                     <TableCell>
                       <Badge
                         variant={
-                          record.defect_previously_noted ? "destructive" : "default"
+                          record.identified_by_driver ? "destructive" : "default"
+                        }
+                      >
+                        {record.identified_by_driver ? "Yes" : "No"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          record.defect_previously_noted
+                            ? "destructive"
+                            : "default"
                         }
                       >
                         {record.defect_previously_noted ? "Yes" : "No"}
@@ -506,7 +503,9 @@ export default function PMIDashboard() {
                                   <div>
                                     <Label>PMI Expiry</Label>
                                     <p>
-                                      {viewRecord.pmi_expiry ? formatDmy(viewRecord.pmi_expiry) : "N/A"}
+                                      {viewRecord.pmi_expiry
+                                        ? formatDmy(viewRecord.pmi_expiry)
+                                        : "N/A"}
                                     </p>
                                   </div>
                                 </div>
@@ -522,6 +521,18 @@ export default function PMIDashboard() {
                             record={record}
                             onEdit={() => fetchPMIData()}
                           />
+                          {isEligibleForMechanicJob(record) && (
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                setSelectedRecord(record);
+                                setMechanicJobOpen(true);
+                              }}
+                            >
+                              <Wrench className="w-4 h-4 mr-2" />
+                              Create Mechanic Job
+                            </DropdownMenuItem>
+                          )}
                           <Dialog>
                             <DialogTrigger asChild>
                               <DropdownMenuItem
@@ -540,8 +551,8 @@ export default function PMIDashboard() {
                                 <DialogHeader>
                                   <DialogTitle>Confirm Deletion</DialogTitle>
                                   <DialogDescription>
-                                    Are you sure you want to delete this PMI report? This
-                                    action cannot be undone.
+                                    Are you sure you want to delete this PMI report?
+                                    This action cannot be undone.
                                   </DialogDescription>
                                 </DialogHeader>
                                 <DialogFooter>
@@ -579,6 +590,16 @@ export default function PMIDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {selectedRecord && (
+        <MechanicJobDialog
+          isOpen={mechanicJobOpen}
+          onOpenChange={setMechanicJobOpen}
+          onJobAdded={() => fetchPMIData()}
+          record={selectedRecord}
+          vehicles={vehicles}
+        />
+      )}
     </div>
   );
 }

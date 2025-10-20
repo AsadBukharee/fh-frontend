@@ -3,10 +3,7 @@
 import { useState, useEffect } from "react"
 import { DashboardCard } from "@/components/dashboard-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
 import {  Calendar, Car, MapPin,  HandCoins  } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
@@ -76,7 +73,7 @@ export default function Dashboard() {
           value: dashboardData.dashboard_metrics.vehicles_onsite.toString(),
           change: 0,
           icon: <Car className="w-4 h-4 text-purple-600" />,
-          progress: (dashboardData.dashboard_metrics.vehicles_onsite / 10) * 100, // Assuming max 10 vehicles
+          progress: (dashboardData.dashboard_metrics.vehicles_onsite / 20) * 100, // Assuming max 10 vehicles
           progressColor: "bg-purple-500",
         },
         {
@@ -84,7 +81,7 @@ export default function Dashboard() {
           value: dashboardData.dashboard_metrics.daily_drivers_count.toString(),
           change: 0,
           icon: <MapPin className="w-4 h-4 text-orange-600" />,
-          progress: (dashboardData.dashboard_metrics.daily_drivers_count / 5) * 100, // Assuming max 5 drivers
+          progress: (dashboardData.dashboard_metrics.daily_drivers_count / 20) * 100, // Assuming max 5 drivers
           progressColor: "bg-orange-500",
         },
         {
@@ -92,7 +89,7 @@ export default function Dashboard() {
           value: dashboardData.dashboard_metrics.monthly_jobs_count.toString(),
           change: 0,
           icon: <Calendar className="w-4 h-4 text-red-600" />,
-          progress: (dashboardData.dashboard_metrics.monthly_jobs_count / 10) * 100, // Assuming max 10 jobs
+          progress: (dashboardData.dashboard_metrics.monthly_jobs_count / 20) * 100, // Assuming max 10 jobs
           progressColor: "bg-red-500",
         },
         {
@@ -100,7 +97,7 @@ export default function Dashboard() {
           value: `£${dashboardData.dashboard_metrics.monthly_salary_count.toLocaleString("en-GB")}`,
           change: 0,
           icon: <HandCoins  className="w-4 h-4 text-green-600" />,
-          progress: (dashboardData.dashboard_metrics.monthly_salary_count / 20) * 100, // Assuming max £20
+          progress: (dashboardData.dashboard_metrics.monthly_salary_count / 70) * 100, // Assuming max £20
           progressColor: "bg-green-500",
         },
       ]
@@ -128,42 +125,6 @@ export default function Dashboard() {
       ]
     : []
 
-  // Placeholder for recent bookings
-  const recentBookings = [
-    {
-      id: "#15654",
-      customer: "Jenny Wilson",
-      avatar: "JW",
-      car: "Honda",
-      date: "07/9/2025",
-      time: "10:30 AM",
-      amount: "£400",
-      status: "Accepted",
-    },
-    {
-      id: "#15655",
-      customer: "John Doe",
-      avatar: "JD",
-      car: "Toyota",
-      date: "08/9/2025",
-      time: "2:00 PM",
-      amount: "£350",
-      status: "Pending",
-    },
-  ]
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Accepted":
-        return "bg-green-100 text-green-700"
-      case "Pending":
-        return "bg-yellow-100 text-yellow-700"
-      case "Rejected":
-        return "bg-red-100 text-red-700"
-      default:
-        return "text-gray-700"
-    }
-  }
 
   if (loading) {
     return (

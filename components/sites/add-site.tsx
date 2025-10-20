@@ -53,6 +53,7 @@ interface StepperContentProps {
 
 interface StepperNavigationProps {
   className?: string;
+  onSubmit: (e: React.FormEvent) => void; // Added to handle form submission
 }
 
 // Stepper Context
@@ -151,11 +152,13 @@ const StepperContent: React.FC<StepperContentProps> = ({ children }) => {
 // Stepper Navigation Component
 const StepperNavigation: React.FC<StepperNavigationProps> = ({
   className,
+  onSubmit,
 }) => {
   const { currentStep, setCurrentStep, totalSteps } =
     React.useContext(StepperContext);
   const { showToast } = useToast();
   const form = useSelector((state: RootState) => state.form);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleNext = () => {
     if (currentStep === 0 && !form.name.trim()) {
@@ -173,6 +176,14 @@ const StepperNavigation: React.FC<StepperNavigationProps> = ({
     }
   };
 
+  // Handle form submission for "Add Site" button on the last step
+  const handleAddSite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    await onSubmit(e); // Call the passed onSubmit function
+    setIsSubmitting(false);
+  };
+
   return (
     <div className={cn("flex justify-between mt-6", className)}>
       <Button
@@ -186,17 +197,40 @@ const StepperNavigation: React.FC<StepperNavigationProps> = ({
         <ChevronLeft className="w-5 h-5" />
         Previous
       </Button>
-      <Button
-        variant="default"
-        size="lg"
-        onClick={handleNext}
-        disabled={currentStep === totalSteps - 1}
-        className="flex items-center bg-orange gap-2"
-        type="button"
-      >
-        Next
-        <ChevronRight className="w-5 h-5" />
-      </Button>
+      {currentStep === totalSteps - 1 ? (
+        <Button
+          variant="default"
+          size="lg"
+          onClick={handleAddSite}
+          disabled={isSubmitting || !form.name.trim()}
+          className="flex items-center bg-orange gap-2"
+          type="submit"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Adding Site...
+            </>
+          ) : (
+            <>
+              <Save className="w-5 h-5" />
+              Add Site
+            </>
+          )}
+        </Button>
+      ) : (
+        <Button
+          variant="default"
+          size="lg"
+          onClick={handleNext}
+          disabled={currentStep === totalSteps - 1}
+          className="flex items-center bg-orange gap-2"
+          type="button"
+        >
+          Next
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+      )}
     </div>
   );
 };
@@ -322,7 +356,6 @@ function AddSiteForm() {
   const token = cookies.get("access_token");
   const dispatch = useDispatch<AppDispatch>();
   const form = useSelector((state: RootState) => state.form);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isFetchingPostcode, setIsFetchingPostcode] = React.useState(false);
   const [submitSuccess, setSubmitSuccess] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
@@ -414,12 +447,21 @@ function AddSiteForm() {
     }
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    console.log(`Updating field ${name} to ${value}`);
     dispatch(updateField({ [name]: value }));
+
+    if (name === "contact_email" && value && !REGEX.email.test(value)) {
+      showToast("Invalid email format", "error");
+    }
+
+    if (name === "contact_phone" && value && !REGEX.phone.test(value)) {
+      showToast("Invalid phone number", "error");
+    }
+
+    if (name === "postcode" && value && !REGEX.postcode.test(value)) {
+      showToast("Invalid postcode format", "error");
+    }
   };
 
   const handleImageUpload = (url: string) => {
@@ -438,6 +480,12 @@ function AddSiteForm() {
     dispatch(toggle24Hour());
   };
 
+  const REGEX = {
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    phone: /^\+?[0-9]{7,15}$/,
+    postcode: /^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i,
+  };
+
   const handleClose = () => {
     setSubmitSuccess(false);
     setSubmitError(null);
@@ -447,7 +495,26 @@ function AddSiteForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    if (!form.name.trim()) {
+      showToast("Site name is required.", "error");
+      return;
+    }
+
+    if (form.contact_email && !REGEX.email.test(form.contact_email)) {
+      showToast("Enter a valid email address.", "error");
+      return;
+    }
+
+    if (form.contact_phone && !REGEX.phone.test(form.contact_phone)) {
+      showToast("Enter a valid phone number.", "error");
+      return;
+    }
+
+    if (form.postcode && !REGEX.postcode.test(form.postcode)) {
+      showToast("Enter a valid UK postcode.", "error");
+      return;
+    }
+
     setSubmitError(null);
 
     const payload = {
@@ -579,8 +646,6 @@ function AddSiteForm() {
       setSubmitError(errorMessage);
       showToast(errorMessage, "error");
       console.error("Error submitting form:", error);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -727,34 +792,6 @@ function AddSiteForm() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* <div className="space-y-2">
-                    <Label htmlFor="latitude" className="text-sm font-medium">
-                      Latitude
-                    </Label>
-                    <Input
-                      id="latitude"
-                      name="latitude"
-                      value={form.latitude}
-                      onChange={handleChange}
-                      placeholder="51.9731"
-                      type="text"
-                      className="h-11"
-                    />
-                  </div> */}
-                  {/* <div className="space-y-2">
-                    <Label htmlFor="longitude" className="text-sm font-medium">
-                      Longitude
-                    </Label>
-                    <Input
-                      id="longitude"
-                      name="longitude"
-                      value={form.longitude}
-                      onChange={handleChange}
-                      placeholder="0.4831"
-                      type="text"
-                      className="h-11"
-                    />
-                  </div> */}
                   <div className="space-y-2">
                     <Label htmlFor="radius_m" className="text-sm font-medium">
                       Radius (meters)
@@ -851,7 +888,7 @@ function AddSiteForm() {
                     <Input
                       id="contact_phone"
                       name="contact_phone"
-                      type="tel"
+                      type="number"
                       value={form.contact_phone}
                       onChange={handleChange}
                       placeholder="+44 938747 8383"
@@ -1045,29 +1082,11 @@ function AddSiteForm() {
                     className="resize-none"
                   />
                 </div>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !form.name.trim()}
-                  className="min-w-[160px] h-12 text-base font-medium"
-                  size="lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Adding Site...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-5 w-5" />
-                      Add Site
-                    </>
-                  )}
-                </Button>
               </CardContent>
             </Card>
           </StepperContent>
 
-          <StepperNavigation className="pt-8" />
+          <StepperNavigation className="pt-8" onSubmit={handleSubmit} />
         </form>
       </Stepper>
     </div>

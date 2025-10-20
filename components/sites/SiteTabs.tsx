@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, MapPin, Truck, Users, MoveUpRight, RefreshCcw } from "lucide-react";
 import GradientButton from "@/app/utils/GradientButton";
@@ -18,7 +20,6 @@ import {
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useToast } from "@/app/Context/ToastContext";
-
 import ExportButton from "@/app/utils/ExportButton";
 
 // Define interfaces
@@ -49,7 +50,7 @@ interface Site {
   id: number;
   name: string;
   image: string | null;
-  status:string;
+  status: string;
   notes: string | null;
   postcode: string;
   address: string;
@@ -79,6 +80,11 @@ export default function SiteGrid() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [shiftFilter, setShiftFilter] = useState<string>("all");
   const [vehicleFilter, setVehicleFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [siteNameFilter, setSiteNameFilter] = useState<string>("all");
+  const [contactPositionFilter, setContactPositionFilter] = useState<string>("all");
+  const [contactNameFilter, setContactNameFilter] = useState<string>("all");
+  const [activeStatusFilter, setActiveStatusFilter] = useState<string>("all");
   const cookies = useCookies();
   const token = cookies.get("access_token");
   const { showToast } = useToast();
@@ -109,7 +115,7 @@ export default function SiteGrid() {
       const data: Site[] = await response.json();
       console.log("Fetched sites:", data);
       setSites([...data]);
-      setFilteredSites([...data]); // Initialize filtered sites
+      setFilteredSites([...data]);
       showToast("Sites refreshed successfully", "success");
     } catch (err: unknown) {
       console.error("Fetch error:", err);
@@ -121,9 +127,24 @@ export default function SiteGrid() {
     }
   };
 
+  // Get unique values for filter dropdowns
+  const uniqueSiteNames = Array.from(new Set(sites.map(site => site.name))).sort();
+  const uniqueContactPositions = Array.from(new Set(sites.map(site => site.contact_position || "N/A"))).sort();
+  const uniqueContactNames = Array.from(new Set(sites.map(site => site.created_by || "N/A"))).sort();
+
   // Apply filters whenever filter states or sites change
   useEffect(() => {
     let filtered = [...sites];
+
+    // Filter by search query
+    if (searchQuery) {
+      filtered = filtered.filter((site) =>
+        [site.name, site.address, site.postcode]
+          .join(" ")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
+      );
+    }
 
     // Filter by status
     if (statusFilter !== "all") {
@@ -149,8 +170,34 @@ export default function SiteGrid() {
       }
     }
 
+    // Filter by site name
+    if (siteNameFilter !== "all") {
+      filtered = filtered.filter((site) => site.name === siteNameFilter);
+    }
+
+    // Filter by contact position
+    if (contactPositionFilter !== "all") {
+      filtered = filtered.filter((site) => 
+        (site.contact_position || "N/A") === contactPositionFilter
+      );
+    }
+
+    // Filter by contact name (created_by)
+    if (contactNameFilter !== "all") {
+      filtered = filtered.filter((site) => 
+        (site.created_by || "N/A") === contactNameFilter
+      );
+    }
+
+    // Filter by active status
+    if (activeStatusFilter !== "all") {
+      filtered = filtered.filter((site) => 
+        site.status.toLowerCase() === activeStatusFilter.toLowerCase()
+      );
+    }
+
     setFilteredSites(filtered);
-  }, [sites, statusFilter, shiftFilter, vehicleFilter]);
+  }, [sites, statusFilter, shiftFilter, vehicleFilter, searchQuery, siteNameFilter, contactPositionFilter, contactNameFilter, activeStatusFilter]);
 
   useEffect(() => {
     fetchSites();
@@ -185,36 +232,98 @@ export default function SiteGrid() {
   return (
     <TooltipProvider>
       <section className="p-8 bg-white min-h-screen">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Sites</h1>
-            <p className="text-sm text-gray-500">Browse all available sites</p>
-          </div>
-          <div className="flex gap-4 items-center">
-            <ExportButton data={sites} fileName="Site_data"/>
-            <button
-              type="button"
-              disabled={loading}
-              className={`p-2 ${loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-              onClick={fetchSites}
-            >
-              <RefreshCcw className={`w-4 h-4 text-gray-500 ${loading ? "animate-spin" : ""}`} />
-            </button>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <GradientButton text="Add Site" Icon={Plus} />
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[500px] overflow-y-auto p-6 bg-white rounded-lg">
-                <DialogHeader>
-                  <DialogTitle className="text-lg font-semibold">Add New Site</DialogTitle>
-                </DialogHeader>
-                <AddSiteForm />
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
+     <div className="flex flex-col gap-6 mb-8">
+  {/* Header */}
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">Sites</h1>
+      <p className="text-sm text-muted-foreground">Browse and manage all available sites</p>
+    </div>
 
-   
+    <div className="flex gap-2 items-center">
+      <button
+        type="button"
+        disabled={loading}
+        onClick={fetchSites}
+        className="p-2 rounded-md hover:bg-muted transition-colors"
+      >
+        <RefreshCcw className={`w-4 h-4 text-gray-500 ${loading ? "animate-spin" : ""}`} />
+      </button>
+
+      <ExportButton data={sites} fileName="Site_data" />
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <GradientButton text="Add Site" Icon={Plus} />
+        </DialogTrigger>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto p-6 rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Add New Site</DialogTitle>
+          </DialogHeader>
+          <AddSiteForm />
+        </DialogContent>
+      </Dialog>
+    </div>
+  </div>
+
+  {/* Filters */}
+  <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+    <Input
+      placeholder="Search by name, address, or postcode..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      className="w-full sm:max-w-xs"
+    />
+
+    <Select value={siteNameFilter} onValueChange={setSiteNameFilter}>
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="Site Name" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Site Names</SelectItem>
+        {uniqueSiteNames.map((name) => (
+          <SelectItem key={name} value={name}>{name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+    <Select value={contactPositionFilter} onValueChange={setContactPositionFilter}>
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="Contact Position" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Positions</SelectItem>
+        {uniqueContactPositions.map((pos) => (
+          <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+    <Select value={contactNameFilter} onValueChange={setContactNameFilter}>
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="Contact Name" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Names</SelectItem>
+        {uniqueContactNames.map((n) => (
+          <SelectItem key={n} value={n}>{n}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+    <Select value={activeStatusFilter} onValueChange={setActiveStatusFilter}>
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="Active Status" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Statuses</SelectItem>
+        <SelectItem value="active">Active</SelectItem>
+        <SelectItem value="inactive">Inactive</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+</div>
+
 
         <div className="flex justify-evenly items-center flex-wrap gap-6">
           {filteredSites.map((site) => (

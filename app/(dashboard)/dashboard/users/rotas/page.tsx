@@ -38,6 +38,12 @@ export default function Rota() {
           >
             Change Shift Requests
           </TabsTrigger>
+               <TabsTrigger
+            value="child3"
+            className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 "
+          >
+           Report
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="parent">
@@ -47,6 +53,9 @@ export default function Rota() {
           <ShiftTable year={currentYear} month={currentMonth} />
         </TabsContent>
         <TabsContent value="child2">
+          <ChangeShifts/>
+        </TabsContent>
+             <TabsContent value="child3">
           <ChangeShifts/>
         </TabsContent>
       </Tabs>
