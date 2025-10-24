@@ -85,7 +85,7 @@ const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<
       ref={ref}
       className={cn(
         "p-4 align-middle text-center border border-gray-300",
-        "odd:bg-[#FFF4F4]/40 even:bg-white",
+        "odd:bg-[#FFF4F4] even:bg-white",
         className,
       )}
       {...props}

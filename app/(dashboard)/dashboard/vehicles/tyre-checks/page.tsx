@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, FC } from "react";
@@ -50,7 +49,7 @@ import { cn } from "@/lib/utils";
 import { useCookies } from "next-client-cookies";
 import API_URL from "@/app/utils/ENV";
 
-// Placeholder for AddTyreCheckDialog (to be replaced with actual implementation)
+// Placeholder for AddTyreCheckDialog
 interface AddTyreCheckDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -88,6 +87,7 @@ const AddTyreCheckDialog: FC<AddTyreCheckDialogProps> = ({
       vehicles: formData.vehicles || 0,
       vehicle_type: vehicles.find((v) => v.id === formData.vehicles)?.vehicles_type.id || 0,
       assignee: null,
+      assignee_name: null,
       registration_number: vehicles.find((v) => v.id === formData.vehicles)?.registration_number || "",
     };
     onAdd(newTyreCheck);
@@ -194,6 +194,7 @@ interface TyreCheckRow {
   vehicles: number;
   vehicle_type: number;
   assignee: number | null;
+  assignee_name: string | null;
   registration_number: string;
 }
 
@@ -218,7 +219,7 @@ interface Vehicle {
   tyre_expiry_rear_outer_driver: string | null;
   tyre_expiry_rear_outer_passenger: string | null;
   vehicles_type: { id: number; name: string };
-  assignee_driver: { id: number } | null;
+  assignee_driver: { id: number; name: string } | null;
   last_tyre_maintenance_check: string | null;
 }
 
@@ -476,6 +477,10 @@ const TyreCheck: FC = () => {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [selectedVehicle, setSelectedVehicle] = useState<string>("");
+  const [selectedChecker, setSelectedChecker] = useState<string>("");
+  const [selectedCheckType, setSelectedCheckType] = useState<string>("");
+  const [selectedTyreType, setSelectedTyreType] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [rowsPerPage] = useState<number>(10);
   const [loading, setLoading] = useState<boolean>(false);
@@ -534,44 +539,42 @@ const TyreCheck: FC = () => {
         throw new Error("Invalid API response format");
       }
       setVehicles(apiResponse.data);
-      const transformedData: TyreCheckRow[] = apiResponse.data.map((vehicle) => {
-        const row = {
-          id: vehicle.id,
-          tyre_check_date: vehicle.last_tyre_maintenance_check || new Date().toISOString().split("T")[0],
-          depth: {
-            front_driver: vehicle.tyre_depth_front_driver,
-            front_passenger: vehicle.tyre_depth_front_passenger,
-            rear_outer_driver: vehicle.tyre_depth_rear_outer_driver,
-            rear_outer_passenger: vehicle.tyre_depth_rear_outer_passenger,
-          },
-          torque: {
-            front_driver: vehicle.tyre_torque_front_driver,
-            front_passenger: vehicle.tyre_torque_front_passenger,
-            rear_outer_driver: vehicle.tyre_torque_rear_outer_driver,
-            rear_outer_passenger: vehicle.tyre_torque_rear_outer_passenger,
-          },
-          check_date: {
-            front_driver: vehicle.tyre_expiry_front_driver,
-            front_passenger: vehicle.tyre_expiry_front_passenger,
-            rear_outer_driver: vehicle.tyre_expiry_rear_outer_driver,
-            rear_outer_passenger: vehicle.tyre_expiry_rear_outer_passenger,
-          },
-          pressure: {
-            front_driver: vehicle.tyre_pressure_front_driver,
-            front_passenger: vehicle.tyre_pressure_front_passenger,
-            rear_outer_driver: vehicle.tyre_pressure_rear_outer_driver,
-            rear_outer_passenger: vehicle.tyre_pressure_rear_outer_passenger,
-          },
-          physical_document: null, // Map to an appropriate field if available
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          vehicles: vehicle.id,
-          vehicle_type: vehicle.vehicles_type.id,
-          assignee: vehicle.assignee_driver?.id || null,
-          registration_number: vehicle.registration_number,
-        };
-        return row;
-      });
+      const transformedData: TyreCheckRow[] = apiResponse.data.map((vehicle) => ({
+        id: vehicle.id,
+        tyre_check_date: vehicle.last_tyre_maintenance_check || new Date().toISOString().split("T")[0],
+        depth: {
+          front_driver: vehicle.tyre_depth_front_driver,
+          front_passenger: vehicle.tyre_depth_front_passenger,
+          rear_outer_driver: vehicle.tyre_depth_rear_outer_driver,
+          rear_outer_passenger: vehicle.tyre_depth_rear_outer_passenger,
+        },
+        torque: {
+          front_driver: vehicle.tyre_torque_front_driver,
+          front_passenger: vehicle.tyre_torque_front_passenger,
+          rear_outer_driver: vehicle.tyre_torque_rear_outer_driver,
+          rear_outer_passenger: vehicle.tyre_torque_rear_outer_passenger,
+        },
+        check_date: {
+          front_driver: vehicle.tyre_expiry_front_driver,
+          front_passenger: vehicle.tyre_expiry_front_passenger,
+          rear_outer_driver: vehicle.tyre_expiry_rear_outer_driver,
+          rear_outer_passenger: vehicle.tyre_expiry_rear_outer_passenger,
+        },
+        pressure: {
+          front_driver: vehicle.tyre_pressure_front_driver,
+          front_passenger: vehicle.tyre_pressure_front_passenger,
+          rear_outer_driver: vehicle.tyre_pressure_rear_outer_driver,
+          rear_outer_passenger: vehicle.tyre_pressure_rear_outer_passenger,
+        },
+        physical_document: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        vehicles: vehicle.id,
+        vehicle_type: vehicle.vehicles_type.id,
+        assignee: vehicle.assignee_driver?.id || null,
+        assignee_name: vehicle.assignee_driver?.name || null,
+        registration_number: vehicle.registration_number,
+      }));
       console.log("Transformed tyre data:", transformedData);
       safeSetTyreData(transformedData);
     } catch (error) {
@@ -639,6 +642,7 @@ const TyreCheck: FC = () => {
       vehicles: row.vehicles,
       vehicle_type: row.vehicle_type,
       assignee: row.assignee,
+      assignee_name: row.assignee_name,
       registration_number: row.registration_number,
     });
     setIsEditing(true);
@@ -727,37 +731,67 @@ const TyreCheck: FC = () => {
       console.log("tyreData is not an array:", tyreData);
       return [];
     }
-    const filtered = tyreData.filter((item) => {
+    return tyreData.filter((item) => {
       const matchesSearchTerm =
         (item.tyre_check_date || "").includes(searchTerm) ||
         (item.registration_number || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(item.vehicles || "").includes(searchTerm) ||
-        String(item.assignee || "").toLowerCase().includes(searchTerm.toLowerCase());
-      
+        (item.assignee_name || "").toLowerCase().includes(searchTerm.toLowerCase());
+
       const matchesDateRange =
         (!startDate || new Date(item.tyre_check_date || new Date()).getTime() >= new Date(startDate).getTime()) &&
         (!endDate || new Date(item.tyre_check_date || new Date()).getTime() <= new Date(endDate).getTime());
-      
+
       const matchesVehicle = selectedVehicle === "" || String(item.vehicles) === selectedVehicle;
 
-      console.log(`Item ${item.id}:`, {
-        matchesSearchTerm,
-        matchesDateRange,
-        matchesVehicle,
-        tyre_check_date: item.tyre_check_date,
-        registration_number: item.registration_number,
-        vehicles: item.vehicles,
-        selectedVehicle,
-        searchTerm,
-        startDate,
-        endDate,
-      });
+      const matchesChecker = selectedChecker === "" || item.assignee_name === selectedChecker;
 
-      return matchesSearchTerm && matchesDateRange && matchesVehicle;
+      const matchesCheckType =
+        selectedCheckType === "" ||
+        (selectedCheckType === "depth" && Object.values(item.depth).some((v) => v != null)) ||
+        (selectedCheckType === "pressure" && Object.values(item.pressure).some((v) => v != null)) ||
+        (selectedCheckType === "torque" && Object.values(item.torque).some((v) => v != null)) ||
+        (selectedCheckType === "check_date" && Object.values(item.check_date).some((v) => v != null));
+
+      const matchesTyreType =
+        selectedTyreType === "" ||
+        vehicles.find((v) => v.id === item.vehicles)?.vehicles_type.name === selectedTyreType;
+
+      const matchesStatus =
+        selectedStatus === "" ||
+        ["depth", "pressure", "torque"].some((field) =>
+          Object.values(item[field as keyof TyreCheckRow] as TyreData).some((value) => {
+            const colorClass = getSafetyColor(value, field as keyof TyreCheckRow);
+            return (
+              (selectedStatus === "green" && colorClass.includes("green")) ||
+              (selectedStatus === "red" && colorClass.includes("red")) ||
+              (selectedStatus === "orange" && colorClass.includes("orange"))
+            );
+          })
+        );
+
+      return (
+        matchesSearchTerm &&
+        matchesDateRange &&
+        matchesVehicle &&
+        matchesChecker &&
+        matchesCheckType &&
+        matchesTyreType &&
+        matchesStatus
+      );
     });
-    console.log("Filtered data length:", filtered.length);
-    return filtered;
-  }, [tyreData, searchTerm, startDate, endDate, selectedVehicle]);
+  }, [
+    tyreData,
+    searchTerm,
+    startDate,
+    endDate,
+    selectedVehicle,
+    selectedChecker,
+    selectedCheckType,
+    selectedTyreType,
+    selectedStatus,
+    vehicles,
+  ]);
 
   const handleSort = (key: keyof TyreCheckRow) => {
     setSortConfig((prev) => ({
@@ -779,14 +813,12 @@ const TyreCheck: FC = () => {
     });
   }, [filteredData, sortConfig]);
 
-  const tyreColumns = useMemo(() => {
-    return [
-      "front_driver",
-      "front_passenger",
-      "rear_outer_driver",
-      "rear_outer_passenger",
-    ];
-  }, []);
+  const tyreColumns = useMemo(() => [
+    "front_driver",
+    "front_passenger",
+    "rear_outer_driver",
+    "rear_outer_passenger",
+  ], []);
 
   // Pagination
   const totalPages = Math.ceil(sortedData.length / rowsPerPage);
@@ -838,11 +870,11 @@ const TyreCheck: FC = () => {
                 key={tab.label}
                 onClick={() => setActiveTab(tab.label)}
                 className={cn(
-  "relative flex items-center h-[30px] gap-2 px-10 py-4 text-xs font-medium whitespace-nowrap justify-start transition-colors clip-tab",
-  activeTab === tab.label
-    ? "bg-orange-500 text-white border-b-2 border-orange-500"
-    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-)}
+                  "relative flex items-center h-[30px] gap-2 px-10 py-4 text-xs font-medium whitespace-nowrap justify-start transition-colors clip-tab",
+                  activeTab === tab.label
+                    ? "bg-orange-500 text-white border-b-2 border-orange-500"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
               >
                 <Icon size={16} />
                 {tab.label}
@@ -893,21 +925,79 @@ const TyreCheck: FC = () => {
                 </div>
                 <Select
                   value={selectedVehicle}
-                  onValueChange={(value) => {
-                    console.log("Selected vehicle:", value);
-                    setSelectedVehicle(value);
-                  }}
+                  onValueChange={setSelectedVehicle}
                 >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Select Vehicle" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value=" ">All Vehicles</SelectItem>
+                    <SelectItem value="all">All Vehicles</SelectItem>
                     {vehicles.map((vehicle) => (
                       <SelectItem key={vehicle.id} value={String(vehicle.id)}>
                         {vehicle.registration_number}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={selectedChecker}
+                  onValueChange={setSelectedChecker}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Checker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Checkers</SelectItem>
+                    {[...new Set(vehicles.map((v) => v.assignee_driver?.name).filter(Boolean))].map((name) => (
+                      <SelectItem key={name} value={name!}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={selectedCheckType}
+                  onValueChange={setSelectedCheckType}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Check Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Check Types</SelectItem>
+                    <SelectItem value="depth">Tyre Depth</SelectItem>
+                    <SelectItem value="pressure">Tyre Pressure</SelectItem>
+                    <SelectItem value="torque">Tyre Torque</SelectItem>
+                    <SelectItem value="check_date">Tyre Dates</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={selectedTyreType}
+                  onValueChange={setSelectedTyreType}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Tyre Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tyre Types</SelectItem>
+                    {[...new Set(vehicles.map((v) => v.vehicles_type.name))].map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={selectedStatus}
+                  onValueChange={setSelectedStatus}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="green">Green (Safe)</SelectItem>
+                    <SelectItem value="red">Red (Unsafe)</SelectItem>
+                    <SelectItem value="orange">Orange (Warning)</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
@@ -917,6 +1007,10 @@ const TyreCheck: FC = () => {
                     setStartDate("");
                     setEndDate("");
                     setSelectedVehicle("");
+                    setSelectedChecker("");
+                    setSelectedCheckType("");
+                    setSelectedTyreType("");
+                    setSelectedStatus("");
                   }}
                 >
                   Clear Filters
@@ -1431,12 +1525,12 @@ const TyreCheck: FC = () => {
                           Assignee
                         </label>
                         <Input
-                          type="number"
-                          value={editForm.assignee || ""}
+                          type="text"
+                          value={editForm.assignee_name || ""}
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
-                              assignee: e.target.value ? Number(e.target.value) : null,
+                              assignee_name: e.target.value || null,
                             })
                           }
                           className="w-full"
@@ -1560,7 +1654,7 @@ const TyreCheck: FC = () => {
                           Assignee
                         </label>
                         <div className="text-sm text-gray-900">
-                          {selectedRow.assignee || "N/A"}
+                          {selectedRow.assignee_name || "N/A"}
                         </div>
                       </div>
                     </div>
@@ -1679,6 +1773,7 @@ const TyreCheck: FC = () => {
                             vehicles: selectedRow.vehicles,
                             vehicle_type: selectedRow.vehicle_type,
                             assignee: selectedRow.assignee,
+                            assignee_name: selectedRow.assignee_name,
                             registration_number: selectedRow.registration_number,
                           });
                         }}

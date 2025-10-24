@@ -1,6 +1,6 @@
 "use client"
 import * as React from "react"
-import { Stepper, StepperTabs, StepperContent, StepperNavigation } from "@/components/ui/stepper"
+import { Stepper, StepperTabs, StepperContent } from "@/components/ui/stepper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -8,20 +8,21 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Car, AlertCircle } from "lucide-react"
+import { Loader2, Car, AlertCircle, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
-import FileUploader from "../Media/MediaUpload"
 import { configureStore, createSlice, type PayloadAction } from "@reduxjs/toolkit"
 import { Provider, useDispatch, useSelector } from "react-redux"
 import { Textarea } from "@/components/ui/textarea"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useStepper } from "@/components/ui/stepper"
+import FileUploader from "../Media/MediaUpload"
 
 // Define interfaces
 interface Site {
@@ -43,7 +44,7 @@ interface VehicleFormData {
   registration_number: string
   make: string
   model: string
-  vehicles_type: number // Changed to number to store ID
+  vehicles_type: number
   number_of_seats: number | null
   current_mileage: number | null
   mileage_unit: "kms" | "miles"
@@ -111,7 +112,7 @@ const initialState: VehicleState = {
     registration_number: "",
     make: "",
     model: "",
-    vehicles_type: 0, // Initialize with 0
+    vehicles_type: 0,
     number_of_seats: null,
     current_mileage: null,
     mileage_unit: "miles",
@@ -171,7 +172,6 @@ const initialState: VehicleState = {
   validationErrors: {},
 }
 
-// Create Redux slice
 const vehicleSlice = createSlice({
   name: "vehicle",
   initialState,
@@ -211,7 +211,6 @@ const vehicleSlice = createSlice({
   },
 })
 
-// Export actions
 export const {
   setFormData,
   setSites,
@@ -225,14 +224,12 @@ export const {
   resetForm,
 } = vehicleSlice.actions
 
-// Create store
 const store = configureStore({
   reducer: {
     vehicle: vehicleSlice.reducer,
   },
 })
 
-// Define RootState and AppDispatch types
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
 
@@ -244,7 +241,6 @@ const validateTyreExpiry = (value: string): string | null => {
     return "Must be exactly 4 digits in WWYY format (e.g., '0124')"
   }
   const week = Number.parseInt(value.substring(0, 2))
-  const year = Number.parseInt(value.substring(2, 4))
   if (week < 1 || week > 53) {
     return "Week must be between 01 and 53"
   }
@@ -255,10 +251,7 @@ const validateRegistrationNumber = (value: string): string | null => {
   if (!value.trim()) {
     return "Registration number is required"
   }
-  const pattern = /^[A-Z0-9\s-]{1,8}$/
-  if (!pattern.test(value)) {
-    return "Invalid registration number format (max 8 characters, letters, numbers, spaces, or hyphens)"
-  }
+
   return null
 }
 
@@ -276,7 +269,7 @@ const validateRequiredNumber = (value: number | null, fieldName: string): string
   return null
 }
 
-const validatePositiveNumber = (value: number | null, fieldName: string, min: number = 0): string | null => {
+const validatePositiveNumber = (value: number | null, fieldName: string, min = 0): string | null => {
   if (value === null || isNaN(value)) {
     return `${fieldName} is required`
   }
@@ -289,20 +282,6 @@ const validatePositiveNumber = (value: number | null, fieldName: string, min: nu
 const validateRequiredArray = (value: number[], fieldName: string): string | null => {
   if (value.length === 0) {
     return `${fieldName} is required`
-  }
-  return null
-}
-
-const validateUploadIfDateSet = (date: Date | null, upload: string, fieldName: string): string | null => {
-  if (date && !upload) {
-    return `Upload required for ${fieldName}`
-  }
-  return null
-}
-
-const validateDate = (date: Date | null, fieldName: string): string | null => {
-  if (date && isNaN(date.getTime())) {
-    return `Invalid ${fieldName} date`
   }
   return null
 }
@@ -340,11 +319,13 @@ function MultiSelect({
   selected,
   onChange,
   placeholder,
+  error,
 }: {
   options: Site[]
   selected: number[]
   onChange: (value: number[]) => void
   placeholder: string
+  error?: boolean
 }) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
@@ -358,7 +339,7 @@ function MultiSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between bg-transparent"
+          className={cn("w-full justify-between", error && "border-red-500")}
         >
           {selected.length > 0 ? `${selected.length} site${selected.length > 1 ? "s" : ""} selected` : placeholder}
           <span className="ml-auto h-4 w-4 shrink-0 opacity-50">▼</span>
@@ -390,22 +371,14 @@ function MultiSelect({
 }
 
 // Vehicle form component
-function AddVehicleStepper() {
+function AddVehicleStepperForm() {
   const dispatch = useDispatch<AppDispatch>()
-  const {
-    formData,
-    sites,
-    vehicleTypes,
-    sitesLoading,
-    vehicleTypesLoading,
-    submitLoading,
-    activeStep,
-    validationErrors,
-  } = useSelector((state: RootState) => state.vehicle)
+  const { formData, sites, vehicleTypes, sitesLoading, vehicleTypesLoading, submitLoading, validationErrors } =
+    useSelector((state: RootState) => state.vehicle)
   const cookies = useCookies()
 
+  const { currentStep, goToNextStep, goToPreviousStep } = useStepper()
 
-  // Handle file upload success
   const handleFileUploadSuccess = (field: keyof VehicleFormData) => (url: string) => {
     dispatch(setFormData({ [field]: url }))
     if (validationErrors[`${field}`]) {
@@ -413,7 +386,6 @@ function AddVehicleStepper() {
     }
   }
 
-  // Fetch sites and vehicle types on mount
   React.useEffect(() => {
     const fetchSites = async () => {
       dispatch(setSitesLoading(true))
@@ -429,15 +401,11 @@ function AddVehicleStepper() {
         if (data.success) {
           dispatch(setSites(data.data))
         } else {
-          toast.error("Failed to load sites.", {
-            description: "Please try again later.",
-          })
+          toast.error("Failed to load sites.")
         }
       } catch (error) {
         console.error("Error fetching sites:", error)
-        toast.error("An error occurred while fetching sites.", {
-          description: "Please check your connection and try again.",
-        })
+        toast.error("An error occurred while fetching sites.")
       } finally {
         dispatch(setSitesLoading(false))
       }
@@ -457,15 +425,11 @@ function AddVehicleStepper() {
         if (data.success) {
           dispatch(setVehicleTypes(data.data))
         } else {
-          toast.error("Failed to load vehicle types.", {
-            description: "Please try again later.",
-          })
+          toast.error("Failed to load vehicle types.")
         }
       } catch (error) {
         console.error("Error fetching vehicle types:", error)
-        toast.error("An error occurred while fetching vehicle types.", {
-          description: "Please check your connection and try again.",
-        })
+        toast.error("An error occurred while fetching vehicle types.")
       } finally {
         dispatch(setVehicleTypesLoading(false))
       }
@@ -475,7 +439,6 @@ function AddVehicleStepper() {
     fetchVehicleTypes()
   }, [cookies, dispatch])
 
-  // Handle input changes with validation
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
     const newValue = type === "checkbox" ? checked : value
@@ -485,7 +448,6 @@ function AddVehicleStepper() {
     }
   }
 
-  // Handle date input changes
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     dispatch(setFormData({ [name]: value ? new Date(value) : null }))
@@ -494,7 +456,6 @@ function AddVehicleStepper() {
     }
   }
 
-  // Handle tyre expiry input changes
   const handleTyreExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     const sanitizedValue = value.replace(/\D/g, "").slice(0, 4)
@@ -510,7 +471,6 @@ function AddVehicleStepper() {
     }
   }
 
-  // Handle select changes
   const handleSelectChange = (name: string, value: string) => {
     dispatch(setFormData({ [name]: name === "vehicles_type" ? Number(value) : value }))
     if (validationErrors[name]) {
@@ -518,7 +478,6 @@ function AddVehicleStepper() {
     }
   }
 
-  // Handle number input changes
   const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     dispatch(setFormData({ [name]: value ? Number.parseFloat(value) : null }))
@@ -527,7 +486,6 @@ function AddVehicleStepper() {
     }
   }
 
-  // Handle multi select change
   const handleMultiSelectChange = (name: string, values: number[]) => {
     dispatch(setFormData({ [name]: values }))
     if (validationErrors[name]) {
@@ -535,13 +493,13 @@ function AddVehicleStepper() {
     }
   }
 
-  // Validate current step
   const validateCurrentStep = (): boolean => {
     const errors: ValidationErrors = {}
 
-    if (activeStep === 0) {
-      // Vehicle Type Details
-    
+    if (currentStep === 0) {
+      const regError = validateRegistrationNumber(formData.registration_number)
+      if (regError) errors.registration_number = regError
+
       const makeError = validateRequiredString(formData.make, "Make")
       if (makeError) errors.make = makeError
 
@@ -553,112 +511,9 @@ function AddVehicleStepper() {
 
       const sitesError = validateRequiredArray(formData.site_allocated_ids, "Allocated Site(s)")
       if (sitesError) errors.site_allocated_ids = sitesError
-
-      if (formData.number_of_seats !== null) {
-        const seatsError = validatePositiveNumber(formData.number_of_seats, "Number of Seats", 1)
-        if (seatsError) errors.number_of_seats = seatsError
-      }
-
-      if (formData.current_mileage !== null) {
-        const mileageError = validatePositiveNumber(formData.current_mileage, "Current Mileage")
-        if (mileageError) errors.current_mileage = mileageError
-      }
     }
 
-    if (activeStep === 1) {
-      // Vehicle Purchase Details
-      const purchaseDateError = validateDate(formData.date_of_purchase, "Date of Purchase")
-      if (purchaseDateError) errors.date_of_purchase = purchaseDateError
-
-      if (formData.purchased_from) {
-        const purchasedFromError = validateRequiredString(formData.purchased_from, "Purchased From")
-        if (purchasedFromError) errors.purchased_from = purchasedFromError
-      }
-
-      if (formData.purchased_by) {
-        const purchasedByError = validateRequiredString(formData.purchased_by, "Purchased By")
-        if (purchasedByError) errors.purchased_by = purchasedByError
-      }
-
-      if (formData.price !== null) {
-        const priceError = validatePositiveNumber(formData.price, "Price")
-        if (priceError) errors.price = priceError
-      }
-
-      if (formData.has_vat && formData.vat_amount !== null) {
-        const vatError = validatePositiveNumber(formData.vat_amount, "VAT Amount")
-        if (vatError) errors.vat_amount = vatError
-      }
-    }
-
-    if (activeStep === 2) {
-      // Vehicle Expiry Dates
-      const pmiDateError = validateDate(formData.last_pmi_date, "Last PMI Date")
-      if (pmiDateError) errors.last_pmi_date = pmiDateError
-
-      const pmiUploadError = validateUploadIfDateSet(formData.last_pmi_date, formData.pmi_upload, "PMI")
-      if (pmiUploadError) errors.pmi_upload = pmiUploadError
-
-      if (formData.pmi_inspection_cycle !== null) {
-        const cycleError = validatePositiveNumber(formData.pmi_inspection_cycle, "PMI Inspection Cycle", 1)
-        if (cycleError) errors.pmi_inspection_cycle = cycleError
-      }
-
-      const motDateError = validateDate(formData.mot_expiry, "MOT Expiry")
-      if (motDateError) errors.mot_expiry = motDateError
-
-      const motUploadError = validateUploadIfDateSet(formData.mot_expiry, formData.mot_upload, "MOT")
-      if (motUploadError) errors.mot_upload = motUploadError
-
-      const insuranceDateError = validateDate(formData.insurance_expiry, "Insurance Expiry")
-      if (insuranceDateError) errors.insurance_expiry = insuranceDateError
-
-      const insuranceUploadError = validateUploadIfDateSet(formData.insurance_expiry, formData.insurance_upload, "Insurance")
-      if (insuranceUploadError) errors.insurance_upload = insuranceUploadError
-
-      const taxDateError = validateDate(formData.tax_expiry, "Tax Expiry")
-      if (taxDateError) errors.tax_expiry = taxDateError
-
-      const taxUploadError = validateUploadIfDateSet(formData.tax_expiry, formData.tax_upload, "Tax")
-      if (taxUploadError) errors.tax_upload = taxUploadError
-
-      if (formData.tacho_fitted) {
-        const tachoCalDateError = validateDate(formData.tacho_calibration_expiry, "Tacho Calibration Expiry")
-        if (tachoCalDateError) errors.tacho_calibration_expiry = tachoCalDateError
-
-        const tachoCalUploadError = validateUploadIfDateSet(
-          formData.tacho_calibration_expiry,
-          formData.tacho_calibration_upload,
-          "Tacho Calibration",
-        )
-        if (tachoCalUploadError) errors.tacho_calibration_upload = tachoCalUploadError
-
-        const tachoDownDateError = validateDate(formData.last_tacho_download, "Last Tacho Download")
-        if (tachoDownDateError) errors.last_tacho_download = tachoDownDateError
-
-        const tachoDownUploadError = validateUploadIfDateSet(
-          formData.last_tacho_download,
-          formData.tacho_download_upload,
-          "Tacho Download",
-        )
-        if (tachoDownUploadError) errors.tacho_download_upload = tachoDownUploadError
-      }
-
-      if (formData.wheelchair_lift_fitted) {
-        const lollerDateError = validateDate(formData.loller_calibration_expiry, "Loller Calibration Expiry")
-        if (lollerDateError) errors.loller_calibration_expiry = lollerDateError
-
-        const lollerUploadError = validateUploadIfDateSet(
-          formData.loller_calibration_expiry,
-          formData.loller_upload,
-          "Loller Calibration",
-        )
-        if (lollerUploadError) errors.loller_upload = lollerUploadError
-      }
-    }
-
-    if (activeStep === 3) {
-      // Tyre Checks
+    if (currentStep === 3) {
       const tyreExpiryFields = [
         "tyre_expiry_front_driver",
         "tyre_expiry_front_passenger",
@@ -712,18 +567,6 @@ function AddVehicleStepper() {
     return Object.keys(errors).length === 0
   }
 
-  // Handle next step
-  const handleNextStep = () => {
-    if (validateCurrentStep()) {
-      dispatch(setActiveStep(activeStep + 1))
-    } else {
-      toast.error("Validation Error", {
-        description: "Please fix the errors before proceeding.",
-      })
-    }
-  }
-
-  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -737,16 +580,22 @@ function AddVehicleStepper() {
     const token = cookies.get("access_token")
     const submitData = {
       ...formData,
-      vehicle_type_id: formData.vehicles_type, // Rename to match API expectation
+      vehicle_type_id: formData.vehicles_type,
       wheelchair_lift_fitted: formData.wheelchair_lift_fitted ? "Yes" : "No",
-      date_of_purchase: formData.date_of_purchase ? formData.date_of_purchase.toISOString().split('T')[0] : null,
-      last_pmi_date: formData.last_pmi_date ? formData.last_pmi_date.toISOString().split('T')[0] : null,
-      mot_expiry: formData.mot_expiry ? formData.mot_expiry.toISOString().split('T')[0] : null,
-      insurance_expiry: formData.insurance_expiry ? formData.insurance_expiry.toISOString().split('T')[0] : null,
-      tax_expiry: formData.tax_expiry ? formData.tax_expiry.toISOString().split('T')[0] : null,
-      tacho_calibration_expiry: formData.tacho_calibration_expiry ? formData.tacho_calibration_expiry.toISOString().split('T')[0] : null,
-      last_tacho_download: formData.last_tacho_download ? formData.last_tacho_download.toISOString().split('T')[0] : null,
-      loller_calibration_expiry: formData.loller_calibration_expiry ? formData.loller_calibration_expiry.toISOString().split('T')[0] : null,
+      date_of_purchase: formData.date_of_purchase ? formData.date_of_purchase.toISOString().split("T")[0] : null,
+      last_pmi_date: formData.last_pmi_date ? formData.last_pmi_date.toISOString().split("T")[0] : null,
+      mot_expiry: formData.mot_expiry ? formData.mot_expiry.toISOString().split("T")[0] : null,
+      insurance_expiry: formData.insurance_expiry ? formData.insurance_expiry.toISOString().split("T")[0] : null,
+      tax_expiry: formData.tax_expiry ? formData.tax_expiry.toISOString().split("T")[0] : null,
+      tacho_calibration_expiry: formData.tacho_calibration_expiry
+        ? formData.tacho_calibration_expiry.toISOString().split("T")[0]
+        : null,
+      last_tacho_download: formData.last_tacho_download
+        ? formData.last_tacho_download.toISOString().split("T")[0]
+        : null,
+      loller_calibration_expiry: formData.loller_calibration_expiry
+        ? formData.loller_calibration_expiry.toISOString().split("T")[0]
+        : null,
     }
 
     dispatch(setSubmitLoading(true))
@@ -782,7 +631,6 @@ function AddVehicleStepper() {
     }
   }
 
-  // Error display component
   const ErrorMessage = ({ field }: { field: string }) => {
     if (!validationErrors[field]) return null
 
@@ -794,392 +642,553 @@ function AddVehicleStepper() {
     )
   }
 
-  // Stepper steps
   const steps = [
     {
-      label: "Vehicle Type Details",
+      label: "Vehicle Details",
       content: (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="registration_number">Registration Number *</Label>
-            <Input
-              id="registration_number"
-              name="registration_number"
-              placeholder="Enter registration number"
-              value={formData.registration_number}
-              onChange={handleInputChange}
-              className={validationErrors.registration_number ? "border-red-500" : ""}
-            />
-            <ErrorMessage field="registration_number" />
-          </div>
-          <div>
-            <Label htmlFor="make">Make *</Label>
-            <Input
-              id="make"
-              name="make"
-              placeholder="Enter make"
-              value={formData.make}
-              onChange={handleInputChange}
-              className={validationErrors.make ? "border-red-500" : ""}
-            />
-            <ErrorMessage field="make" />
-          </div>
-          <div>
-            <Label htmlFor="model">Model *</Label>
-            <Input
-              id="model"
-              name="model"
-              placeholder="Enter model"
-              value={formData.model}
-              onChange={handleInputChange}
-              className={validationErrors.model ? "border-red-500" : ""}
-            />
-            <ErrorMessage field="model" />
-          </div>
-          <div>
-            <Label htmlFor="vehicles_type">Vehicle Type *</Label>
-            <Select
-              value={formData.vehicles_type.toString()}
-              onValueChange={(value) => handleSelectChange("vehicles_type", value)}
-            >
-              <SelectTrigger className={validationErrors.vehicles_type ? "border-red-500" : ""}>
-                <SelectValue placeholder="Select vehicle type" />
-              </SelectTrigger>
-              <SelectContent>
-                {vehicleTypesLoading ? (
-                  <SelectItem value="loading" disabled>
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Loading...
-                    </div>
-                  </SelectItem>
-                ) : vehicleTypes.length === 0 ? (
-                  <SelectItem value="none" disabled>
-                    No vehicle types available
-                  </SelectItem>
-                ) : (
-                  vehicleTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id.toString()}>
-                      <Badge className="bg-blue-100 text-blue-700">{type.name}</Badge>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            <ErrorMessage field="vehicles_type" />
-          </div>
-          <div>
-            <Label htmlFor="number_of_seats">Number of Seats</Label>
-            <Input
-              id="number_of_seats"
-              name="number_of_seats"
-              type="number"
-              placeholder="Enter number of seats"
-              value={formData.number_of_seats || ""}
-              onChange={handleNumberInputChange}
-              className={validationErrors.number_of_seats ? "border-red-500" : ""}
-            />
-            <ErrorMessage field="number_of_seats" />
-          </div>
-          <div className="flex items-end gap-4">
-            <div className="flex-1">
-              <Label htmlFor="current_mileage">Previous Mileage</Label>
+        <div className="space-y-6">
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-900">
+              All fields marked with <span className="text-red-500 font-semibold">*</span> are required to proceed.
+            </AlertDescription>
+          </Alert>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="registration_number" className="text-sm font-medium">
+                Registration Number <span className="text-red-500">*</span>
+              </Label>
               <Input
-                id="current_mileage"
-                name="current_mileage"
-                type="number"
-                placeholder="Enter mileage"
-                value={formData.current_mileage || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.current_mileage ? "border-red-500" : ""}
+                id="registration_number"
+                name="registration_number"
+                placeholder="e.g., AB12 CDE"
+                value={formData.registration_number}
+                onChange={handleInputChange}
+                className={cn("", validationErrors.registration_number && "border-red-500 focus-visible:ring-red-500")}
               />
-              <ErrorMessage field="current_mileage" />
+              <ErrorMessage field="registration_number" />
             </div>
-            <div className="w-32">
+
+            <div>
+              <Label htmlFor="make" className="text-sm font-medium">
+                Make <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="make"
+                name="make"
+                placeholder="e.g., Ford"
+                value={formData.make}
+                onChange={handleInputChange}
+                className={cn("", validationErrors.make && "border-red-500 focus-visible:ring-red-500")}
+              />
+              <ErrorMessage field="make" />
+            </div>
+
+            <div>
+              <Label htmlFor="model" className="text-sm font-medium">
+                Model <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="model"
+                name="model"
+                placeholder="e.g., Transit"
+                value={formData.model}
+                onChange={handleInputChange}
+                className={cn("", validationErrors.model && "border-red-500 focus-visible:ring-red-500")}
+              />
+              <ErrorMessage field="model" />
+            </div>
+
+            <div>
+              <Label htmlFor="vehicles_type" className="text-sm font-medium">
+                Vehicle Type <span className="text-red-500">*</span>
+              </Label>
               <Select
-                value={formData.mileage_unit}
-                onValueChange={(value) => handleSelectChange("mileage_unit", value)}
+                value={formData.vehicles_type.toString()}
+                onValueChange={(value) => handleSelectChange("vehicles_type", value)}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className={cn("", validationErrors.vehicles_type && "border-red-500")}>
+                  <SelectValue placeholder="Select vehicle type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="kms">KMS</SelectItem>
-                  <SelectItem value="miles">Miles</SelectItem>
+                  {vehicleTypesLoading ? (
+                    <SelectItem value="loading" disabled>
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading...
+                      </div>
+                    </SelectItem>
+                  ) : vehicleTypes.length === 0 ? (
+                    <SelectItem value="none" disabled>
+                      No vehicle types available
+                    </SelectItem>
+                  ) : (
+                    vehicleTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id.toString()}>
+                        {type.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              <ErrorMessage field="vehicles_type" />
+            </div>
+
+            <div>
+              <Label htmlFor="number_of_seats" className="text-sm font-medium">
+                Number of Seats
+              </Label>
+              <Input
+                id="number_of_seats"
+                name="number_of_seats"
+                type="number"
+                placeholder="e.g., 16"
+                value={formData.number_of_seats || ""}
+                onChange={handleNumberInputChange}
+                className=""
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="current_mileage" className="text-sm font-medium">
+                Current Mileage
+              </Label>
+              <div className="flex gap-2 ">
+                <Input
+                  id="current_mileage"
+                  name="current_mileage"
+                  type="number"
+                  placeholder="e.g., 25000"
+                  value={formData.current_mileage || ""}
+                  onChange={handleNumberInputChange}
+                  className="flex-1"
+                />
+                <Select
+                  value={formData.mileage_unit}
+                  onValueChange={(value) => handleSelectChange("mileage_unit", value)}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kms">KMS</SelectItem>
+                    <SelectItem value="miles">Miles</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <Label htmlFor="tacho_fitted" className="text-sm font-medium cursor-pointer">
+                Tacho Fitted
+              </Label>
+              <Switch
+                id="tacho_fitted"
+                checked={formData.tacho_fitted}
+                onCheckedChange={(checked) => dispatch(setFormData({ tacho_fitted: checked }))}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <Label htmlFor="wheelchair_lift_fitted" className="text-sm font-medium cursor-pointer">
+                Wheelchair Lift Fitted
+              </Label>
+              <Switch
+                id="wheelchair_lift_fitted"
+                checked={formData.wheelchair_lift_fitted}
+                onCheckedChange={(checked) => dispatch(setFormData({ wheelchair_lift_fitted: checked }))}
+              />
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">Vehicle Picture</Label>
+              <div className="">
+                <FileUploader onUploadSuccess={handleFileUploadSuccess("vehicle_picture")} />
+              </div>
+              {formData.vehicle_picture && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  File uploaded successfully
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">New Vehicle Checklist</Label>
+              <div className="">
+                <FileUploader onUploadSuccess={handleFileUploadSuccess("new_checklist")} />
+              </div>
+              {formData.new_checklist && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  File uploaded successfully
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">Logbook</Label>
+              <div className="">
+                <FileUploader onUploadSuccess={handleFileUploadSuccess("logbook")} />
+              </div>
+              {formData.logbook && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  File uploaded successfully
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">COIF/Technical Data</Label>
+              <div className="">
+                <FileUploader onUploadSuccess={handleFileUploadSuccess("coif_technical")} />
+              </div>
+              {formData.coif_technical && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  File uploaded successfully
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Label htmlFor="tacho_fitted" className="mb-0">
-              Tacho Fitted
+
+          <div>
+            <Label className="text-sm font-medium">
+              Allocated Site(s) <span className="text-red-500">*</span>
             </Label>
-            <Switch
-              id="tacho_fitted"
-              name="tacho_fitted"
-              checked={formData.tacho_fitted}
-              onCheckedChange={(checked) => dispatch(setFormData({ tacho_fitted: checked }))}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <Label htmlFor="wheelchair_lift_fitted" className="mb-0">
-              Wheelchair Lift Fitted
-            </Label>
-            <Switch
-              id="wheelchair_lift_fitted"
-              name="wheelchair_lift_fitted"
-              checked={formData.wheelchair_lift_fitted}
-              onCheckedChange={(checked) => dispatch(setFormData({ wheelchair_lift_fitted: checked }))}
-            />
-          </div>
-          <div>
-            <Label htmlFor="vehicle_picture">Vehicle Picture</Label>
-            <FileUploader onUploadSuccess={handleFileUploadSuccess("vehicle_picture")} />
-          </div>
-          <div>
-            <Label htmlFor="new_checklist">New Vehicle Checklist</Label>
-            <FileUploader onUploadSuccess={handleFileUploadSuccess("new_checklist")} />
-          </div>
-          <div>
-            <Label htmlFor="logbook">Logbook</Label>
-            <FileUploader onUploadSuccess={handleFileUploadSuccess("logbook")} />
-          </div>
-          <div>
-            <Label htmlFor="coif_technical">COIF/Technical Data</Label>
-            <FileUploader onUploadSuccess={handleFileUploadSuccess("coif_technical")} />
-          </div>
-          <div className="col-span-2">
-            <Label>Allocated Site(s) *</Label>
-            <MultiSelect
-              options={sites}
-              selected={formData.site_allocated_ids}
-              onChange={(values) => handleMultiSelectChange("site_allocated_ids", values)}
-              placeholder="Select sites"
-            />
+            <div className="">
+              <MultiSelect
+                options={sites}
+                selected={formData.site_allocated_ids}
+                onChange={(values) => handleMultiSelectChange("site_allocated_ids", values)}
+                placeholder="Select sites"
+                error={!!validationErrors.site_allocated_ids}
+              />
+            </div>
             <ErrorMessage field="site_allocated_ids" />
           </div>
         </div>
       ),
     },
     {
-      label: "Vehicle Purchase Details",
+      label: "Purchase Details",
       content: (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="date_of_purchase">Date of Purchase</Label>
-            <Input
-              id="date_of_purchase"
-              name="date_of_purchase"
-              type="date"
-              value={formData.date_of_purchase ? formData.date_of_purchase.toISOString().split('T')[0] : ""}
-              onChange={handleDateChange}
-              className={validationErrors.date_of_purchase ? "border-red-500" : ""}
-            />
-            <ErrorMessage field="date_of_purchase" />
-          </div>
-          <div>
-            <Label htmlFor="purchased_from">Purchased From</Label>
-            <Input
-              id="purchased_from"
-              name="purchased_from"
-              placeholder="Enter seller"
-              value={formData.purchased_from}
-              onChange={handleInputChange}
-              className={validationErrors.purchased_from ? "border-red-500" : ""}
-            />
-            <ErrorMessage field="purchased_from" />
-          </div>
-          <div>
-            <Label htmlFor="purchased_by">Purchased By</Label>
-            <Input
-              id="purchased_by"
-              name="purchased_by"
-              placeholder="Enter buyer"
-              value={formData.purchased_by}
-              onChange={handleInputChange}
-              className={validationErrors.purchased_by ? "border-red-500" : ""}
-            />
-            <ErrorMessage field="purchased_by" />
-          </div>
-          <div>
-            <Label htmlFor="price">Price (£)</Label>
-            <Input
-              id="price"
-              name="price"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={formData.price || ""}
-              onChange={handleNumberInputChange}
-              className={validationErrors.price ? "border-red-500" : ""}
-            />
-            <ErrorMessage field="price" />
-          </div>
-          <div className="flex items-center gap-3">
-            <Label htmlFor="has_vat" className="mb-0">
-              VAT Applicable
-            </Label>
-            <Switch
-              id="has_vat"
-              name="has_vat"
-              checked={formData.has_vat}
-              onCheckedChange={(checked) =>
-                dispatch(setFormData({ has_vat: checked, vat_amount: checked ? formData.vat_amount : null }))
-              }
-            />
-          </div>
-          {formData.has_vat && (
+        <div className="space-y-6">
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-900">
+              Purchase details are optional but recommended for record keeping.
+            </AlertDescription>
+          </Alert>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="vat_amount">VAT Amount (£)</Label>
+              <Label htmlFor="date_of_purchase" className="text-sm font-medium">
+                Date of Purchase
+              </Label>
               <Input
-                id="vat_amount"
-                name="vat_amount"
+                id="date_of_purchase"
+                name="date_of_purchase"
+                type="date"
+                value={formData.date_of_purchase ? formData.date_of_purchase.toISOString().split("T")[0] : ""}
+                onChange={handleDateChange}
+                className=""
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="purchased_from" className="text-sm font-medium">
+                Purchased From
+              </Label>
+              <Input
+                id="purchased_from"
+                name="purchased_from"
+                placeholder="e.g., ABC Motors Ltd"
+                value={formData.purchased_from}
+                onChange={handleInputChange}
+                className=""
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="purchased_by" className="text-sm font-medium">
+                Purchased By
+              </Label>
+              <Input
+                id="purchased_by"
+                name="purchased_by"
+                placeholder="e.g., John Smith"
+                value={formData.purchased_by}
+                onChange={handleInputChange}
+                className=""
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="price" className="text-sm font-medium">
+                Price (£)
+              </Label>
+              <Input
+                id="price"
+                name="price"
                 type="number"
                 step="0.01"
                 placeholder="0.00"
-                value={formData.vat_amount || ""}
+                value={formData.price || ""}
                 onChange={handleNumberInputChange}
-                className={validationErrors.vat_amount ? "border-red-500" : ""}
+                className=""
               />
-              <ErrorMessage field="vat_amount" />
             </div>
-          )}
-          <div>
-            <Label htmlFor="vehicle_invoice">Vehicle Invoice</Label>
-            <FileUploader onUploadSuccess={handleFileUploadSuccess("vehicle_invoice")} />
+
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <Label htmlFor="has_vat" className="text-sm font-medium cursor-pointer">
+                VAT Applicable
+              </Label>
+              <Switch
+                id="has_vat"
+                checked={formData.has_vat}
+                onCheckedChange={(checked) =>
+                  dispatch(setFormData({ has_vat: checked, vat_amount: checked ? formData.vat_amount : null }))
+                }
+              />
+            </div>
+
+            {formData.has_vat && (
+              <div>
+                <Label htmlFor="vat_amount" className="text-sm font-medium">
+                  VAT Amount (£)
+                </Label>
+                <Input
+                  id="vat_amount"
+                  name="vat_amount"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.vat_amount || ""}
+                  onChange={handleNumberInputChange}
+                  className=""
+                />
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-medium">Vehicle Invoice</Label>
+              <div className="">
+                <FileUploader onUploadSuccess={handleFileUploadSuccess("vehicle_invoice")} />
+              </div>
+              {formData.vehicle_invoice && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  File uploaded successfully
+                </div>
+              )}
+            </div>
           </div>
-          <div className="col-span-2">
-            <Label htmlFor="notes">Notes</Label>
+
+          <div>
+            <Label htmlFor="notes" className="text-sm font-medium">
+              Notes
+            </Label>
             <Textarea
               id="notes"
               name="notes"
-              placeholder="Enter notes"
+              placeholder="Enter any additional notes about the vehicle..."
               value={formData.notes}
-              //@ts-expect-error ab thk ha
-              onChange={handleInputChange}
+              onChange={(e: any) => handleInputChange(e)}
+              className=""
+              rows={4}
             />
           </div>
         </div>
       ),
     },
     {
-      label: "Vehicle Expiry Dates",
+      label: "Expiry Dates",
       content: (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="last_pmi_date">Last PMI Date</Label>
-            <Input
-              id="last_pmi_date"
-              name="last_pmi_date"
-              type="date"
-              value={formData.last_pmi_date ? formData.last_pmi_date.toISOString().split('T')[0] : ""}
-              onChange={handleDateChange}
-              className={validationErrors.last_pmi_date ? "border-red-500" : ""}
-            />
-            <FileUploader onUploadSuccess={handleFileUploadSuccess("pmi_upload")} />
-            <ErrorMessage field="pmi_upload" />
-            <ErrorMessage field="last_pmi_date" />
-          </div>
-          <div>
-            <Label htmlFor="pmi_inspection_cycle">PMI Inspection Cycle (days)</Label>
-            <Input
-              id="pmi_inspection_cycle"
-              name="pmi_inspection_cycle"
-              type="number"
-              value={formData.pmi_inspection_cycle || ""}
-              onChange={handleNumberInputChange}
-              className={validationErrors.pmi_inspection_cycle ? "border-red-500" : ""}
-            />
-            <ErrorMessage field="pmi_inspection_cycle" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="mot_expiry">MOT Expiry Date</Label>
-            <Input
-              id="mot_expiry"
-              name="mot_expiry"
-              type="date"
-              value={formData.mot_expiry ? formData.mot_expiry.toISOString().split('T')[0] : ""}
-              onChange={handleDateChange}
-              className={validationErrors.mot_expiry ? "border-red-500" : ""}
-            />
-            <FileUploader onUploadSuccess={handleFileUploadSuccess("mot_upload")} />
-            <ErrorMessage field="mot_upload" />
-            <ErrorMessage field="mot_expiry" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="insurance_expiry">Insurance Expiry Date</Label>
-            <Input
-              id="insurance_expiry"
-              name="insurance_expiry"
-              type="date"
-              value={formData.insurance_expiry ? formData.insurance_expiry.toISOString().split('T')[0] : ""}
-              onChange={handleDateChange}
-              className={validationErrors.insurance_expiry ? "border-red-500" : ""}
-            />
-            <FileUploader onUploadSuccess={handleFileUploadSuccess("insurance_upload")} />
-            <ErrorMessage field="insurance_upload" />
-            <ErrorMessage field="insurance_expiry" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="tax_expiry">Tax Expiry Date</Label>
-            <Input
-              id="tax_expiry"
-              name="tax_expiry"
-              type="date"
-              value={formData.tax_expiry ? formData.tax_expiry.toISOString().split('T')[0] : ""}
-              onChange={handleDateChange}
-              className={validationErrors.tax_expiry ? "border-red-500" : ""}
-            />
-            <FileUploader onUploadSuccess={handleFileUploadSuccess("tax_upload")} />
-            <ErrorMessage field="tax_upload" />
-            <ErrorMessage field="tax_expiry" />
-          </div>
-          {formData.tacho_fitted && (
-            <>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="tacho_calibration_expiry">Tacho Calibration Expiry</Label>
-                <Input
-                  id="tacho_calibration_expiry"
-                  name="tacho_calibration_expiry"
-                  type="date"
-                  value={formData.tacho_calibration_expiry ? formData.tacho_calibration_expiry.toISOString().split('T')[0] : ""}
-                  onChange={handleDateChange}
-                  className={validationErrors.tacho_calibration_expiry ? "border-red-500" : ""}
-                />
-                <FileUploader onUploadSuccess={handleFileUploadSuccess("tacho_calibration_upload")} />
-                <ErrorMessage field="tacho_calibration_upload" />
-                <ErrorMessage field="tacho_calibration_expiry" />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="last_tacho_download">Last Vehicle Tacho Download</Label>
-                <Input
-                  id="last_tacho_download"
-                  name="last_tacho_download"
-                  type="date"
-                  value={formData.last_tacho_download ? formData.last_tacho_download.toISOString().split('T')[0] : ""}
-                  onChange={handleDateChange}
-                  className={validationErrors.last_tacho_download ? "border-red-500" : ""}
-                />
-                <FileUploader onUploadSuccess={handleFileUploadSuccess("tacho_download_upload")} />
-                <ErrorMessage field="tacho_download_upload" />
-                <ErrorMessage field="last_tacho_download" />
-              </div>
-            </>
-          )}
-          {formData.wheelchair_lift_fitted && (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="loller_calibration_expiry">Loller Calibration Expiry</Label>
+        <div className="space-y-6">
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-900">
+              Track important compliance dates. Upload documents where applicable.
+            </AlertDescription>
+          </Alert>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
+              <Label htmlFor="last_pmi_date" className="text-sm font-medium">
+                Last PMI Date
+              </Label>
               <Input
-                id="loller_calibration_expiry"
-                name="loller_calibration_expiry"
+                id="last_pmi_date"
+                name="last_pmi_date"
                 type="date"
-                value={formData.loller_calibration_expiry ? formData.loller_calibration_expiry.toISOString().split('T')[0] : ""}
+                value={formData.last_pmi_date ? formData.last_pmi_date.toISOString().split("T")[0] : ""}
                 onChange={handleDateChange}
-                className={validationErrors.loller_calibration_expiry ? "border-red-500" : ""}
               />
-              <FileUploader onUploadSuccess={handleFileUploadSuccess("loller_upload")} />
-              <ErrorMessage field="loller_upload" />
-              <ErrorMessage field="loller_calibration_expiry" />
+              <FileUploader onUploadSuccess={handleFileUploadSuccess("pmi_upload")} />
+              {formData.pmi_upload && (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Document uploaded
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="pmi_inspection_cycle" className="text-sm font-medium">
+                PMI Inspection Cycle (days)
+              </Label>
+              <Input
+                id="pmi_inspection_cycle"
+                name="pmi_inspection_cycle"
+                type="number"
+                placeholder="e.g., 90"
+                value={formData.pmi_inspection_cycle || ""}
+                onChange={handleNumberInputChange}
+                className=""
+              />
+            </div>
+
+            <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
+              <Label htmlFor="mot_expiry" className="text-sm font-medium">
+                MOT Expiry Date
+              </Label>
+              <Input
+                id="mot_expiry"
+                name="mot_expiry"
+                type="date"
+                value={formData.mot_expiry ? formData.mot_expiry.toISOString().split("T")[0] : ""}
+                onChange={handleDateChange}
+              />
+              <FileUploader onUploadSuccess={handleFileUploadSuccess("mot_upload")} />
+              {formData.mot_upload && (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Document uploaded
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
+              <Label htmlFor="insurance_expiry" className="text-sm font-medium">
+                Insurance Expiry Date
+              </Label>
+              <Input
+                id="insurance_expiry"
+                name="insurance_expiry"
+                type="date"
+                value={formData.insurance_expiry ? formData.insurance_expiry.toISOString().split("T")[0] : ""}
+                onChange={handleDateChange}
+              />
+              <FileUploader onUploadSuccess={handleFileUploadSuccess("insurance_upload")} />
+              {formData.insurance_upload && (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Document uploaded
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
+              <Label htmlFor="tax_expiry" className="text-sm font-medium">
+                Tax Expiry Date
+              </Label>
+              <Input
+                id="tax_expiry"
+                name="tax_expiry"
+                type="date"
+                value={formData.tax_expiry ? formData.tax_expiry.toISOString().split("T")[0] : ""}
+                onChange={handleDateChange}
+              />
+              <FileUploader onUploadSuccess={handleFileUploadSuccess("tax_upload")} />
+              {formData.tax_upload && (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Document uploaded
+                </div>
+              )}
+            </div>
+          </div>
+
+          {formData.tacho_fitted && (
+            <div className="space-y-4 p-4 border-2 border-blue-200 rounded-lg bg-blue-50">
+              <h4 className="font-semibold text-blue-900">Tachograph Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3 p-4 border rounded-lg bg-white">
+                  <Label htmlFor="tacho_calibration_expiry" className="text-sm font-medium">
+                    Tacho Calibration Expiry
+                  </Label>
+                  <Input
+                    id="tacho_calibration_expiry"
+                    name="tacho_calibration_expiry"
+                    type="date"
+                    value={
+                      formData.tacho_calibration_expiry
+                        ? formData.tacho_calibration_expiry.toISOString().split("T")[0]
+                        : ""
+                    }
+                    onChange={handleDateChange}
+                  />
+                  <FileUploader onUploadSuccess={handleFileUploadSuccess("tacho_calibration_upload")} />
+                  {formData.tacho_calibration_upload && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Document uploaded
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3 p-4 border rounded-lg bg-white">
+                  <Label htmlFor="last_tacho_download" className="text-sm font-medium">
+                    Last Tacho Download
+                  </Label>
+                  <Input
+                    id="last_tacho_download"
+                    name="last_tacho_download"
+                    type="date"
+                    value={formData.last_tacho_download ? formData.last_tacho_download.toISOString().split("T")[0] : ""}
+                    onChange={handleDateChange}
+                  />
+                  <FileUploader onUploadSuccess={handleFileUploadSuccess("tacho_download_upload")} />
+                  {formData.tacho_download_upload && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Document uploaded
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {formData.wheelchair_lift_fitted && (
+            <div className="space-y-4 p-4 border-2 border-purple-200 rounded-lg bg-purple-50">
+              <h4 className="font-semibold text-purple-900">Wheelchair Lift Information</h4>
+              <div className="space-y-3 p-4 border rounded-lg bg-white">
+                <Label htmlFor="loller_calibration_expiry" className="text-sm font-medium">
+                  LOLLER Calibration Expiry
+                </Label>
+                <Input
+                  id="loller_calibration_expiry"
+                  name="loller_calibration_expiry"
+                  type="date"
+                  value={
+                    formData.loller_calibration_expiry
+                      ? formData.loller_calibration_expiry.toISOString().split("T")[0]
+                      : ""
+                  }
+                  onChange={handleDateChange}
+                />
+                <FileUploader onUploadSuccess={handleFileUploadSuccess("loller_upload")} />
+                {formData.loller_upload && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Document uploaded
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -1189,532 +1198,403 @@ function AddVehicleStepper() {
       label: "Tyre Checks",
       content: (
         <div className="space-y-6">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Tyre expiry dates must be in WWYY format (e.g., 0124 for week 1 of 2024).
+          <Alert className="bg-amber-50 border-amber-200">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-900">
+              <strong>All tyre fields are required.</strong> Expiry format: WWYY (e.g., 0124 for week 1 of 2024). Depth
+              ≥1.6mm, Pressure 30-35 PSI, Torque 110-130 Nm.
             </AlertDescription>
           </Alert>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="tyre_expiry_front_driver">Front Driver Expiry (WWYY) *</Label>
-              <Input
-                id="tyre_expiry_front_driver"
-                name="tyre_expiry_front_driver"
-                placeholder="e.g., 0124"
-                value={formData.tyre_expiry_front_driver}
-                onChange={handleTyreExpiryChange}
-                maxLength={4}
-                className={validationErrors.tyre_expiry_front_driver ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_expiry_front_driver" />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Front Driver */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-blue-50 to-white">
+              <h4 className="font-semibold mb-4 text-blue-900">Front Driver</h4>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">
+                    Expiry (WWYY) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_expiry_front_driver"
+                    placeholder="0124"
+                    value={formData.tyre_expiry_front_driver}
+                    onChange={handleTyreExpiryChange}
+                    maxLength={4}
+                    className={cn("", validationErrors.tyre_expiry_front_driver && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_expiry_front_driver" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Depth (mm) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_depth_front_driver"
+                    type="number"
+                    step="0.1"
+                    placeholder="7.2"
+                    value={formData.tyre_depth_front_driver || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_depth_front_driver && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_depth_front_driver" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Pressure (PSI) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_pressure_front_driver"
+                    type="number"
+                    step="0.1"
+                    placeholder="32.5"
+                    value={formData.tyre_pressure_front_driver || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_pressure_front_driver && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_pressure_front_driver" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Torque (Nm) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_torque_front_driver"
+                    type="number"
+                    step="0.1"
+                    placeholder="120.0"
+                    value={formData.tyre_torque_front_driver || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_torque_front_driver && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_torque_front_driver" />
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="tyre_expiry_front_passenger">Front Passenger Expiry (WWYY) *</Label>
-              <Input
-                id="tyre_expiry_front_passenger"
-                name="tyre_expiry_front_passenger"
-                placeholder="e.g., 0124"
-                value={formData.tyre_expiry_front_passenger}
-                onChange={handleTyreExpiryChange}
-                maxLength={4}
-                className={validationErrors.tyre_expiry_front_passenger ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_expiry_front_passenger" />
+
+            {/* Front Passenger */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-green-50 to-white">
+              <h4 className="font-semibold mb-4 text-green-900">Front Passenger</h4>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">
+                    Expiry (WWYY) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_expiry_front_passenger"
+                    placeholder="0124"
+                    value={formData.tyre_expiry_front_passenger}
+                    onChange={handleTyreExpiryChange}
+                    maxLength={4}
+                    className={cn("", validationErrors.tyre_expiry_front_passenger && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_expiry_front_passenger" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Depth (mm) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_depth_front_passenger"
+                    type="number"
+                    step="0.1"
+                    placeholder="7.1"
+                    value={formData.tyre_depth_front_passenger || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_depth_front_passenger && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_depth_front_passenger" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Pressure (PSI) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_pressure_front_passenger"
+                    type="number"
+                    step="0.1"
+                    placeholder="32.0"
+                    value={formData.tyre_pressure_front_passenger || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_pressure_front_passenger && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_pressure_front_passenger" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Torque (Nm) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_torque_front_passenger"
+                    type="number"
+                    step="0.1"
+                    placeholder="120.0"
+                    value={formData.tyre_torque_front_passenger || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_torque_front_passenger && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_torque_front_passenger" />
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="tyre_expiry_rear_outer_driver">Rear Outer Driver Expiry (WWYY) *</Label>
-              <Input
-                id="tyre_expiry_rear_outer_driver"
-                name="tyre_expiry_rear_outer_driver"
-                placeholder="e.g., 0124"
-                value={formData.tyre_expiry_rear_outer_driver}
-                onChange={handleTyreExpiryChange}
-                maxLength={4}
-                className={validationErrors.tyre_expiry_rear_outer_driver ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_expiry_rear_outer_driver" />
+
+            {/* Rear Outer Driver */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-purple-50 to-white">
+              <h4 className="font-semibold mb-4 text-purple-900">Rear Outer Driver</h4>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">
+                    Expiry (WWYY) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_expiry_rear_outer_driver"
+                    placeholder="0124"
+                    value={formData.tyre_expiry_rear_outer_driver}
+                    onChange={handleTyreExpiryChange}
+                    maxLength={4}
+                    className={cn("", validationErrors.tyre_expiry_rear_outer_driver && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_expiry_rear_outer_driver" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Depth (mm) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_depth_rear_outer_driver"
+                    type="number"
+                    step="0.1"
+                    placeholder="6.9"
+                    value={formData.tyre_depth_rear_outer_driver || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_depth_rear_outer_driver && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_depth_rear_outer_driver" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Pressure (PSI) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_pressure_rear_outer_driver"
+                    type="number"
+                    step="0.1"
+                    placeholder="35.0"
+                    value={formData.tyre_pressure_rear_outer_driver || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_pressure_rear_outer_driver && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_pressure_rear_outer_driver" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Torque (Nm) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_torque_rear_outer_driver"
+                    type="number"
+                    step="0.1"
+                    placeholder="125.0"
+                    value={formData.tyre_torque_rear_outer_driver || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_torque_rear_outer_driver && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_torque_rear_outer_driver" />
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="tyre_expiry_rear_outer_passenger">Rear Outer Passenger Expiry (WWYY) *</Label>
-              <Input
-                id="tyre_expiry_rear_outer_passenger"
-                name="tyre_expiry_rear_outer_passenger"
-                placeholder="e.g., 0124"
-                value={formData.tyre_expiry_rear_outer_passenger}
-                onChange={handleTyreExpiryChange}
-                maxLength={4}
-                className={validationErrors.tyre_expiry_rear_outer_passenger ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_expiry_rear_outer_passenger" />
-            </div>
-            <div>
-              <Label>
-                Front Driver Tread Depth (mm) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be at least 1.6 mm to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_depth_front_driver"
-                name="tyre_depth_front_driver"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 7.2"
-                value={formData.tyre_depth_front_driver || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_depth_front_driver ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_depth_front_driver" />
-            </div>
-            <div>
-              <Label>
-                Front Passenger Tread Depth (mm) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be at least 1.6 mm to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_depth_front_passenger"
-                name="tyre_depth_front_passenger"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 7.1"
-                value={formData.tyre_depth_front_passenger || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_depth_front_passenger ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_depth_front_passenger" />
-            </div>
-            <div>
-              <Label>
-                Rear Outer Driver Tread Depth (mm) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be at least 1.6 mm to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_depth_rear_outer_driver"
-                name="tyre_depth_rear_outer_driver"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 6.9"
-                value={formData.tyre_depth_rear_outer_driver || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_depth_rear_outer_driver ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_depth_rear_outer_driver" />
-            </div>
-            <div>
-              <Label>
-                Rear Outer Passenger Tread Depth (mm) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be at least 1.6 mm to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_depth_rear_outer_passenger"
-                name="tyre_depth_rear_outer_passenger"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 7.0"
-                value={formData.tyre_depth_rear_outer_passenger || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_depth_rear_outer_passenger ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_depth_rear_outer_passenger" />
-            </div>
-            <div>
-              <Label>
-                Front Driver Pressure (PSI) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be between 30-35 PSI to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_pressure_front_driver"
-                name="tyre_pressure_front_driver"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 32.5"
-                value={formData.tyre_pressure_front_driver || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_pressure_front_driver ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_pressure_front_driver" />
-            </div>
-            <div>
-              <Label>
-                Front Passenger Pressure (PSI) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be between 30-35 PSI to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_pressure_front_passenger"
-                name="tyre_pressure_front_passenger"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 32.0"
-                value={formData.tyre_pressure_front_passenger || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_pressure_front_passenger ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_pressure_front_passenger" />
-            </div>
-            <div>
-              <Label>
-                Rear Outer Driver Pressure (PSI) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be between 30-35 PSI to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_pressure_rear_outer_driver"
-                name="tyre_pressure_rear_outer_driver"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 35.0"
-                value={formData.tyre_pressure_rear_outer_driver || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_pressure_rear_outer_driver ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_pressure_rear_outer_driver" />
-            </div>
-            <div>
-              <Label>
-                Rear Outer Passenger Pressure (PSI) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be between 30-35 PSI to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_pressure_rear_outer_passenger"
-                name="tyre_pressure_rear_outer_passenger"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 35.5"
-                value={formData.tyre_pressure_rear_outer_passenger || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_pressure_rear_outer_passenger ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_pressure_rear_outer_passenger" />
-            </div>
-            <div>
-              <Label>
-                Front Driver Torque (Nm) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be between 110-130 Nm to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_torque_front_driver"
-                name="tyre_torque_front_driver"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 120.0"
-                value={formData.tyre_torque_front_driver || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_torque_front_driver ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_torque_front_driver" />
-            </div>
-            <div>
-              <Label>
-                Front Passenger Torque (Nm) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be between 110-130 Nm to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_torque_front_passenger"
-                name="tyre_torque_front_passenger"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 120.0"
-                value={formData.tyre_torque_front_passenger || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_torque_front_passenger ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_torque_front_passenger" />
-            </div>
-            <div>
-              <Label>
-                Rear Outer Driver Torque (Nm) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be between 110-130 Nm to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_torque_rear_outer_driver"
-                name="tyre_torque_rear_outer_driver"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 125.0"
-                value={formData.tyre_torque_rear_outer_driver || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_torque_rear_outer_driver ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_torque_rear_outer_driver" />
-            </div>
-            <div>
-              <Label>
-                Rear Outer Passenger Torque (Nm) *
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-4 w-4 inline ml-1 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>Should be between 110-130 Nm to pass</TooltipContent>
-                </Tooltip>
-              </Label>
-              <Input
-                id="tyre_torque_rear_outer_passenger"
-                name="tyre_torque_rear_outer_passenger"
-                type="number"
-                step="0.1"
-                placeholder="e.g., 125.0"
-                value={formData.tyre_torque_rear_outer_passenger || ""}
-                onChange={handleNumberInputChange}
-                className={validationErrors.tyre_torque_rear_outer_passenger ? "border-red-500" : ""}
-              />
-              <ErrorMessage field="tyre_torque_rear_outer_passenger" />
+
+            {/* Rear Outer Passenger */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-orange-50 to-white">
+              <h4 className="font-semibold mb-4 text-orange-900">Rear Outer Passenger</h4>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">
+                    Expiry (WWYY) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_expiry_rear_outer_passenger"
+                    placeholder="0124"
+                    value={formData.tyre_expiry_rear_outer_passenger}
+                    onChange={handleTyreExpiryChange}
+                    maxLength={4}
+                    className={cn("", validationErrors.tyre_expiry_rear_outer_passenger && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_expiry_rear_outer_passenger" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Depth (mm) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_depth_rear_outer_passenger"
+                    type="number"
+                    step="0.1"
+                    placeholder="7.0"
+                    value={formData.tyre_depth_rear_outer_passenger || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_depth_rear_outer_passenger && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_depth_rear_outer_passenger" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Pressure (PSI) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_pressure_rear_outer_passenger"
+                    type="number"
+                    step="0.1"
+                    placeholder="35.5"
+                    value={formData.tyre_pressure_rear_outer_passenger || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_pressure_rear_outer_passenger && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_pressure_rear_outer_passenger" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Torque (Nm) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    name="tyre_torque_rear_outer_passenger"
+                    type="number"
+                    step="0.1"
+                    placeholder="125.0"
+                    value={formData.tyre_torque_rear_outer_passenger || ""}
+                    onChange={handleNumberInputChange}
+                    className={cn("", validationErrors.tyre_torque_rear_outer_passenger && "border-red-500")}
+                  />
+                  <ErrorMessage field="tyre_torque_rear_outer_passenger" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
       ),
     },
     {
-      label: "Confirm",
+      label: "Review & Submit",
       content: (
         <div className="space-y-6">
+          <Alert className="bg-green-50 border-green-200">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-900">
+              Please review all information before submitting. You can go back to edit any section.
+            </AlertDescription>
+          </Alert>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-medium mb-3">Vehicle Type Details</h3>
-              <div className="space-y-2 text-sm">
-                <p>
-                  <strong>Registration Number:</strong> {formData.registration_number || "N/A"}
-                </p>
-                <p>
-                  <strong>Make:</strong> {formData.make || "N/A"}
-                </p>
-                <p>
-                  <strong>Model:</strong> {formData.model || "N/A"}
-                </p>
-                <p>
-                  <strong>Vehicle Type:</strong>{" "}
-                  {vehicleTypes.find((type) => type.id === formData.vehicles_type)?.name || "N/A"}
-                </p>
-                <p>
-                  <strong>Number of Seats:</strong> {formData.number_of_seats || "N/A"}
-                </p>
-                <p>
-                  <strong>Current Mileage:</strong>{" "}
-                  {formData.current_mileage
-                    ? `${formData.current_mileage} ${formData.mileage_unit.toUpperCase()}`
-                    : "N/A"}
-                </p>
-                <p>
-                  <strong>Tacho Fitted:</strong> {formData.tacho_fitted ? "Yes" : "No"}
-                </p>
-                <p>
-                  <strong>Wheelchair Lift Fitted:</strong> {formData.wheelchair_lift_fitted ? "Yes" : "No"}
-                </p>
-                <p>
-                  <strong>Allocated Sites:</strong>{" "}
-                  {formData.site_allocated_ids
-                    .map((id) => sites.find((site) => site.id === id)?.name || "Unknown")
-                    .join(", ") || "N/A"}
-                </p>
-                <p>
-                  <strong>Vehicle Picture:</strong> {formData.vehicle_picture ? "Uploaded" : "N/A"}
-                </p>
-                <p>
-                  <strong>New Checklist:</strong> {formData.new_checklist ? "Uploaded" : "N/A"}
-                </p>
-                <p>
-                  <strong>Logbook:</strong> {formData.logbook ? "Uploaded" : "N/A"}
-                </p>
-                <p>
-                  <strong>COIF/Technical Data:</strong> {formData.coif_technical ? "Uploaded" : "N/A"}
-                </p>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-medium mb-3">Purchase Details</h3>
-              <div className="space-y-2 text-sm">
-                <p>
-                  <strong>Date of Purchase:</strong>{" "}
-                  {formData.date_of_purchase ? formData.date_of_purchase.toLocaleDateString() : "N/A"}
-                </p>
-                <p>
-                  <strong>Purchased From:</strong> {formData.purchased_from || "N/A"}
-                </p>
-                <p>
-                  <strong>Purchased By:</strong> {formData.purchased_by || "N/A"}
-                </p>
-                <p>
-                  <strong>Price:</strong> {formData.price ? `£${formData.price.toFixed(2)}` : "N/A"}
-                </p>
-                <p>
-                  <strong>VAT Amount:</strong>{" "}
-                  {formData.has_vat ? (formData.vat_amount ? `£${formData.vat_amount.toFixed(2)}` : "N/A") : "NA"}
-                </p>
-                <p>
-                  <strong>Vehicle Invoice:</strong> {formData.vehicle_invoice ? "Uploaded" : "N/A"}
-                </p>
-                <p>
-                  <strong>Notes:</strong> {formData.notes || "N/A"}
-                </p>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-medium mb-3">Expiry Dates</h3>
-              <div className="space-y-2 text-sm">
-                <p>
-                  <strong>Last PMI Date:</strong>{" "}
-                  {formData.last_pmi_date ? formData.last_pmi_date.toLocaleDateString() : "N/A"}
-                </p>
-                <p>
-                  <strong>PMI Inspection Cycle:</strong> {formData.pmi_inspection_cycle || "N/A"} days
-                </p>
-                <p>
-                  <strong>MOT Expiry:</strong>{" "}
-                  {formData.mot_expiry ? formData.mot_expiry.toLocaleDateString() : "N/A"}
-                </p>
-                <p>
-                  <strong>Insurance Expiry:</strong>{" "}
-                  {formData.insurance_expiry ? formData.insurance_expiry.toLocaleDateString() : "N/A"}
-                </p>
-                <p>
-                  <strong>Tax Expiry:</strong>{" "}
-                  {formData.tax_expiry ? formData.tax_expiry.toLocaleDateString() : "N/A"}
-                </p>
-                {formData.tacho_fitted && (
-                  <>
-                    <p>
-                      <strong>Tacho Calibration Expiry:</strong>{" "}
-                      {formData.tacho_calibration_expiry ? formData.tacho_calibration_expiry.toLocaleDateString() : "N/A"}
-                    </p>
-                    <p>
-                      <strong>Last Tacho Download:</strong>{" "}
-                      {formData.last_tacho_download ? formData.last_tacho_download.toLocaleDateString() : "N/A"}
-                    </p>
-                  </>
-                )}
-                {formData.wheelchair_lift_fitted && (
-                  <p>
-                    <strong>Loller Calibration Expiry:</strong>{" "}
-                    {formData.loller_calibration_expiry ? formData.loller_calibration_expiry.toLocaleDateString() : "N/A"}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div>
-              <h3 className="font-medium mb-3">Tyre Checks</h3>
-              <div className="space-y-2 text-sm">
-                <p>
-                  <strong>Front Driver Expiry:</strong> {formData.tyre_expiry_front_driver || "N/A"}
-                </p>
-                <p>
-                  <strong>Front Passenger Expiry:</strong> {formData.tyre_expiry_front_passenger || "N/A"}
-                </p>
-                <p>
-                  <strong>Rear Outer Driver Expiry:</strong> {formData.tyre_expiry_rear_outer_driver || "N/A"}
-                </p>
-                <p>
-                  <strong>Rear Outer Passenger Expiry:</strong> {formData.tyre_expiry_rear_outer_passenger || "N/A"}
-                </p>
-                <p>
-                  <strong>Front Driver Depth:</strong> {formData.tyre_depth_front_driver || "N/A"} mm
-                </p>
-                <p>
-                  <strong>Front Passenger Depth:</strong> {formData.tyre_depth_front_passenger || "N/A"} mm
-                </p>
-                <p>
-                  <strong>Rear Outer Driver Depth:</strong> {formData.tyre_depth_rear_outer_driver || "N/A"} mm
-                </p>
-                <p>
-                  <strong>Rear Outer Passenger Depth:</strong> {formData.tyre_depth_rear_outer_passenger || "N/A"} mm
-                </p>
-                <p>
-                  <strong>Front Driver Pressure:</strong> {formData.tyre_pressure_front_driver || "N/A"} PSI
-                </p>
-                <p>
-                  <strong>Front Passenger Pressure:</strong> {formData.tyre_pressure_front_passenger || "N/A"} PSI
-                </p>
-                <p>
-                  <strong>Rear Outer Driver Pressure:</strong> {formData.tyre_pressure_rear_outer_driver || "N/A"} PSI
-                </p>
-                <p>
-                  <strong>Rear Outer Passenger Pressure:</strong> {formData.tyre_pressure_rear_outer_passenger || "N/A"} PSI
-                </p>
-                <p>
-                  <strong>Front Driver Torque:</strong> {formData.tyre_torque_front_driver || "N/A"} Nm
-                </p>
-                <p>
-                  <strong>Front Passenger Torque:</strong> {formData.tyre_torque_front_passenger || "N/A"} Nm
-                </p>
-                <p>
-                  <strong>Rear Outer Driver Torque:</strong> {formData.tyre_torque_rear_outer_driver || "N/A"} Nm
-                </p>
-                <p>
-                  <strong>Rear Outer Passenger Torque:</strong> {formData.tyre_torque_rear_outer_passenger || "N/A"} Nm
-                </p>
-              </div>
-            </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Vehicle Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Registration:</span>
+                  <span className="font-medium">{formData.registration_number || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Make:</span>
+                  <span className="font-medium">{formData.make || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Model:</span>
+                  <span className="font-medium">{formData.model || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Type:</span>
+                  <span className="font-medium">
+                    {vehicleTypes.find((t) => t.id === formData.vehicles_type)?.name || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Sites:</span>
+                  <span className="font-medium">{formData.site_allocated_ids.length || 0}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Purchase Info</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date:</span>
+                  <span className="font-medium">
+                    {formData.date_of_purchase ? formData.date_of_purchase.toLocaleDateString() : "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Price:</span>
+                  <span className="font-medium">{formData.price ? `£${formData.price.toFixed(2)}` : "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">VAT:</span>
+                  <span className="font-medium">
+                    {formData.has_vat ? (formData.vat_amount ? `£${formData.vat_amount.toFixed(2)}` : "N/A") : "N/A"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Compliance Dates</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">MOT:</span>
+                  <span className="font-medium">
+                    {formData.mot_expiry ? formData.mot_expiry.toLocaleDateString() : "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Insurance:</span>
+                  <span className="font-medium">
+                    {formData.insurance_expiry ? formData.insurance_expiry.toLocaleDateString() : "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tax:</span>
+                  <span className="font-medium">
+                    {formData.tax_expiry ? formData.tax_expiry.toLocaleDateString() : "N/A"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Tyre Status</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Front Driver:</span>
+                  <span className="font-medium">{formData.tyre_expiry_front_driver || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Front Pass:</span>
+                  <span className="font-medium">{formData.tyre_expiry_front_passenger || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Rear Driver:</span>
+                  <span className="font-medium">{formData.tyre_expiry_rear_outer_driver || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Rear Pass:</span>
+                  <span className="font-medium">{formData.tyre_expiry_rear_outer_passenger || "N/A"}</span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitLoading}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              {submitLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Car className="w-4 h-4 mr-2" />
-                  Create Vehicle
-                </>
-              )}
-            </Button>
+
+          <div className="flex justify-end pt-4">
+            <p className="text-sm text-muted-foreground">
+              Click &qout;Create Vehicle&qout; button below to submit the form
+            </p>
           </div>
         </div>
       ),
@@ -1723,78 +1603,123 @@ function AddVehicleStepper() {
 
   return (
     <TooltipProvider>
-      <div className="max-w-4xl mx-auto p-6">
-   
-
+      <div className="max-w-6xl mx-auto p-6">
         <form onSubmit={(e) => e.preventDefault()}>
-          <Stepper
-            totalSteps={steps.length}
-            //@ts-expect-error ab thk ha
-            activeStep={activeStep}
-            //@ts-expect-error ab thk ha
-            onStepChange={(step) => dispatch(setActiveStep(step))}
-          >
-            <StepperTabs labels={steps.map((step) => step.label)} />
-            <StepperContent>
-              {steps.map((step, index) => (
-                <div key={index} className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">{step.label}</CardTitle>
-                      <CardDescription>
-                        {index === 0 && "Enter vehicle information and allocate sites."}
-                        {index === 1 && "Record purchase details and optional notes."}
-                        {index === 2 && "Track compliance dates and related uploads."}
-                        {index === 3 && "Complete tyre checks with required metrics."}
-                        {index === 4 && "Review and confirm all the provided details."}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>{step.content}</CardContent>
-                  </Card>
-                </div>
-              ))}
-            </StepperContent>
-
-            <StepperNavigation className="sticky bottom-0 left-0 right-0 z-10 bg-background/80 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-t px-4 py-3 flex justify-between gap-2">
-              <div className="flex gap-2">
-                {activeStep > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => dispatch(setActiveStep(activeStep - 1))}
-                    disabled={submitLoading}
-                  >
-                    Back
-                  </Button>
-                )}
-                <Button type="button" variant="outline" onClick={() => dispatch(resetForm())} disabled={submitLoading}>
-                  Cancel
-                </Button>
+          <StepperTabs labels={steps.map((step) => step.label)} />
+          <StepperContent>
+            {steps.map((step, index) => (
+              <div key={index} className="space-y-6">
+                <Card className="border-0">
+                  <CardHeader>
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      {step.label}
+                      {currentStep === 0 && <Badge variant="destructive">Required Fields</Badge>}
+                      {currentStep === 3 && <Badge variant="destructive">All Required</Badge>}
+                    </CardTitle>
+                    <CardDescription>
+                      {index === 0 &&
+                        "Enter vehicle information and allocate sites. All fields marked with * are required."}
+                      {index === 1 && "Record purchase details and optional notes for your records."}
+                      {index === 2 && "Track compliance dates and upload related documents."}
+                      {index === 3 && "Complete all tyre checks with required safety metrics."}
+                      {index === 4 && "Review all information and submit the vehicle registration."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>{step.content}</CardContent>
+                </Card>
               </div>
+            ))}
+          </StepperContent>
 
-              {activeStep !== steps.length - 1 && (
+          <div className="sticky bottom-0 left-0 right-0 z-10 bg-background border-t px-6 py-4 flex justify-between gap-4 shadow-lg">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => goToPreviousStep()}
+                disabled={submitLoading || currentStep === 0}
+                size="lg"
+              >
+                ← Back
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  dispatch(resetForm())
+                }}
+                disabled={submitLoading}
+                size="lg"
+              >
+                Cancel
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                Step {currentStep + 1} of {steps.length}
+              </div>
+              {currentStep === steps.length - 1 ? (
                 <Button
                   type="button"
-                  onClick={handleNextStep}
+                  onClick={handleSubmit}
+                  disabled={submitLoading}
+                  size="lg"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {submitLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Creating Vehicle...
+                    </>
+                  ) : (
+                    <>
+                      <Car className="w-5 h-5 mr-2" />
+                      Create Vehicle
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (validateCurrentStep()) {
+                      goToNextStep()
+                    } else {
+                      toast.error("Please complete all required fields", {
+                        description: "Fix the errors before proceeding to the next step.",
+                      })
+                    }
+                  }}
                   disabled={submitLoading || sitesLoading || vehicleTypesLoading}
+                  size="lg"
                   className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
-                  Next
+                  Next →
                 </Button>
               )}
-            </StepperNavigation>
-          </Stepper>
+            </div>
+          </div>
         </form>
       </div>
     </TooltipProvider>
   )
 }
 
-// Wrap the component with Provider
 export default function AddVehicleStepperWrapper() {
+  const steps = [
+    { label: "Vehicle Details" },
+    { label: "Purchase Details" },
+    { label: "Expiry Dates" },
+    { label: "Tyre Checks" },
+    { label: "Review & Submit" },
+  ]
+
   return (
     <Provider store={store}>
-      <AddVehicleStepper />
+      <Stepper totalSteps={steps.length} initialStep={0}>
+        <AddVehicleStepperForm />
+      </Stepper>
     </Provider>
   )
 }

@@ -253,7 +253,8 @@ export default function SiteDetails() {
   };
 
   const validateOperationHours = (hours: OperationHour[]) => {
-    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+    console.log(hours);
+const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
     for (const hour of hours) {
       if (hour.is_closed || hour.is_open_24_hours) continue;
       if (!hour.opens_at || !hour.closes_at) return false;
@@ -382,7 +383,7 @@ export default function SiteDetails() {
   if (!site || !editSite) return <div className="p-6 text-gray-700">Site not found</div>;
 
   return (
-    <div className="p-6 bg-white h-fit text-gray-700">
+    <div className="p-6 bg-white  overflow-hidden text-gray-700">
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Sites Details</h1>

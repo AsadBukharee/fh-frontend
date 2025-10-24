@@ -813,7 +813,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                 <TableHeader className="bg-gray-50">
                   <TableRow>
                     <TableHead
-                      className="sticky left-0 z-30 text-center text-xs font-medium uppercase tracking-wider bg-gray-50"
+                      className="sticky left-0 z-10 text-center text-xs font-medium uppercase tracking-wider bg-gray-50"
                       style={{ minWidth: "120px" }}
                     >
                       Day
@@ -825,53 +825,18 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                       <TableHead
                         key={user.id}
                         className="text-center text-xs font-medium uppercase tracking-wider pl-4"
-                        style={{ minWidth: "200px" }}
+                        style={{ minWidth: "200px",maxWidth: "200px" }}
                       >
                         <div className="flex items-center gap-2 justify-center">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={user.avatar || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {user.full_name?.split(" ").map((n) => n[0]).join("")}
-                            </AvatarFallback>
-                          </Avatar>
+                          
                           <div>
                             <div className="font-medium">{user.full_name}</div>
-                            {user.role && (
-                              <Badge
-                                variant="outline"
-                                className={cn("text-xs mt-1", getRoleColor(user.role))}
-                              >
-                                {user.role}
-                              </Badge>
-                            )}
+                           
                           </div>
                         </div>
                       </TableHead>
                     ))}
-                    <TableHead
-                      className="sticky right-[300px] text-center text-xs font-medium uppercase tracking-wider bg-gray-50 z-30"
-                      style={{ minWidth: "100px" }}
-                    >
-                      Daily Salary
-                    </TableHead>
-                    <TableHead
-                      className="sticky right-[200px] text-center text-xs font-medium uppercase tracking-wider bg-gray-50 z-30"
-                      style={{ minWidth: "100px" }}
-                    >
-                      Total Staff
-                    </TableHead>
-                    <TableHead
-                      className="sticky right-[100px] text-center text-xs font-medium uppercase tracking-wider bg-gray-50 z-30"
-                      style={{ minWidth: "100px" }}
-                    >
-                      Total Drivers
-                    </TableHead>
-                    <TableHead
-                      className="sticky right-0 text-center text-xs font-medium uppercase tracking-wider bg-gray-50 z-30"
-                      style={{ minWidth: "100px" }}
-                    >
-                      Total Holidays
-                    </TableHead>
+                   
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -907,12 +872,12 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                             className={dayIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}
                           >
                             <TableCell
-                              className="sticky left-0 z-10 whitespace-nowrap text-sm font-medium bg-inherit"
+                              className="sticky left-0 z-10 bg-white whitespace-nowrap text-sm font-medium"
                               style={{ color: getWeekColor(dayData), minWidth: "120px" }}
                             >
-                              <Tooltip>
+                              <Tooltip >
                                 <TooltipTrigger asChild>
-                                  <div>
+                                  <div className="bg-[#FFF4F4]/40">
                                     <div className="font-semibold flex items-center gap-2">
                                       {getDayName(dayData)}
                                     </div>
@@ -953,8 +918,8 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                               return (
                                 <TableCell
                                   key={user.id}
-                                  className="p-2 align-top"
-                                  style={{ minWidth: "200px" }}
+                                  className="p-2 align-top text-center"
+                                  style={{ minWidth: "200px"}}
                                 >
                                   {userShift ? (
                                     <ShiftCard
@@ -981,30 +946,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                                 </TableCell>
                               );
                             })}
-                            <TableCell
-                              className="sticky right-[300px] p-2 align-top text-sm text-center font-medium bg-gray-50 z-10"
-                              style={{ minWidth: "100px" }}
-                            >
-                              £{totalDailySalary.toFixed(2)}
-                            </TableCell>
-                            <TableCell
-                              className="sticky right-[200px] p-2 align-top text-sm text-center font-medium bg-gray-50 z-10"
-                              style={{ minWidth: "100px" }}
-                            >
-                              {dailyStats.total_staff}
-                            </TableCell>
-                            <TableCell
-                              className="sticky right-[100px] p-2 align-top text-sm text-center font-medium bg-gray-50 z-10"
-                              style={{ minWidth: "100px" }}
-                            >
-                              {dailyStats.total_drivers}
-                            </TableCell>
-                            <TableCell
-                              className="sticky right-0 p-2 align-top text-sm text-center font-medium bg-gray-50 z-10"
-                              style={{ minWidth: "100px" }}
-                            >
-                              {dailyStats.total_holidays}
-                            </TableCell>
+                         
                           </TableRow>
                         );
                       })}
