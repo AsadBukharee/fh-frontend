@@ -1,4 +1,3 @@
-
 "use client"
 
 import { formatDmy } from "@/lib/utils"
@@ -199,6 +198,10 @@ export default function FuelChecksManagement() {
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [cardFilter, setCardFilter] = useState("")
+  const [fuelAmountFrom, setFuelAmountFrom] = useState("")
+  const [fuelAmountTo, setFuelAmountTo] = useState("")
+  const [fuelCostFrom, setFuelCostFrom] = useState("")
+  const [fuelCostTo, setFuelCostTo] = useState("")
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -301,9 +304,13 @@ export default function FuelChecksManagement() {
           ...(driverFilter && { driver: driverFilter }),
           ...(dateFrom && { date_from: dateFrom }),
           ...(dateTo && { date_to: dateTo }),
+          ...(cardFilter && { card: cardFilter }),
+          ...(fuelAmountFrom && { amount_from: fuelAmountFrom }),
+          ...(fuelAmountTo && { amount_to: fuelAmountTo }),
+          ...(fuelCostFrom && { cost_from: fuelCostFrom }),
+          ...(fuelCostTo && { cost_to: fuelCostTo }),
           page: currentPage.toString(),
           page_size: pageSize.toString(),
-          ...(cardFilter && { card: cardFilter }),
         })
 
         const response = await fetch(`${API_URL}/activity/fuel-log/?${queryParams}`, {
@@ -327,7 +334,20 @@ export default function FuelChecksManagement() {
     }
 
     fetchFuelLogs()
-  }, [currentPage, pageSize, vehicleFilter, driverFilter, dateFrom, dateTo, cardFilter, cookies])
+  }, [
+    currentPage,
+    pageSize,
+    vehicleFilter,
+    driverFilter,
+    dateFrom,
+    dateTo,
+    cardFilter,
+    fuelAmountFrom,
+    fuelAmountTo,
+    fuelCostFrom,
+    fuelCostTo,
+    cookies,
+  ])
 
   const handleAddFuelLog = (newLog: FuelLog) => {
     setFuelLogs((prev) => [newLog, ...prev])
@@ -363,6 +383,19 @@ export default function FuelChecksManagement() {
     (log) =>
       log?.vehicle?.registration_number?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
       log.notes.toLowerCase().includes(searchTerm.toLowerCase()),
+    // Uncomment for client-side filtering if backend doesn't support amount/cost filters
+    // (log) => {
+    //   const matchesSearch =
+    //     log?.vehicle?.registration_number?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
+    //     log.notes.toLowerCase().includes(searchTerm.toLowerCase())
+    //   const matchesAmount =
+    //     (!fuelAmountFrom || log.amount >= Number(fuelAmountFrom)) &&
+    //     (!fuelAmountTo || log.amount <= Number(fuelAmountTo))
+    //   const matchesCost =
+    //     (!fuelCostFrom || log.cost >= Number(fuelCostFrom)) &&
+    //     (!fuelCostTo || log.cost <= Number(fuelCostTo))
+    //   return matchesSearch && matchesAmount && matchesCost
+    // },
   )
 
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -374,6 +407,10 @@ export default function FuelChecksManagement() {
     setDateFrom("")
     setDateTo("")
     setCardFilter("")
+    setFuelAmountFrom("")
+    setFuelAmountTo("")
+    setFuelCostFrom("")
+    setFuelCostTo("")
     setCurrentPage(1)
   }
 
@@ -385,6 +422,10 @@ export default function FuelChecksManagement() {
     if (dateFrom) count++
     if (dateTo) count++
     if (cardFilter) count++
+    if (fuelAmountFrom) count++
+    if (fuelAmountTo) count++
+    if (fuelCostFrom) count++
+    if (fuelCostTo) count++
     return count
   }
 
@@ -452,7 +493,7 @@ export default function FuelChecksManagement() {
 
                   <Tooltip>
                     <TooltipTrigger asChild>
-                     <ExportButton data={fuelLogs} fileName="fuel_logs.csv"/>
+                      <ExportButton data={fuelLogs} fileName="fuel_logs.csv" />
                     </TooltipTrigger>
                     <TooltipContent>Export fuel logs to CSV</TooltipContent>
                   </Tooltip>
@@ -490,129 +531,188 @@ export default function FuelChecksManagement() {
                     )}
                   </div>
 
-                  <div className="flex items-end justify-between gap-6">
-<div className="flex items-center gap-4">
-    {/* From */}
-  <div className="flex flex-col w-[150px]">
-    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-      From
-    </label>
-    <Input
-      type="date"
-      value={dateFrom}
-      onChange={(e) => setDateFrom(e.target.value)}
-      className="h-10 rounded-lg"
-    />
-  </div>
+                  <div className="flex flex-wrap items-end gap-4">
+                    {/* Date From */}
+                    <div className="flex flex-col w-[150px]">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Date From
+                      </label>
+                      <Input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="h-10 rounded-lg"
+                      />
+                    </div>
 
-  {/* To */}
-  <div className="flex flex-col w-[150px]">
-    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-      To
-    </label>
-    <Input
-      type="date"
-      value={dateTo}
-      onChange={(e) => setDateTo(e.target.value)}
-      className="h-10 rounded-lg"
-    />
-  </div>
-</div>
+                    {/* Date To */}
+                    <div className="flex flex-col w-[150px]">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Date To
+                      </label>
+                      <Input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="h-10 rounded-lg"
+                      />
+                    </div>
 
-<div className=" flex items-center gap-4">
-    {/* Vehicle */}
-  <div className="flex flex-col w-[200px]">
-    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-      Vehicle
-    </label>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
-          {vehicleFilter
-            ? vehicles.find((v) => v.id.toString() === vehicleFilter)?.registration_number ||
-              "Select Vehicle"
-            : "Select Vehicle"}
-          <ChevronDown className="h-4 w-4 opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-full">
-        <DropdownMenuItem onClick={() => setVehicleFilter("")}>
-          All Vehicles
-        </DropdownMenuItem>
-        {vehicles.map((vehicle) => (
-          <DropdownMenuItem
-            key={vehicle.id}
-            onClick={() => setVehicleFilter(vehicle.id.toString())}
-          >
-            {vehicle.registration_number} ({vehicle.vehicles_type_name})
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  </div>
+                    {/* Fuel Amount From */}
+                    <div className="flex flex-col w-[150px]">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Fuel Amount From
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={fuelAmountFrom}
+                        onChange={(e) => setFuelAmountFrom(e.target.value)}
+                        placeholder="Liters"
+                        className="h-10 rounded-lg"
+                      />
+                    </div>
 
-  {/* Driver */}
-  <div className="flex flex-col w-[250px]">
-    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-      Driver
-    </label>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
-          {driverFilter
-            ? drivers.find((d) => d.id.toString() === driverFilter)?.full_name || "Select Driver"
-            : "Select Driver"}
-          <ChevronDown className="h-4 w-4 opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-full">
-        <DropdownMenuItem onClick={() => setDriverFilter("")}>
-          All Drivers
-        </DropdownMenuItem>
-        {drivers.map((driver) => (
-          <DropdownMenuItem
-            key={driver.id}
-            onClick={() => setDriverFilter(driver.id.toString())}
-          >
-            {driver.full_name}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  </div>
+                    {/* Fuel Amount To */}
+                    <div className="flex flex-col w-[150px]">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Fuel Amount To
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={fuelAmountTo}
+                        onChange={(e) => setFuelAmountTo(e.target.value)}
+                        placeholder="Liters"
+                        className="h-10 rounded-lg"
+                      />
+                    </div>
 
-  {/* Card */}
-  <div className="flex flex-col w-[200px]">
-    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-      Card
-    </label>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
-          {cardFilter
-            ? cards.find((c) => c.id.toString() === cardFilter)?.title || "Select Card"
-            : "Select Card"}
-          <ChevronDown className="h-4 w-4 opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-full">
-        <DropdownMenuItem onClick={() => setCardFilter("")}>
-          All Cards
-        </DropdownMenuItem>
-        {cards.map((card) => (
-          <DropdownMenuItem
-            key={card.id}
-            onClick={() => setCardFilter(card.id.toString())}
-          >
-            {card.title || "Untitled"} ({card.card_number})
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  </div>
-</div>
-</div>
+                    {/* Fuel Cost From */}
+                    <div className="flex flex-col w-[150px]">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Fuel Cost From
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={fuelCostFrom}
+                        onChange={(e) => setFuelCostFrom(e.target.value)}
+                        placeholder="£"
+                        className="h-10 rounded-lg"
+                      />
+                    </div>
 
+                    {/* Fuel Cost To */}
+                    <div className="flex flex-col w-[150px]">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Fuel Cost To
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={fuelCostTo}
+                        onChange={(e) => setFuelCostTo(e.target.value)}
+                        placeholder="£"
+                        className="h-10 rounded-lg"
+                      />
+                    </div>
+
+                    {/* Vehicle */}
+                    <div className="flex flex-col w-[200px]">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Vehicle
+                      </label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
+                            {vehicleFilter
+                              ? vehicles.find((v) => v.id.toString() === vehicleFilter)?.registration_number ||
+                                "Select Vehicle"
+                              : "Select Vehicle"}
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-full">
+                          <DropdownMenuItem onClick={() => setVehicleFilter("")}>
+                            All Vehicles
+                          </DropdownMenuItem>
+                          {vehicles.map((vehicle) => (
+                            <DropdownMenuItem
+                              key={vehicle.id}
+                              onClick={() => setVehicleFilter(vehicle.id.toString())}
+                            >
+                              {vehicle.registration_number} ({vehicle.vehicles_type_name})
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Driver */}
+                    <div className="flex flex-col w-[250px]">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Driver
+                      </label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
+                            {driverFilter
+                              ? drivers.find((d) => d.id.toString() === driverFilter)?.full_name || "Select Driver"
+                              : "Select Driver"}
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-full">
+                          <DropdownMenuItem onClick={() => setDriverFilter("")}>
+                            All Drivers
+                          </DropdownMenuItem>
+                          {drivers.map((driver) => (
+                            <DropdownMenuItem
+                              key={driver.id}
+                              onClick={() => setDriverFilter(driver.id.toString())}
+                            >
+                              {driver.full_name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Card */}
+                    <div className="flex flex-col w-[200px]">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Card
+                      </label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
+                            {cardFilter
+                              ? cards.find((c) => c.id.toString() === cardFilter)?.title || "Select Card"
+                              : "Select Card"}
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-full">
+                          <DropdownMenuItem onClick={() => setCardFilter("")}>
+                            All Cards
+                          </DropdownMenuItem>
+                          {cards.map((card) => (
+                            <DropdownMenuItem
+                              key={card.id}
+                              onClick={() => setCardFilter(card.id.toString())}
+                            >
+                              {card.title || "Untitled"} ({card.card_number})
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
 
                   {getActiveFiltersCount() > 0 && (
                     <div className="pt-4 border-t border-border">
@@ -640,13 +740,13 @@ export default function FuelChecksManagement() {
                         )}
                         {dateFrom && (
                           <Badge variant="secondary" className="gap-1">
-                            From: {dateFrom}
+                            Date From: {dateFrom}
                             <X className="h-3 w-3 cursor-pointer" onClick={() => setDateFrom("")} />
                           </Badge>
                         )}
                         {dateTo && (
                           <Badge variant="secondary" className="gap-1">
-                            To: {dateTo}
+                            Date To: {dateTo}
                             <X className="h-3 w-3 cursor-pointer" onClick={() => setDateTo("")} />
                           </Badge>
                         )}
@@ -654,6 +754,30 @@ export default function FuelChecksManagement() {
                           <Badge variant="secondary" className="gap-1">
                             Card: {cards.find((c) => c.id.toString() === cardFilter)?.title || cardFilter}
                             <X className="h-3 w-3 cursor-pointer" onClick={() => setCardFilter("")} />
+                          </Badge>
+                        )}
+                        {fuelAmountFrom && (
+                          <Badge variant="secondary" className="gap-1">
+                            Amount From: {fuelAmountFrom} L
+                            <X className="h-3 w-3 cursor-pointer" onClick={() => setFuelAmountFrom("")} />
+                          </Badge>
+                        )}
+                        {fuelAmountTo && (
+                          <Badge variant="secondary" className="gap-1">
+                            Amount To: {fuelAmountTo} L
+                            <X className="h-3 w-3 cursor-pointer" onClick={() => setFuelAmountTo("")} />
+                          </Badge>
+                        )}
+                        {fuelCostFrom && (
+                          <Badge variant="secondary" className="gap-1">
+                            Cost From: £{fuelCostFrom}
+                            <X className="h-3 w-3 cursor-pointer" onClick={() => setFuelCostFrom("")} />
+                          </Badge>
+                        )}
+                        {fuelCostTo && (
+                          <Badge variant="secondary" className="gap-1">
+                            Cost To: £{fuelCostTo}
+                            <X className="h-3 w-3 cursor-pointer" onClick={() => setFuelCostTo("")} />
                           </Badge>
                         )}
                       </div>

@@ -1,13 +1,26 @@
-'use client';
-import React, { useEffect, useState, useMemo } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Filter } from 'lucide-react';
-import ExportButton from '@/app/utils/ExportButton';
-import API_URL from '@/app/utils/ENV';
-import { useCookies } from 'next-client-cookies';
-import { format } from 'date-fns';
+"use client";
+import React, { useEffect, useState, useMemo } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Filter } from "lucide-react";
+import ExportButton from "@/app/utils/ExportButton";
+import API_URL from "@/app/utils/ENV";
+import { useCookies } from "next-client-cookies";
+import { format } from "date-fns";
 
 // Define the ClockLog interface to match the API response
 interface ClockLog {
@@ -96,9 +109,9 @@ const ClockInOut = () => {
   const [filteredLogs, setFilteredLogs] = useState<ClockLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [driverFilter, setDriverFilter] = useState('all');
-  const [siteFilter, setSiteFilter] = useState('all');
-  const [hoursFilter, setHoursFilter] = useState('all');
+  const [driverFilter, setDriverFilter] = useState("all");
+  const [siteFilter, setSiteFilter] = useState("all");
+  const [hoursFilter, setHoursFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -106,24 +119,24 @@ const ClockInOut = () => {
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [users, setUsers] = useState<User[]>([]);
   const [sites, setSites] = useState<string[]>([]);
-  const token = useCookies().get('access_token') || '';
+  const token = useCookies().get("access_token") || "";
   const pageSize = 20;
 
   // Get today's date
-  const today = '2025-10-20'; // Hard-coded as per provided date (October 20, 2025)
+  const today = "2025-10-20"; // Hard-coded as per provided date (October 20, 2025)
 
   // Define badge colors for sites
   const siteBadgeColors: { [key: string]: string } = {
-    'Bolton Central': 'bg-blue-100 text-blue-800',
-    '35 Market Street': 'bg-purple-100 text-purple-800',
-    'Any': 'bg-green-100 text-green-800',
+    "Bolton Central": "bg-blue-100 text-blue-800",
+    "35 Market Street": "bg-purple-100 text-purple-800",
+    Any: "bg-green-100 text-green-800",
   };
 
   // Define badge colors for total hours
   const getHoursBadgeColor = (hours: number) => {
-    if (hours === 8) return 'bg-green-100 text-green-800';
-    if (hours < 8) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
+    if (hours === 8) return "bg-green-100 text-green-800";
+    if (hours < 8) return "bg-yellow-100 text-yellow-800";
+    return "bg-red-100 text-red-800";
   };
 
   // Fetch users from the API
@@ -131,16 +144,17 @@ const ClockInOut = () => {
     try {
       const response = await fetch(`${API_URL}/users/`, {
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
       });
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+        throw new Error("Failed to fetch users");
       }
       const data: ApiResponseUsers = await response.json();
       const activeDrivers = data.data.results.filter(
-        (user) => user.is_active && (user.role === 'Driver' || user.role === 'mechanic')
+        (user) =>
+          user.is_active && (user.role === "Driver" || user.role === "mechanic")
       );
       setUsers(activeDrivers);
 
@@ -151,7 +165,7 @@ const ClockInOut = () => {
       });
       setSites(Array.from(uniqueSites).sort());
     } catch (err) {
-      console.error('Error fetching users:', err);
+      console.error("Error fetching users:", err);
       setError((err as Error).message);
     }
   };
@@ -161,20 +175,23 @@ const ClockInOut = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        user_id: driverFilter === 'all' ? '' : driverFilter,
+        user_id: driverFilter === "all" ? "" : driverFilter,
         start_date: today,
         end_date: today,
         page: page.toString(),
         page_size: pageSize.toString(),
       });
-      const response = await fetch(`${API_URL}/clocking/?${params.toString()}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${API_URL}/clocking/?${params.toString()}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       if (!response.ok) {
-        throw new Error('Failed to fetch clock logs');
+        throw new Error("Failed to fetch clock logs");
       }
       const data: ApiResponseClock = await response.json();
 
@@ -222,17 +239,17 @@ const ClockInOut = () => {
     let filtered = todaysLogs;
 
     // Filter by site
-    if (siteFilter !== 'all') {
+    if (siteFilter !== "all") {
       filtered = filtered.filter((log) => log.siteName === siteFilter);
     }
 
     // Filter by total hours
-    if (hoursFilter !== 'all') {
+    if (hoursFilter !== "all") {
       filtered = filtered.filter((log) => {
         const hours = log.totalHours;
-        if (hoursFilter === 'less8') return hours < 8;
-        if (hoursFilter === '8') return hours === 8;
-        if (hoursFilter === 'more8') return hours > 8;
+        if (hoursFilter === "less8") return hours < 8;
+        if (hoursFilter === "8") return hours === 8;
+        if (hoursFilter === "more8") return hours > 8;
         return true;
       });
     }
@@ -261,23 +278,32 @@ const ClockInOut = () => {
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Today&apos;s Clock In/Out Logs</h1>
+            <h1 className="text-3xl font-bold">
+              Today&apos;s Clock In/Out Logs
+            </h1>
             <p className="text-sm text-gray-500">
-              Comprehensive overview of driver clock-in and clock-out times for {format(new Date(today), 'dd/MM/yyyy')}
+              Comprehensive overview of driver clock-in and clock-out times for{" "}
+              {format(new Date(today), "dd/MM/yyyy")}
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              {totalRecords} record{totalRecords !== 1 ? 's' : ''} found | Total Hours: {totalHours} | Total Earnings: £{totalEarnings.toFixed(2)}
+              {totalRecords} record{totalRecords !== 1 ? "s" : ""} found | Total
+              Hours: {totalHours} | Total Earnings: £{totalEarnings.toFixed(2)}
             </p>
           </div>
           <div className="flex gap-2">
-            <ExportButton data={filteredLogs} fileName="todays_clock_logs.csv" />
+            <ExportButton
+              data={filteredLogs}
+              fileName="todays_clock_logs.csv"
+            />
           </div>
         </div>
 
         {/* Filters on screen */}
         <div className="flex flex-wrap items-end gap-4 bg-gray-50 p-4 rounded-lg">
           <div className="flex-1 min-w-[200px]">
-            <label className="text-sm font-medium block mb-1">Search by Driver</label>
+            <label className="text-sm font-medium block mb-1">
+              Search by Driver
+            </label>
             <Select value={driverFilter} onValueChange={setDriverFilter}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="All Drivers" />
@@ -311,7 +337,9 @@ const ClockInOut = () => {
           </div>
 
           <div className="min-w-[150px]">
-            <label className="text-sm font-medium block mb-1">Hours Worked</label>
+            <label className="text-sm font-medium block mb-1">
+              Hours Worked
+            </label>
             <Select value={hoursFilter} onValueChange={setHoursFilter}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="All Hours" />
@@ -328,9 +356,9 @@ const ClockInOut = () => {
           <Button
             variant="outline"
             onClick={() => {
-              setDriverFilter('all');
-              setSiteFilter('all');
-              setHoursFilter('all');
+              setDriverFilter("all");
+              setSiteFilter("all");
+              setHoursFilter("all");
               setCurrentPage(1);
             }}
             className="flex items-center gap-2"
@@ -351,26 +379,47 @@ const ClockInOut = () => {
             <TableHead>Clock In</TableHead>
             <TableHead>Clock Out</TableHead>
             <TableHead>Total Hours</TableHead>
-        
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredLogs.length > 0 ? (
             filteredLogs.map((log) => (
               <TableRow key={log.id}>
-                    <TableCell>{format(new Date(log.date), 'dd/MM/yyyy')}</TableCell>
+                <TableCell>
+                  {format(new Date(log.date), "dd/MM/yyyy")}
+                </TableCell>
                 <TableCell>{log.driverName}</TableCell>
                 <TableCell>
                   <span
                     className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                      siteBadgeColors[log.siteName] || 'bg-gray-100 text-gray-800'
+                      siteBadgeColors[log.siteName] ||
+                      "bg-gray-100 text-gray-800"
                     }`}
                   >
                     {log.siteName}
                   </span>
                 </TableCell>
-                <TableCell>{log.clockIn}</TableCell>
-                <TableCell>{log.clockOut}</TableCell>
+                <TableCell>
+                  {new Date(`1970-01-01T${log.clockIn}`).toLocaleTimeString(
+                    [],
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    }
+                  )}
+                </TableCell>
+                <TableCell>
+                  {" "}
+                  {new Date(`1970-01-01T${log.clockOut}`).toLocaleTimeString(
+                    [],
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    }
+                  )}
+                </TableCell>
                 <TableCell>
                   <span
                     className={`inline-block px-2 py-1 rounded text-xs font-medium ${getHoursBadgeColor(
@@ -380,7 +429,6 @@ const ClockInOut = () => {
                     {log.totalHours}
                   </span>
                 </TableCell>
-                
               </TableRow>
             ))
           ) : (

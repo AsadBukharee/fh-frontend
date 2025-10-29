@@ -12,14 +12,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronUp, Filter } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -128,26 +121,6 @@ interface CurrentRunApiResponse {
   };
 }
 
-// Tab configuration
-const tabs = [
-  { id: 'early', label: 'Early', apiRunType: 'Early', color: 'bg-red-500/20 text-red-500 border-red-500/70', startTime: '5:00 AM', endTime: '9:20 AM' },
-  { id: 'shuttle1', label: 'First Shuttle', apiRunType: 'First Shuttle', color: 'bg-green-500/20 text-green-500 border-green-500/70', startTime: '9:21 AM', endTime: '2:00 PM' },
-  { id: 'shuttle2', label: 'Second Shuttle', apiRunType: 'Second Shuttle', color: 'bg-pink-500/20 text-pink-500 border-pink-500/70', startTime: '2:01 PM', endTime: '4:30 PM' },
-  { id: 'shuttle3', label: 'Third Shuttle', apiRunType: 'Third Shuttle', color: 'bg-orange-500/20 text-orange-500 border-orange-500/70', startTime: '4:31 PM', endTime: '6:59 PM' },
-  { id: 'night', label: 'Night', apiRunType: 'Night', color: 'bg-purple-500/20 text-purple-500 border-purple-500/70', startTime: '7:00 PM', endTime: '4:59 AM' },
-];
-
-// Map API run names to TabKey
-const runNameToId: Record<string, string> = {
-  Early: 'early',
-  'First Shuttle': 'shuttle1',
-  '1st Shuttle Run': 'shuttle1', // Handle API typo
-  'Second Shuttle': 'shuttle2',
-  'Third Shuttle': 'shuttle3',
-  '3rd Shuttle Run': 'shuttle3',
-  Night: 'night',
-};
-
 // Helper function to parse time strings (e.g., "5:00 AM") to hours and minutes
 const parseTime = (timeStr: string): { hours: number; minutes: number } => {
   const [time, period] = timeStr.split(' ');
@@ -156,34 +129,6 @@ const parseTime = (timeStr: string): { hours: number; minutes: number } => {
     hours: period === 'PM' && hours !== 12 ? hours + 12 : period === 'AM' && hours === 12 ? 0 : hours,
     minutes,
   };
-};
-
-// Helper function to determine the current shift based on current time (fallback)
-const getCurrentShiftByTime = (currentTime: Date): string => {
-  const hours = currentTime.getHours();
-  const minutes = currentTime.getMinutes();
-  const currentMinutes = hours * 60 + minutes;
-
-  for (const tab of tabs) {
-    const start = parseTime(tab.startTime);
-    const end = parseTime(tab.endTime);
-    const startMinutes = start.hours * 60 + start.minutes;
-    const endMinutes = end.hours * 60 + end.minutes;
-
-    // Handle "Night" shift crossing midnight
-    if (tab.id === 'night') {
-      if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
-        return 'night';
-      }
-    } else {
-      if (startMinutes <= currentMinutes && currentMinutes <= endMinutes) {
-        return tab.id;
-      }
-    }
-  }
-
-  // Default to "early" if no shift matches
-  return 'early';
 };
 
 const MaintenanceRunsPage = () => {
@@ -197,58 +142,35 @@ const MaintenanceRunsPage = () => {
   const [driverId, setDriverId] = useState<string>('all');
   const [runType, setRunType] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<string>('early');
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false);
-  const [tempVehicleId, setTempVehicleId] = useState<string>('all');
-  const [tempDriverId, setTempDriverId] = useState<string>('all');
-  const [tempRunType, setTempRunType] = useState<string>('all');
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
-  const [refreshCounter, setRefreshCounter] = useState<number>(30); // Auto-refresh counter
+  const [refreshCounter, setRefreshCounter] = useState<number>(30);
   const token = useCookies().get('access_token');
 
-  // Fetch vehicles, drivers, and current run type
+  // Fetch vehicles and drivers
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [vehiclesResponse, driversResponse, currentRunResponse] = await Promise.all([
+        const [vehiclesResponse, driversResponse] = await Promise.all([
           fetch(`${API_URL}/api/vehicles/`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(`${API_URL}/api/profiles/list-names/?type=driver`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${API_URL}/activity/su-run/overview/`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
         ]);
 
-        if (!vehiclesResponse.ok || !driversResponse.ok || !currentRunResponse.ok) {
+        if (!vehiclesResponse.ok || !driversResponse.ok) {
           throw new Error('Failed to fetch data');
         }
 
         const vehiclesData: VehicleApiResponse = await vehiclesResponse.json();
         const driversData: DriverApiResponse = await driversResponse.json();
-        const currentRunData: CurrentRunApiResponse = await currentRunResponse.json();
 
         setVehicles(vehiclesData.data || []);
         setDrivers(driversData.data || []);
-
-        // Set active tab based on curent_run_type, or fall back to time-based logic
-        const runType = currentRunData.data.curent_run_type;
-        if (runType && runNameToId[runType]) {
-          setActiveTab(runNameToId[runType]);
-          setRunType(tabs.find((tab) => tab.id === runNameToId[runType])?.apiRunType || 'all');
-          setTempRunType(tabs.find((tab) => tab.id === runNameToId[runType])?.apiRunType || 'all');
-        } else {
-          const timeBasedShift = getCurrentShiftByTime(new Date());
-          setActiveTab(timeBasedShift);
-          setRunType(tabs.find((tab) => tab.id === timeBasedShift)?.apiRunType || 'all');
-          setTempRunType(tabs.find((tab) => tab.id === timeBasedShift)?.apiRunType || 'all');
-        }
       } catch (err) {
         setError((err as Error).message);
-        // Fallback to time-based shift selection on error
-        setActiveTab(getCurrentShiftByTime(new Date()));
       }
     };
     fetchData();
@@ -292,8 +214,8 @@ const MaintenanceRunsPage = () => {
     const interval = setInterval(() => {
       setRefreshCounter((prev) => {
         if (prev <= 1) {
-          refreshData(); // Trigger data refresh
-          return 30; // Reset counter
+          refreshData();
+          return 30;
         }
         return prev - 1;
       });
@@ -305,10 +227,7 @@ const MaintenanceRunsPage = () => {
   const refreshData = async () => {
     setLoading(true);
     try {
-      const [currentRunResponse, maintenanceResponse] = await Promise.all([
-        fetch(`${API_URL}/activity/su-run/overview/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+      const [maintenanceResponse] = await Promise.all([
         fetch(`${API_URL}/activity/maintenance-run/?${new URLSearchParams({
           ...(vehicleId !== 'all' && { vehicle: vehicleId }),
           ...(driverId !== 'all' && { driver: driverId }),
@@ -322,20 +241,6 @@ const MaintenanceRunsPage = () => {
           },
         }),
       ]);
-
-      if (currentRunResponse.ok) {
-        const currentRunData: CurrentRunApiResponse = await currentRunResponse.json();
-        const newRunType = currentRunData.data.curent_run_type;
-        if (newRunType && runNameToId[newRunType]) {
-          const newTabId = runNameToId[newRunType];
-          if (activeTab !== newTabId) {
-            setActiveTab(newTabId);
-            setRunType(tabs.find((tab) => tab.id === newTabId)?.apiRunType || 'all');
-            setTempRunType(tabs.find((tab) => tab.id === newTabId)?.apiRunType || 'all');
-            setPage(1);
-          }
-        }
-      }
 
       if (maintenanceResponse.ok) {
         const data: ApiResponse = await maintenanceResponse.json();
@@ -354,19 +259,7 @@ const MaintenanceRunsPage = () => {
     setExpandedRows((prev) =>
       prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
     );
-    setRefreshCounter(30); // Reset counter on interaction
-  };
-
-  // Apply filters from modal
-  const applyFilters = () => {
-    setVehicleId(tempVehicleId);
-    setDriverId(tempDriverId);
-    setRunType(tempRunType);
-    setPage(1);
-    const selectedTab = tabs.find((tab) => tab.apiRunType === tempRunType) || tabs[0];
-    setActiveTab(tempRunType === 'all' ? 'early' : selectedTab.id);
-    setIsFilterModalOpen(false);
-    setRefreshCounter(30); // Reset counter on filter apply
+    setRefreshCounter(30);
   };
 
   // Clear filters
@@ -374,21 +267,17 @@ const MaintenanceRunsPage = () => {
     setVehicleId('all');
     setDriverId('all');
     setRunType('all');
-    setTempVehicleId('all');
-    setTempDriverId('all');
-    setTempRunType('all');
     setPage(1);
     setActiveTab('early');
-    setRefreshCounter(30); // Reset counter on clear filters
+    setRefreshCounter(30);
   };
 
   // Handle tab click
   const handleTabClick = (tab: { id: string; apiRunType: string }) => {
     setActiveTab(tab.id);
     setRunType(tab.apiRunType);
-    setTempRunType(tab.apiRunType);
     setPage(1);
-    setRefreshCounter(30); // Reset counter on tab change
+    setRefreshCounter(30);
   };
 
   if (loading) {
@@ -422,14 +311,6 @@ const MaintenanceRunsPage = () => {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => setIsFilterModalOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
-            <Button
-              variant="outline"
               onClick={refreshData}
               className="text-sm"
             >
@@ -440,62 +321,70 @@ const MaintenanceRunsPage = () => {
       </div>
 
       <div className="p-6">
-        {/* Navigation Tabs */}
-        {/* <div className="flex items-center justify-between mb-6">
-          <div className="flex gap-2">
-            {tabs.map((tab) => (
-              <Badge
-                key={tab.id}
-                variant="outline"
-                onClick={() => handleTabClick(tab)}
-                className={`flex items-center px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer gap-2 ${
-                  activeTab === tab.id
-                    ? tab.color
-                    : 'bg-white text-gray-600/50 border-gray-500/50'
-                }`}
-              >
-                {tab.label}
-              </Badge>
-            ))}
-          </div>
-          <Button
-            variant="outline"
-            onClick={clearFilters}
-            className="text-red-600 border-red-200"
-          >
-            Clear Filters
-          </Button>
-        </div> */}
-
-        {/* Active Filters Display */}
-        {/* <div className="flex items-center gap-4 mb-4">
-          <p className="text-sm text-gray-600">
-            Active Filters:
-            <span className="ml-2">
-              {vehicleId !== 'all'
-                ? `Vehicle: ${
-                    vehicles.find((v) => v.id.toString() === vehicleId)?.registration_number || 'Unknown'
-                  }`
-                : 'All Vehicles'}
-            </span>
-            <span className="ml-2">
-              {driverId !== 'all'
-                ? `Driver: ${drivers.find((d) => d.id.toString() === driverId)?.full_name || 'Unknown'}`
-                : 'All Drivers'}
-            </span>
-            <span className="ml-2">
-              {runType !== 'all' ? `Run Type: ${runType}` : 'All Run Types'}
-            </span>
-          </p>
-        </div> */}
+        {/* Filters Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-900">Vehicle</label>
+                <Select value={vehicleId} onValueChange={(value) => {
+                  setVehicleId(value);
+                  setPage(1);
+                  setRefreshCounter(30);
+                }}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Vehicle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Vehicles</SelectItem>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
+                        {vehicle.registration_number} ({vehicle.vehicle_type_name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-900">Driver</label>
+                <Select value={driverId} onValueChange={(value) => {
+                  setDriverId(value);
+                  setPage(1);
+                  setRefreshCounter(30);
+                }}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Driver" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Drivers</SelectItem>
+                    {drivers.map((driver) => (
+                      <SelectItem key={driver.id} value={driver.id.toString()}>
+                        {driver.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  className="w-full md:w-auto"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Main Content */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              {/* <h2 className="text-xl font-semibold text-gray-900">
-                {tabs.find((tab) => tab.id === activeTab)?.label} Run
-              </h2> */}
               <p className="text-sm text-gray-500">Maintenance run data</p>
             </div>
             <div className="flex items-center gap-4">
@@ -621,7 +510,7 @@ const MaintenanceRunsPage = () => {
               disabled={page === 1}
               onClick={() => {
                 setPage((prev) => prev - 1);
-                setRefreshCounter(30); // Reset counter on pagination
+                setRefreshCounter(30);
               }}
             >
               Previous
@@ -634,7 +523,7 @@ const MaintenanceRunsPage = () => {
               disabled={page === totalPages}
               onClick={() => {
                 setPage((prev) => prev + 1);
-                setRefreshCounter(30); // Reset counter on pagination
+                setRefreshCounter(30);
               }}
             >
               Next
@@ -642,71 +531,6 @@ const MaintenanceRunsPage = () => {
           </div>
         </div>
       </div>
-
-      {/* Filter Modal */}
-      <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Filter Maintenance Runs</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-900">Vehicle</label>
-              <Select value={tempVehicleId} onValueChange={setTempVehicleId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Vehicle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Vehicles</SelectItem>
-                  {vehicles.map((vehicle) => (
-                    <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
-                      {vehicle.registration_number} ({vehicle.vehicle_type_name})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-900">Driver</label>
-              <Select value={tempDriverId} onValueChange={setTempDriverId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Driver" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Drivers</SelectItem>
-                  {drivers.map((driver) => (
-                    <SelectItem key={driver.id} value={driver.id.toString()}>
-                      {driver.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-900">Run Type</label>
-              <Select value={tempRunType} onValueChange={setTempRunType}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Run Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Run Types</SelectItem>
-                  {tabs.map((tab) => (
-                    <SelectItem key={tab.id} value={tab.apiRunType}>
-                      {tab.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsFilterModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={applyFilters}>Apply Filters</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

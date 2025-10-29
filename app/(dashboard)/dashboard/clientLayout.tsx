@@ -27,7 +27,7 @@ export default function ClientLayout({
   // const config = pageConfig[pathname as keyof typeof pageConfig] || { title: "Dashboard", subtitle: "" }
 
   return (
-    <div className="flex h-fit bg-gray-50">
+    <div className="flex max-h-screen bg-gray-50">
       <Sidebar isCollapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header  />

@@ -408,8 +408,27 @@ const ClockInOutHistory = () => {
                     {log.siteName}
                   </span>
                 </TableCell>
-                <TableCell>{log.clockIn}</TableCell>
-                <TableCell>{log.clockOut}</TableCell>
+                 <TableCell>
+                               {new Date(`1970-01-01T${log.clockIn}`).toLocaleTimeString(
+                                 [],
+                                 {
+                                   hour: "2-digit",
+                                   minute: "2-digit",
+                                   hour12: false,
+                                 }
+                               )}
+                             </TableCell>
+                             <TableCell>
+                               {" "}
+                               {new Date(`1970-01-01T${log.clockOut}`).toLocaleTimeString(
+                                 [],
+                                 {
+                                   hour: "2-digit",
+                                   minute: "2-digit",
+                                   hour12: false,
+                                 }
+                               )}
+                             </TableCell>
                 <TableCell>
                   <span
                     className={`inline-block px-2 py-1 rounded text-xs font-medium ${getHoursBadgeColor(
