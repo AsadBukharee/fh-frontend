@@ -95,6 +95,8 @@ type TimeSlotId = "early" | "shuttle1" | "shuttle2" | "shuttle3" | "night";
 
 interface LocationRow {
   location: string;
+  location_id: number;
+
   out: number;
   in: number;
   spillover: number;
@@ -171,7 +173,7 @@ export default function SUTodayScreen() {
     location_name: string;
     data: { driver_name: string; number: number; datetime: string; direction: string }[];
   } | null>(null);
-  const [refreshCounter, setRefreshCounter] = useState<number>(30);
+  const [refreshCounter, setRefreshCounter] = useState<number>(60);
   const cookies = useCookies();
   const token = cookies.get("access_token");
 
@@ -182,13 +184,13 @@ export default function SUTodayScreen() {
 
     setDirection("all");
     setPage(1);
-    setRefreshCounter(30);
+    setRefreshCounter(60);
   };
 
   // Refresh API Function
   const refreshData = () => {
     fetchData();
-    setRefreshCounter(30);
+    setRefreshCounter(60);
   };
 
   // Fetch locations
@@ -320,7 +322,7 @@ export default function SUTodayScreen() {
       setRefreshCounter((prev) => {
         if (prev <= 1) {
           fetchData();
-          return 30;
+          return 60;
         }
         return prev - 1;
       });
@@ -344,42 +346,42 @@ export default function SUTodayScreen() {
   const getTotalOut = () => filteredData.reduce((sum, item) => sum + item.out, 0);
   const getTotalIn = () => filteredData.reduce((sum, item) => sum + item.in, 0);
   const getTotalSpillOver = () => filteredData.reduce((sum, item) => sum + item.spillover, 0);
+const tabToRunType: Record<TimeSlotId, string> = {
+  early: "Early",
+  shuttle1: "1st Shuttle Run",
+  shuttle2: "2nd Shuttle Run",
+  shuttle3: "3rd Shuttle Run",
+  night: "Night",
+};
+ const handleShowDetails = async (locationName: number) => {
+  const runType = tabToRunType[activeTab];
 
-  const handleShowDetails = async (locationName: string) => {
-    try {
-      const queryParams = new URLSearchParams({
-        location_name: locationName,
-        });
+  const queryParams = new URLSearchParams({
+    location_id: String(locationName),
+    run_type: runType,
+  });
 
-      const response = await fetch(
-        `${API_URL}/activity/su-run/details/?${queryParams}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+  try {
+    const response = await fetch(`${API_URL}/activity/su-run/details/?${queryParams}`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch stop details");
-      }
+    if (!response.ok) throw new Error("Network error");
+    const data: StopDetailsResponse = await response.json();
 
-      const data: StopDetailsResponse = await response.json();
-      if (data.success) {
-        setSelectedStop({
-          location_name: locationName,
-          data: data.data.data,
-        });
-      } else {
-        throw new Error(data.message || "Failed to fetch stop details");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Failed to fetch stop details.");
-      setSelectedStop(null);
+    if (data.success) {
+      setSelectedStop({ location_name: String(locationName), data: data.data.data });
+    } else {
+      setError(data.message);
     }
-  };
+  } catch (err: any) {
+    setError("Failed to load details: " + err.message);
+    setSelectedStop(null);
+  }
+};
 
   return (
     <div className="min-h-screen bg-white p-6">
@@ -417,7 +419,7 @@ export default function SUTodayScreen() {
               onValueChange={(value: TimeSlotId) => {
                 setActiveTab(value);
                 setPage(1);
-                setRefreshCounter(30);
+                setRefreshCounter(60);
               }}
               value={activeTab}
             >
@@ -505,7 +507,7 @@ export default function SUTodayScreen() {
             disabled={page === 1}
             onClick={() => {
               setPage((prev) => Math.max(prev - 1, 1));
-              setRefreshCounter(30);
+              setRefreshCounter(60);
             }}
           >
             Previous
@@ -518,7 +520,7 @@ export default function SUTodayScreen() {
             disabled={page === totalPages}
             onClick={() => {
               setPage((prev) => Math.min(prev + 1, totalPages));
-              setRefreshCounter(30);
+              setRefreshCounter(60);
             }}
           >
             Next
@@ -545,7 +547,7 @@ export default function SUTodayScreen() {
                     <DialogTrigger asChild>
                       <TableRow
                         className="hover:bg-gray-50 cursor-pointer border-b"
-                        onClick={() => handleShowDetails(row.location)}
+                        onClick={() => handleShowDetails(row.location_id)}
                       >
                         <TableCell className="font-medium text-gray-900 py-3">{row.location}</TableCell>
                         <TableCell className="text-center">

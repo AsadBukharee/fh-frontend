@@ -271,7 +271,7 @@ const Page = () => {
           }),
       });
 
-      const res = await fetch(`${API_HOST}/api/tasks/?${params}`, {
+      const res = await fetch(`${API_HOST}/api/tasks/history/?${params}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -429,7 +429,7 @@ const Page = () => {
   // ------------------- RENDER -------------------
   return (
     <div className="container bg-white mx-auto p-4">
-      <h2 className="text-2xl font-bold">Task Management</h2>
+      <h2 className="text-2xl font-bold">Task Management History</h2>
       <p className="text-muted-foreground">
         View, filter, and manage tasks across all types and priorities
       </p>
@@ -449,31 +449,9 @@ const Page = () => {
           />
         </div>
 
-        <Button
-          className="bg-orange-500 hover:bg-orange-600"
-          onClick={() => setIsCreateOpen(true)}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" /> Create Task
-        </Button>
-
+      
         <ExportButton data={tasks} fileName="tasks_export.csv" />
-           <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/dashboard/tasks/settings")}
-          title="Settings"
-        >
-          <Settings size={20} className="h-6 w-6" />
-        </Button>
-          <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/dashboard/tasks/task-types")}
-          title="Task Type List"
-        >
-                    <ListFilter className="h-4 w-4" />
-
-        </Button>
+      
 
       </div>
    <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
@@ -638,7 +616,7 @@ const Page = () => {
               <TableHead>Status</TableHead>
               <TableHead>Overdue</TableHead>
               <TableHead>Reassign Reason</TableHead>
-              <TableHead>Reassign</TableHead>
+            
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -694,15 +672,6 @@ const Page = () => {
                   {latestReason(task)}
                 </TableCell>
 
-                <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openReassign(task)}
-                  >
-                    Reassign
-                  </Button>
-                </TableCell>
 
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -715,15 +684,11 @@ const Page = () => {
                       <DropdownMenuItem onClick={() => openView(task)}>
                         <Eye className="mr-2 h-4 w-4" /> View
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openUpdate(task)}>
-                        <Edit className="mr-2 h-4 w-4" /> Update
-                      </DropdownMenuItem>
+                    
                       <DropdownMenuItem onClick={() => openHistory(task)}>
                         <Logs className="mr-2 h-4 w-4" /> Logs
                       </DropdownMenuItem>
-                       <DropdownMenuItem onClick={() => router.push('/dashboard/tasks/history')}>
-                        <History className="mr-2 h-4 w-4" /> History
-                      </DropdownMenuItem>
+                    
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -748,19 +713,7 @@ const Page = () => {
         </Button>
       </div>
 
-      {/* ---------- DIALOGS ---------- */}
-      <CreateTaskDialog
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onTaskCreated={refresh}
-      />
-
-      <ReassignTaskDialog
-        isOpen={isReassignOpen}
-        onClose={() => setIsReassignOpen(false)}
-        taskId={selectedTask?.id ?? null}
-        onTaskReassigned={refresh}
-      />
+  
 
       <ViewTaskDialog
         isOpen={isViewOpen}
@@ -768,12 +721,7 @@ const Page = () => {
         task={selectedTask}
       />
 
-      <UpdateTaskDialog
-        isOpen={isUpdateOpen}
-        onClose={() => setIsUpdateOpen(false)}
-        task={selectedTask}
-        onTaskUpdated={refresh}
-      />
+   
 
       <HistoryTaskDialog
         isOpen={isHistoryOpen}
