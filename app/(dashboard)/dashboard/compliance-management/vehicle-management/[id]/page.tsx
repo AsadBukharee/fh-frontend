@@ -2,9 +2,41 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Save, Edit, X, MapPin, Info, FileText, Gauge, Clock, Users, Camera, Download, Eye, Upload, CheckCircle, AlertTriangle, Calendar, DollarSign, ExternalLink } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Save,
+  Edit,
+  X,
+  MapPin,
+  Info,
+  FileText,
+  Gauge,
+  Clock,
+  Users,
+  Camera,
+  Download,
+  Eye,
+  Upload,
+  CheckCircle,
+  AlertTriangle,
+  Calendar,
+  DollarSign,
+  ExternalLink,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import API_URL from "@/app/utils/ENV";
 import ImageUploader from "@/components/Media/UploadImage";
 import InspectionDialog from "@/components/Vehicles/expiry/InspectionDialog";
@@ -15,6 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Site {
   id: number;
@@ -23,6 +56,14 @@ interface Site {
   address?: string;
   postcode?: string;
   image?: string;
+}
+
+interface Driver {
+  id: number;
+  full_name: string;
+  avatar: string | null;
+  email: string;
+  sites: Site[];
 }
 
 interface Vehicle {
@@ -34,13 +75,13 @@ interface Vehicle {
   last_mileage: string | null;
   vehicle_cost?: number;
   vehicle_picture?: string;
-  assignee_driver: any;
+  assignee_driver: Driver | null; // <-- now null if no driver
   vehicles_type: {
     id: number;
     name: string;
     description: string;
   };
-  site_allocated?: Site | Site[]; // can be a single Site or an array of Sites
+  site_allocated?: Site | Site[];
   warnings: string[];
   missing_attributes: string[];
   mot_expiry: string;
@@ -91,10 +132,11 @@ export default function VehicleDetailPage() {
   const { id } = useParams();
   const cookies = useCookies();
   const token = cookies.get("access_token");
-
+const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]); // <-- NEW
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -107,6 +149,10 @@ export default function VehicleDetailPage() {
   const [isInspectionDialogOpen, setIsInspectionDialogOpen] = useState<boolean>(false);
   const [username, setUsername] = useState<string>("");
 
+  // NEW: Driver assignment states
+  const [assigning, setAssigning] = useState(false);
+  const [unassigning, setUnassigning] = useState(false);
+
   const showToast = (message: string, type: string) => {
     console.log(`${type}: ${message}`);
   };
@@ -114,108 +160,108 @@ export default function VehicleDetailPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [vehicleRes, sitesRes] = await Promise.all([
+        const [vehicleRes, sitesRes, driversRes] = await Promise.all([
           fetch(`${API_URL}/api/vehicles/${id}/`, {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           }),
           fetch(`${API_URL}/api/sites/list-names/`, {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           }),
+          fetch(`${API_URL}/users/list-names/?role=driver`, {
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          }),
         ]);
 
-        const vehicleData = await vehicleRes.json();
-        const sitesData = await sitesRes.json();
+        const [vehicleData, sitesData, driversData] = await Promise.all([
+          vehicleRes.json(),
+          sitesRes.json(),
+          driversRes.json(),
+        ]);
 
         if (vehicleData.success) {
           setVehicle(vehicleData.data);
           setEditVehicle(vehicleData.data);
         }
-        if (sitesData.success) {
-          setSites(sitesData.data);
-        }
+        if (sitesData.success) setSites(sitesData.data);
+        if (driversData.success) setDrivers(driversData.data);
       } catch (err) {
         setError("Error fetching data");
-        console.error(err);
         showToast("Error fetching data", "error");
       } finally {
         setLoading(false);
       }
     };
 
-    if (id && token) {
-      fetchData();
-    }
+    if (id && token) fetchData();
   }, [id, token]);
 
   const handleEditToggle = () => {
-    if (isEditing) {
-      setEditVehicle(vehicle);
-    }
+    if (isEditing) setEditVehicle(vehicle);
     setIsEditing(!isEditing);
   };
 
- const handleSave = async () => {
-  if (!editVehicle || !token) return;
-  setSaving(true);
-  try {
-    const vehicleData = {
-      registration_number: editVehicle.registration_number,
-      vehicle_status: editVehicle.vehicle_status,
-      is_roadworthy: editVehicle.is_roadworthy,
-      mot_expiry: editVehicle.mot_expiry,
-      tax_expiry: editVehicle.tax_expiry,
-      insurance_expiry: editVehicle.insurance_expiry,
-      inspection_expire: editVehicle.inspection_expire,
-      tacho_calibration_expiry: editVehicle.tacho_calibration_expiry,
-      walkaround_count: editVehicle.walkaround_count,
-      last_mileage: editVehicle.last_mileage,
-      vehicles_type: editVehicle.vehicles_type.id,
-      site_allocated: (() => {
-        // handle Site | Site[] | undefined and return an array of IDs
-        if (!editVehicle.site_allocated) return [];
-        if (Array.isArray(editVehicle.site_allocated)) return editVehicle.site_allocated.map(s => s.id);
-        return [editVehicle.site_allocated.id];
-      })(),
-      vehicle_cost: editVehicle.vehicle_cost,
-      tyre_expiry_front_driver: editVehicle.tyre_expiry_front_driver,
-      tyre_expiry_front_passenger: editVehicle.tyre_expiry_front_passenger,
-      tyre_expiry_rear_outer_driver: editVehicle.tyre_expiry_rear_outer_driver,
-      tyre_expiry_rear_outer_passenger: editVehicle.tyre_expiry_rear_outer_passenger,
-      tyre_pressure_front_driver: editVehicle.tyre_pressure_front_driver,
-      tyre_pressure_front_passenger: editVehicle.tyre_pressure_front_passenger,
-      tyre_pressure_rear_outer_driver: editVehicle.tyre_pressure_rear_outer_driver,
-      tyre_pressure_rear_outer_passenger: editVehicle.tyre_pressure_rear_outer_passenger,
-      tyre_depth_front_driver: editVehicle.tyre_depth_front_driver,
-      tyre_depth_front_passenger: editVehicle.tyre_depth_front_passenger,
-      tyre_depth_rear_outer_driver: editVehicle.tyre_depth_rear_outer_driver,
-      tyre_depth_rear_outer_passenger: editVehicle.tyre_depth_rear_outer_passenger,
-    };
+  const handleSave = async () => {
+    if (!editVehicle || !token) return;
+    setSaving(true);
+    try {
+      const vehicleData = {
+        registration_number: editVehicle.registration_number,
+        vehicle_status: editVehicle.vehicle_status,
+        is_roadworthy: editVehicle.is_roadworthy,
+        mot_expiry: editVehicle.mot_expiry,
+        tax_expiry: editVehicle.tax_expiry,
+        insurance_expiry: editVehicle.insurance_expiry,
+        inspection_expire: editVehicle.inspection_expire,
+        tacho_calibration_expiry: editVehicle.tacho_calibration_expiry,
+        walkaround_count: editVehicle.walkaround_count,
+        last_mileage: editVehicle.last_mileage,
+        vehicles_type: editVehicle.vehicles_type.id,
+        site_allocated: (() => {
+          if (!editVehicle.site_allocated) return [];
+          if (Array.isArray(editVehicle.site_allocated)) return editVehicle.site_allocated.map(s => s.id);
+          return [editVehicle.site_allocated.id];
+        })(),
+        vehicle_cost: editVehicle.vehicle_cost,
+        tyre_expiry_front_driver: editVehicle.tyre_expiry_front_driver,
+        tyre_expiry_front_passenger: editVehicle.tyre_expiry_front_passenger,
+        tyre_expiry_rear_outer_driver: editVehicle.tyre_expiry_rear_outer_driver,
+        tyre_expiry_rear_outer_passenger: editVehicle.tyre_expiry_rear_outer_passenger,
+        tyre_pressure_front_driver: editVehicle.tyre_pressure_front_driver,
+        tyre_pressure_front_passenger: editVehicle.tyre_pressure_front_passenger,
+        tyre_pressure_rear_outer_driver: editVehicle.tyre_pressure_rear_outer_driver,
+        tyre_pressure_rear_outer_passenger: editVehicle.tyre_pressure_rear_outer_passenger,
+        tyre_depth_front_driver: editVehicle.tyre_depth_front_driver,
+        tyre_depth_front_passenger: editVehicle.tyre_depth_front_passenger,
+        tyre_depth_rear_outer_driver: editVehicle.tyre_depth_rear_outer_driver,
+        tyre_depth_rear_outer_passenger: editVehicle.tyre_depth_rear_outer_passenger,
+      };
 
-    const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(vehicleData),
-    });
+      const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(vehicleData),
+      });
 
-    const updatedData = await res.json();
-    if (res.ok && updatedData.success) {
-      setVehicle(updatedData.data);
-      setEditVehicle(updatedData.data);
-      setIsEditing(false);
-      showToast("Vehicle updated successfully", "success");
-    } else {
-      showToast(updatedData.message || "Failed to update vehicle", "error");
-      throw new Error(updatedData.message || "Failed to update vehicle");
+      const updatedData = await res.json();
+      if (res.ok && updatedData.success) {
+        setVehicle(updatedData.data);
+        setEditVehicle(updatedData.data);
+        setIsEditing(false);
+        showToast("Vehicle updated successfully", "success");
+      } else {
+        showToast(updatedData.message || "Failed to update vehicle", "error");
+        throw new Error(updatedData.message || "Failed to update vehicle");
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to update", "error");
+    } finally {
+      setSaving(false);
     }
-  } catch (err) {
-    showToast(err instanceof Error ? err.message : "Failed to update", "error");
-  } finally {
-    setSaving(false);
-  }
-};
+  };
+
   const handleInputChange = (field: keyof Vehicle, value: any) => {
     setEditVehicle((prev) => (prev ? { ...prev, [field]: value } : prev));
   };
@@ -244,19 +290,17 @@ export default function VehicleDetailPage() {
   const handleDocumentUpload = async (docType: string, file: File) => {
     if (!token) return;
     setUploadingDoc(docType);
-    
+
     const formData = new FormData();
-    formData.append('file', file);
-    
+    formData.append("file", file);
+
     try {
       const uploadRes = await fetch(`${API_URL}/api/upload/`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      
+
       const uploadData = await uploadRes.json();
       if (uploadData.success) {
         const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
@@ -267,12 +311,12 @@ export default function VehicleDetailPage() {
           },
           body: JSON.stringify({ [docType]: uploadData.url }),
         });
-        
+
         if (res.ok) {
           const docUrl = uploadData.url;
           setVehicle((prev) => (prev ? { ...prev, [docType]: docUrl } : prev));
           setEditVehicle((prev) => (prev ? { ...prev, [docType]: docUrl } : prev));
-          showToast(`${docType.replace('_', ' ')} updated successfully`, "success");
+          showToast(`${docType.replace("_", " ")} updated successfully`, "success");
         }
       }
     } catch (err) {
@@ -300,16 +344,15 @@ export default function VehicleDetailPage() {
   };
 
   const getStatusBadgeColors = (status: string) => {
-    const choice = STATUS_CHOICES.find(s => s.value === status);
+    const choice = STATUS_CHOICES.find((s) => s.value === status);
     return choice?.color || "bg-gray-500";
   };
 
   const openEditDateDialog = (field: keyof Vehicle, currentValue: string) => {
-    if(field === "inspection_expire") {
+    if (field === "inspection_expire") {
       setIsInspectionDialogOpen(true);
-      return null;
+      return;
     }
-
     setEditDateField(field);
     setTempDate(currentValue || "");
   };
@@ -325,6 +368,78 @@ export default function VehicleDetailPage() {
       handleInputChange(editDateField, tempDate);
       setEditDateField(null);
       setTempDate("");
+    }
+  };
+
+const assignDriver = async (driverId: number) => {
+  if (!token) return;
+  setAssigning(true);
+  try {
+    const res = await fetch(`${API_URL}/api/vehicles/${id}/assign-driver/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ driver_id: driverId }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      // Refresh vehicle data
+      const refreshed = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const refreshedData = await refreshed.json();
+      if (refreshedData.success) {
+        setVehicle(refreshedData.data);
+        setEditVehicle(refreshedData.data);
+      }
+      showToast("Driver assigned successfully", "success");
+      setSelectedDriverId(""); // reset dropdown
+    } else {
+      // Show backend error message
+      alert(data.message || "Failed to assign driver")
+      showToast(data.message || "Failed to assign driver", "error");
+    }
+  } catch (e) {
+    showToast("Network error", "error");
+  } finally {
+    setAssigning(false);
+  }
+};
+
+  const unassignDriver = async () => {
+    if (!token || !vehicle?.assignee_driver) return;
+    setUnassigning(true);
+    try {
+      const res = await fetch(`${API_URL}/api/vehicles/${id}/unassign/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ driver_id: vehicle.assignee_driver.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const refreshed = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const refreshedData = await refreshed.json();
+        if (refreshedData.success) {
+          setVehicle(refreshedData.data);
+          setEditVehicle(refreshedData.data);
+        }
+        showToast("Driver unassigned", "success");
+      } else {
+        showToast(data.message || "Failed to unassign driver", "error");
+      }
+    } catch (e) {
+      showToast("Network error", "error");
+    } finally {
+      setUnassigning(false);
     }
   };
 
@@ -457,6 +572,11 @@ export default function VehicleDetailPage() {
             <TabsTrigger value="site" className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700">
               <MapPin className="w-4 h-4 mr-2" />
               Location
+            </TabsTrigger>
+            {/* NEW TAB */}
+            <TabsTrigger value="driver" className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700">
+              <Users className="w-4 h-4 mr-2" />
+              Driver
             </TabsTrigger>
           </TabsList>
 
@@ -613,21 +733,21 @@ export default function VehicleDetailPage() {
               </div>
             </Card>
 
+            {/* Assigned Driver in Overview */}
             {vehicle.assignee_driver && (
               <Card className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
                 <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Users className="w-5 h-5 text-orange-600" />
                   Assigned Driver
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Driver Name</Label>
-                    <p className="mt-2 text-lg font-semibold text-gray-900">{vehicle.assignee_driver.full_name}</p>
+                    <p className="text-lg font-semibold text-gray-900">{vehicle.assignee_driver.full_name}</p>
+                    <p className="text-sm text-gray-600">{vehicle.assignee_driver.email}</p>
                   </div>
-                  <div>
-                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</Label>
-                    <p className="mt-2 text-lg font-semibold text-gray-900">{vehicle.assignee_driver.email}</p>
-                  </div>
+                  <Button variant="outline" size="sm" onClick={unassignDriver} disabled={unassigning}>
+                    {unassigning ? "Unassigning…" : "Unassign"}
+                  </Button>
                 </div>
               </Card>
             )}
@@ -754,7 +874,7 @@ export default function VehicleDetailPage() {
               setTempDate("");
             }}
             lastPMIDate={vehicle?.inspection_expire || tempDate}
-vehicleId={Number(Array.isArray(id) ? id[0] : id) || 0}
+            vehicleId={Number(Array.isArray(id) ? id[0] : id) || 0}
             vehicleRegistration={vehicle?.registration_number || ""}
             username={username || "current_user"}
             onUpdateSuccess={() => {
@@ -1053,7 +1173,6 @@ vehicleId={Number(Array.isArray(id) ? id[0] : id) || 0}
                         </p>
                       )}
                     </div>
-                
                   </div>
                 </div>
               ) : (
@@ -1079,6 +1198,93 @@ vehicleId={Number(Array.isArray(id) ? id[0] : id) || 0}
               )}
             </Card>
           </TabsContent>
+
+     {/* NEW: Driver Tab – using shadcn Select */}
+{/* Driver Tab – shadcn Select + Manual Assign */}
+<TabsContent value="driver" className="space-y-6">
+  <Card className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+    <h3 className="font-semibold text-gray-900 mb-6 flex items-center gap-2">
+      <Users className="w-6 h-6 text-orange-600" />
+      Driver Assignment
+    </h3>
+
+    {drivers.length === 0 ? (
+      <p className="text-center text-gray-500">Loading drivers...</p>
+    ) : (
+      <div className="space-y-6">
+        {/* Current Assigned Driver */}
+        {vehicle.assignee_driver && (
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">{vehicle.assignee_driver.full_name}</p>
+                <p className="text-sm text-gray-600">{vehicle.assignee_driver.email}</p>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={unassignDriver}
+                disabled={unassigning}
+              >
+                {unassigning ? "Unassigning..." : "Unassign"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Select + Assign */}
+        <div className="flex gap-3 items-end">
+          <div className="flex-1">
+            <Label className="text-sm font-medium">
+              {vehicle.assignee_driver ? "Change driver" : "Assign driver"}
+            </Label>
+
+            <Select
+              value={selectedDriverId}
+              onValueChange={setSelectedDriverId}
+              disabled={assigning}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="-- Select a driver --" />
+              </SelectTrigger>
+              <SelectContent>
+                {drivers.map((d) => (
+                  <SelectItem key={d.id} value={d.id.toString()}>
+                    {d.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            onClick={() => {
+              if (!selectedDriverId) {
+                showToast("Please select a driver first", "error");
+                return;
+              }
+              assignDriver(Number(selectedDriverId));
+            }}
+            disabled={assigning || !selectedDriverId}
+            className="bg-orange-600 hover:bg-orange-700 min-w-[100px]"
+          >
+            {assigning ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Assigning...
+              </>
+            ) : (
+              "Assign"
+            )}
+          </Button>
+        </div>
+
+        {/* Optional: Show error below */}
+        {/* You can add a small error message here if needed */}
+      </div>
+    )}
+  </Card>
+</TabsContent>
         </Tabs>
 
         {/* Document Preview Modal */}

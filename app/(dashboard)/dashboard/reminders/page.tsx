@@ -144,26 +144,7 @@ const Reminders: React.FC = () => {
     fetchReminders()
   }, [token])
 
-  // Fetch interactions
-  const fetchInteractions = async (reminderId: number) => {
-    try {
-      const response = await fetch(`${API_URL}/api/reminders/${reminderId}/interactions/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to fetch interactions")
-      }
-      const data: ReminderInteraction[] = await response.json()
-      setInteractions(data)
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Error fetching interactions")
-      console.error(err)
-    }
-  }
+
 
   // Map priority to color
   const mapPriorityToColor = (priority: string): string => {
