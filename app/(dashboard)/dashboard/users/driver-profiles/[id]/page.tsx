@@ -759,9 +759,6 @@ export default function DriverDetailPage() {
         </TabsContent>
         <TabsContent value="sign-agreement">
           <SignAgreementTab
-            driverData={driverData}
-            formatDate={formatDate}
-            showToast={showToast}
           />
         </TabsContent>
       </Tabs>

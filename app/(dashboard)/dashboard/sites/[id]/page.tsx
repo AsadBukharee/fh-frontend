@@ -121,13 +121,15 @@ const initializeDefaultOperationHours = (): OperationHour[] =>
 
 const formatTime = (time: string | null) => {
   if (!time) return "N/A";
+  const clean = time.slice(0,5); // "HH:mm"
   try {
-    const parsed = parse(time, "HH:mm", new Date());
+    const parsed = parse(clean, "HH:mm", new Date());
     return format(parsed, "h:mm a");
   } catch {
-    return time;
+    return clean;
   }
 };
+
 
 const getStatusBadgeColors = (status: string) => {
   switch (status) {
@@ -389,34 +391,35 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
           <h1 className="text-2xl font-bold text-gray-800">Sites Details</h1>
           <p className="text-sm text-gray-500">See and edit site details</p>
         </div>
-        <div>
-          {isEditing ? (
-            <div className="flex gap-2">
-              <button
-                onClick={handleSubmit}
-                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-              >
-                <Save className="w-4 h-4" /> Save
-              </button>
-              <button
-                onClick={() => {
-                  setIsEditing(false);
-                  setEditSite(site);
-                }}
-                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-              >
-                <X className="w-4 h-4" /> Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700"
-            >
-              <Edit className="w-4 h-4" /> Edit
-            </button>
-          )}
-        </div>
+        <div className="fixed bottom-4 right-4 z-50">
+  {isEditing ? (
+    <div className="flex gap-2">
+      <button
+        onClick={handleSubmit}
+        className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+      >
+        <Save className="w-4 h-4" /> Save
+      </button>
+      <button
+        onClick={() => {
+          setIsEditing(false)
+          setEditSite(site)
+        }}
+        className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+      >
+        <X className="w-4 h-4" /> Cancel
+      </button>
+    </div>
+  ) : (
+    <button
+      onClick={() => setIsEditing(true)}
+      className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700"
+    >
+      <Edit className="w-4 h-4" /> Edit
+    </button>
+  )}
+</div>
+
       </div>
 
       <form onSubmit={(e) => handleSubmit(e)}>

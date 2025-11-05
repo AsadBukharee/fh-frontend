@@ -65,7 +65,7 @@ const PENSION_STATUS: Record<
   string,
   { label: string; variant: string }
 > = {
-  uploaded: { label: "Uploaded", variant: "bg-blue-600" },
+  uploaded: { label: "Uploaded", variant: "bg-blue-600 text-white" },
   not_uploaded: { label: "Not Uploaded", variant: "outline" },
 };
 
@@ -80,8 +80,7 @@ type DocumentKey =
   | "employeeHandbook"
   | "ehuForm"
   | "fhRules"
-  | "crhRules"
-  | "safetyPolicy";
+  | "crhRules";
 
 interface BaseDoc {
   id?: number;
@@ -136,7 +135,6 @@ type DocMap = {
   ehuForm: BaseDoc;
   fhRules: BaseDoc;
   crhRules: BaseDoc;
-  safetyPolicy: BaseDoc;
 };
 
 /* ────────────────────── Document Config ────────────────────── */
@@ -203,11 +201,6 @@ const docConfig: Record<
     fields: ["applicable"],
     category: "rules",
   },
-  safetyPolicy: {
-    title: "Safety Policy",
-    fields: ["applicable"],
-    category: "safety",
-  },
 };
 
 /* ────────────────────── Helpers ────────────────────── */
@@ -254,7 +247,6 @@ function useDriverDocuments(userId: string, token: string) {
     ehuForm: { link: null, uploadDate: null, isApplicable: true },
     fhRules: { link: null, uploadDate: null, isApplicable: true },
     crhRules: { link: null, uploadDate: null, isApplicable: true },
-    safetyPolicy: { link: null, uploadDate: null, isApplicable: true },
   });
   const [loading, setLoading] = useState(true);
 
@@ -271,28 +263,7 @@ function useDriverDocuments(userId: string, token: string) {
 
       const dedicated: Record<string, any> = {};
 
-      if (docConfig.nightWorker.apiKey) {
-        const nwRes = await fetch(
-          `${API_URL}/api/profiles/${docConfig.nightWorker.apiKey}/?driver_id=${userId}`,
-          { headers: getHeaders(token) }
-        );
-        if (nwRes.ok) {
-          const data = await nwRes.json();
-          dedicated[docConfig.nightWorker.apiKey] = data[0] ?? null;
-        }
-      }
-
-      if (docConfig.pensionInfo.apiKey) {
-        const penRes = await fetch(
-          `${API_URL}/api/profiles/${docConfig.pensionInfo.apiKey}/?driver_id=${userId}`,
-          { headers: getHeaders(token) }
-        );
-        if (penRes.ok) {
-          const data = await penRes.json();
-          dedicated[docConfig.pensionInfo.apiKey] = data[0] ?? null;
-        }
-      }
-
+   
       const map: Partial<DocMap> = {};
 
       Object.entries(docConfig).forEach(([key, cfg]) => {
@@ -366,7 +337,7 @@ function useDriverDocuments(userId: string, token: string) {
   return { docs, loading, reload };
 }
 
-/* ────────────────────── Dynamic Upload Dialog (Supports Edit) ────────────────────── */
+/* ────────────────────── Dynamic Upload Dialog ────────────────────── */
 interface DynamicUploadDialogProps {
   keyName: DocumentKey;
   onUpload: (key: DocumentKey, url: string, formData: any) => Promise<void>;
@@ -633,65 +604,104 @@ export default function SignAgreementAdminTab() {
     });
   };
 
-  const uploadDocument = async (key: DocumentKey, url: string, formData: any) => {
-    const cfg = docConfig[key];
-    const doc = docs[key];
-    const isEdit = !!doc.id;
-    const endpoint = getEndpoint(key, isEdit ? doc.id : undefined);
+ const uploadDocument = async (key: DocumentKey, url: string, formData: any) => {
+  const cfg = docConfig[key];
+  const doc = docs[key];
+  const isEdit = !!doc.id;
+  const endpoint = getEndpoint(key, isEdit ? doc.id : undefined);
 
-    const payload: any = {
-      driver_id: Number(userId),
+  // ────── BASE PAYLOAD (common for every document) ──────
+  const payload: any = {
+    driver_id: Number(userId),
+    link: url,
+    document_link: url,
+    is_applicable: formData.applicable ?? true,
+  };
+
+  // ────── FIELD MAPPING FROM docConfig.fields ──────
+  if (cfg.fields.includes("expiry")) {
+    payload.expiry_date = formData.expiryDate || null;
+  }
+  if (cfg.fields.includes("signing")) {
+    payload.contract_signing_date = formData.signingDate || null;
+  }
+  if (cfg.fields.includes("start")) {
+    payload.contract_start_date = formData.startDate || null;
+  }
+
+  // ────── SPECIAL CASES (Night Worker, Pension) ──────
+  if (key === "nightWorker") {
+    Object.assign(payload, {
+      is_night_worker: true,
+      admin_uploaded: false,
+      agreement_date: new Date().toISOString(),
+    });
+  }
+
+  if (key === "pensionInfo") {
+    Object.assign(payload, {
+      eligible: true,
+      auto_enrollment: true,
+      current_status: formData.optIn ? "uploaded" : "not_uploaded",
+      opt_date: formData.optIn ? new Date().toISOString() : null,
+    });
+  }
+
+  // ────── GENERIC SIGNED-AGREEMENT FIELDS (only for new docs) ──────
+  if (!cfg.apiKey && !isEdit) {
+    Object.assign(payload, {
+      name: cfg.title,
+      category: cfg.category,
+      status: "pending",
+      priority: 1,
+      document_type: "signable",
+      requires_signature: true,
+      is_signed: false,
+      is_viewed: false,
+      is_applicable: formData.applicable ?? true,
+      signed_date: null,
+      viewed_date: null,
+      contract_date: formData.contractDate || null,
+    });
+  }
+
+  // ────── FOR EDIT (PATCH): only send fields that changed or are required ──────
+  if (isEdit && !cfg.apiKey) {
+    // Only include fields that exist in the original payload
+    const patchFields: Partial<typeof payload> = {
       link: url,
       document_link: url,
       is_applicable: formData.applicable ?? true,
     };
 
-    if (key === "nightWorker") {
-      Object.assign(payload, {
-        is_night_worker: true,
-        admin_uploaded: false,
-        agreement_date: new Date().toISOString(),
-        contract_signing_date: formData.signingDate,
-        contract_start_date: formData.startDate,
-        expiry_date: formData.expiryDate,
-      });
+    // Optional dates
+    if (cfg.fields.includes("signing")) patchFields.contract_signing_date = formData.signingDate || null;
+    if (cfg.fields.includes("start")) patchFields.contract_start_date = formData.startDate || null;
+    if (cfg.fields.includes("expiry")) patchFields.expiry_date = formData.expiryDate || null;
+
+    // Generic fields that can be updated
+    if (cfg.title === "Contract Of Employment") {
+      patchFields.contract_date = formData.contractDate || null;
     }
 
-    if (key === "pensionInfo") {
-      Object.assign(payload, {
-        eligible: true,
-        auto_enrollment: true,
-        current_status: formData.optIn ? "uploaded" : "not_uploaded",
-        opt_date: formData.optIn ? new Date().toISOString() : null,
-      });
-    }
+    Object.assign(payload, patchFields);
+  }
 
-    if (!cfg.apiKey && !isEdit) {
-      Object.assign(payload, {
-        name: cfg.title,
-        category: cfg.category,
-        status: "pending",
-        document_type: "view_only",
-        priority: 1,
-        requires_signature: false,
-      });
-    }
+  const method = isEdit ? "PATCH" : "POST";
+  const res = await fetch(endpoint, {
+    method,
+    headers: getHeaders(token),
+    body: JSON.stringify(payload),
+  });
 
-    const method = isEdit ? "PATCH" : "POST";
-    const res = await fetch(endpoint, {
-      method,
-      headers: getHeaders(token),
-      body: JSON.stringify(payload),
-    });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Failed: ${err}`);
+  }
 
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Failed: ${err}`);
-    }
-
-    await reload();
-    sonnerToast.success(`${cfg.title} ${isEdit ? "updated" : "uploaded"}`);
-  };
+  await reload();
+  sonnerToast.success(`${cfg.title} ${isEdit ? "updated" : "uploaded"}`);
+};
 
   const toggleApplicable = async (key: DocumentKey) => {
     const doc = docs[key];
@@ -898,8 +908,8 @@ export default function SignAgreementAdminTab() {
                 initial: {
                   applicable: d.isApplicable,
                   expiryDate: (d as any).expiryDate ?? "",
-                  signingDate: (d as any).contractSigningDate ?? "",
-                  startDate: (d as any).contractStartDate ?? "",
+                  signingDate: (d as any).contractSigningDate ?? (d as any).signingDate ?? "",
+                  startDate: (d as any).contractStartDate ?? (d as any).startDate ?? "",
                   optIn: (d as PensionDoc).optIn,
                   optOut: (d as PensionDoc).optOut,
                 },

@@ -47,7 +47,8 @@ import {
   Map,
   ListChecks,
   List,
-  Waypoints
+  Waypoints,
+  TypeOutline
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -74,6 +75,7 @@ const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } =
   CheckSquare,
   Clock,
   Settings,
+  TypeOutline,
   BookOpen,
   Bell,
   User,
