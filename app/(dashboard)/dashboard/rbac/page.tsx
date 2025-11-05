@@ -357,9 +357,9 @@ const MenuItemComponent = memo(
             </div>
           </div>
         )}
-        {item.children && item.children.length > 0 && (
+        {item.children && item.children?.length > 0 && (
           <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">
-            ({item.children.length} sub-items)
+            ({item.children?.length} sub-items)
           </div>
         )}
       </div>
@@ -430,7 +430,7 @@ export default function UsersPageOptimized() {
         for (const item of items) {
           if (item.name.toLowerCase().includes(searchLower) || item.nav.toLowerCase().includes(searchLower))
             return true
-          if (item.children.length > 0 && searchInItems(item.children)) return true
+          if (item.children?.length > 0 && searchInItems(item.children)) return true
         }
         return false
       }
@@ -819,14 +819,14 @@ export default function UsersPageOptimized() {
     setMenuItems((prevItems) => {
       const newItems = [...prevItems]
       if (parentIndex === null) {
-        if (dragIndex < 0 || dragIndex >= newItems.length || hoverIndex < 0 || hoverIndex >= newItems.length) {
+        if (dragIndex < 0 || dragIndex >= newItems?.length || hoverIndex < 0 || hoverIndex >= newItems?.length) {
           return newItems
         }
         const [draggedItem] = newItems.splice(dragIndex, 1)
         newItems.splice(hoverIndex, 0, draggedItem)
       } else {
         const children = newItems[parentIndex].children
-        if (dragIndex < 0 || dragIndex >= children.length || hoverIndex < 0 || hoverIndex >= children.length) {
+        if (dragIndex < 0 || dragIndex >= children?.length || hoverIndex < 0 || hoverIndex >= children?.length) {
           return newItems
         }
         const newChildren = [...children]
@@ -1035,7 +1035,7 @@ export default function UsersPageOptimized() {
             updateMenuItem={updateMenuItem}
             removeMenuItem={removeMenuItem}
           />
-          {item.children && item.children.length > 0 && (
+          {item.children && item.children?.length > 0 && (
             <div className="border-l border-gray-200 ml-8 pl-2">
               {renderMenuItems(item.children, parentIndex === null ? index : parentIndex)}
             </div>
@@ -1169,7 +1169,7 @@ export default function UsersPageOptimized() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredData.length > 0 ? (
+                  {filteredData?.length > 0 ? (
                     filteredData.map((user,index) => (
                       <TableRow key={user.id} className="hover:bg-gray-50 border-1 border-gray-200">
                         <TableCell className="font-medium">{index+1}</TableCell>
@@ -1229,7 +1229,7 @@ export default function UsersPageOptimized() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={2 + selectedResources.length + 1} className="text-center py-8 text-gray-400">
+                      <TableCell colSpan={2 + selectedResources?.length + 1} className="text-center py-8 text-gray-400">
                         No roles found matching your search.
                       </TableCell>
                     </TableRow>
@@ -1264,7 +1264,7 @@ export default function UsersPageOptimized() {
                       Menu Configuration (Drag or use arrow keys to reorder)
                     </h3>
                     <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
-                      {menuItems.length > 0 ? (
+                      {menuItems?.length > 0 ? (
                         renderMenuItems(menuItems)
                       ) : (
                         <p className="text-gray-500 text-center">No menu items available</p>

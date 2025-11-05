@@ -36,7 +36,7 @@ import { configureStore, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import { debounce } from "lodash";
 
-// Define interfaces for Stepper props
+// === STEPPER INTERFACES ===
 interface StepperProps {
   totalSteps: number;
   initialStep?: number;
@@ -53,10 +53,9 @@ interface StepperContentProps {
 
 interface StepperNavigationProps {
   className?: string;
-  onSubmit: (e: React.FormEvent) => void; // Added to handle form submission
 }
 
-// Stepper Context
+// === STEPPER CONTEXT ===
 const StepperContext = React.createContext<{
   currentStep: number;
   setCurrentStep: (step: number) => void;
@@ -67,15 +66,10 @@ const StepperContext = React.createContext<{
   totalSteps: 0,
 });
 
-// Stepper Component
-const Stepper: React.FC<StepperProps> = ({
-  totalSteps,
-  initialStep = 0,
-  children,
-}) => {
+// === STEPPER COMPONENT ===
+const Stepper: React.FC<StepperProps> = ({ totalSteps, initialStep = 0, children }) => {
   const [currentStep, setCurrentStep] = React.useState(initialStep);
 
-  // Debug step changes
   React.useEffect(() => {
     console.log("Current Step:", currentStep);
   }, [currentStep]);
@@ -87,10 +81,9 @@ const Stepper: React.FC<StepperProps> = ({
   );
 };
 
-// Stepper Tabs Component
+// === STEPPER TABS ===
 const StepperTabs: React.FC<StepperTabsProps> = ({ labels }) => {
-  const { currentStep, setCurrentStep, totalSteps } =
-    React.useContext(StepperContext);
+  const { currentStep, setCurrentStep, totalSteps } = React.useContext(StepperContext);
 
   return (
     <div className="flex items-center justify-between border-b border-border">
@@ -125,7 +118,7 @@ const StepperTabs: React.FC<StepperTabsProps> = ({ labels }) => {
   );
 };
 
-// Stepper Content Component
+// === STEPPER CONTENT ===
 const StepperContent: React.FC<StepperContentProps> = ({ children }) => {
   const { currentStep } = React.useContext(StepperContext);
   const childrenArray = React.Children.toArray(children);
@@ -149,13 +142,9 @@ const StepperContent: React.FC<StepperContentProps> = ({ children }) => {
   );
 };
 
-// Stepper Navigation Component
-const StepperNavigation: React.FC<StepperNavigationProps> = ({
-  className,
-  onSubmit,
-}) => {
-  const { currentStep, setCurrentStep, totalSteps } =
-    React.useContext(StepperContext);
+// === STEPPER NAVIGATION (NO onSubmit PROP) ===
+const StepperNavigation: React.FC<StepperNavigationProps> = ({ className }) => {
+  const { currentStep, setCurrentStep, totalSteps } = React.useContext(StepperContext);
   const { showToast } = useToast();
   const form = useSelector((state: RootState) => state.form);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -176,14 +165,6 @@ const StepperNavigation: React.FC<StepperNavigationProps> = ({
     }
   };
 
-  // Handle form submission for "Add Site" button on the last step
-  const handleAddSite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    await onSubmit(e); // Call the passed onSubmit function
-    setIsSubmitting(false);
-  };
-
   return (
     <div className={cn("flex justify-between mt-6", className)}>
       <Button
@@ -191,20 +172,17 @@ const StepperNavigation: React.FC<StepperNavigationProps> = ({
         size="lg"
         onClick={handlePrevious}
         disabled={currentStep === 0}
-        className="flex items-center gap-2"
         type="button"
       >
         <ChevronLeft className="w-5 h-5" />
         Previous
       </Button>
+
       {currentStep === totalSteps - 1 ? (
         <Button
-          variant="default"
-          size="lg"
-          onClick={handleAddSite}
+          type="submit"
           disabled={isSubmitting || !form.name.trim()}
           className="flex items-center bg-orange gap-2"
-          type="submit"
         >
           {isSubmitting ? (
             <>
@@ -220,12 +198,9 @@ const StepperNavigation: React.FC<StepperNavigationProps> = ({
         </Button>
       ) : (
         <Button
-          variant="default"
-          size="lg"
-          onClick={handleNext}
-          disabled={currentStep === totalSteps - 1}
-          className="flex items-center bg-orange gap-2"
           type="button"
+          onClick={handleNext}
+          className="flex items-center bg-orange gap-2"
         >
           Next
           <ChevronRight className="w-5 h-5" />
@@ -235,7 +210,7 @@ const StepperNavigation: React.FC<StepperNavigationProps> = ({
   );
 };
 
-// Define the form state interface
+// === REDUX FORM STATE ===
 interface FormState {
   name: string;
   image: string;
@@ -256,7 +231,6 @@ interface FormState {
   operational_notes: string;
 }
 
-// Initial state for the form
 const initialState: FormState = {
   name: "",
   image: "",
@@ -277,7 +251,6 @@ const initialState: FormState = {
   operational_notes: "",
 };
 
-// Create the Redux slice
 const formSlice = createSlice({
   name: "form",
   initialState,
@@ -302,22 +275,18 @@ const formSlice = createSlice({
   },
 });
 
-// Export actions
-export const { updateField, toggleDay, toggle24Hour, resetForm } =
-  formSlice.actions;
+export const { updateField, toggleDay, toggle24Hour, resetForm } = formSlice.actions;
 
-// Configure the Redux store
 const store = configureStore({
   reducer: {
     form: formSlice.reducer,
   },
 });
 
-// Infer the `RootState` and `AppDispatch` types from the store
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
-// Debug Component to track state changes
+// === DEBUG COMPONENT ===
 const DebugComponent = () => {
   const form = useSelector((state: RootState) => state.form);
   const { currentStep } = React.useContext(StepperContext);
@@ -326,21 +295,21 @@ const DebugComponent = () => {
 
   React.useEffect(() => {
     if (prevStep.current !== currentStep) {
-      console.log('🔄 Step changed:', { from: prevStep.current, to: currentStep });
-      console.log('📊 Form state when step changed:', form);
+      console.log("Step changed:", { from: prevStep.current, to: currentStep });
+      console.log("Form state:", form);
       prevStep.current = currentStep;
     }
 
-    const isFormReset = Object.keys(initialState).every(
+    const isReset = Object.keys(initialState).every(
       (key) => form[key as keyof FormState] === initialState[key as keyof FormState]
     );
 
-    const wasFormReset = !Object.keys(initialState).every(
+    const wasReset = !Object.keys(initialState).every(
       (key) => prevForm.current[key as keyof FormState] === initialState[key as keyof FormState]
     );
 
-    if (isFormReset && wasFormReset) {
-      console.log('🚨 FORM WAS RESET!', { previousState: prevForm.current, currentState: form });
+    if (isReset && wasReset) {
+      console.log("FORM WAS RESET!");
     }
 
     prevForm.current = form;
@@ -349,6 +318,7 @@ const DebugComponent = () => {
   return null;
 };
 
+// === MAIN FORM COMPONENT ===
 function AddSiteForm() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -360,12 +330,7 @@ function AddSiteForm() {
   const [submitSuccess, setSubmitSuccess] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
-  // Debug form state changes
-  React.useEffect(() => {
-    console.log("Form State:", form);
-  }, [form]);
-
-  // Function to fetch address details from Nominatim API
+  // === POSTCODE FETCH ===
   const fetchAddressDetails = async (postcode: string) => {
     if (!postcode.trim()) {
       showToast("Please enter a valid postcode.", "error");
@@ -375,31 +340,25 @@ function AddSiteForm() {
     setIsFetchingPostcode(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-          postcode
-        )}&format=json&addressdetails=1&limit=1`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(postcode)}&format=json&addressdetails=1&limit=1`,
         {
           headers: {
-            "User-Agent": "YourAppName/1.0 (your.email@example.com)", // Replace with your app details
+            "User-Agent": "YourAppName/1.0 (your.email@example.com)",
           },
         }
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch address details");
-      }
+      if (!response.ok) throw new Error("Failed to fetch address");
 
       const data = await response.json();
       if (data.length === 0) {
         showToast("No results found for this postcode.", "error");
-        setIsFetchingPostcode(false);
         return;
       }
 
       const result = data[0];
       const { lat, lon, address } = result;
 
-      // Construct a readable address from address components
       const formattedAddress = [
         address.road || "",
         address.city || address.town || address.village || "",
@@ -409,44 +368,40 @@ function AddSiteForm() {
         .filter(Boolean)
         .join(", ");
 
-      // Update form state with fetched details
       dispatch(
         updateField({
           address: formattedAddress,
           latitude: lat,
           longitude: lon,
-          radius_m: 200, // Default radius; adjust as needed
+          radius_m: 200,
         })
       );
 
-      showToast("Address details fetched successfully!", "success");
+      showToast("Address fetched successfully!", "success");
     } catch (error) {
-      showToast("Failed to fetch address details. Please try again.", "error");
-      console.error("Error fetching address:", error);
+      showToast("Failed to fetch address. Try again.", "error");
+      console.error(error);
     } finally {
       setIsFetchingPostcode(false);
     }
   };
 
-  // Debounce the fetchAddressDetails function to avoid excessive API calls
   const debouncedFetchAddress = React.useCallback(
     debounce((postcode: string) => fetchAddressDetails(postcode), 500),
     []
   );
 
-  // Handle postcode input changes
   const handlePostcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
-    console.log(`Updating postcode to ${value}`);
     dispatch(updateField({ postcode: value }));
 
-    // Trigger address fetch for valid postcodes
-    const postcodeRegex = /^[A-Z0-9]{2,4}\s?[A-Z0-9]{2,4}$/i; // Simple UK postcode regex
+    const postcodeRegex = /^[A-Z0-9]{2,4}\s?[A-Z0-9]{2,4}$/i;
     if (postcodeRegex.test(value)) {
       debouncedFetchAddress(value);
     }
   };
 
+  // === INPUT HANDLERS ===
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     dispatch(updateField({ [name]: value }));
@@ -454,29 +409,24 @@ function AddSiteForm() {
     if (name === "contact_email" && value && !REGEX.email.test(value)) {
       showToast("Invalid email format", "error");
     }
-
     if (name === "contact_phone" && value && !REGEX.phone.test(value)) {
       showToast("Invalid phone number", "error");
     }
-
     if (name === "postcode" && value && !REGEX.postcode.test(value)) {
       showToast("Invalid postcode format", "error");
     }
   };
 
   const handleImageUpload = (url: string) => {
-    console.log("Image uploaded:", url);
     dispatch(updateField({ image: url }));
-    showToast("Image uploaded successfully!", "success");
+    showToast("Image uploaded!", "success");
   };
 
   const handleDayToggle = (day: string) => {
-    console.log("Toggling day:", day);
     dispatch(toggleDay(day));
   };
 
   const handle24HourToggle = () => {
-    console.log("Toggling 24-hour:", !form.is_24_hour);
     dispatch(toggle24Hour());
   };
 
@@ -490,28 +440,30 @@ function AddSiteForm() {
     setSubmitSuccess(false);
     setSubmitError(null);
     dispatch(resetForm());
-    router.back(); // Or router.push('/sites') if you have a specific route
   };
 
+  // === FORM SUBMIT ===
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("SUBMITTING FORM...");
+
     if (!form.name.trim()) {
       showToast("Site name is required.", "error");
       return;
     }
 
     if (form.contact_email && !REGEX.email.test(form.contact_email)) {
-      showToast("Enter a valid email address.", "error");
+      showToast("Valid email required.", "error");
       return;
     }
 
     if (form.contact_phone && !REGEX.phone.test(form.contact_phone)) {
-      showToast("Enter a valid phone number.", "error");
+      showToast("Valid phone number required.", "error");
       return;
     }
 
     if (form.postcode && !REGEX.postcode.test(form.postcode)) {
-      showToast("Enter a valid UK postcode.", "error");
+      showToast("Valid UK postcode required.", "error");
       return;
     }
 
@@ -521,27 +473,19 @@ function AddSiteForm() {
       name: form.name,
       postcode: form.postcode,
       address: form.address,
-      latitude: Number.parseFloat(form.latitude) || undefined,
-      longitude: Number.parseFloat(form.longitude) || undefined,
-      radius_m: Number.parseInt(form.radius_m.toString(), 10),
+      latitude: form.latitude ? Number.parseFloat(form.latitude) : undefined,
+      longitude: form.longitude ? Number.parseFloat(form.longitude) : undefined,
+      radius_m: Number(form.radius_m),
       contact_name: form.contact_name,
       contact_position: form.contact_position,
       contact_phone: form.contact_phone,
       contact_email: form.contact_email,
-      number_of_allocated_vehicles: Number.parseInt(
-        form.number_of_allocated_vehicles.toString(),
-        10
-      ),
-      number_of_allocated_staff: Number.parseInt(
-        form.number_of_allocated_staff.toString(),
-        10
-      ),
+      number_of_allocated_vehicles: Number(form.number_of_allocated_vehicles),
+      number_of_allocated_staff: Number(form.number_of_allocated_staff),
       operational_notes: form.operational_notes,
       image: form.image || undefined,
       notes: form.notes || undefined,
     };
-
-    console.log("Submitting payload:", payload);
 
     try {
       const response = await fetch(`${API_URL}/api/sites/`, {
@@ -554,69 +498,31 @@ function AddSiteForm() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || errorData.detail || errorData.error || "Failed to add site. Please try again.";
-        setSubmitError(errorMessage);
-        showToast(errorMessage, "error");
-        return;
+        const error = await response.json().catch(() => ({}));
+        const msg = error.message || error.detail || "Failed to add site.";
+        throw new Error(msg);
       }
 
       const result = await response.json();
       const site_id = result.id;
-      console.log("Site created with ID:", site_id);
 
-      // Set operation hours using bulk API
+      // === Update Hours ===
       try {
         const hoursRes = await fetch(`${API_URL}/api/sites/${site_id}/hours/`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-
-        if (!hoursRes.ok) {
-          throw new Error("Failed to fetch hours");
-        }
-
         const hours = await hoursRes.json();
 
         const updatedHours = hours.map((hour: any) => {
-          const day_label = hour.day_label;
-          const isOperational = form.is_24_hour || form.operational_days.includes(day_label);
-
-          if (form.is_24_hour) {
-            return {
-              id: hour.id,
-              day_of_week: hour.day_of_week,
-              day_label: hour.day_label,
-              is_open_24_hours: true,
-              is_closed: false,
-              opens_at: null,
-              closes_at: null,
-            };
-          } else if (isOperational) {
-            return {
-              id: hour.id,
-              day_of_week: hour.day_of_week,
-              day_label: hour.day_label,
-              is_open_24_hours: false,
-              is_closed: false,
-              opens_at: "09:00:00",
-              closes_at: "17:00:00",
-            };
-          } else {
-            return {
-              id: hour.id,
-              day_of_week: hour.day_of_week,
-              day_label: hour.day_label,
-              is_open_24_hours: false,
-              is_closed: true,
-              opens_at: null,
-              closes_at: null,
-            };
-          }
+          const isOperational = form.is_24_hour || form.operational_days.includes(hour.day_label);
+          return form.is_24_hour
+            ? { id: hour.id, is_open_24_hours: true, is_closed: false, opens_at: null, closes_at: null }
+            : isOperational
+            ? { id: hour.id, is_open_24_hours: false, is_closed: false, opens_at: "09:00:00", closes_at: "17:00:00" }
+            : { id: hour.id, is_open_24_hours: false, is_closed: true, opens_at: null, closes_at: null };
         });
 
-        const bulkRes = await fetch(`${API_URL}/api/sites/${site_id}/hours/bulk/`, {
+        await fetch(`${API_URL}/api/sites/${site_id}/hours/bulk/`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -624,41 +530,23 @@ function AddSiteForm() {
           },
           body: JSON.stringify(updatedHours),
         });
-
-        if (!bulkRes.ok) {
-          const bulkError = await bulkRes.json().catch(() => ({}));
-          console.error("Failed to update hours:", bulkError);
-          showToast("Site created, but hours setup may need manual adjustment.", "error");
-        } else {
-          console.log("Hours updated successfully");
-        }
-      } catch (hoursError) {
-        console.error("Error setting hours:", hoursError);
-        showToast("Site created, but hours setup failed. Please check manually.", "error");
+      } catch (err) {
+        showToast("Site created, but hours may need manual setup.", "info");
       }
 
       showToast("Site added successfully!", "success");
-      console.log("API response:", result);
       dispatch(resetForm());
       setSubmitSuccess(true);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to add site. Please try again.";
-      setSubmitError(errorMessage);
-      showToast(errorMessage, "error");
-      console.error("Error submitting form:", error);
+    } catch (error: any) {
+      const msg = error.message || "Failed to add site.";
+      setSubmitError(msg);
+      showToast(msg, "error");
     }
   };
 
-  const daysOfWeek = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-  ];
+  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+  // === SUCCESS UI ===
   if (submitSuccess) {
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -668,12 +556,11 @@ function AddSiteForm() {
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
             <CardTitle className="text-2xl">Site Added Successfully!</CardTitle>
-            <p className="text-muted-foreground">Your site has been created and is ready to use.</p>
+            <p className="text-muted-foreground">Your site is ready to use.</p>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Button onClick={handleClose} className="gap-2">
-              <X className="h-4 w-4" />
-              Close
+              <X className="h-4 w-4" /> Close
             </Button>
           </CardContent>
         </Card>
@@ -681,6 +568,7 @@ function AddSiteForm() {
     );
   }
 
+  // === ERROR UI ===
   if (submitError) {
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -693,12 +581,9 @@ function AddSiteForm() {
             <p className="text-muted-foreground">{submitError}</p>
           </CardHeader>
           <CardContent className="flex justify-center space-x-4">
-            <Button onClick={handleClose} variant="outline">
-              Cancel
-            </Button>
+            <Button onClick={handleClose} variant="outline">Cancel</Button>
             <Button onClick={() => setSubmitError(null)} className="gap-2">
-              <Save className="h-4 w-4" />
-              Try Again
+              <Save className="h-4 w-4" /> Try Again
             </Button>
           </CardContent>
         </Card>
@@ -706,33 +591,36 @@ function AddSiteForm() {
     );
   }
 
+  // === MAIN FORM ===
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <DebugComponent />
 
-      <Stepper totalSteps={3} initialStep={0}>
+      <Stepper totalSteps={3}>
         <StepperTabs labels={["Site Location", "Site Admin", "Operations"]} />
 
-        <form onSubmit={handleSubmit} className="mt-8">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault(); // Prevent Enter from submitting
+            }
+          }}
+          className="mt-8"
+        >
           <StepperContent>
-            {/* Step 1: Site Location Details */}
+            {/* Step 1 */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-6">
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-primary" />
-                  Site Location Details
+                  <MapPin className="w-5 h-5 text-primary" /> Site Location Details
                 </CardTitle>
-                <p className="text-muted-foreground">
-                  Provide the basic information and location details for this site.
-                </p>
+                <p className="text-muted-foreground">Provide location info.</p>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="name"
-                      className="text-sm font-medium flex items-center gap-1"
-                    >
+                    <Label htmlFor="name" className="flex items-center gap-1">
                       Site Name <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -746,9 +634,7 @@ function AddSiteForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="postcode" className="text-sm font-medium">
-                      Postcode
-                    </Label>
+                    <Label htmlFor="postcode">Postcode</Label>
                     <div className="relative">
                       <Input
                         id="postcode"
@@ -760,16 +646,15 @@ function AddSiteForm() {
                         disabled={isFetchingPostcode}
                       />
                       {isFetchingPostcode && (
-                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />
                       )}
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium flex items-center gap-2">
-                    <Camera className="w-4 h-4" />
-                    Site Image
+                  <Label className="flex items-center gap-2">
+                    <Camera className="w-4 h-4" /> Site Image
                   </Label>
                   <div className="border-2 border-dashed border-border rounded-lg p-4">
                     <ImageUploader onUploadSuccess={handleImageUpload} />
@@ -777,15 +662,13 @@ function AddSiteForm() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="address" className="text-sm font-medium">
-                    Site Address
-                  </Label>
+                  <Label htmlFor="address">Site Address</Label>
                   <Textarea
                     id="address"
                     name="address"
                     value={form.address}
                     onChange={handleChange}
-                    placeholder="Enter the complete address..."
+                    placeholder="Enter address..."
                     rows={3}
                     className="resize-none"
                   />
@@ -793,9 +676,7 @@ function AddSiteForm() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="radius_m" className="text-sm font-medium">
-                      Radius (meters)
-                    </Label>
+                    <Label htmlFor="radius_m">Radius (m)</Label>
                     <Input
                       id="radius_m"
                       name="radius_m"
@@ -809,19 +690,15 @@ function AddSiteForm() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="notes"
-                    className="text-sm font-medium flex items-center gap-2"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Additional Notes
+                  <Label className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" /> Notes
                   </Label>
                   <Textarea
                     id="notes"
                     name="notes"
                     value={form.notes}
                     onChange={handleChange}
-                    placeholder="Additional notes about this site..."
+                    placeholder="Additional notes..."
                     rows={3}
                     className="resize-none"
                   />
@@ -829,26 +706,18 @@ function AddSiteForm() {
               </CardContent>
             </Card>
 
-            {/* Step 2: Site Admin Details */}
+            {/* Step 2 */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-6">
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <User className="w-5 h-5 text-primary" />
-                  Site Administrator
+                  <User className="w-5 h-5 text-primary" /> Site Administrator
                 </CardTitle>
-                <p className="text-muted-foreground">
-                  Contact information for the person responsible for this site.
-                </p>
+                <p className="text-muted-foreground">Contact person details.</p>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="contact_name"
-                      className="text-sm font-medium"
-                    >
-                      Administrator Name
-                    </Label>
+                    <Label htmlFor="contact_name">Name</Label>
                     <Input
                       id="contact_name"
                       name="contact_name"
@@ -859,12 +728,7 @@ function AddSiteForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="contact_position"
-                      className="text-sm font-medium"
-                    >
-                      Position/Title
-                    </Label>
+                    <Label htmlFor="contact_position">Position</Label>
                     <Input
                       id="contact_position"
                       name="contact_position"
@@ -878,12 +742,8 @@ function AddSiteForm() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="contact_phone"
-                      className="text-sm font-medium flex items-center gap-2"
-                    >
-                      <Phone className="w-4 h-4" />
-                      Phone Number
+                    <Label className="flex items-center gap-2">
+                      <Phone className="w-4 h-4" /> Phone
                     </Label>
                     <Input
                       id="contact_phone"
@@ -896,12 +756,8 @@ function AddSiteForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="contact_email"
-                      className="text-sm font-medium flex items-center gap-2"
-                    >
-                      <Mail className="w-4 h-4" />
-                      Email Address
+                    <Label className="flex items-center gap-2">
+                      <Mail className="w-4 h-4" /> Email
                     </Label>
                     <Input
                       id="contact_email"
@@ -917,26 +773,20 @@ function AddSiteForm() {
               </CardContent>
             </Card>
 
-            {/* Step 3: Site Operational Details */}
+            {/* Step 3 */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-6">
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-primary" />
-                  Operational Details
+                  <Building2 className="w-5 h-5 text-primary" /> Operational Details
                 </CardTitle>
-                <p className="text-muted-foreground">
-                  Configure the operational parameters and schedule for this site.
-                </p>
+                <p className="text-muted-foreground">Set schedule and resources.</p>
               </CardHeader>
               <CardContent className="space-y-8">
                 <div className="space-y-4">
-                  <Label className="text-sm font-medium flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Operational Days
+                  <Label className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" /> Operational Days
                   </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Select the days when this site will be operational
-                  </p>
+                  <p className="text-sm text-muted-foreground">Select active days</p>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
                     {daysOfWeek.map((day) => {
@@ -950,19 +800,12 @@ function AddSiteForm() {
                           onClick={() => handleDayToggle(day)}
                           disabled={form.is_24_hour}
                           className={cn(
-                            "h-12 flex flex-col items-center justify-center gap-1 transition-all",
-                            isSelected
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "hover:bg-muted",
-                            form.is_24_hour ? "opacity-50 cursor-not-allowed" : ""
+                            "h-12 flex flex-col gap-1",
+                            isSelected && "bg-primary text-primary-foreground",
+                            form.is_24_hour && "opacity-50 cursor-not-allowed"
                           )}
                         >
-                          <span className="text-xs font-medium">
-                            {day.slice(0, 3)}
-                          </span>
-                          <span className="text-[10px] opacity-75">
-                            {day.slice(3, 6)}
-                          </span>
+                          <span className="text-xs font-medium">{day.slice(0, 3)}</span>
                         </Button>
                       );
                     })}
@@ -970,26 +813,15 @@ function AddSiteForm() {
 
                   {form.operational_days.length > 0 && (
                     <div className="p-3 bg-muted/50 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Selected days:
-                      </p>
+                      <p className="text-sm text-muted-foreground mb-2">Selected:</p>
                       <div className="flex flex-wrap gap-1">
                         {form.operational_days.map((day) => (
-                          <Badge
-                            key={day}
-                            variant="secondary"
-                            className="text-xs px-2 py-1"
-                          >
+                          <Badge key={day} variant="secondary" className="text-xs">
                             {day}
                           </Badge>
                         ))}
                       </div>
                     </div>
-                  )}
-                  {form.is_24_hour && (
-                    <p className="text-sm text-muted-foreground">
-                      Operational days are not required for 24-hour sites.
-                    </p>
                   )}
                 </div>
 
@@ -998,41 +830,27 @@ function AddSiteForm() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-muted-foreground" />
-                        <Label
-                          htmlFor="is_24_hour"
-                          className="text-sm font-medium"
-                        >
-                          24-Hour Operation
-                        </Label>
+                        <Label htmlFor="is_24_hour">24-Hour Operation</Label>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Enable if this site operates around the clock
-                      </p>
+                      <p className="text-xs text-muted-foreground">Site runs 24/7</p>
                     </div>
                     <Switch
                       id="is_24_hour"
                       checked={form.is_24_hour}
                       onCheckedChange={handle24HourToggle}
-                      className="data-[state=checked]:bg-primary"
                     />
                   </div>
                   {form.is_24_hour && (
                     <div className="mt-3 p-2 bg-primary/10 rounded border-l-4 border-primary">
-                      <p className="text-xs text-primary font-medium">
-                        ✓ This site will operate 24 hours a day
-                      </p>
+                      <p className="text-xs text-primary font-medium">24-hour operation enabled</p>
                     </div>
                   )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="number_of_allocated_vehicles"
-                      className="text-sm font-medium flex items-center gap-2"
-                    >
-                      <Car className="w-4 h-4" />
-                      Authorized Vehicles
+                    <Label className="flex items-center gap-2">
+                      <Car className="w-4 h-4" /> Authorized Vehicles
                     </Label>
                     <Input
                       id="number_of_allocated_vehicles"
@@ -1045,12 +863,8 @@ function AddSiteForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="number_of_allocated_staff"
-                      className="text-sm font-medium flex items-center gap-2"
-                    >
-                      <Users className="w-4 h-4" />
-                      Authorized Staff
+                    <Label className="flex items-center gap-2">
+                      <Users className="w-4 h-4" /> Authorized Staff
                     </Label>
                     <Input
                       id="number_of_allocated_staff"
@@ -1065,19 +879,15 @@ function AddSiteForm() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="operational_notes"
-                    className="text-sm font-medium flex items-center gap-2"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Operational Notes
+                  <Label className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" /> Operational Notes
                   </Label>
                   <Textarea
                     id="operational_notes"
                     name="operational_notes"
                     value={form.operational_notes}
                     onChange={handleChange}
-                    placeholder="Additional operational notes, special requirements, or instructions..."
+                    placeholder="Special instructions..."
                     rows={4}
                     className="resize-none"
                   />
@@ -1086,14 +896,14 @@ function AddSiteForm() {
             </Card>
           </StepperContent>
 
-          <StepperNavigation className="pt-8" onSubmit={handleSubmit} />
+          <StepperNavigation className="pt-8" />
         </form>
       </Stepper>
     </div>
   );
 }
 
-// Wrap the component with the Redux Provider
+// === EXPORT WITH PROVIDER ===
 export default function AddSiteFormWithProvider() {
   return (
     <Provider store={store}>

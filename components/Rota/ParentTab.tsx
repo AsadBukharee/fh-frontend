@@ -609,7 +609,7 @@ const ParentTab: React.FC = () => {
   }, []);
 
   const employees = useMemo(() => {
-    if (cachedApiData.length === 0) return [];
+    if (cachedApiData?.length === 0) return [];
     const days = getWeekDates(selectedWeek);
     return cachedApiData.map((userRota: UserRota) => {
       const availableShifts = convertUserShiftsToEmployeeShifts(userRota.user.shifts);
@@ -744,10 +744,10 @@ const ParentTab: React.FC = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: ApiResponse = await response.json();
-      if (!data.users.length) {
-        throw new Error("No users found in the response");
-      }
-      setCachedApiData(data.users);
+      // if (!data?.users?.length) {
+      //   throw new Error("No users found in the response");
+      // }
+      setCachedApiData(data?.users);
       setRotaGenerated({});
     } catch (error) {
       console.error("Error fetching rota:", error);
