@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server'
 import API_URL from './app/utils/ENV'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   let accessToken = request.cookies.get('access_token')?.value
   const refreshToken = request.cookies.get('refresh_token')?.value

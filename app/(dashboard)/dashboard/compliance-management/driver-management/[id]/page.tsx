@@ -674,7 +674,7 @@ export default function DriverDetailPage() {
   }
 
   return (
-    <div className="container p-8 space-y-8 bg-gray-100 min-h-screen">
+    <div className="container p-8 space-y-8 bg-white min-h-screen">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-4 bg-white border border-orange-200 rounded-xl p-2 shadow-sm">
           <TabsTrigger
