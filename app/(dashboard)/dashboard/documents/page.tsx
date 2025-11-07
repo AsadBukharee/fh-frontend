@@ -216,7 +216,7 @@ export default function DocumentPage() {
                 {docs.map((doc) => (
                   <TableRow key={doc.id}>
                     <TableCell>{doc.id}</TableCell>
-                    <TableCell className="font-medium">{doc.name}</TableCell>
+                    <TableCell className="font-medium text-left">{doc.name}</TableCell>
                     <TableCell>{format(new Date(doc.created_at), 'PPP')}</TableCell>
                     <TableCell className="text-right space-x-1">
                       {/* EDIT */}
