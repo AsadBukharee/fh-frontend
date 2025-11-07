@@ -223,18 +223,26 @@ const Page = () => {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch(`${API_HOST}/api/users/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setUsers(data.results ?? data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+ const fetchUsers = async () => {
+  try {
+    const res = await fetch(`${API_HOST}/users/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const payload = await res.json();               // <-- the whole response
+    const userArray = payload.data?.results ?? [];   // <-- correct path
+
+    // Optional: keep the total count if you ever need it
+    // setTotalUsers(payload.data?.count ?? 0);
+
+    setUsers(userArray);
+  } catch (e) {
+    console.error("Failed to load users", e);
+    setUsers([]);   // keep UI stable
+  }
+};
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -830,7 +838,7 @@ const Page = () => {
             <DialogTitle>Filter by Assigned To</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {users.map((u) => (
+            {users?.map((u) => (
               <div
                 key={u.id}
                 className="flex items-center space-x-2 p-2 rounded hover:bg-muted"
