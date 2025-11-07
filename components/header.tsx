@@ -45,7 +45,6 @@ interface ComplianceTask {
     email: string;
     role: string;
   };
-  // …other fields omitted for brevity
 }
 
 interface ComplianceCategory {
@@ -54,7 +53,7 @@ interface ComplianceCategory {
 }
 
 /* -------------------------------------------------
-   Header component
+   Header component – polls every 5 seconds
    ------------------------------------------------- */
 export function Header() {
   /* ----- category config (icons + labels) ----- */
@@ -79,33 +78,57 @@ export function Header() {
   const [openDropdown, setOpenDropdown] =
     useState<keyof typeof categoryConfig | null>(null);
   const badgeRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const abortControllerRef = useRef<AbortController | null>(null);
   const cookies = useCookies();
 
-  /* ----- fetch compliance data (once) ----- */
+  /* ----- fetch compliance data (every 5 seconds) ----- */
   useEffect(() => {
     const fetchCompliance = async () => {
+      // Cancel any in-flight request
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
         setLoading(true);
+        setError(null);
+
         const res = await fetch(`${API_URL}/api/task-alerts/`, {
           method: "GET",
+          signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
         });
-        if (!res.ok) throw new Error("Failed to load compliance data");
-        const json = await res.json();
 
-        // The API returns an object with top-level categories
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Failed to load compliance data: ${res.status} ${errText}`);
+        }
+
+        const json = await res.json();
         setComplianceData(json);
-        setLoading(false);
       } catch (err: any) {
-        setError(err.message ?? "Error loading compliance data");
+        if (err.name !== "AbortError") {
+          setError(err.message ?? "Error loading compliance data");
+        }
+      } finally {
         setLoading(false);
       }
     };
 
+    // Initial fetch
     fetchCompliance();
+
+    // Poll every 5 seconds
+    const interval = setInterval(fetchCompliance, 60000);
+
+    // Cleanup on unmount
+    return () => {
+      clearInterval(interval);
+      abortControllerRef.current?.abort();
+    };
   }, [cookies]);
 
   /* ----- helper: flatten items for a category ----- */
@@ -120,7 +143,6 @@ export function Header() {
       );
     }
 
-    // Map UI categories → API keys
     const apiKeyMap: Record<string, string> = {
       drivers: "Drivers Compliance",
       vehicles: "Vehicle Compliance",
@@ -142,15 +164,17 @@ export function Header() {
   const counts: Record<keyof typeof categoryConfig, number> = complianceData
     ? Object.entries(complianceData).reduce(
         (acc, [apiKey, cat]) => {
-          const uiKey = (Object.entries({
-            "Drivers Compliance": "drivers",
-            "Vehicle Compliance": "vehicles",
-            Walkarounds: "walkarounds",
-            Rotas: "rotas",
-            "Duty & WTD Logs": "duty_logs",
-            Mechanic: "mechanic",
-            Other: "other",
-          }) as [string, keyof typeof categoryConfig][]).find(([k]) => k === apiKey)?.[1];
+          const uiKey = (
+            {
+              "Drivers Compliance": "drivers",
+              "Vehicle Compliance": "vehicles",
+              Walkarounds: "walkarounds",
+              Rotas: "rotas",
+              "Duty & WTD Logs": "duty_logs",
+              Mechanic: "mechanic",
+              Other: "other",
+            } as Record<string, keyof typeof categoryConfig>
+          )[apiKey];
 
           if (uiKey) acc[uiKey] = cat.count;
           return acc;
@@ -167,7 +191,7 @@ export function Header() {
       k,
       { ...v, count: counts[k as keyof typeof counts] ?? 0 },
     ])
-  ) as unknown as typeof categoryConfig;
+  ) as typeof categoryConfig;
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
@@ -191,7 +215,9 @@ export function Header() {
                   <Button
                     variant="ghost"
                     className="relative w-10 h-10 rounded-full flex justify-center items-center bg-gray-100 hover:bg-gray-300"
-                    ref={(el) => { badgeRefs.current[category] = el; }}
+                    ref={(el) => {
+                      badgeRefs.current[category] = el;
+                    }}
                     title={label}
                   >
                     <Icon className="w-4 h-4" />
@@ -247,8 +273,7 @@ export function Header() {
                             Assigned to: {task.assigned_to.full_name}
                           </span>
                           <span>
-                            Deadline:{" "}
-                            {format(parseISO(task.deadline), "PPP")}
+                            Deadline: {format(parseISO(task.deadline), "PPP")}
                           </span>
                         </div>
 

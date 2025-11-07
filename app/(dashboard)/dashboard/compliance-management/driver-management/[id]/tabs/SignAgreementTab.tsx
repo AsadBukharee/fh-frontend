@@ -150,13 +150,13 @@ const docConfig: Record<
 > = {
   nightWorker: {
     title: "Night Worker Agreement",
-    fields: ["applicable", "expiry", "signing", "start"],
+    fields: ["applicable", "expiry"],
     category: "employment",
     apiKey: "night-worker-agreements",
   },
   contractOfEmployment: {
     title: "Contract Of Employment",
-    fields: ["signing", "start"],
+    fields: [ "start"],
     category: "employment",
   },
   pensionInfo: {
