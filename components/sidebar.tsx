@@ -48,7 +48,8 @@ import {
   ListChecks,
   List,
   Waypoints,
-  TypeOutline
+  TypeOutline,
+  RefreshCcw
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -61,6 +62,7 @@ const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } =
   Truck,
   ClipboardCheck,
   Fuel,
+  RefreshCcw,
   LifeBuoy,
   Stethoscope,
   ShieldCheck,

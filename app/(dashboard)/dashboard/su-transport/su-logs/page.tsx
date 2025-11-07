@@ -71,6 +71,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import API_URL from '@/app/utils/ENV';
 
 // ──────────────────────────────────────────────────────────────
 // Types
@@ -129,9 +130,9 @@ export default function SURunList() {
 
   // ────── Dialogs ──────
   const [viewOpen, setViewOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
+
   const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
-  const [saving, setSaving] = useState(false);
+
 
   // ────── Sorting ──────
   const [sort, setSort] = useState<{
@@ -155,10 +156,10 @@ export default function SURunList() {
       try {
         setLoadingFilters(true);
         const [locRes, driverRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/activity/locations/names/`, {
+          fetch(`${API_URL}/activity/locations/names/`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profiles/list-names/?type=driver`, {
+          fetch(`${API_URL}/api/profiles/list-names/?type=driver`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -194,7 +195,7 @@ export default function SURunList() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/activity/su-run/su-run-list/?${params}`,
+        `${API_URL}/activity/su-run/su-run-list/?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -247,20 +248,24 @@ export default function SURunList() {
     setViewOpen(true);
   };
 
-  const openEdit = (stop: Stop) => {
-    setSelectedStop(stop);
-    setEditOpen(true);
-  };
+
 
   const handleDelete = async (stop: Stop) => {
     if (!window.confirm(`Delete run #${stop.su_run}?`)) return;
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/activity/su-run/${stop.su_run}/`,
+        `${API_URL}/activity/su-run/${stop.su_run}/su_run_update/`,
         {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            action: 'delete_stop',
+            stop_id: stop.stop_id,
+          }),
         }
       );
 
@@ -271,57 +276,17 @@ export default function SURunList() {
     }
   };
 
-  // ────── Edit Dialog State ──────
-  const [editForm, setEditForm] = useState<Partial<Stop>>({});
+  
 
-  useEffect(() => {
-    if (editOpen && selectedStop) {
-      setEditForm({
-        numbers: selectedStop.numbers,
-        stop_id: selectedStop.stop_id,
-      });
-    }
-  }, [editOpen, selectedStop]);
 
-//   const handleEditSave = async () => {
-//     if (!selectedStop) return;
-//     setSaving(true);
-//     try {
-//       const res = await fetch(
-//         `${process.env.NEXT_PUBLIC_API_URL}/activity/su-run/${selectedStop.su_run}/su_run_update/`,
-//         {
-//           method: 'POST',
-//           headers: {
-//             'Content-Type': 'application/json',
-//             Authorization: `Bearer ${token}`,
-//           },
-//           body: JSON.stringify(editForm),
-//         }
-//       );
-
-//       if (!res.ok) throw new Error('Update failed');
-//       setEditOpen(false);
-//       fetchStops();
-//     } catch (e) {
-//       alert('Failed to update');
-//     } finally {
-//       setSaving(false);
-//     }
-//   };
-
-  // ──────────────────────────────────────────────────────────
-  // Reset Filters
-  // ──────────────────────────────────────────────────────────
-  const resetFilters = () => {
+ const resetFilters = () => {
     setFrom('');
     setTo('');
     setDriver('');
     setRunType('');
   };
 
-  // ──────────────────────────────────────────────────────────
-  // Inline Editable SU Number Component
-  // ──────────────────────────────────────────────────────────
+
   interface EditableSuNumberProps {
     stop: Stop;
   }
@@ -353,7 +318,7 @@ export default function SURunList() {
       setError(false);
       try {
          const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/activity/su-run/${stop.su_run}/su_run_update/`,
+        `${API_URL}/activity/su-run/${stop.su_run}/su_run_update/`,
         {
           method: 'POST',
           headers: {
