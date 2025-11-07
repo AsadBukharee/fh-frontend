@@ -1,333 +1,337 @@
-'use client';
+"use client"
 
-import React from 'react';
-import { Bar, Line, Doughnut } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Car, Users, Wrench, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from "react"
+import { DashboardCard } from "@/components/dashboard-card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
+import {  Calendar, Car, MapPin,  HandCoins  } from "lucide-react"
+import API_URL from "@/app/utils/ENV"
+import { useCookies } from "next-client-cookies"
+import { format } from "date-fns"
 
-// Dashboard Card Component
-const DashboardCard = ({ title, value, subtitle, icon, accentColor }: any) => (
-  <div className="bg-white rounded-2xl min-w-[200px] w-[220px] p-5 flex justify-between items-center shadow-sm ">
-    <div>
-      <p className="text-sm text-gray-500 font-medium">{title}</p>
-
-      <p className={`text-4xl font-bold  leading-tight`}>
-        {value}
-      </p>
-
-      <p className="text-xs text-gray-400 mt-1">{subtitle}</p>
-    </div>
-
-    <div className={`${accentColor} p-3 rounded-full`}>
-      <span className="text-red-500 text-xl">{icon}</span>
-    </div>
-  </div>
-);
-
+// Define API response type
+interface DashboardData {
+  date: string;
+  dashboard_metrics: {
+    daily_staff_count: number;
+    daily_drivers_count: number;
+    vehicles_onsite: number;
+    daily_salary_count: number;
+    monthly_salary_count: number;
+    daily_man_hours: number;
+    daily_inspections_due: number;
+    inspections_due_next_7_days: number;
+    mots_due_today: number;
+    mots_due_next_7_days: number;
+    paid_holidays_this_month: {
+      hours: number;
+      cost: number;
+    };
+    outstanding_tasks_notifications: number;
+    monthly_jobs_count: number;
+    yearly_job_count: number;
+  };
+}
 
 export default function Dashboard() {
-  // Bar Chart Data
-  const barData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    datasets: [
-      {
-        data: [65, 45, 70, 55, 80, 90, 60, 50, 75, 65, 85, 95],
-        backgroundColor: (ctx: any) => (ctx.dataIndex === 5 ? '#FF6B6B' : '#E5E7EB'),
-        borderRadius: 8,
-        barThickness: 16,
-      },
-    ],
-  };
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const cookies = useCookies()
 
-  const barOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { display: false }, ticks: { color: '#9CA3AF' } },
-      y: { display: false },
-    },
-  };
+  // Fetch API data
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        const response = await fetch(`${API_URL}/dashboard/dashboard/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+        })
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        const data = await response.json()
+        setDashboardData(data)
+        setLoading(false)
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error)
+        setError("Failed to load dashboard data. Please try again later.")
+        setLoading(false)
+      }
+    }
+    fetchDashboardData()
+  }, [cookies])
 
-  // Line Chart Data
-  const lineData = {
-    labels: ['', '', '', '', '', '', ''],
-    datasets: [
-      {
-        data: [30, 50, 20, 70, 40, 80, 60],
-        borderColor: '#FBBF24',
-        backgroundColor: 'rgba(251, 191, 36, 0.1)',
-        tension: 0.4,
-        pointBackgroundColor: '#FBBF24',
-        pointRadius: 4,
-      },
-    ],
-  };
+  // Top Metrics based on API data
+  const topMetrics = dashboardData
+    ? [
+        {
+          title: "Vehicles Onsite",
+          value: dashboardData.dashboard_metrics.vehicles_onsite.toString(),
+          change: 0,
+          icon: <Car className="w-4 h-4 text-purple-600" />,
+          progress: (dashboardData.dashboard_metrics.vehicles_onsite / 20) * 100, // Assuming max 10 vehicles
+          progressColor: "bg-purple-500",
+        },
+        {
+          title: "Daily Drivers",
+          value: dashboardData.dashboard_metrics.daily_drivers_count.toString(),
+          change: 0,
+          icon: <MapPin className="w-4 h-4 text-orange-600" />,
+          progress: (dashboardData.dashboard_metrics.daily_drivers_count / 20) * 100, // Assuming max 5 drivers
+          progressColor: "bg-orange-500",
+        },
+        {
+          title: "Monthly Jobs",
+          value: dashboardData.dashboard_metrics.monthly_jobs_count.toString(),
+          change: 0,
+          icon: <Calendar className="w-4 h-4 text-red-600" />,
+          progress: (dashboardData.dashboard_metrics.monthly_jobs_count / 20) * 100, // Assuming max 10 jobs
+          progressColor: "bg-red-500",
+        },
+        {
+          title: "Monthly Salary",
+          value: `£${dashboardData.dashboard_metrics.monthly_salary_count.toLocaleString("en-GB")}`,
+          change: 0,
+          icon: <HandCoins  className="w-4 h-4 text-green-600" />,
+          progress: (dashboardData.dashboard_metrics.monthly_salary_count / 70) * 100, // Assuming max £20
+          progressColor: "bg-green-500",
+        },
+      ]
+    : []
 
-  const lineOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { display: false }, ticks: { display: false } },
-      y: { display: false },
-    },
-  };
+  // Pie Chart Data (Vehicles Onsite vs Offsite)
+  const pieData = dashboardData
+    ? [
+        { name: "Onsite", value: dashboardData.dashboard_metrics.vehicles_onsite, color: "#22C55E" },
+        { name: "Offsite", value: Math.max(0, 10 - dashboardData.dashboard_metrics.vehicles_onsite), color: "#EF4444" },
+      ]
+    : []
 
-  // Donut Chart Data
-  const donutData = {
-    datasets: [
-      {
-        data: [55, 45, 45],
-        backgroundColor: ['#FF6B6B', '#FBBF24', '#EF4444'],
-        borderWidth: 0,
-        cutout: '75%',
-      },
-    ],
-  };
+  // Bar Chart Data (Monthly Jobs)
+  const barData = dashboardData
+    ? [
+        { month: "Jan", jobs: 3 },
+        { month: "Feb", jobs: 5 },
+        { month: "Mar", jobs: 2 },
+        { month: "Apr", jobs: 4 },
+        { month: "May", jobs: 6 },
+        { month: "Jun", jobs: 3 },
+        { month: "Jul", jobs: 5 },
+        { month: "Aug", jobs: dashboardData.dashboard_metrics.monthly_jobs_count },
+      ]
+    : []
 
-  const donutOptions = {
-    plugins: { legend: { display: false } },
-  };
+
+  if (loading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="text-center flex justify-center flex-col py-12">
+          <div className="w-14 h-14 my-5 border-t-4 border-orange-500 animate-spin rounded-full"></div>
+          <p className="text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !dashboardData) {
+    return (
+      <div className="p-6">
+        <p className="text-red-600">{error || "Error loading dashboard data"}</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-white p-6">
-      <div className="max-w-screen-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6 text-gray-300">Dashboard</h1>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-gray-600">Last updated: {new Date(dashboardData.date).toLocaleDateString("en-GB")}</p>
+      </div>
 
-        {/* Top Cards */}
-        <div className="flex flex-wrap gap-4 mb-6">
+      {/* Top Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {topMetrics.map((metric, index) => (
           <DashboardCard
-            title="Available Vehicles"
-            value="12"
-            subtitle="Roadworthy and onsite"
-            icon={<Car className="w-5 h-5" />}
-            accentColor="bg-green-500"
+            key={index}
+            title={metric.title}
+            value={metric.value}
+            change={metric.change}
+            icon={metric.icon}
+            progress={metric.progress}
+            progressColor={metric.progressColor}
           />
-          <DashboardCard
-            title="Vehicles in Use"
-            value="8"
-            subtitle="Currently on journey"
-            icon={<Car className="w-5 h-5" />}
-            accentColor="bg-blue-500"
-          />
-          <DashboardCard
-            title="Unavailable Vehicles"
-            value="3"
-            subtitle="Mechanic or Unroadworthy"
-            icon={<Wrench className="w-5 h-5" />}
-            accentColor="bg-red-500"
-          />
-          <DashboardCard
-            title="PMI's Due"
-            value="5"
-            subtitle="Next 5 Days"
-            icon={<AlertCircle className="w-5 h-5" />}
-            accentColor="bg-orange-500"
-          />
-          <DashboardCard
-            title="MOT's Due"
-            value="12"
-            subtitle="Next 3 Months"
-            icon={<Calendar className="w-5 h-5" />}
-            accentColor="bg-purple-500"
-          />
-          <DashboardCard
-            title="Drivers Onsite"
-            value="15"
-            subtitle="Clocked in not in journey"
-            icon={<Users className="w-5 h-5" />}
-            accentColor="bg-pink-500"
-          />
-          <DashboardCard
-            title="Check Due"
-            value="9"
-            subtitle="Next 7 Days"
-            icon={<CheckCircle className="w-5 h-5" />}
-            accentColor="bg-yellow-500"
-          />
-        </div>
+        ))}
+      </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Column */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Customer Stats */}
-            <div className="bg-gray-100 rounded-xl p-6">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold">Total Customers</h3>
-                  <p className="text-3xl font-bold">345,678</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-400">New User</p>
-                  <p className="text-lg font-semibold text-green-400">49 ↑</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-400">Growth</p>
-                  <p className="text-lg font-semibold text-green-400">+10%</p>
-                </div>
-                <select className="bg-gray-700 text-white rounded px-3 py-1 text-sm">
-                  <option>Month</option>
-                </select>
-              </div>
-              <div className="h-48">
-                <Bar data={barData} options={barOptions} />
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="gradient-border cursor-glow rounded-md">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-gray-600 text-lg">Vehicles Onsite vs Offsite</CardTitle>
+              {/* <h3 className="text-lg font-semibold"></h3> */}
+            </div>
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <Calendar className="w-4 h-4" />
+              <span>{format(new Date(dashboardData.date), "dd/MM/yyyy")}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center relative">
+              <ResponsiveContainer width={300} height={300}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={80}
+                    outerRadius={120}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      `${value} vehicles`,
+                      `${name} (${((value / 10) * 100).toFixed(1)}%)`
+                    ]}
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "4px",
+                      padding: "8px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold">{dashboardData.dashboard_metrics.vehicles_onsite}</span>
+                <span className="text-sm text-gray-600">Vehicles Onsite</span>
               </div>
             </div>
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* User Profile */}
-              <div className="bg-gray-100 rounded-xl p-6">
-                <h3 className="text-lg font-semibold mb-4">User Profile</h3>
-                <div className="h-48">
-                  <Doughnut data={donutData} options={donutOptions} />
-                </div>
-                <div className="flex justify-around mt-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                    <span>Male 55%</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <span>Female 45%</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <span>Other 45%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Statistic */}
-              <div className="bg-gray-100 rounded-xl p-6">
-                <h3 className="text-lg font-semibold mb-4">Statistic</h3>
-                <div className="h-40">
-                  <Line data={lineData} options={lineOptions} />
-                </div>
-                <div className="flex justify-between mt-4 text-sm">
-                  <p className="text-green-400 font-semibold">This Week +20%</p>
-                  <p className="text-yellow-400 font-semibold">Last Week +13%</p>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold text-orange-500">12,345</p>
-                    <p className="text-xs text-gray-400">Impression</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-orange-400">5.4% than last year</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Sidebar */}
-          <div className="space-y-6">
-            {/* Server Status */}
-            <div className="bg-gradient-to-b from-purple-900 to-gray-900 rounded-xl p-4 text-white">
-              <h3 className="font-semibold mb-4">Server Status</h3>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm">Country</span>
-                <span className="text-sm font-medium">Indonesia</span>
-              </div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm">Domain</span>
-                <span className="text-sm font-medium">website.com</span>
-              </div>
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-sm">Speed</span>
-                <span className="text-sm font-medium">2.0 mbps</span>
-              </div>
-              <div className="h-20 bg-gradient-to-r from-orange-600 via-red-600 to-orange-600 rounded-lg opacity-50"></div>
-            </div>
-
-            {/* Contacts */}
-            <div className="bg-gray-100 rounded-xl p-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-semibold">Contacts</h3>
-                <a href="#" className="text-orange-500 text-xs">View All</a>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {['Tony', 'Karen', 'Jordan', 'Jack', 'Nadila', 'Johnny', 'Mantha', 'John'].map((name) => (
-                  <div key={name} className="text-center">
-                    <div className="w-10 h-10 bg-gray-600 rounded-full mx-auto mb-1"></div>
-                    <p className="text-xs">{name}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6">
-                <h3 className="font-semibold mb-3 flex justify-between">
-                  Messages <a href="#" className="text-orange-500 text-xs">View All</a>
-                </h3>
-                {[
-                  { name: 'Samantha William', msg: 'Lorem ipsum dolor sit amet...' },
-                  { name: 'Tony Soap', msg: 'Lorem ipsum dolor sit amet...' },
-                  { name: 'Jordan Nico', msg: 'Lorem ipsum dolor sit amet...' },
-                  { name: 'Nadila Adja', msg: 'Lorem ipsum dolor sit amet...' },
-                ].map((item) => (
-                  <div key={item.name} className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-gray-700 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{item.name}</p>
-                      <p className="text-xs text-gray-500">{item.msg}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-gray-100 rounded-xl p-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-semibold">Recent Activity</h3>
-                <button className="bg-orange-500 text-white px-3 py-1 rounded text-xs">Update</button>
-              </div>
-              {[
-                { color: 'bg-orange-500', time: '2 Hour Ago', title: 'Transaction Assets', desc: 'Ab architecto provident ex accusantium deserunt.' },
-                { color: 'bg-gray-600', time: '2 Hour Ago', title: 'New Email Register', desc: 'Ab architecto provident ex accusantium deserunt.' },
-                { color: 'bg-yellow-500', time: '2 Hour Ago', title: 'Transaction Assets', desc: 'Ab architecto provident ex accusantium deserunt.' },
-                { color: 'bg-orange-400', time: '2 Hour Ago', title: 'New Email Register', desc: 'Ab architecto provident ex accusantium deserunt.' },
-              ].map((act, i) => (
-                <div key={i} className="flex gap-3 mb-3 last:mb-0">
-                  <div className={`w-2 h-2 rounded-full mt-2 ${act.color}`}></div>
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-400">{act.time}</p>
-                    <p className="font-medium text-sm">{act.title}</p>
-                    <p className="text-xs text-gray-500">{act.desc}</p>
-                  </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              {pieData.map((entry, index) => (
+                <div key={index} className="flex items-center space-x-2 text-sm">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                  <span className="text-gray-600">
+                    {entry.name}: {entry.value}
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+
+        <Card className="gradient-border cursor-glow rounded-md">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-gray-600 text-lg">Monthly Jobs Overview</CardTitle>
+              {/* <h3 className="text-lg font-semibold"></h3> */}
+            </div>
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <Calendar className="w-4 h-4" />
+              <span>{format(new Date(dashboardData.date), "dd/MM/yyyy")}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <div className="flex items-center space-x-2 text-sm">
+                <span className="text-purple-600">Aug</span>
+                <span className="text-gray-600">Jobs: {dashboardData.dashboard_metrics.monthly_jobs_count}</span>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={barData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Bar dataKey="jobs" fill="#8B5CF6" />
+                <Tooltip
+                  formatter={(value: number, name: string) => [`${value} jobs`, "Jobs"]}
+                  labelFormatter={(label: string) => `Month: ${label}`}
+                  contentStyle={{
+                    backgroundColor: "#fff",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "4px",
+                    padding: "8px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                  }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Recent Bookings Table */}
+      {/* <Card className="gradient-border cursor-glow rounded-md">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-gray-600 text-sm">New Bookings</CardTitle>
+            <h3 className="text-lg font-semibold">Recent customer bookings and requests</h3>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" className="ripple cursor-glow hover:bg-gray-200 border-gray-200">
+              <Filter className="w-4 h-4 mr-2" />
+              Filter
+            </Button>
+            <Button variant="outline" size="sm" className="ripple cursor-glow hover:bg-gray-200 border-gray-200">
+              <Eye className="w-4 h-4 mr-2" />
+              View All
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Customer Name</TableHead>
+                <TableHead>Booking ID</TableHead>
+                <TableHead>Car Name</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentBookings.map((booking, index) => (
+                <TableRow key={index}>
+                  <TableCell>
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="text-xs">{booking.avatar}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{booking.customer}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-blue-600">{booking.id}</TableCell>
+                  <TableCell>{booking.car}</TableCell>
+                  <TableCell>{booking.date}</TableCell>
+                  <TableCell>{booking.time}</TableCell>
+                  <TableCell className="font-semibold">{booking.amount}</TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(booking.status)}>{booking.status}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" className="ripple cursor-glow hover:bg-gray-200">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card> */}
     </div>
-  );
+  )
 }
