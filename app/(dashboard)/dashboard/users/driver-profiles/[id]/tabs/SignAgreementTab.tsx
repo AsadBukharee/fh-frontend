@@ -65,7 +65,7 @@ const PENSION_STATUS: Record<
   string,
   { label: string; variant: string }
 > = {
-  uploaded: { label: "Uploaded", variant: "bg-blue-600" },
+  uploaded: { label: "Uploaded", variant: "bg-blue-600 text-white" },
   not_uploaded: { label: "Not Uploaded", variant: "outline" },
 };
 
@@ -80,8 +80,7 @@ type DocumentKey =
   | "employeeHandbook"
   | "ehuForm"
   | "fhRules"
-  | "crhRules"
-  | "safetyPolicy";
+  | "crhRules";
 
 interface BaseDoc {
   id?: number;
@@ -111,6 +110,7 @@ interface NightWorkerDoc extends BaseDoc {
 interface ContractDoc extends BaseDoc {
   signingDate: string | null;
   startDate: string | null;
+  contractDate?: string | null; // NEW
 }
 
 interface PensionDoc extends BaseDoc {
@@ -136,7 +136,6 @@ type DocMap = {
   ehuForm: BaseDoc;
   fhRules: BaseDoc;
   crhRules: BaseDoc;
-  safetyPolicy: BaseDoc;
 };
 
 /* ────────────────────── Document Config ────────────────────── */
@@ -144,7 +143,7 @@ const docConfig: Record<
   DocumentKey,
   {
     title: string;
-    fields: ("applicable" | "expiry" | "signing" | "start" | "optIn" | "optOut")[];
+    fields: ("applicable" | "expiry" | "signing" | "start" | "optIn" | "optOut" | "contract")[];
     category: string;
     requiresFormOnOptOut?: boolean;
     apiKey?: string;
@@ -152,13 +151,13 @@ const docConfig: Record<
 > = {
   nightWorker: {
     title: "Night Worker Agreement",
-    fields: ["applicable", "expiry", "signing", "start"],
+    fields: ["applicable", "expiry"],
     category: "employment",
-    apiKey: "night-worker-agreements",
+    apiKey: "night_worker_agreements", // UPDATED: matches API key
   },
   contractOfEmployment: {
-    title: "Contract Of Employment",
-    fields: ["signing", "start"],
+    title: "Contract of Employment",
+    fields: ["start", "contract"], // NEW: contract date
     category: "employment",
   },
   pensionInfo: {
@@ -166,7 +165,7 @@ const docConfig: Record<
     fields: ["optIn", "optOut"],
     category: "benefits",
     requiresFormOnOptOut: true,
-    apiKey: "pension-info",
+    apiKey: "pension_info", // UPDATED: matches API key
   },
   uniformAgreement: {
     title: "Uniform Agreement",
@@ -174,12 +173,12 @@ const docConfig: Record<
     category: "employment",
   },
   covenantNDA: {
-    title: "Covenant / Non-Disclosure agreement",
+    title: "Covenant/ Non-Disclosure Agreement",
     fields: ["applicable"],
     category: "employment",
   },
   vehicleFamiliarisation: {
-    title: "Vehicle Familiarisation and Walkaround",
+    title: "Vehicle Familiarisation & Walkaround",
     fields: ["applicable", "expiry"],
     category: "safety",
   },
@@ -202,11 +201,6 @@ const docConfig: Record<
     title: "CRH Rules",
     fields: ["applicable"],
     category: "rules",
-  },
-  safetyPolicy: {
-    title: "Safety Policy",
-    fields: ["applicable"],
-    category: "safety",
   },
 };
 
@@ -238,23 +232,77 @@ const getStatusBadge = (doc: any) => {
     return <Badge variant={variant}>{label}</Badge>;
   }
 
+  // NEW: Night worker has no status → show "Uploaded" if link exists
+  if (doc.link) {
+    return <Badge variant="outline">Uploaded</Badge>;
+  }
+
   return <Badge variant="outline">Not uploaded</Badge>;
 };
+
+/* ────────────────────── Hook: Load Document Names ────────────────────── */
+function useDocumentNames(token: string) {
+  const [names, setNames] = useState<Array<{ id: number; name: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(`${API_URL}/api/profiles/document-name/`, {
+          headers: getHeaders(token),
+        });
+        if (!r.ok) throw new Error("Failed to load document-name list");
+        const data = await r.json();
+        setNames(data.results);
+      } catch (e: any) {
+        sonnerToast.error(e.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [token]);
+
+  return { names, loading };
+}
 
 /* ────────────────────── Load Documents Hook ────────────────────── */
 function useDriverDocuments(userId: string, token: string) {
   const [docs, setDocs] = useState<DocMap>({
-    nightWorker: { link: null, uploadDate: null, isApplicable: true, expiryDate: null },
-    contractOfEmployment: { link: null, uploadDate: null, isApplicable: true, signingDate: null, startDate: null },
-    pensionInfo: { link: null, uploadDate: null, isApplicable: true, optIn: false, optOut: false, optDate: null },
+    nightWorker: {
+      link: null,
+      uploadDate: null,
+      isApplicable: true,
+      expiryDate: null,
+      isNightWorker: true,
+    },
+    contractOfEmployment: {
+      link: null,
+      uploadDate: null,
+      isApplicable: true,
+      signingDate: null,
+      startDate: null,
+      contractDate: null,
+    },
+    pensionInfo: {
+      link: null,
+      uploadDate: null,
+      isApplicable: true,
+      optIn: false,
+      optOut: false,
+      optDate: null,
+    },
     uniformAgreement: { link: null, uploadDate: null, isApplicable: true },
     covenantNDA: { link: null, uploadDate: null, isApplicable: true },
-    vehicleFamiliarisation: { link: null, uploadDate: null, isApplicable: true, expiryDate: null },
+    vehicleFamiliarisation: {
+      link: null,
+      uploadDate: null,
+      isApplicable: true,
+      expiryDate: null,
+    },
     employeeHandbook: { link: null, uploadDate: null, isApplicable: true },
     ehuForm: { link: null, uploadDate: null, isApplicable: true },
     fhRules: { link: null, uploadDate: null, isApplicable: true },
     crhRules: { link: null, uploadDate: null, isApplicable: true },
-    safetyPolicy: { link: null, uploadDate: null, isApplicable: true },
   });
   const [loading, setLoading] = useState(true);
 
@@ -269,29 +317,14 @@ function useDriverDocuments(userId: string, token: string) {
       if (!allRes.ok) throw new Error("Failed to load documents");
       const json = await allRes.json();
 
-      const dedicated: Record<string, any> = {};
+      // NEW: Extract all three arrays
+      const signedAgreements: any[] = json.signed_agreements ?? [];
+      const pensionInfo: any[] = json.pension_info ?? [];
+      const nightWorkerAgreements: any[] = json.night_worker_agreements ?? [];
 
-      if (docConfig.nightWorker.apiKey) {
-        const nwRes = await fetch(
-          `${API_URL}/api/profiles/${docConfig.nightWorker.apiKey}/?driver_id=${userId}`,
-          { headers: getHeaders(token) }
-        );
-        if (nwRes.ok) {
-          const data = await nwRes.json();
-          dedicated[docConfig.nightWorker.apiKey] = data[0] ?? null;
-        }
-      }
-
-      if (docConfig.pensionInfo.apiKey) {
-        const penRes = await fetch(
-          `${API_URL}/api/profiles/${docConfig.pensionInfo.apiKey}/?driver_id=${userId}`,
-          { headers: getHeaders(token) }
-        );
-        if (penRes.ok) {
-          const data = await penRes.json();
-          dedicated[docConfig.pensionInfo.apiKey] = data[0] ?? null;
-        }
-      }
+      // Helper: find by stable document_name_id
+      const findById = (arr: any[], id: number) =>
+        arr.find((d) => d.document_name_id === id);
 
       const map: Partial<DocMap> = {};
 
@@ -299,16 +332,43 @@ function useDriverDocuments(userId: string, token: string) {
         const k = key as DocumentKey;
         let apiDoc: any = null;
 
-        if (cfg.apiKey && dedicated[cfg.apiKey]) {
-          apiDoc = dedicated[cfg.apiKey];
-        } else if (!cfg.apiKey) {
-          apiDoc = json.signed_agreements?.find((d: any) => d.name === cfg.title);
+        // NEW: Dedicated API sections
+        if (cfg.apiKey === "night_worker_agreements") {
+          apiDoc = nightWorkerAgreements[0];
+        } else if (cfg.apiKey === "pension_info") {
+          apiDoc = pensionInfo[0];
+        }
+        // Signable docs
+        else if (!cfg.apiKey) {
+          const knownIdMap: Partial<Record<DocumentKey, number>> = {
+            contractOfEmployment: 1,
+            covenantNDA: 2,
+            uniformAgreement: 3,
+            vehicleFamiliarisation: 4,
+            employeeHandbook: 5,
+            ehuForm: 6,
+            fhRules: 7,
+            crhRules: 8,
+          };
+
+          const knownId = knownIdMap[k];
+
+          if (knownId !== undefined) {
+            apiDoc = findById(signedAgreements, knownId);
+          }
+          if (!apiDoc) {
+            apiDoc = signedAgreements.find((d: any) => d.document_name === cfg.title);
+          }
         }
 
         const base = {
-          id: apiDoc?.id,
+          id: apiDoc?.id ?? null,
           link: apiDoc?.link ?? apiDoc?.document_link ?? null,
-          uploadDate: apiDoc?.upload_date ?? apiDoc?.last_updated ?? apiDoc?.agreement_date ?? null,
+          uploadDate:
+            apiDoc?.upload_date ??
+            apiDoc?.last_updated ??
+            apiDoc?.agreement_date ??
+            null,
           isApplicable: apiDoc?.is_applicable ?? true,
           status: apiDoc?.status,
           current_status: apiDoc?.current_status,
@@ -336,6 +396,7 @@ function useDriverDocuments(userId: string, token: string) {
             ...base,
             signingDate: apiDoc?.contract_signing_date ?? null,
             startDate: apiDoc?.contract_start_date ?? null,
+            contractDate: apiDoc?.contract_date ?? null, // NEW
           } as any;
         } else if (k === "pensionInfo") {
           map[k] = {
@@ -366,7 +427,7 @@ function useDriverDocuments(userId: string, token: string) {
   return { docs, loading, reload };
 }
 
-/* ────────────────────── Dynamic Upload Dialog (Supports Edit) ────────────────────── */
+/* ────────────────────── Dynamic Upload Dialog ────────────────────── */
 interface DynamicUploadDialogProps {
   keyName: DocumentKey;
   onUpload: (key: DocumentKey, url: string, formData: any) => Promise<void>;
@@ -411,6 +472,11 @@ function DynamicUploadDialog({
 
     if (cfg.fields.includes("start") && !formData.startDate) {
       sonnerToast.error("Employment start date is required");
+      return;
+    }
+
+    if (cfg.fields.includes("contract") && !formData.contractDate) {
+      sonnerToast.error("Contract date is required");
       return;
     }
 
@@ -473,6 +539,16 @@ function DynamicUploadDialog({
                 type="date"
                 value={formData.startDate || ""}
                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+              />
+            </div>
+          )}
+          {cfg.fields.includes("contract") && (
+            <div>
+              <Label>Contract Date *</Label>
+              <Input
+                type="date"
+                value={formData.contractDate || ""}
+                onChange={(e) => setFormData({ ...formData, contractDate: e.target.value })}
               />
             </div>
           )}
@@ -576,10 +652,11 @@ function DocumentDetailDialog({
 
           <div className="grid gap-3 text-sm md:grid-cols-2">
             {doc.id && <div><strong>ID:</strong> {doc.id}</div>}
-            <div><strong>Applicable:</strong> {doc.isApplicable ? "Yes" : "No"}</div>
+            {<div><strong>Applicable:</strong> {doc.isApplicable ? "Yes" : "No"}</div>}
             {doc.agreement_date && <div><strong>Agreement Date:</strong> {formatDate(doc.agreement_date)}</div>}
             {doc.contractSigningDate && <div><strong>Signing Date:</strong> {formatDate(doc.contractSigningDate)}</div>}
             {doc.contractStartDate && <div><strong>Start Date:</strong> {formatDate(doc.contractStartDate)}</div>}
+            {doc.contractDate && <div><strong>Contract Date:</strong> {formatDate(doc.contractDate)}</div>} {/* NEW */}
             {doc.expiryDate && <div><strong>Expiry Date:</strong> {formatDate(doc.expiryDate)}</div>}
             {doc.isNightWorker !== undefined && <div><strong>Night Worker:</strong> {doc.isNightWorker ? "Yes" : "No"}</div>}
             {doc.uploadDate && <div><strong>Uploaded:</strong> {formatDate(doc.uploadDate)}</div>}
@@ -602,7 +679,8 @@ export default function SignAgreementAdminTab() {
   const cookies = useCookies();
   const token = cookies.get("access_token") ?? "";
 
-  const { docs, loading, reload } = useDriverDocuments(userId, token);
+  const { docs, loading: docsLoading, reload } = useDriverDocuments(userId, token);
+  const { names: documentNames, loading: namesLoading } = useDocumentNames(token);
 
   const [detail, setDetail] = useState<{ open: boolean; key: DocumentKey | null }>({
     open: false,
@@ -638,6 +716,7 @@ export default function SignAgreementAdminTab() {
     const doc = docs[key];
     const isEdit = !!doc.id;
     const endpoint = getEndpoint(key, isEdit ? doc.id : undefined);
+    const method = isEdit ? "PATCH" : "POST";
 
     const payload: any = {
       driver_id: Number(userId),
@@ -646,14 +725,16 @@ export default function SignAgreementAdminTab() {
       is_applicable: formData.applicable ?? true,
     };
 
+    if (cfg.fields.includes("expiry")) payload.expiry_date = formData.expiryDate || null;
+    if (cfg.fields.includes("signing")) payload.contract_signing_date = formData.signingDate || null;
+    if (cfg.fields.includes("start")) payload.contract_start_date = formData.startDate || null;
+    if (cfg.fields.includes("contract")) payload.contract_date = formData.contractDate || null; // NEW
+
     if (key === "nightWorker") {
       Object.assign(payload, {
         is_night_worker: true,
         admin_uploaded: false,
         agreement_date: new Date().toISOString(),
-        contract_signing_date: formData.signingDate,
-        contract_start_date: formData.startDate,
-        expiry_date: formData.expiryDate,
       });
     }
 
@@ -666,18 +747,44 @@ export default function SignAgreementAdminTab() {
       });
     }
 
-    if (!cfg.apiKey && !isEdit) {
-      Object.assign(payload, {
-        name: cfg.title,
-        category: cfg.category,
-        status: "pending",
-        document_type: "view_only",
-        priority: 1,
-        requires_signature: false,
-      });
+    if (!cfg.apiKey) {
+      if (!isEdit) {
+        const docNameInfo = documentNames.find(d => d.name === cfg.title);
+        if (!docNameInfo) {
+          throw new Error(`Document name "${cfg.title}" not found in /document-name/`);
+        }
+
+        Object.assign(payload, {
+          document_name_id: docNameInfo.id,
+          name: cfg.title,
+          category: cfg.category,
+          status: "pending",
+          priority: 1,
+          document_type: "signable",
+          requires_signature: true,
+          is_signed: false,
+          is_viewed: false,
+          signed_date: null,
+          viewed_date: null,
+          contract_date: formData.contractDate || null,
+        });
+      }
+
+      if (isEdit) {
+        const patch: Partial<typeof payload> = {
+          link: url,
+          document_link: url,
+          is_applicable: formData.applicable ?? true,
+        };
+        if (cfg.fields.includes("expiry")) patch.expiry_date = formData.expiryDate || null;
+        if (cfg.fields.includes("signing")) patch.contract_signing_date = formData.signingDate || null;
+        if (cfg.fields.includes("start")) patch.contract_start_date = formData.startDate || null;
+        if (cfg.fields.includes("contract")) patch.contract_date = formData.contractDate || null;
+
+        Object.assign(payload, patch);
+      }
     }
 
-    const method = isEdit ? "PATCH" : "POST";
     const res = await fetch(endpoint, {
       method,
       headers: getHeaders(token),
@@ -685,8 +792,8 @@ export default function SignAgreementAdminTab() {
     });
 
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Failed: ${err}`);
+      const txt = await res.text();
+      throw new Error(`API error ${res.status}: ${txt}`);
     }
 
     await reload();
@@ -714,7 +821,7 @@ export default function SignAgreementAdminTab() {
     sonnerToast.success("Document deleted");
   };
 
-  if (loading) {
+  if (docsLoading || namesLoading) {
     return (
       <div className="flex items-center justify-center p-12">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-orange-500 border-t-transparent" />
@@ -814,6 +921,9 @@ export default function SignAgreementAdminTab() {
                     {k === "pensionInfo" && (d as PensionDoc).optDate && (
                       <div><strong>Opt date:</strong> {formatDate((d as PensionDoc).optDate)}</div>
                     )}
+                    {k === "contractOfEmployment" && (d as ContractDoc).contractDate && (
+                      <div><strong>Contract Date:</strong> {formatDate((d as ContractDoc).contractDate ?? null)}</div>
+                    )}
                     {d.uploadDate && <div><strong>Uploaded:</strong> {formatDate(d.uploadDate)}</div>}
                   </div>
                 )}
@@ -824,6 +934,7 @@ export default function SignAgreementAdminTab() {
                       <Button
                         size="sm"
                         className="flex-1"
+                        disabled={!documentNames.length && !cfg.apiKey}
                         onClick={(e) => {
                           e.stopPropagation();
                           setUploadDialog({ open: true, key: k });
@@ -898,8 +1009,9 @@ export default function SignAgreementAdminTab() {
                 initial: {
                   applicable: d.isApplicable,
                   expiryDate: (d as any).expiryDate ?? "",
-                  signingDate: (d as any).contractSigningDate ?? "",
-                  startDate: (d as any).contractStartDate ?? "",
+                  signingDate: (d as any).contractSigningDate ?? (d as any).signingDate ?? "",
+                  startDate: (d as any).contractStartDate ?? (d as any).startDate ?? "",
+                  contractDate: (d as any).contractDate ?? "",
                   optIn: (d as PensionDoc).optIn,
                   optOut: (d as PensionDoc).optOut,
                 },
