@@ -100,7 +100,7 @@ interface AssignmentLog {
 interface HistoryItem {
   id: number;
   action: string;
-  user: number;
+  user: User;
   user_display: string | null;
   old_value: any;
   new_value: any;
@@ -778,9 +778,7 @@ const Page = () => {
       <HistoryTaskDialog
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-        assignmentLogs={selectedTask?.assignment_logs ?? []}
         history={selectedTask?.history ?? []}
-        changeLogs={selectedTask?.change_logs ?? []}
       />
 
 
