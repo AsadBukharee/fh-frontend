@@ -1,4 +1,5 @@
 // components/task/HistoryTaskDialog.tsx
+
 'use client';
 
 import React from 'react';
@@ -19,7 +20,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+
+// ---------- Shared User Interface ----------
+interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  role: string;
+  avatar: string | null;
+}
 
 // ---------- Interfaces ----------
 interface AssignmentLog {
@@ -35,49 +44,21 @@ interface AssignmentLog {
 interface HistoryItem {
   id: number;
   action: string;
-  user: number;
+  user: User;                    // Fixed: full user object
   user_display: string | null;
   old_value: any;
   new_value: any;
   comment: string;
-  created_at: string;
-}
-
-interface ChangeLog {
-  id: number;
-  action_type: string;
-  action_type_display: string;
-  user: number;
-  user_display: string | null;
-  field_name: string | null;
-  old_value: any;
-  new_value: any;
-  comment: string;
-  ip_address: string;
-  user_agent: string;
   created_at: string;
 }
 
 interface HistoryTaskDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  assignmentLogs: AssignmentLog[];
   history: HistoryItem[];
-  changeLogs?: ChangeLog[];   // optional – matches the API shape
 }
 
-// ---------- Helper: Get display name ----------
-const getUserDisplay = (
-  userId: number | null,
-  display: string | null,
-  fallback: string = 'Unknown'
-): string => {
-  if (display) return display;
-  if (userId) return `User #${userId}`;
-  return fallback;
-};
-
-// Helper: format date (same for all tables)
+// Helper: format date
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleString([], {
     year: 'numeric',
@@ -87,16 +68,17 @@ const formatDate = (dateStr: string) =>
     minute: '2-digit',
   });
 
+// Helper: safe display name
+const getDisplayName = (entry: HistoryItem): string => {
+  return entry.user?.full_name || entry.user_display || 'Unknown User';
+};
+
 // ---------- Main Component ----------
 const HistoryTaskDialog: React.FC<HistoryTaskDialogProps> = ({
   isOpen,
   onClose,
-  assignmentLogs,
   history,
-  changeLogs = [],
 }) => {
-  const hasReassign = assignmentLogs.length > 0;
-  const hasChange = changeLogs.length > 0;
   const hasHistory = history.length > 0;
 
   return (
@@ -108,101 +90,9 @@ const HistoryTaskDialog: React.FC<HistoryTaskDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        {/* ---------- 1. Reassignment History ---------- */}
-        <section className="mt-4">
-          <h3 className="font-semibold text-lg mb-2">Reassignment History</h3>
-          {hasReassign ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {assignmentLogs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell>
-                      {log.assigned_by !== null
-                        ? getUserDisplay(log.assigned_by, null, 'System')
-                        : '—'}
-                    </TableCell>
-                    <TableCell>
-                      {getUserDisplay(log.assigned_to, log.assigned_to_display)}
-                    </TableCell>
-                    <TableCell>{log.reason || '—'}</TableCell>
-                    <TableCell>{formatDate(log.created_at)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              No reassignments recorded.
-            </p>
-          )}
-        </section>
-
-        <Separator className="my-6" />
-
-        {/* ---------- 2. Change-Log History ---------- */}
-        <section>
-          <h3 className="font-semibold text-lg mb-2">Change Log</h3>
-          {hasChange ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Action</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Field</TableHead>
-                  <TableHead>Old → New</TableHead>
-                  <TableHead>Comment</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {changeLogs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {log.action_type_display}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {getUserDisplay(log.user, log.user_display)}
-                    </TableCell>
-                    <TableCell>{log.field_name ?? '—'}</TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {log.old_value !== null
-                        ? String(log.old_value)
-                        : '—'}{' '}
-                      →{' '}
-                      {log.new_value !== null
-                        ? String(log.new_value)
-                        : '—'}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {log.comment}
-                    </TableCell>
-                    <TableCell>{formatDate(log.created_at)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              No field changes recorded.
-            </p>
-          )}
-        </section>
-
-        <Separator className="my-6" />
-
-        {/* ---------- 3. General Activity Log ---------- */}
-        <section>
-          <h3 className="font-semibold text-lg mb-2">Activity Log</h3>
+        {/* ---------- General Activity Log ---------- */}
+        <section className="mt-6">
+          <h3 className="text-lg font-semibold mb-3">Activity Log</h3>
           {hasHistory ? (
             <Table>
               <TableHeader>
@@ -216,21 +106,25 @@ const HistoryTaskDialog: React.FC<HistoryTaskDialogProps> = ({
               <TableBody>
                 {history.map((entry) => {
                   const actionLabel = entry.action
-                    .replace('_', ' ')
-                    .toUpperCase();
+                    .replace(/_/g, ' ')
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
 
                   return (
                     <TableRow key={entry.id}>
                       <TableCell>
                         <Badge variant="outline">{actionLabel}</Badge>
                       </TableCell>
-                      <TableCell>
-                        {getUserDisplay(entry.user, entry.user_display)}
+                      <TableCell className="font-medium">
+                        {getDisplayName(entry)}
                       </TableCell>
-                      <TableCell className="max-w-xs truncate">
+                      <TableCell className="max-w-xs truncate text-sm">
                         {entry.comment || '—'}
                       </TableCell>
-                      <TableCell>{formatDate(entry.created_at)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(entry.created_at)}
+                      </TableCell>
                     </TableRow>
                   );
                 })}

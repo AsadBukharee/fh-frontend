@@ -67,6 +67,7 @@ import HistoryTaskDialog from "@/components/task/HistoryTaskDialog";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 
 // ---------------------------------------------------
@@ -96,11 +97,17 @@ interface AssignmentLog {
   reason: string | null;
   created_at: string;
 }
-
+interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  role: string;
+  avatar: string | null;
+}
 interface HistoryItem {
   id: number;
   action: string;
-  user: number;
+  user: User;
   user_display: string | null;
   old_value: any;
   new_value: any;
@@ -654,7 +661,7 @@ const Page = () => {
           <TableBody>
             {tasks.map((task) => (
               <TableRow key={task.id}>
-                <TableCell className="font-medium">{task.title}</TableCell>
+                <TableCell className="font-medium"><Link href={`/dashboard/tasks/task-management${task.id}`}>{task.title}</Link></TableCell>
                 <TableCell className="max-w-xs truncate">
                   {task.description}
                 </TableCell>
@@ -729,9 +736,7 @@ const Page = () => {
                       <DropdownMenuItem onClick={() => openHistory(task)}>
                         <Logs className="mr-2 h-4 w-4" /> Logs
                       </DropdownMenuItem>
-                       <DropdownMenuItem onClick={() => router.push('/dashboard/tasks/history')}>
-                        <History className="mr-2 h-4 w-4" /> History
-                      </DropdownMenuItem>
+                     
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -786,9 +791,9 @@ const Page = () => {
       <HistoryTaskDialog
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-        assignmentLogs={selectedTask?.assignment_logs ?? []}
+        // assignmentLogs={selectedTask?.assignment_logs ?? []}/
         history={selectedTask?.history ?? []}
-        changeLogs={selectedTask?.change_logs ?? []}
+        // changeLogs={selectedTask?.change_logs ?? []}
       />
 
 
