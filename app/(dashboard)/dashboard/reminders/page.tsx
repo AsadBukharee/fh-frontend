@@ -36,41 +36,21 @@ interface User {
   full_name: string
   role: string
   avatar: string | null
-  username: string
 }
 
 interface Reminder {
   id: number
   user: User
-  is_global: boolean
   title: string
   description: string
   priority: "low" | "medium" | "high" | "urgent"
   start_date: string
   end_date: string | null
-  recurrence: "once" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "custom"
-  recurrence_interval: number
-  custom_recurrence: Record<string, any>
-  status: "active" | "completed" | "cancelled" | "snoozed" | "postponed"
+  recurrence: string
+  status: string
   is_active: boolean
-  last_sent: string | null
   next_reminder: string | null
-  snooze_count: number
-  last_snooze_time: string | null
-  completion_time: string | null
-  created_at: string
-  created_by: User | null
   is_overdue: boolean
-  time_until_next: string | null
-}
-
-interface ReminderInteraction {
-  id: number
-  reminder: number
-  user: User
-  action: "created" | "sent" | "snoozed" | "postponed" | "completed" | "cancelled" | "reactivated"
-  action_time: string
-  details: Record<string, any>
 }
 
 interface Event {
@@ -88,6 +68,11 @@ const Reminders: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [postponeTime, setPostponeTime] = useState<string>("")
+  const [view, setView] = useState<ViewType>("month")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
   const [newReminder, setNewReminder] = useState({
     title: "",
     description: "",
@@ -95,58 +80,61 @@ const Reminders: React.FC = () => {
     start_date: "",
     end_date: "",
     is_global: false,
-    recurrence: "once" as "once" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "custom",
+    recurrence: "once",
     recurrence_interval: 1,
     custom_recurrence: {},
   })
-  const [view, setView] = useState<ViewType>("month")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [interactions, setInteractions] = useState<ReminderInteraction[]>([])
-  const token = useCookies().get("access_token")
 
-  // Fetch reminders from API
+  const cookies = useCookies()
+  const token = cookies.get("access_token")
+
+  // --- FIXED SANITIZER ---
+  const sanitizeDate = (iso: string) => {
+    const d = parseISO(iso)
+    if (isNaN(d.getTime())) return new Date()
+    if (d.getFullYear() < 2000) return new Date()
+    return d
+  }
+
+  // Fetch reminders
   const fetchReminders = async () => {
     setLoading(true)
     try {
       const response = await fetch(`${API_URL}/api/reminders/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       })
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || "Failed to fetch reminders")
       }
+
       const reminders: Reminder[] = await response.json()
 
-      const mappedEvents: Event[] = reminders.map((reminder) => ({
-        id: reminder.id.toString(),
-        title: reminder.title,
-        date: parseISO(reminder.next_reminder || reminder.start_date),
-        color: mapPriorityToColor(reminder.priority),
-        reminder,
-      }))
+      const mappedEvents: Event[] = reminders.map((reminder) => {
+        const safeDate = sanitizeDate(reminder.next_reminder || reminder.start_date)
+        return {
+          id: reminder.id.toString(),
+          title: reminder.title,
+          date: safeDate,
+          color: mapPriorityToColor(reminder.priority),
+          reminder,
+        }
+      })
 
       setEvents(mappedEvents)
       setError(null)
     } catch (err: any) {
-      setError(err.message || "Error fetching reminders")
-      console.error(err)
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  // Fetch reminders on mount
   useEffect(() => {
     fetchReminders()
   }, [token])
 
-
-
-  // Map priority to color
   const mapPriorityToColor = (priority: string): string => {
     switch (priority) {
       case "urgent":
@@ -162,12 +150,10 @@ const Reminders: React.FC = () => {
     }
   }
 
-  // Save events to localStorage
   useEffect(() => {
     localStorage.setItem("events", JSON.stringify(events))
   }, [events])
 
-  // Clear success message after 5 seconds
   useEffect(() => {
     if (success) {
       const timer = setTimeout(() => setSuccess(null), 5000)
@@ -193,14 +179,8 @@ const Reminders: React.FC = () => {
 
     try {
       const payload = {
-        title: newReminder.title,
-        description: newReminder.description,
-        priority: newReminder.priority,
-        start_date: newReminder.start_date,
+        ...newReminder,
         end_date: newReminder.end_date || null,
-        is_global: newReminder.is_global,
-        recurrence: newReminder.recurrence,
-        recurrence_interval: newReminder.recurrence_interval,
         custom_recurrence: newReminder.recurrence === "custom" ? newReminder.custom_recurrence : {},
       }
 
@@ -221,6 +201,7 @@ const Reminders: React.FC = () => {
       const responseData = await response.json()
       await fetchReminders()
       setSuccess(responseData.message || "Reminder created successfully")
+
       setNewReminder({
         title: "",
         description: "",
@@ -232,117 +213,52 @@ const Reminders: React.FC = () => {
         recurrence_interval: 1,
         custom_recurrence: {},
       })
+
       setIsModalOpen(false)
       setError(null)
     } catch (err: any) {
-      setError(err.message || "Error creating reminder")
-      console.error(err)
+      setError(err.message)
     }
   }
 
-  const handleSnooze = async (reminderId: number) => {
+  const handleSnooze = async (id: number) => {
+    await performAction(id, { action: "snooze", snooze_minutes: 30 })
+  }
+
+  const handlePostpone = async (id: number, unix: string) => {
+    await performAction(id, { action: "postpone", postpone_time: unix })
+  }
+
+  const handleComplete = async (id: number) => {
+    await performAction(id, { action: "complete" })
+  }
+
+  const handleCancel = async (id: number) => {
+    await performAction(id, { action: "cancel" })
+  }
+
+  const performAction = async (id: number, body: Record<string, any>) => {
     try {
-      const response = await fetch(`${API_URL}/api/reminders/${reminderId}/perform-action/`, {
+      const res = await fetch(`${API_URL}/api/reminders/${id}/perform-action/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          action: "snooze",
-          snooze_minutes: 30,
-        }),
+        body: JSON.stringify(body),
       })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to snooze reminder")
-      }
-      const responseData = await response.json()
-      await fetchReminders()
-      setSuccess(responseData.message || "Reminder snoozed successfully")
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Error snoozing reminder")
-      console.error(err)
-    }
-  }
 
-  const handlePostpone = async (reminderId: number, newTime: string) => {
-    try {
-      const response = await fetch(`${API_URL}/api/reminders/${reminderId}/perform-action/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: "postpone",
-          postpone_time: newTime,
-        }),
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to postpone reminder")
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.message)
       }
-      const responseData = await response.json()
-      await fetchReminders()
-      setSuccess(responseData.message || "Reminder postponed successfully")
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Error postponing reminder")
-      console.error(err)
-    }
-  }
 
-  const handleComplete = async (reminderId: number) => {
-    try {
-      const response = await fetch(`${API_URL}/api/reminders/${reminderId}/perform-action/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: "complete",
-        }),
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to complete reminder")
-      }
-      const responseData = await response.json()
+      const msg = await res.json()
       await fetchReminders()
-      setSuccess(responseData.message || "Reminder completed successfully")
+      setSuccess(msg.message)
       setError(null)
     } catch (err: any) {
-      setError(err.message || "Error completing reminder")
-      console.error(err)
-    }
-  }
-
-  const handleCancel = async (reminderId: number) => {
-    try {
-      const response = await fetch(`${API_URL}/api/reminders/${reminderId}/perform-action/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: "cancel",
-        }),
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to cancel reminder")
-      }
-      const responseData = await response.json()
-      await fetchReminders()
-      setSuccess(responseData.message || "Reminder cancelled successfully")
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Error canceling reminder")
-      console.error(err)
+      setError(err.message)
     }
   }
 
@@ -353,6 +269,7 @@ const Reminders: React.FC = () => {
   }
 
   const days = getDays()
+
 
   return (
     <div className="flex h-fit bg-white">

@@ -1,337 +1,437 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { DashboardCard } from "@/components/dashboard-card"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import React, { useState, useEffect } from 'react';
+import { Bar, Line, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Car, Users, Wrench, Calendar, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
-import {  Calendar, Car, MapPin,  HandCoins  } from "lucide-react"
-import API_URL from "@/app/utils/ENV"
-import { useCookies } from "next-client-cookies"
-import { format } from "date-fns"
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
-// Define API response type
-interface DashboardData {
-  date: string;
-  dashboard_metrics: {
-    daily_staff_count: number;
-    daily_drivers_count: number;
-    vehicles_onsite: number;
-    daily_salary_count: number;
-    monthly_salary_count: number;
-    daily_man_hours: number;
-    daily_inspections_due: number;
-    inspections_due_next_7_days: number;
-    mots_due_today: number;
-    mots_due_next_7_days: number;
-    paid_holidays_this_month: {
-      hours: number;
-      cost: number;
-    };
-    outstanding_tasks_notifications: number;
-    monthly_jobs_count: number;
-    yearly_job_count: number;
+const DashboardCard = ({ title, value, subtitle, icon, accentColor, iconColor }: any) => (
+  <div className="bg-white rounded-2xl min-w-[200px] w-[220px] p-5 flex justify-between items-center shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+    <div>
+      <p className="text-sm text-gray-600 font-medium mb-2">{title}</p>
+      <p className="text-3xl font-bold text-gray-900 mb-1">{value}</p>
+      <p className="text-xs text-gray-400">{subtitle}</p>
+    </div>
+    <div className={`${accentColor} p-3 rounded-xl`}>
+      <span className={`${iconColor}`}>{icon}</span>
+    </div>
+  </div>
+);
+
+const getCardConfig = (type: string) => {
+  const configs: any = {
+    available: { icon: <Car className="w-5 h-5" />, accentColor: 'bg-pink-50', iconColor: 'text-pink-500' },
+    inUse: { icon: <Car className="w-5 h-5" />, accentColor: 'bg-pink-50', iconColor: 'text-pink-500' },
+    unavailable: { icon: <Wrench className="w-5 h-5" />, accentColor: 'bg-pink-50', iconColor: 'text-pink-500' },
+    pmiDue: { icon: <AlertCircle className="w-5 h-5" />, accentColor: 'bg-orange-50', iconColor: 'text-orange-500' },
+    motDue: { icon: <Calendar className="w-5 h-5" />, accentColor: 'bg-purple-50', iconColor: 'text-purple-500' },
+    driversOnsite: { icon: <Users className="w-5 h-5" />, accentColor: 'bg-blue-50', iconColor: 'text-blue-500' },
+    checkDue: { icon: <CheckCircle className="w-5 h-5" />, accentColor: 'bg-yellow-50', iconColor: 'text-yellow-500' },
   };
-}
+  return configs[type] || configs.available;
+};
 
 export default function Dashboard() {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const cookies = useCookies()
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch API data
   useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        const response = await fetch(`${API_URL}/dashboard/dashboard/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get("access_token")}`,
-          },
-        })
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        const data = await response.json()
-        setDashboardData(data)
-        setLoading(false)
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error)
-        setError("Failed to load dashboard data. Please try again later.")
-        setLoading(false)
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/dashboard');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard data');
       }
+      
+      const result = await response.json();
+      setDashboardData(result.data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error fetching dashboard data:', err);
+    } finally {
+      setLoading(false);
     }
-    fetchDashboardData()
-  }, [cookies])
-
-  // Top Metrics based on API data
-  const topMetrics = dashboardData
-    ? [
-        {
-          title: "Vehicles Onsite",
-          value: dashboardData.dashboard_metrics.vehicles_onsite.toString(),
-          change: 0,
-          icon: <Car className="w-4 h-4 text-purple-600" />,
-          progress: (dashboardData.dashboard_metrics.vehicles_onsite / 20) * 100, // Assuming max 10 vehicles
-          progressColor: "bg-purple-500",
-        },
-        {
-          title: "Daily Drivers",
-          value: dashboardData.dashboard_metrics.daily_drivers_count.toString(),
-          change: 0,
-          icon: <MapPin className="w-4 h-4 text-orange-600" />,
-          progress: (dashboardData.dashboard_metrics.daily_drivers_count / 20) * 100, // Assuming max 5 drivers
-          progressColor: "bg-orange-500",
-        },
-        {
-          title: "Monthly Jobs",
-          value: dashboardData.dashboard_metrics.monthly_jobs_count.toString(),
-          change: 0,
-          icon: <Calendar className="w-4 h-4 text-red-600" />,
-          progress: (dashboardData.dashboard_metrics.monthly_jobs_count / 20) * 100, // Assuming max 10 jobs
-          progressColor: "bg-red-500",
-        },
-        {
-          title: "Monthly Salary",
-          value: `£${dashboardData.dashboard_metrics.monthly_salary_count.toLocaleString("en-GB")}`,
-          change: 0,
-          icon: <HandCoins  className="w-4 h-4 text-green-600" />,
-          progress: (dashboardData.dashboard_metrics.monthly_salary_count / 70) * 100, // Assuming max £20
-          progressColor: "bg-green-500",
-        },
-      ]
-    : []
-
-  // Pie Chart Data (Vehicles Onsite vs Offsite)
-  const pieData = dashboardData
-    ? [
-        { name: "Onsite", value: dashboardData.dashboard_metrics.vehicles_onsite, color: "#22C55E" },
-        { name: "Offsite", value: Math.max(0, 10 - dashboardData.dashboard_metrics.vehicles_onsite), color: "#EF4444" },
-      ]
-    : []
-
-  // Bar Chart Data (Monthly Jobs)
-  const barData = dashboardData
-    ? [
-        { month: "Jan", jobs: 3 },
-        { month: "Feb", jobs: 5 },
-        { month: "Mar", jobs: 2 },
-        { month: "Apr", jobs: 4 },
-        { month: "May", jobs: 6 },
-        { month: "Jun", jobs: 3 },
-        { month: "Jul", jobs: 5 },
-        { month: "Aug", jobs: dashboardData.dashboard_metrics.monthly_jobs_count },
-      ]
-    : []
-
+  };
 
   if (loading) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
-        <div className="text-center flex justify-center flex-col py-12">
-          <div className="w-14 h-14 my-5 border-t-4 border-orange-500 animate-spin rounded-full"></div>
-          <p className="text-gray-600">Loading dashboard data...</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-orange-500 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading dashboard...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  if (error || !dashboardData) {
+  if (error) {
     return (
-      <div className="p-6">
-        <p className="text-red-600">{error || "Error loading dashboard data"}</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl p-8 shadow-lg max-w-md">
+          <div className="text-red-500 text-5xl mb-4 text-center">⚠️</div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">Error Loading Dashboard</h2>
+          <p className="text-gray-600 mb-4 text-center">{error}</p>
+          <button 
+            onClick={fetchDashboardData}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
-    )
+    );
   }
+
+  if (!dashboardData) return null;
+
+  const barData = {
+    labels: dashboardData.monthlyData.map((d: any) => d.month),
+    datasets: [
+      {
+        data: dashboardData.monthlyData.map((d: any) => d.value),
+        backgroundColor: (ctx: any) => (ctx.dataIndex === 5 ? '#FF6B6B' : '#F3F4F6'),
+        borderRadius: 8,
+        barThickness: 20,
+      },
+    ],
+  };
+
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { 
+        grid: { display: false }, 
+        ticks: { color: '#9CA3AF', font: { size: 11 } },
+        border: { display: false }
+      },
+      y: { display: false },
+    },
+  };
+
+  const lineData = {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [
+      {
+        data: dashboardData.fuelUsage.weeklyData,
+        borderColor: '#FF6B6B',
+        backgroundColor: 'rgba(255, 107, 107, 0.05)',
+        tension: 0.4,
+        pointBackgroundColor: '#FF6B6B',
+        pointRadius: 3,
+        borderWidth: 2,
+        fill: true,
+      },
+    ],
+  };
+
+  const lineOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 10 } }, border: { display: false } },
+      y: { display: false },
+    },
+  };
+
+  const donutData = {
+    labels: ['Onsite', 'Offsite', 'On Road'],
+    datasets: [
+      {
+        data: [
+          dashboardData.vehicleDistribution.onsite,
+          dashboardData.vehicleDistribution.offsite,
+          dashboardData.vehicleDistribution.onRoad
+        ],
+        backgroundColor: ['#FF6B6B', '#FBBF24', '#F97316'],
+        borderWidth: 0,
+        cutout: '70%',
+      },
+    ],
+  };
+
+  const donutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { 
+      legend: { display: false },
+      tooltip: { enabled: true }
+    },
+  };
+
+  const impressionData = {
+    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+    datasets: [
+      {
+        data: dashboardData.impressionData,
+        backgroundColor: (ctx: any) => (ctx.dataIndex === 1 ? '#FF6B6B' : '#FFE4E4'),
+        borderRadius: 6,
+        barThickness: 40,
+      },
+    ],
+  };
+
+  const impressionOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { display: false },
+      y: { display: false },
+    },
+  };
+
+  const getActivityColor = (color: string) => {
+    const colors: any = {
+      orange: 'bg-orange-500',
+      gray: 'bg-gray-800',
+      yellow: 'bg-yellow-500',
+    };
+    return colors[color] || 'bg-gray-500';
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-gray-600">Last updated: {new Date(dashboardData.date).toLocaleDateString("en-GB")}</p>
-      </div>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-screen-2xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <button 
+            onClick={fetchDashboardData}
+            className="text-sm text-gray-600 hover:text-orange-500 transition-colors flex items-center gap-2"
+          >
+            <Loader2 className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
 
-      {/* Top Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {topMetrics.map((metric, index) => (
-          <DashboardCard
-            key={index}
-            title={metric.title}
-            value={metric.value}
-            change={metric.change}
-            icon={metric.icon}
-            progress={metric.progress}
-            progressColor={metric.progressColor}
-          />
-        ))}
-      </div>
+        <div className="flex flex-wrap gap-4 mb-6">
+          {dashboardData.cards.map((card: any) => {
+            const config = getCardConfig(card.type);
+            return (
+              <DashboardCard
+                key={card.id}
+                title={card.title}
+                value={card.value}
+                subtitle={card.subtitle}
+                icon={config.icon}
+                accentColor={config.accentColor}
+                iconColor={config.iconColor}
+              />
+            );
+          })}
+        </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="gradient-border cursor-glow rounded-md">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-gray-600 text-lg">Vehicles Onsite vs Offsite</CardTitle>
-              {/* <h3 className="text-lg font-semibold"></h3> */}
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <Calendar className="w-4 h-4" />
-              <span>{format(new Date(dashboardData.date), "dd/MM/yyyy")}</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center relative">
-              <ResponsiveContainer width={300} height={300}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={80}
-                    outerRadius={120}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      `${value} vehicles`,
-                      `${name} (${((value / 10) * 100).toFixed(1)}%)`
-                    ]}
-                    contentStyle={{
-                      backgroundColor: "#fff",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "4px",
-                      padding: "8px",
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold">{dashboardData.dashboard_metrics.vehicles_onsite}</span>
-                <span className="text-sm text-gray-600">Vehicles Onsite</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              {pieData.map((entry, index) => (
-                <div key={index} className="flex items-center space-x-2 text-sm">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
-                  <span className="text-gray-600">
-                    {entry.name}: {entry.value}
-                  </span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-800 mb-1">Total Numbers</h3>
+                  <p className="text-3xl font-bold text-gray-900">{dashboardData.totalNumbers.total}</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="gradient-border cursor-glow rounded-md">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-gray-600 text-lg">Monthly Jobs Overview</CardTitle>
-              {/* <h3 className="text-lg font-semibold"></h3> */}
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <Calendar className="w-4 h-4" />
-              <span>{format(new Date(dashboardData.date), "dd/MM/yyyy")}</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <div className="flex items-center space-x-2 text-sm">
-                <span className="text-purple-600">Aug</span>
-                <span className="text-gray-600">Jobs: {dashboardData.dashboard_metrics.monthly_jobs_count}</span>
+                <div className="flex gap-8 items-center">
+                  <div>
+                    <p className="text-sm text-gray-500">Appointment</p>
+                    <p className="text-lg font-semibold text-green-500">
+                      {dashboardData.totalNumbers.appointment.value} ↑
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Period</p>
+                    <select className="bg-white border border-gray-200 text-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 mt-1">
+                      <option>Month</option>
+                      <option>Week</option>
+                      <option>Year</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="h-56">
+                <Bar data={barData} options={barOptions} />
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Bar dataKey="jobs" fill="#8B5CF6" />
-                <Tooltip
-                  formatter={(value: number, name: string) => [`${value} jobs`, "Jobs"]}
-                  labelFormatter={(label: string) => `Month: ${label}`}
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "4px",
-                    padding: "8px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                  }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Recent Bookings Table */}
-      {/* <Card className="gradient-border cursor-glow rounded-md">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-gray-600 text-sm">New Bookings</CardTitle>
-            <h3 className="text-lg font-semibold">Recent customer bookings and requests</h3>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" className="ripple cursor-glow hover:bg-gray-200 border-gray-200">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
-            <Button variant="outline" size="sm" className="ripple cursor-glow hover:bg-gray-200 border-gray-200">
-              <Eye className="w-4 h-4 mr-2" />
-              View All
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Customer Name</TableHead>
-                <TableHead>Booking ID</TableHead>
-                <TableHead>Car Name</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentBookings.map((booking, index) => (
-                <TableRow key={index}>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="text-xs">{booking.avatar}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{booking.customer}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 className="text-base font-semibold text-gray-800 mb-4">Onsite/Offsite Vehicles</h3>
+                <div className="h-48 flex items-center justify-center">
+                  <div className="w-48 h-48">
+                    <Doughnut data={donutData} options={donutOptions} />
+                  </div>
+                </div>
+                <div className="mt-6 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      <span className="text-sm text-gray-700">Onsite</span>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-blue-600">{booking.id}</TableCell>
-                  <TableCell>{booking.car}</TableCell>
-                  <TableCell>{booking.date}</TableCell>
-                  <TableCell>{booking.time}</TableCell>
-                  <TableCell className="font-semibold">{booking.amount}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(booking.status)}>{booking.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" className="ripple cursor-glow hover:bg-gray-200">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card> */}
+                    <span className="text-sm font-semibold text-gray-900">
+                      {dashboardData.vehicleDistribution.onsite}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                      <span className="text-sm text-gray-700">Offsite</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {dashboardData.vehicleDistribution.offsite}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                      <span className="text-sm text-gray-700">On Road</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {dashboardData.vehicleDistribution.onRoad}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 className="text-base font-semibold text-gray-800 mb-4">Fuel Usage</h3>
+                <div className="h-40">
+                  <Line data={lineData} options={lineOptions} />
+                </div>
+                <div className="flex justify-between mt-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">This Week </span>
+                    <span className="text-green-500 font-semibold">
+                      +{dashboardData.fuelUsage.thisWeek.value}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Last Week </span>
+                    <span className="text-green-500 font-semibold">
+                      +{dashboardData.fuelUsage.lastWeek.value}%
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Impression</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-2xl font-bold text-gray-900">
+                        {dashboardData.fuelUsage.impression.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-orange-500 font-medium">
+                        {dashboardData.fuelUsage.yearComparison}% than last year
+                      </p>
+                    </div>
+                  </div>
+                  <div className="h-16 mt-4">
+                    <Bar data={impressionData} options={impressionOptions} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-gray-800 text-base">Recent Drivers</h3>
+                <a href="#" className="text-orange-500 text-xs font-medium hover:text-orange-600">View All</a>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {dashboardData.recentDrivers.map((driver: any) => (
+                  <div key={driver.id} className="text-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-gray-300 to-gray-400 rounded-full mx-auto mb-2 flex items-center justify-center">
+                      <span className="text-white font-semibold text-sm">
+                        {driver.name.charAt(0)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-700 font-medium">{driver.name}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-gray-800 text-base">Messages</h3>
+                <a href="#" className="text-orange-500 text-xs font-medium hover:text-orange-600">View All</a>
+              </div>
+              <div className="space-y-3">
+                {dashboardData.messages.map((msg: any) => (
+                  <div key={msg.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-300 to-gray-400 rounded-full flex-shrink-0 flex items-center justify-center">
+                      <span className="text-white font-semibold text-sm">
+                        {msg.name.charAt(0)}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <p className="text-sm font-medium text-gray-900">{msg.name}</p>
+                        {msg.unread && (
+                          <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 truncate">{msg.message}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{msg.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-gray-800 text-base">Task Activity</h3>
+                <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-colors">
+                  Update
+                </button>
+              </div>
+              <div className="space-y-4">
+                {dashboardData.taskActivity.map((task: any) => (
+                  <div key={task.id} className="flex gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${getActivityColor(task.color)}`}></div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-400 mb-0.5">{task.time}</p>
+                      <p className="font-medium text-sm text-gray-900 mb-1">{task.title}</p>
+                      <p className="text-xs text-gray-500 leading-relaxed">{task.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  )
+  );
 }
