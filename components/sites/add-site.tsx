@@ -20,6 +20,7 @@ import {
   ChevronRight,
   CheckCircle,
   X,
+  AlertCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +29,16 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/app/Context/ToastContext";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -142,74 +153,6 @@ const StepperContent: React.FC<StepperContentProps> = ({ children }) => {
   );
 };
 
-// === STEPPER NAVIGATION (NO onSubmit PROP) ===
-const StepperNavigation: React.FC<StepperNavigationProps> = ({ className }) => {
-  const { currentStep, setCurrentStep, totalSteps } = React.useContext(StepperContext);
-  const { showToast } = useToast();
-  const form = useSelector((state: RootState) => state.form);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-
-  const handleNext = () => {
-    if (currentStep === 0 && !form.name.trim()) {
-      showToast("Please fill in the site name before proceeding.", "error");
-      return;
-    }
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  return (
-    <div className={cn("flex justify-between mt-6", className)}>
-      <Button
-        variant="outline"
-        size="lg"
-        onClick={handlePrevious}
-        disabled={currentStep === 0}
-        type="button"
-      >
-        <ChevronLeft className="w-5 h-5" />
-        Previous
-      </Button>
-
-      {currentStep === totalSteps - 1 ? (
-        <Button
-          type="submit"
-          disabled={isSubmitting || !form.name.trim()}
-          className="flex items-center bg-orange gap-2"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Adding Site...
-            </>
-          ) : (
-            <>
-              <Save className="w-5 h-5" />
-              Add Site
-            </>
-          )}
-        </Button>
-      ) : (
-        <Button
-          type="button"
-          onClick={handleNext}
-          className="flex items-center bg-orange gap-2"
-        >
-          Next
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-      )}
-    </div>
-  );
-};
-
 // === REDUX FORM STATE ===
 interface FormState {
   name: string;
@@ -286,6 +229,158 @@ const store = configureStore({
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
+// === VALIDATION HELPER ===
+const validateStep = (step: number, form: FormState, showToast: any): boolean => {
+  const REGEX = {
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    phone: /^\+?[0-9]{7,15}$/,
+    postcode: /^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i,
+  };
+
+  // Step 0: Site Location
+  if (step === 0) {
+    if (!form.name.trim()) {
+      showToast("Site name is required.", "error");
+      return false;
+    }
+    if (form.postcode && !REGEX.postcode.test(form.postcode)) {
+      showToast("Please enter a valid UK postcode format.", "error");
+      return false;
+    }
+    if (form.radius_m && form.radius_m < 1) {
+      showToast("Radius must be at least 1 meter.", "error");
+      return false;
+    }
+  }
+
+  // Step 1: Site Admin
+  if (step === 1) {
+    if (form.contact_email && !REGEX.email.test(form.contact_email)) {
+      showToast("Please enter a valid email address.", "error");
+      return false;
+    }
+    if (form.contact_phone && !REGEX.phone.test(form.contact_phone)) {
+      showToast("Please enter a valid phone number (7-15 digits).", "error");
+      return false;
+    }
+  }
+
+  // Step 2: Operations
+  if (step === 2) {
+    if (!form.is_24_hour && form.operational_days.length === 0) {
+      showToast("Please select at least one operational day or enable 24-hour operation.", "error");
+      return false;
+    }
+    if (form.number_of_allocated_vehicles < 0) {
+      showToast("Number of vehicles cannot be negative.", "error");
+      return false;
+    }
+    if (form.number_of_allocated_staff < 0) {
+      showToast("Number of staff cannot be negative.", "error");
+      return false;
+    }
+  }
+
+  return true;
+};
+
+// === STEPPER NAVIGATION ===
+const StepperNavigation: React.FC<StepperNavigationProps> = ({ className }) => {
+  const { currentStep, setCurrentStep, totalSteps } = React.useContext(StepperContext);
+  const { showToast } = useToast();
+  const form = useSelector((state: RootState) => state.form);
+  const [showConfirmDialog, setShowConfirmDialog] = React.useState(false);
+
+  const handleNext = () => {
+    // Validate current step before proceeding
+    if (!validateStep(currentStep, form, showToast)) {
+      return;
+    }
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleSubmitClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowConfirmDialog(true);
+  };
+
+  return (
+    <>
+      <div className={cn("flex justify-between mt-6", className)}>
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={handlePrevious}
+          disabled={currentStep === 0}
+          type="button"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          Previous
+        </Button>
+
+        {currentStep === totalSteps - 1 ? (
+          <Button
+            type="button"
+            onClick={handleSubmitClick}
+            disabled={!form.name.trim()}
+            className="flex items-center bg-orange gap-2"
+          >
+            <Save className="w-5 h-5" />
+            Add Site
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={handleNext}
+            className="flex items-center bg-orange gap-2"
+          >
+            Next
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+        )}
+      </div>
+
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-orange" />
+              Confirm Site Creation
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>Are you sure you want to add this site?</p>
+              <div className="mt-4 p-3 bg-muted rounded-lg space-y-1 text-sm">
+                <p><strong>Site Name:</strong> {form.name}</p>
+                {form.postcode && <p><strong>Postcode:</strong> {form.postcode}</p>}
+                {form.contact_name && <p><strong>Contact:</strong> {form.contact_name}</p>}
+                <p><strong>Operation:</strong> {form.is_24_hour ? "24/7" : `${form.operational_days.length} days`}</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="submit"
+              form="site-form"
+              className="bg-orange hover:bg-orange/90"
+            >
+              Confirm & Add Site
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+};
+
 // === DEBUG COMPONENT ===
 const DebugComponent = () => {
   const form = useSelector((state: RootState) => state.form);
@@ -329,6 +424,7 @@ function AddSiteForm() {
   const [isFetchingPostcode, setIsFetchingPostcode] = React.useState(false);
   const [submitSuccess, setSubmitSuccess] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // === POSTCODE FETCH ===
   const fetchAddressDetails = async (postcode: string) => {
@@ -405,16 +501,6 @@ function AddSiteForm() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     dispatch(updateField({ [name]: value }));
-
-    if (name === "contact_email" && value && !REGEX.email.test(value)) {
-      showToast("Invalid email format", "error");
-    }
-    if (name === "contact_phone" && value && !REGEX.phone.test(value)) {
-      showToast("Invalid phone number", "error");
-    }
-    if (name === "postcode" && value && !REGEX.postcode.test(value)) {
-      showToast("Invalid postcode format", "error");
-    }
   };
 
   const handleImageUpload = (url: string) => {
@@ -430,11 +516,7 @@ function AddSiteForm() {
     dispatch(toggle24Hour());
   };
 
-  const REGEX = {
-    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    phone: /^\+?[0-9]{7,15}$/,
-    postcode: /^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i,
-  };
+  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
   const handleClose = () => {
     setSubmitSuccess(false);
@@ -447,26 +529,14 @@ function AddSiteForm() {
     e.preventDefault();
     console.log("SUBMITTING FORM...");
 
-    if (!form.name.trim()) {
-      showToast("Site name is required.", "error");
-      return;
+    // Validate all steps before submission
+    for (let step = 0; step < 3; step++) {
+      if (!validateStep(step, form, showToast)) {
+        return;
+      }
     }
 
-    if (form.contact_email && !REGEX.email.test(form.contact_email)) {
-      showToast("Valid email required.", "error");
-      return;
-    }
-
-    if (form.contact_phone && !REGEX.phone.test(form.contact_phone)) {
-      showToast("Valid phone number required.", "error");
-      return;
-    }
-
-    if (form.postcode && !REGEX.postcode.test(form.postcode)) {
-      showToast("Valid UK postcode required.", "error");
-      return;
-    }
-
+    setIsSubmitting(true);
     setSubmitError(null);
 
     const payload = {
@@ -541,10 +611,10 @@ function AddSiteForm() {
       const msg = error.message || "Failed to add site.";
       setSubmitError(msg);
       showToast(msg, "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
-  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
   // === SUCCESS UI ===
   if (submitSuccess) {
@@ -600,16 +670,17 @@ function AddSiteForm() {
         <StepperTabs labels={["Site Location", "Site Admin", "Operations"]} />
 
         <form
+          id="site-form"
           onSubmit={handleSubmit}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              e.preventDefault(); // Prevent Enter from submitting
+              e.preventDefault();
             }
           }}
           className="mt-8"
         >
           <StepperContent>
-            {/* Step 1 */}
+            {/* Step 1: Site Location */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-6">
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
@@ -676,7 +747,7 @@ function AddSiteForm() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="radius_m">Radius (m)</Label>
+                    <Label htmlFor="radius_m">Radius (miles)</Label>
                     <Input
                       id="radius_m"
                       name="radius_m"
@@ -706,7 +777,7 @@ function AddSiteForm() {
               </CardContent>
             </Card>
 
-            {/* Step 2 */}
+            {/* Step 2: Site Admin */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-6">
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
@@ -748,7 +819,7 @@ function AddSiteForm() {
                     <Input
                       id="contact_phone"
                       name="contact_phone"
-                      type="number"
+                      type="tel"
                       value={form.contact_phone}
                       onChange={handleChange}
                       placeholder="+44 938747 8383"
@@ -773,7 +844,7 @@ function AddSiteForm() {
               </CardContent>
             </Card>
 
-            {/* Step 3 */}
+            {/* Step 3: Operations */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-6">
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">

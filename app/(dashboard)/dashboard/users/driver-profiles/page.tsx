@@ -11,15 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuCheckboxItem,
-} from "@/components/ui/dropdown-menu";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -47,19 +38,15 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   Search,
-  MoreHorizontal,
   Edit,
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Star,
-  Filter,
   Download,
   Loader2,
   Save,
   X,
   Mail,
-  ToggleLeft,
   AlertCircle,
   RefreshCw,
   User,
@@ -132,22 +119,6 @@ interface Contract {
   description: string;
 }
 
-interface Role {
-  id: number;
-  slug: string;
-  name: string;
-  menu: {
-    items: Array<{
-      nav: string;
-      icon: string;
-      name: string;
-      tooltip: string;
-      children: Array<any>;
-      isSelected: boolean;
-    }>;
-  };
-}
-
 interface Site {
   id: number;
   name: string;
@@ -214,17 +185,15 @@ const AddUserModal = React.memo(
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Hidden input for role */}
           <input type="hidden" name="role" value="driver" />
 
-          {/* ── Personal ── */}
+          {/* Personal Information */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
               Personal Information
             </div>
             <Separator />
             <div className="space-y-4">
-              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="add-email" className="flex items-center gap-2">
                   <Mail className="w-4 h-4" />
@@ -248,7 +217,6 @@ const AddUserModal = React.memo(
                 )}
               </div>
 
-              {/* Full name */}
               <div className="space-y-2">
                 <Label htmlFor="add-full_name" className="flex items-center gap-2">
                   <User className="w-4 h-4" />
@@ -271,8 +239,7 @@ const AddUserModal = React.memo(
                 )}
               </div>
 
-              {/* Password */}
-              <div className="space-y-2">
+              <div className="space Alumni-2">
                 <Label htmlFor="add-password" className="flex items-center gap-2">
                   <Lock className="w-4 h-4" />
                   Password *
@@ -304,7 +271,6 @@ const AddUserModal = React.memo(
                 )}
               </div>
 
-              {/* Confirm Password */}
               <div className="space-y-2">
                 <Label htmlFor="add-password_confirm" className="flex items-center gap-2">
                   <Lock className="w-4 h-4" />
@@ -339,7 +305,7 @@ const AddUserModal = React.memo(
             </div>
           </div>
 
-          {/* ── Contract (optional) ── */}
+          {/* Contract Assignment */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
               Contract Assignment
@@ -381,7 +347,7 @@ const AddUserModal = React.memo(
             </div>
           </div>
 
-          {/* ── Site (optional) ── */}
+          {/* Site Assignment */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
               Site Assignment
@@ -447,15 +413,12 @@ const AddUserModal = React.memo(
   )
 );
 AddUserModal.displayName = "AddUserModal";
-AddUserModal.displayName = "AddUserModal";
 
 /* ──────────────────────── MAIN PAGE ──────────────────────── */
 export default function DriversPage() {
-  /* ── Refs ── */
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  /* ── Modal / Dialog states ── */
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
   const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
@@ -463,21 +426,16 @@ export default function DriversPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
 
-  /* ── Data states ── */
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
 
   const [loading, setLoading] = useState(true);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [contractsLoading, setContractsLoading] = useState(false);
   const [sitesLoading, setSitesLoading] = useState(false);
-  const [rolesLoading, setRolesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* ── UI states ── */
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
   const [driverToDisapprove, setDriverToDisapprove] = useState<Driver | null>(null);
@@ -487,17 +445,14 @@ export default function DriversPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
     profileStatus: [] as string[],
-    hasContract: null as boolean | null,
-    hasWarnings: null as boolean | null,
   });
 
-  /* ── Form state for Add-User modal ── */
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState<UserForm>({
     email: "",
     full_name: "",
-    role: "",
+    role: "driver",
     contractId: "none",
     siteId: "none",
     is_active: true,
@@ -510,49 +465,42 @@ export default function DriversPage() {
   const cookies = useCookies();
   const perPage = 10;
 
-  /* ── Helper: role colour (same as UsersPage) ── */
+  /* ── Helper: role colour ── */
   const getTypeColor = useCallback((roleName: string | undefined | null) => {
     const n = roleName?.toLowerCase();
     switch (n) {
-      case "admin":
-        return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-      case "manager":
-        return "bg-red-100 text-red-700 hover:bg-red-100";
-      case "supervisor":
-        return "bg-orange-100 text-orange-700 hover:bg-orange-100";
-      case "superadmin":
-        return "bg-purple-100 text-purple-700 hover:bg-purple-100";
-      case "driver":
-        return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-      default:
-        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
+      case "admin": return "bg-blue-100 text-blue-700 hover:bg-blue-100";
+      case "manager": return "bg-red-100 text-red-700 hover:bg-red-100";
+      case "supervisor": return "bg-orange-100 text-orange-700 hover:bg-orange-100";
+      case "superadmin": return "bg-purple-100 text-purple-700 hover:bg-purple-100";
+      case "driver": return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
+      default: return "bg-gray-100 text-gray-700 hover:bg-gray-100";
     }
   }, []);
 
-  /* ── Filtering (client-side) ── */
+  /* ── Filtering (Tabs + Search) ── */
   const filteredDrivers = useMemo(() => {
     return allDrivers.filter((d) => {
       let ok = true;
+
+      // Search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        ok =
-          ok &&
-          (d.user.full_name.toLowerCase().includes(q) ||
-            d.user.display_name.toLowerCase().includes(q) ||
-            d.user.email.toLowerCase().includes(q));
+        ok = ok && (
+          d.user.full_name.toLowerCase().includes(q) ||
+          d.user.display_name.toLowerCase().includes(q) ||
+          d.user.email.toLowerCase().includes(q)
+        );
       }
-      if (filters.profileStatus.length) {
+
+      // Tab Filter
+      if (filters.profileStatus.length > 0) {
         ok = ok && filters.profileStatus.includes(d.profile_status.toLowerCase());
       }
-      if (filters.hasContract !== null) {
-        ok = ok && (d.user.contract !== null) === filters.hasContract;
-      }
-      if (filters.hasWarnings !== null) {
-        ok = ok && (d.warnings.length > 0) === filters.hasWarnings;
-      }
+
       return ok;
     });
-  }, [allDrivers, searchQuery, filters]);
+  }, [allDrivers, searchQuery, filters.profileStatus]);
 
   const totalPages = Math.ceil(filteredDrivers.length / perPage);
   const currentDrivers = filteredDrivers.slice(
@@ -592,23 +540,6 @@ export default function DriversPage() {
     }
   }, [cookies, showToast]);
 
-  /* ── API: roles, contracts, sites (only when modal opens) ── */
-  const fetchRoles = useCallback(async () => {
-    if (roles.length) return;
-    setRolesLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/roles/`, {
-        headers: { Authorization: `Bearer ${cookies.get("access_token")}` },
-      });
-      const json = await res.json();
-      if (json.success) setRoles(json.data);
-    } catch {
-      showToast("Failed to load roles", "error");
-    } finally {
-      setRolesLoading(false);
-    }
-  }, [cookies, roles.length, showToast]);
-
   const fetchContracts = useCallback(async () => {
     if (contracts.length) return;
     setContractsLoading(true);
@@ -643,8 +574,7 @@ export default function DriversPage() {
 
   useEffect(() => {
     fetchDrivers();
-    fetchRoles();
-  }, [fetchDrivers, fetchRoles]);
+  }, [fetchDrivers]);
 
   useEffect(() => {
     if (isAddModalOpen) {
@@ -653,7 +583,6 @@ export default function DriversPage() {
     }
   }, [isAddModalOpen, fetchContracts, fetchSites]);
 
-  /* ── Add-User flow ── */
   const openAddModal = () => {
     setFormData({
       email: "",
@@ -669,28 +598,28 @@ export default function DriversPage() {
     setIsAddModalOpen(true);
   };
 
-const validateAddForm = (fd: FormData): Partial<UserForm> => {
-  const errs: Partial<UserForm> = {};
-  const email = fd.get("email") as string;
-  const full = fd.get("full_name") as string;
-  const pwd = fd.get("password") as string;
-  const pwdC = fd.get("password_confirm") as string;
+  const validateAddForm = (fd: FormData): Partial<UserForm> => {
+    const errs: Partial<UserForm> = {};
+    const email = fd.get("email") as string;
+    const full = fd.get("full_name") as string;
+    const pwd = fd.get("password") as string;
+    const pwdC = fd.get("password_confirm") as string;
 
-  if (!email?.trim()) errs.email = "Email required";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-    errs.email = "Invalid email";
+    if (!email?.trim()) errs.email = "Email required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      errs.email = "Invalid email";
 
-  if (!full?.trim()) errs.full_name = "Full name required";
-  else if (full.trim().length < 2) errs.full_name = "Too short";
+    if (!full?.trim()) errs.full_name = "Full name required";
+    else if (full.trim().length < 2) errs.full_name = "Too short";
 
-  if (!pwd?.trim()) errs.password = "Password required";
-  else if (pwd.length < 6) errs.password = "Min 6 chars";
+    if (!pwd?.trim()) errs.password = "Password required";
+    else if (pwd.length < 6) errs.password = "Min 6 chars";
 
-  if (!pwdC?.trim()) errs.password_confirm = "Confirm password";
-  else if (pwd !== pwdC) errs.password_confirm = "Passwords do not match";
+    if (!pwdC?.trim()) errs.password_confirm = "Confirm password";
+    else if (pwd !== pwdC) errs.password_confirm = "Passwords do not match";
 
-  return errs;
-};
+    return errs;
+  };
 
   const handleAddUserSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -732,7 +661,6 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
       setIsAddModalOpen(false);
       await fetchDrivers();
 
-      /* ── Assign contract / site if selected ── */
       const contractId = fd.get("contract") as string | undefined;
       const siteId = fd.get("site") as string | undefined;
       const promises: Promise<any>[] = [];
@@ -763,7 +691,6 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
       }
       await Promise.all(promises);
 
-      /* ── Open driver-details modal ── */
       if (payload.role.toLowerCase() === "driver") {
         setNewDriverUserId(userId);
         setIsAddDriverModalOpen(true);
@@ -775,7 +702,6 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
     }
   };
 
-  /* ── Delete driver ── */
   const handleDeleteDriver = async () => {
     if (!driverToDelete) return;
     try {
@@ -798,7 +724,6 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
     }
   };
 
-  /* ── Disapprove driver ── */
   const handleDisapproveDriver = async () => {
     if (!driverToDisapprove || !disapproveRemarks.trim()) {
       setDisapproveError("Remarks required");
@@ -834,7 +759,6 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
     }
   };
 
-  /* ── UI helpers ── */
   const handleMouseMove = (key: string) => (e: React.MouseEvent) => {
     const btn = buttonRefs.current[key];
     if (!btn) return;
@@ -847,134 +771,113 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
 
   const getProfileStatusColor = (s: string) => {
     switch (s.toLowerCase()) {
-      case "approved":
-        return "bg-green-100 text-green-700";
-      case "review":
-        return "bg-yellow-100 text-yellow-700";
-      case "not_approved":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-700";
+      case "approved": return "bg-green-100 text-green-700";
+      case "review": return "bg-yellow-100 text-yellow-700";
+      case "not_approved": return "bg-red-100 text-red-700";
+      default: return "bg-gray-100 text-gray-700";
     }
   };
 
-  /* ── Render ── */
   return (
     <TooltipProvider>
       <div className="p-6 bg-white">
-        {/* ── Header ── */}
-        <header className="bg-white p-4">
-          <div className="container mx-auto flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Driver Management</h1>
-              <p className="text-sm text-gray-500">Manage your drivers and their profiles</p>
+        {/* ── Header with Tabs ── */}
+        <header className="bg-white p-4 border-b">
+          <div className="container mx-auto">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Driver Management</h1>
+                <p className="text-sm text-gray-500">Manage your drivers and their profiles</p>
+              </div>
+
+              <div className="flex items-center gap-2 h-[40px]">
+                <ExportButton data={filteredDrivers} fileName="Drivers" />
+                <button
+                  onClick={fetchDrivers}
+                  disabled={loading}
+                  className="px-4 border border-gray-50 shadow rounded flex items-center gap-2 text-gray-700 hover:bg-gray-100"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </button>
+                <button
+                  onClick={openAddModal}
+                  className="px-6 py-2 rounded-xl text-white font-medium flex items-center gap-2"
+                  style={{
+                    background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                  ADD
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 h-[40px]">
-              {/* Filter dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="px-4 border border-gray-50 shadow rounded flex items-center gap-2 text-gray-700 hover:bg-gray-100">
-                    <Filter className="w-4 h-4" />
-                    Filter
+            {/* Tabs */}
+            <div className="flex gap-1 mt-6 border-b border-gray-200 overflow-x-auto">
+              {[
+                { key: "approved", label: "Approved", color: "bg-green-100 text-green-700" },
+                { key: "review", label: "Review", color: "bg-yellow-100 text-yellow-700" },
+                { key: "not_approved", label: "Not Approved", color: "bg-red-100 text-red-700" },
+              ].map((tab) => {
+                const count = allDrivers.filter((d) => d.profile_status.toLowerCase() === tab.key).length;
+                const isActive = filters.profileStatus.length === 0 || filters.profileStatus.includes(tab.key);
+
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => {
+                      setFilters((prev) => ({
+                        ...prev,
+                        profileStatus: prev.profileStatus.includes(tab.key)
+                          ? prev.profileStatus.filter((s) => s !== tab.key)
+                          : prev.profileStatus.length === 1 && prev.profileStatus[0] === tab.key
+                          ? []
+                          : [tab.key],
+                      }));
+                      setCurrentPage(1);
+                    }}
+                    className={`relative px-5 py-2.5 font-medium text-sm rounded-t-lg transition-all duration-200 flex items-center gap-2 whitespace-nowrap
+                      ${isActive
+                        ? "text-gray-900 bg-white border border-gray-200 border-b-white shadow-sm"
+                        : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                      }`}
+                  >
+                    <span>{tab.label}</span>
+                    <Badge className={`text-xs px-2 py-0.5 ${tab.color}`}>{count}</Badge>
+                    {isActive && (
+                      <div
+                        className="absolute bottom-0 left-0 right-0 h-0.5"
+                        style={{
+                          background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+                        }}
+                      />
+                    )}
                   </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-white">
-                  <DropdownMenuLabel>Filter Drivers</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {["approved", "review", "not_approved"].map((st) => (
-                    <DropdownMenuCheckboxItem
-                      key={st}
-                      checked={filters.profileStatus.includes(st)}
-                      onCheckedChange={() => {
-                        setFilters((p) => ({
-                          ...p,
-                          profileStatus: p.profileStatus.includes(st)
-                            ? p.profileStatus.filter((x) => x !== st)
-                            : [...p.profileStatus, st],
-                        }));
-                        setCurrentPage(1);
-                      }}
-                    >
-                      {st.replace("_", " ")}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.hasContract === true}
-                    onCheckedChange={() =>
-                      setFilters((p) => ({
-                        ...p,
-                        hasContract: p.hasContract === true ? null : true,
-                      }))
-                    }
-                  >
-                    Has Contract
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.hasContract === false}
-                    onCheckedChange={() =>
-                      setFilters((p) => ({
-                        ...p,
-                        hasContract: p.hasContract === false ? null : false,
-                      }))
-                    }
-                  >
-                    No Contract
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={filters.hasWarnings === true}
-                    onCheckedChange={() =>
-                      setFilters((p) => ({
-                        ...p,
-                        hasWarnings: p.hasWarnings === true ? null : true,
-                      }))
-                    }
-                  >
-                    Has Warnings
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filters.hasWarnings === false}
-                    onCheckedChange={() =>
-                      setFilters((p) => ({
-                        ...p,
-                        hasWarnings: p.hasWarnings === false ? null : false,
-                      }))
-                    }
-                  >
-                    No Warnings
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <ExportButton data={filteredDrivers} fileName="Drivers" />
+                );
+              })}
               <button
-                onClick={fetchDrivers}
-                disabled={loading}
-                className="px-4 border border-gray-50 shadow rounded flex items-center gap-2 text-gray-700 hover:bg-gray-100"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </button>
-
-              {/* ── ADD BUTTON (opens modal) ── */}
-              <button
-                onClick={openAddModal}
-                className="px-6 py-2 rounded-xl text-white font-medium flex items-center gap-2"
-                style={{
-                  background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+                onClick={() => {
+                  setFilters((prev) => ({ ...prev, profileStatus: [] }));
+                  setCurrentPage(1);
                 }}
+                className={`px-5 py-2.5 font-medium text-sm rounded-t-lg transition-all duration-200 whitespace-nowrap
+                  ${filters.profileStatus.length === 0
+                    ? "text-gray-900 bg-white border border-gray-200 border-b-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                  }`}
               >
-                <Plus className="w-4 h-4" />
-                ADD
+                All
+                <Badge className="ml-2 text-xs px-2 py-0.5 bg-gray-100 text-gray-700">
+                  {allDrivers.length}
+                </Badge>
               </button>
             </div>
           </div>
         </header>
 
-        {/* ── Search ── */}
-        <div className="mb-6">
+        {/* Search */}
+        <div className="mb-6 px-4">
           <div
             className="relative w-80 gradient-border cursor-glow"
             onMouseMove={(e) => {
@@ -1004,7 +907,7 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
           </div>
         </div>
 
-        {/* ── Loading / Error / Empty ── */}
+        {/* Loading / Error / Empty */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin mr-2" />
@@ -1022,8 +925,7 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
           </div>
         ) : (
           <>
-            {/* ── Cards ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
               {currentDrivers.map((driver) => (
                 <Link
                   key={driver.id}
@@ -1033,26 +935,18 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
                   <div
                     className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:border-gray-300 transition-all duration-300 group"
                     onClick={(e) => {
-                      if (
-                        (e.target as HTMLElement).closest("button") ||
-                        (e.target as HTMLElement).closest(".dropdown-menu")
-                      ) {
+                      if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest(".dropdown-menu")) {
                         e.preventDefault();
                       }
                     }}
                   >
-                    {/* Header */}
                     <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 border-b border-gray-200">
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3 flex-1">
                           <div className="relative">
                             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center ring-4 ring-white shadow-md">
                               {driver.user.avatar ? (
-                                <img
-                                  src={driver.user.avatar}
-                                  alt={driver.user.display_name}
-                                  className="w-full h-full rounded-full object-cover"
-                                />
+                                <img src={driver.user.avatar} alt={driver.user.display_name} className="w-full h-full rounded-full object-cover" />
                               ) : (
                                 <User className="w-7 h-7 text-orange-600" />
                               )}
@@ -1070,11 +964,7 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
                               {driver.user.email}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
-                              <Badge
-                                className={`${getProfileStatusColor(
-                                  driver.profile_status
-                                )} text-[9px] px-2 py-0.5`}
-                              >
+                              <Badge className={`${getProfileStatusColor(driver.profile_status)} text-[9px] px-2 py-0.5`}>
                                 {driver.profile_status.replace("_", " ").toUpperCase()}
                               </Badge>
                               <span className="text-[10px] text-gray-500">ID: {driver.id}</span>
@@ -1084,9 +974,7 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
                       </div>
                     </div>
 
-                    {/* Body */}
                     <div className="p-4 space-y-3">
-                      {/* License */}
                       <div className="flex items-center gap-2 p-2.5 bg-orange-50 rounded-lg border border-orange-100">
                         <Shield className="w-4 h-4 text-orange-600 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -1099,7 +987,6 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
                         </div>
                       </div>
 
-                      {/* Contract */}
                       <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-100">
                         <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -1122,7 +1009,6 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
                         </div>
                       </div>
 
-                      {/* Warnings */}
                       {driver.warnings.length ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1172,13 +1058,11 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
           </>
         )}
 
-        {/* ── Pagination ── */}
-        <div className="flex items-center justify-between mt-6">
+        {/* Pagination */}
+        <div className="flex items-center justify-between mt-6 px-4">
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-600">Page</span>
-            <Badge variant="outline" className="bg-gray-100">
-              {currentPage}
-            </Badge>
+            <Badge variant="outline" className="bg-gray-100">{currentPage}</Badge>
             <span className="text-sm text-gray-600">of {totalPages}</span>
           </div>
           <div className="flex items-center space-x-2">
@@ -1188,20 +1072,19 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
               size="sm"
               className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
               onMouseMove={handleMouseMove("prev")}
-              onClick={() => currentPage > 1 && setCurrentPage((p) => p - 1)}
+              onClick={() => currentPage > 1 && setCurrentPage(p => p - 1)}
               disabled={currentPage === 1 || loading}
             >
               <ChevronLeft className="w-4 h-4 mr-1 relative z-10" />
               <span className="relative z-10">Previous</span>
             </Button>
-
             <Button
               ref={(el) => { buttonRefs.current["next"] = el; }}
               variant="ghost"
               size="sm"
               className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
               onMouseMove={handleMouseMove("next")}
-              onClick={() => currentPage < totalPages && setCurrentPage((p) => p + 1)}
+              onClick={() => currentPage < totalPages && setCurrentPage(p => p + 1)}
               disabled={currentPage === totalPages || loading}
             >
               <span className="relative z-10">Next</span>
@@ -1210,7 +1093,7 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
           </div>
         </div>
 
-        {/* ── Modals ── */}
+        {/* Modals */}
         <AddUserModal
           isOpen={isAddModalOpen}
           setIsOpen={setIsAddModalOpen}
@@ -1229,7 +1112,6 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
           handleSubmit={handleAddUserSubmit}
         />
 
-        {/* Driver-details modal after user creation */}
         {newDriverUserId && (
           <Dialog open={isAddDriverModalOpen} onOpenChange={setIsAddDriverModalOpen}>
             <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto z-50 bg-white">
@@ -1242,16 +1124,11 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
                   Provide additional details for the driver account.
                 </DialogDescription>
               </DialogHeader>
-              <AddDriver
-                userId={newDriverUserId}
-                open={isAddDriverModalOpen}
-                onOpenChange={setIsAddDriverModalOpen}
-              />
+              <AddDriver userId={newDriverUserId} open={isAddDriverModalOpen} onOpenChange={setIsAddDriverModalOpen} />
             </DialogContent>
           </Dialog>
         )}
 
-        {/* Delete confirmation */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -1260,9 +1137,7 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
                 Delete Driver
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete{" "}
-                <span className="font-semibold">{driverToDelete?.user.full_name}</span>? This action
-                cannot be undone.
+                Are you sure you want to delete <span className="font-semibold">{driverToDelete?.user.full_name}</span>? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -1274,7 +1149,6 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Disapprove dialog */}
         <AlertDialog open={isDisapproveDialogOpen} onOpenChange={setIsDisapproveDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -1283,8 +1157,7 @@ const validateAddForm = (fd: FormData): Partial<UserForm> => {
                 Not Approve Driver
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Provide a reason for disapproving{" "}
-                <span className="font-semibold">{driverToDisapprove?.user.full_name}</span>.
+                Provide a reason for disapproving <span className="font-semibold">{driverToDisapprove?.user.full_name}</span>.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-4">
