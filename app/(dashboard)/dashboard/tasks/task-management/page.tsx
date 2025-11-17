@@ -661,7 +661,7 @@ const Page = () => {
           <TableBody>
             {tasks.map((task) => (
               <TableRow key={task.id}>
-                <TableCell className="font-medium"><Link href={`/dashboard/tasks/task-management${task.id}`}>{task.title}</Link></TableCell>
+                <TableCell className="font-medium"><Link href={`/dashboard/tasks/task-management/${task.id}`}>{task.title}</Link></TableCell>
                 <TableCell className="max-w-xs truncate">
                   {task.description}
                 </TableCell>

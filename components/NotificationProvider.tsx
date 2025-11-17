@@ -1,41 +1,64 @@
 "use client"
-import { useEffect } from "react"
+import { JSX, useEffect, useState } from "react"
 import { Messaging, getToken, onMessage } from "firebase/messaging"
 import { messaging } from "@/app/FCM/firebase"
 import { toast } from "sonner" // 👈 import sonner toast
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
+import CreateTaskDialog from "./task/CreateTaskDialog"
 
-export default function NotificationProvider(): null {
+export default function NotificationProvider(): JSX.Element {
   const role=useCookies().get("role")
   const access_token=useCookies().get("access_token")
+  const [dialogOpen, setDialogOpen] =  useState(false)
+  const [prefillTitle, setPrefillTitle] = useState("")
   function notify(title: string, description?: string, avatar?: string) {
   const audio = new Audio("/bell.mp3")
   audio.play().catch(() => {}) // ignore autoplay errors
 
 toast.custom((id) => (
-    <div className="flex items-start gap-3 rounded-md border bg-white p-4 shadow-lg w-80">
-      {avatar && (
-        <img
-          src={avatar}
-          alt="avatar"
-          className="h-8 w-8 rounded-full object-cover"
-        />
+  <div className="flex items-center gap-4 w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-lg animate-slide-in">
+    
+    {avatar && (
+      <img
+        src={avatar}
+        alt="avatar"
+        className="h-10 w-10 rounded-full object-cover"
+      />
+    )}
+
+    <div className="flex-1 space-y-1">
+      <h1 className="text-sm font-semibold text-gray-900 leading-tight">
+        {title}
+      </h1>
+      {description && (
+        <p className="text-xs text-gray-500 leading-snug">
+          {description}
+        </p>
       )}
-      <div className="flex-1">
-        <h1 className="font-semibold text-sm">{title}</h1>
-        {description && (
-          <p className="text-xs text-gray-600">{description}</p>
-        )}
-      </div>
+
       <button
-        onClick={() => toast.dismiss(id)}
-        className="ml-2 text-gray-400 hover:text-gray-600"
+        onClick={() => {
+          toast.dismiss(id)
+          setPrefillTitle( title||"")
+          setDialogOpen(true)
+        }}
+        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
       >
-        ✕
+        + Create task
       </button>
     </div>
-  ))
+
+    <button
+      onClick={() => toast.dismiss(id)}
+      className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+      aria-label="Close"
+    >
+      ✕
+    </button>
+  </div>
+))
+
 }
 const pushTokenBackend = async (token: string) => {
     try {
@@ -83,5 +106,15 @@ const pushTokenBackend = async (token: string) => {
     })
   }, [])
 
-  return null
+  return (
+    <>
+    <CreateTaskDialog
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        prefill={{ title: prefillTitle }} onTaskCreated={function (): void {
+          throw new Error("Function not implemented.")
+        } }    />
+      
+    </>
+  )
 }

@@ -20,6 +20,7 @@ import {
   Database,
   Eye,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -73,7 +74,6 @@ interface ComplianceCategory {
    Icon map
    ------------------------------------------------- */
 const iconMap: Record<string, React.FC<any>> = {
-  all: Bell,
   "Drivers Compliance": User,
   "Vehicle Compliance": Truck,
   Walkarounds: Footprints,
@@ -105,6 +105,22 @@ function optimisticRemoveTask(
   });
   return newData;
 }
+
+/* -------------------------------------------------
+   Priority Badge Component
+   ------------------------------------------------- */
+const PriorityBadge = ({ priority }: { priority: "low" | "medium" | "high" }) => {
+  const colors = {
+    low: "bg-blue-100 text-blue-700 border-blue-200",
+    medium: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    high: "bg-orange-100 text-orange-700 border-orange-200",
+  };
+  return (
+    <Badge variant="outline" className={`text-xs ${colors[priority]}`}>
+      {priority.toUpperCase()}
+    </Badge>
+  );
+};
 
 /* -------------------------------------------------
    Header Component
@@ -155,7 +171,6 @@ export function Header() {
   /* ----- UI Categories ----- */
   const uiCategories = useMemo(() => {
     const order = [
-      "all",
       "Drivers Compliance",
       "Vehicle Compliance",
       "Walkarounds",
@@ -172,7 +187,7 @@ export function Header() {
     if (!complianceData) {
       return order.reduce((acc, k) => {
         acc[k] = {
-          label: k === "all" ? "All" : k,
+          label: k,
           icon: iconMap[k] ?? AlertCircle,
           count: 0,
         };
@@ -181,16 +196,13 @@ export function Header() {
     }
 
     const counts: Record<string, number> = {};
-    let total = 0;
     Object.entries(complianceData).forEach(([k, c]) => {
       counts[k] = c.count;
-      total += c.count;
     });
-    counts["all"] = total;
 
     return order.reduce((acc, k) => {
       acc[k] = {
-        label: k === "all" ? "All" : k,
+        label: k,
         icon: iconMap[k] ?? AlertCircle,
         count: counts[k] ?? 0,
       };
@@ -263,56 +275,82 @@ export function Header() {
 
     return (
       <div
-        className={`p-3 rounded-md min-w-full my-2 cursor-pointer ${
-          task.is_overdue ? "bg-red-50 border border-red-200" : "bg-gray-50"
+        className={`group relative p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
+          task.is_overdue 
+            ? "bg-red-50 border-red-200 hover:border-red-300" 
+            : "bg-white border-gray-200 hover:border-gray-300"
         }`}
       >
         <Link
           href={`/dashboard/tasks/task-management/${task.id}`}
-          className="flex justify-between items-start"
+          className="block"
         >
-          <div className="flex-1">
-            <p className="font-medium text-sm">{task.title.slice(0, 30)}...</p>
-            <p className="text-xs text-gray-600">{task.description.slice(0, 50)}...</p>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-sm text-gray-900 mb-1 truncate">
+                {task.title}
+              </h4>
+              <p className="text-xs text-gray-600 line-clamp-2 mb-2">
+                {task.description}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1 items-end shrink-0">
+              <PriorityBadge priority={task.priority} />
+              {task.is_overdue && (
+                <Badge variant="destructive" className="text-xs">
+                  Overdue
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs mb-3">
             {task.task_type && (
-              <p className="text-xs text-gray-500">Type: {task.task_type.name}</p>
+              <div className="flex items-center gap-1 text-gray-600">
+                <span className="font-medium">Type:</span>
+                <span>{task.task_type.name}</span>
+              </div>
             )}
             {task.reason && (
-              <p className="text-xs text-gray-500">Reason: {task.reason}</p>
+              <div className="flex items-center gap-1 text-gray-600">
+                <span className="font-medium">Reason:</span>
+                <span className="truncate max-w-[150px]">{task.reason}</span>
+              </div>
             )}
           </div>
-          {task.is_overdue && (
-            <Badge variant="destructive" className="ml-2">
-              Overdue
-            </Badge>
-          )}
         </Link>
 
-        {/* ---- ICONS ---- */}
-        <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
-          <span>Assigned: {task.assigned_to.full_name}</span>
-          <span>Due: {format(parseISO(task.deadline), "PPP")}</span>
+        {/* ---- FOOTER WITH ICONS ---- */}
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <div className="flex flex-col gap-1 text-xs">
+            <div className="flex items-center gap-1 text-gray-600">
+              <User className="h-3 w-3" />
+              <span className="font-medium">{task.assigned_to.full_name}</span>
+            </div>
+            <div className="flex items-center gap-1 text-gray-500">
+              <Calendar className="h-3 w-3" />
+              <span>{format(parseISO(task.deadline), "MMM dd, yyyy")}</span>
+            </div>
+          </div>
 
-          <div className="flex gap-1 ml-2">
-            {
-              task.status=="not_viewed" &&(
-                <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={handleView}
-              disabled={viewing}
-              title="Mark as viewed"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-              )
-            }
+          <div className="flex gap-1">
+            {task.status === "not_viewed" && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                onClick={handleView}
+                disabled={viewing}
+                title="Mark as viewed"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
 
             <Button
               size="icon"
               variant="ghost"
-              className="h-7 w-7 text-red-600 hover:text-red-700"
+              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
               onClick={handleDelete}
               disabled={deleting}
               title="Delete task"
@@ -343,12 +381,16 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="relative w-10 h-10 rounded-full flex justify-center items-center bg-gray-100 hover:bg-gray-200"
+                  className={`relative w-10 h-10 rounded-full flex justify-center items-center transition-all ${
+                    count > 0 
+                      ? "bg-red-100 hover:bg-red-200 text-red-700" 
+                      : "bg-gray-100 hover:bg-gray-200"
+                  }`}
                   title={label}
                 >
                   <Icon className="w-5 h-5" />
                   {count > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white shadow-sm animate-pulse">
                       {count}
                     </span>
                   )}
@@ -356,81 +398,94 @@ export function Header() {
               </DropdownMenuTrigger>
 
               <DropdownMenuContent
-                className="w-96 max-h-[70vh] overflow-hidden p-0"
-                align="start"
-                sideOffset={5}
+                className="w-[480px] max-h-[75vh] overflow-hidden p-0 shadow-lg"
+                align="end"
+                sideOffset={8}
               >
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-5 h-5 text-gray-700" />
+                    <h3 className="font-semibold text-base text-gray-900">{label}</h3>
+                    {count > 0 && (
+                      <Badge variant="secondary" className="ml-1">
+                        {count} {count === 1 ? "task" : "tasks"}
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setOpenDropdown(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
                 {loading ? (
-                  <div className="p-4 text-center text-gray-500">Loading…</div>
+                  <div className="p-8 text-center">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
+                    <p className="mt-2 text-sm text-gray-500">Loading tasks...</p>
+                  </div>
                 ) : error ? (
-                  <div className="p-4 text-center text-red-600">{error}</div>
-                ) : key === "all" ? (
-                  /* ==== ALL TAB VIEW ==== */
-                  <ScrollArea className="h-[70vh]">
-                    <div className="p-3">
-                      {Object.entries(complianceData || {}).map(([catName, cat]) => (
-                        <div key={catName} className="mb-6">
-                          <DropdownMenuLabel className="font-semibold text-sm">
-                            {catName}
-                          </DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <Tabs defaultValue={Object.keys(cat.items)[0]} className="mt-2">
-                            <TabsList className="flex shrink-0 w-fit overflow-x-auto">
-                              {Object.keys(cat.items).map((sub) => (
-                                <TabsTrigger key={sub} value={sub} className="text-xs">
-                                  {sub}
-                                  {cat.items[sub].length > 0 && (
-                                    <Badge variant="secondary" className="ml-1">
-                                      {cat.items[sub].length}
+                  <div className="p-8 text-center">
+                    <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                ) : (
+                  (() => {
+                    const cat = complianceData?.[key];
+                    if (!cat || cat.count === 0) {
+                      return (
+                        <div className="p-8 text-center">
+                          <CheckSquare className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                          <p className="text-sm font-medium text-gray-700">All caught up!</p>
+                          <p className="text-xs text-gray-500 mt-1">No pending tasks</p>
+                        </div>
+                      );
+                    }
+                    const subCats = Object.entries(cat.items);
+                    return (
+                      <Tabs defaultValue={subCats[0]?.[0]} className="w-full">
+                        {/* Improved TabsList */}
+                        <div className="border-b bg-gray-50/50 px-2">
+                          <ScrollArea className="w-full">
+                            <TabsList className="inline-flex h-12 w-full justify-start bg-transparent p-0">
+                              {subCats.map(([sub, tasks]) => (
+                                <TabsTrigger
+                                  key={sub}
+                                  value={sub}
+                                  className="relative rounded-none border-b-2 border-transparent bg-transparent px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:text-gray-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"
+                                >
+                                  <span className="truncate max-w-[120px]">{sub}</span>
+                                  {tasks.length > 0 && (
+                                    <Badge 
+                                      variant="secondary" 
+                                      className="ml-2 h-5 min-w-[20px] rounded-full px-1.5 text-xs data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700"
+                                    >
+                                      {tasks.length}
                                     </Badge>
                                   )}
                                 </TabsTrigger>
                               ))}
                             </TabsList>
-                            {Object.entries(cat.items).map(([sub, tasks]) => (
-                              <TabsContent key={sub} value={sub} className="mt-3 space-y-2">
+                          </ScrollArea>
+                        </div>
+
+                        {/* Tab Content */}
+                        {subCats.map(([sub, tasks]) => (
+                          <TabsContent key={sub} value={sub} className="mt-0">
+                            <ScrollArea className="h-[calc(75vh-140px)]">
+                              <div className="p-4 space-y-3">
                                 {tasks.length === 0 ? (
-                                  <p className="text-center text-gray-400 italic text-sm">No tasks</p>
+                                  <div className="py-8 text-center">
+                                    <p className="text-sm text-gray-400 italic">No tasks in this category</p>
+                                  </div>
                                 ) : (
                                   tasks.map((t) => <TaskRow key={t.id} task={t} />)
                                 )}
-                              </TabsContent>
-                            ))}
-                          </Tabs>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                ) : (
-                  /* ==== SINGLE CATEGORY ==== */
-                  (() => {
-                    const cat = complianceData?.[key];
-                    if (!cat) {
-                      return <div className="p-4 text-center text-gray-500">No data</div>;
-                    }
-                    const subCats = Object.entries(cat.items);
-                    return (
-                      <Tabs defaultValue={subCats[0]?.[0]} className="w-full overflow-auto">
-                        <TabsList className="flex h-[80px] w-fit">
-                          {subCats.map(([sub, tasks]) => (
-                            <TabsTrigger key={sub} value={sub} className="text-xs">
-                              {sub}
-                              {tasks.length > 0 && (
-                                <Badge variant="secondary" className="ml-1">
-                                  {tasks.length}
-                                </Badge>
-                              )}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                        {subCats.map(([sub, tasks]) => (
-                          <TabsContent key={sub} value={sub} className="mt-3 p-3 space-y-2">
-                            <ScrollArea className="h-64">
-                              {tasks.length === 0 ? (
-                                <p className="text-center text-gray-400 italic text-sm">No tasks</p>
-                              ) : (
-                                tasks.map((t) => <TaskRow key={t.id} task={t} />)
-                              )}
+                              </div>
                             </ScrollArea>
                           </TabsContent>
                         ))}
