@@ -22,7 +22,6 @@ import {
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 
-
 interface User {
   id: number;
   username: string;
@@ -31,7 +30,6 @@ interface User {
   display_name?: string;
   is_active?: boolean;
   role?: string | null;
- 
 }
 
 interface TaskType {
@@ -41,10 +39,21 @@ interface TaskType {
   is_active?: boolean;
 }
 
+// NEW: Prefill interface
+interface TaskPrefillData {
+  title?: string;
+  description?: string;
+  priority?: 'urgent' | 'high' | 'medium' | 'low';
+  deadline?: string; // expected format: YYYY-MM-DDTHH:mm
+  estimatedHours?: string;
+  requiresApproval?: boolean;
+}
+
 interface CreateTaskDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onTaskCreated: () => void;
+  prefill?: TaskPrefillData; // Optional prefill from reminder
 }
 
 /* -------------------------------------------------------------------------- */
@@ -64,6 +73,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   isOpen,
   onClose,
   onTaskCreated,
+  prefill,
 }) => {
   /* -------------------------- Form fields -------------------------- */
   const [title, setTitle] = useState('');
@@ -86,7 +96,34 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   const token = cookies.get('access_token') ?? '';
   const API_HOST = API_URL;
 
-  /* -------------------------- Load data when dialog opens -------------------------- */
+  /* -------------------------- Apply Prefill on Open -------------------------- */
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Apply prefill if provided
+    if (prefill) {
+      setTitle(prefill.title || '');
+      setDescription(prefill.description || '');
+      setPriority(prefill.priority || 'medium');
+      setDeadline(prefill.deadline || '');
+      setEstimatedHours(prefill.estimatedHours || '');
+      setRequiresApproval(prefill.requiresApproval || false);
+    } else {
+      // Reset to empty
+      setTitle('');
+      setDescription('');
+      setPriority('medium');
+      setDeadline('');
+      setEstimatedHours('');
+      setRequiresApproval(false);
+    }
+
+    // Always reset these (user must choose)
+    setTaskType('');
+    setAssignedTo('');
+  }, [isOpen, prefill]);
+
+  /* -------------------------- Load Users & Task Types -------------------------- */
   useEffect(() => {
     if (!isOpen) return;
 
@@ -95,14 +132,12 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       setLoadingTaskTypes(true);
       setError(null);
 
-      /* ---------- Users ---------- */
       try {
         const usersRes = await fetch(`${API_HOST}/users/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!usersRes.ok) throw new Error('Failed to load users');
-        const usersData: User[] | {data: any; results: User[] } = await usersRes.json();
-
+        const usersData = await usersRes.json();
         const userList = Array.isArray(usersData) ? usersData : usersData?.data?.results || [];
         setUsers(userList);
       } catch (err) {
@@ -111,13 +146,11 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
         setLoadingUsers(false);
       }
 
-      /* ---------- Task Types (paginated, active only, sorted) ---------- */
       try {
         const typesRes = await fetch(`${API_HOST}/api/task-types/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!typesRes.ok) throw new Error('Failed to load task types');
-
         const typesData = await typesRes.json();
         const raw = (typesData.results || []) as any[];
 
@@ -179,22 +212,12 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
     }
   };
 
-  /* -------------------------- Reset & close -------------------------- */
   const handleClose = () => {
-    setTitle('');
-    setDescription('');
-    setTaskType('');
-    setAssignedTo('');
-    setDeadline('');
-    setPriority('medium');
-    setEstimatedHours('');
-    setRequiresApproval(false);
     onClose();
   };
 
   const isFormValid = !!title && !!taskType && !!assignedTo && !!deadline;
 
-  /* -------------------------- Filtered & Sorted Users -------------------------- */
   const filteredUsers = users
     .filter((u) => u.is_active === true && u.role !== null && u.role !== undefined)
     .sort((a, b) => {
@@ -203,7 +226,6 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       return nameA.localeCompare(nameB);
     });
 
-  /* -------------------------- Render -------------------------- */
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -253,7 +275,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
                 <SelectTrigger id="task_type">
                   <SelectValue placeholder="Select task type" />
                 </SelectTrigger>
-                <SelectContent className=' max-h-[200px]'>
+                <SelectContent className="max-h-[200px]">
                   {taskTypes.map((type) => (
                     <SelectItem key={type.id} value={String(type.id)}>
                       {type.name}
@@ -264,7 +286,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
             )}
           </div>
 
-          {/* Assigned To - FILTERED & SORTED */}
+          {/* Assigned To */}
           <div className="grid gap-2">
             <Label htmlFor="assigned_to">Assigned To *</Label>
             {loadingUsers ? (
@@ -281,7 +303,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
                 <SelectTrigger id="assigned_to">
                   <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
-                <SelectContent className=' max-h-[200px]'>
+                <SelectContent className="max-h-[200px]">
                   {filteredUsers.map((user) => (
                     <SelectItem key={user.id} value={String(user.id)}>
                       {user.full_name || user.display_name || user.username} ({user.email})
@@ -320,31 +342,8 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
             />
           </div>
 
-          {/* Estimated Hours */}
-          <div className="grid gap-2">
-            <Label htmlFor="estimated_hours">Estimated Hours</Label>
-            <Input
-              id="estimated_hours"
-              type="number"
-              step="0.5"
-              min="0"
-              placeholder="e.g. 3.5"
-              value={estimatedHours}
-              onChange={(e) => setEstimatedHours(e.target.value)}
-            />
-          </div>
+      
 
-          {/* Requires Approval */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="requires_approval"
-              checked={requiresApproval}
-              onCheckedChange={(c) => setRequiresApproval(!!c)}
-            />
-            <Label htmlFor="requires_approval" className="cursor-pointer font-normal">
-              Requires Approval
-            </Label>
-          </div>
         </div>
 
         <DialogFooter>

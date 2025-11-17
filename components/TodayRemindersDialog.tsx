@@ -6,17 +6,27 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { Bell, Clock, Calendar, CheckCircle2, ListTodo } from "lucide-react"
-import { format, parseISO } from "date-fns"
+import { Bell, Clock, Calendar, CheckCircle2, ListTodo, ChevronDown, ChevronUp } from "lucide-react"
 import { useCookies } from "next-client-cookies"
 import API_URL from "@/app/utils/ENV"
 import CreateTaskDialog from "./task/CreateTaskDialog"
 
-// clean invalid/old dates
+// Helper: Format time like "3:15 PM"
+const formatTime = (date: Date) => {
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+}
+
+// Fix invalid dates from API
+const parseISO = (iso: string) => new Date(iso)
 const fixDate = (iso: string) => {
   const d = parseISO(iso)
   if (isNaN(d.getTime()) || d.getFullYear() < 2000) return new Date()
   return d
+}
+
+// Format Date → datetime-local string (e.g. 2025-11-17T16:15)
+const formatForDatetimeLocal = (date: Date) => {
+  return date.toISOString().slice(0, 16)
 }
 
 export default function TodayRemindersDialog() {
@@ -25,270 +35,281 @@ export default function TodayRemindersDialog() {
 
   const [open, setOpen] = useState(false)
   const [postponeTime, setPostponeTime] = useState<{ [key: number]: string }>({})
+  const [expandedPostpone, setExpandedPostpone] = useState<{ [key: number]: boolean }>({})
   const [loading, setLoading] = useState(false)
-  const [reminders, setReminders] = useState([])
+  const [reminders, setReminders] = useState<any[]>([])
   const [completedIds, setCompletedIds] = useState<number[]>([])
-  
-  // Task creation state
+
+  // Create Task Dialog State
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
   const [selectedReminder, setSelectedReminder] = useState<any>(null)
 
-  // ---- Fetch all reminders + filter today ----
+  // Load today's reminders
   const loadToday = async () => {
     setLoading(true)
     try {
       const res = await fetch(`${API_URL}/api/reminders/`, {
         headers: { Authorization: `Bearer ${token}` }
       })
+      if (!res.ok) throw new Error("Failed to fetch reminders")
+
       const data = await res.json()
 
       const todayOnly = data
         .map((item: any) => ({
           ...item,
-          date: fixDate(item.next_reminder || item.start_date)
+          date: fixDate(item.next_reminder || item.start_date || item.created_at)
         }))
         .filter((item: any) => {
           const now = new Date()
+          const d = item.date
           return (
-            item.date.getFullYear() === now.getFullYear() &&
-            item.date.getMonth() === now.getMonth() &&
-            item.date.getDate() === now.getDate()
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth() &&
+            d.getDate() === now.getDate()
           )
         })
         .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
 
       setReminders(todayOnly)
 
-      // AUTO-OPEN logic
+      // Auto-open if there are reminders
       if (todayOnly.length > 0) setOpen(true)
-
-    } catch (_) {
+    } catch (err) {
+      console.error("Failed to load reminders:", err)
       setReminders([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
-  // Load on mount (auto popup happens here)
+  // Load on mount
   useEffect(() => {
     loadToday()
   }, [])
 
-  // Mark as complete (visual feedback)
   const handleComplete = (id: number) => {
     setCompletedIds([...completedIds, id])
     setTimeout(() => {
-      setReminders(reminders.filter((r: any) => r.id !== id))
-      setCompletedIds(completedIds.filter(cId => cId !== id))
+      setReminders(prev => prev.filter(r => r.id !== id))
+      setCompletedIds(prev => prev.filter(cid => cid !== id))
     }, 500)
   }
 
-  // Snooze 30 minutes
   const handleSnooze = async (id: number) => {
-    await fetch(`${API_URL}/api/reminders/${id}/perform-action/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ action: "snooze", snooze_minutes: 30 })
-    })
-    loadToday()
+    try {
+      await fetch(`${API_URL}/api/reminders/${id}/perform-action/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: "snooze", snooze_minutes: 30 })
+      })
+      loadToday()
+    } catch (err) {
+      alert("Failed to snooze reminder")
+    }
   }
 
-  // Postpone to custom time
   const handlePostpone = async (id: number) => {
     const time = postponeTime[id]
     if (!time) return
-    
-    await fetch(`${API_URL}/api/reminders/${id}/perform-action/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        action: "postpone",
-        postpone_time: time
+
+    try {
+      await fetch(`${API_URL}/api/reminders/${id}/perform-action/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: "postpone", postpone_time: time })
       })
-    })
-    loadToday()
-    setPostponeTime({ ...postponeTime, [id]: "" })
+      loadToday()
+      setPostponeTime(prev => ({ ...prev, [id]: "" }))
+      setExpandedPostpone(prev => ({ ...prev, [id]: false }))
+    } catch (err) {
+      alert("Failed to postpone reminder")
+    }
   }
 
-  // Open create task dialog
   const handleCreateTask = (reminder: any) => {
     setSelectedReminder(reminder)
     setIsCreateTaskOpen(true)
   }
 
   const handleTaskCreated = () => {
-    // Optionally mark reminder as complete after creating task
     if (selectedReminder) {
       handleComplete(selectedReminder.id)
     }
     setSelectedReminder(null)
   }
 
-  const color = {
-    urgent: "bg-red-600 text-white hover:bg-red-700",
-    high: "bg-orange-500 text-white hover:bg-orange-600",
-    medium: "bg-yellow-500 text-black hover:bg-yellow-600",
-    low: "bg-green-500 text-white hover:bg-green-600"
-  }
-
-  const priorityIcon = {
-    urgent: "🔴",
-    high: "🟠",
-    medium: "🟡",
-    low: "🟢"
+  // Priority styling
+  const priorityConfig: Record<string, any> = {
+    urgent: { color: "border-l-red-500 bg-red-50/50", badge: "bg-red-100 text-red-700 border-red-200", label: "Urgent" },
+    high: { color: "border-l-orange-500 bg-orange-50/50", badge: "bg-orange-100 text-orange-700 border-orange-200", label: "High" },
+    medium: { color: "border-l-yellow-500 bg-yellow-50/50", badge: "bg-yellow-100 text-yellow-700 border-yellow-200", label: "Medium" },
+    low: { color: "border-l-green-500 bg-green-50/50", badge: "bg-green-100 text-green-700 border-green-200", label: "Low" },
   }
 
   return (
     <>
+      {/* Main Reminders Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0 pb-4 border-b">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Bell className="w-6 h-6 text-blue-600" />
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0 pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-sm">
+                  <Bell className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl font-semibold">Today&apos;s Reminders</DialogTitle>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {reminders.length} {reminders.length === 1 ? 'reminder' : 'reminders'} today
+                  </p>
+                </div>
               </div>
-              <div>
-                <DialogTitle className="text-2xl">Today&apos;s Reminders</DialogTitle>
-                <p className="text-sm text-gray-500 mt-1">
-                  {reminders.length} {reminders.length === 1 ? 'reminder' : 'reminders'} for today
-                </p>
-              </div>
+              <Button variant="ghost" size="sm" onClick={loadToday}>
+                Refresh
+              </Button>
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto py-4">
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="flex items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent"></div>
               </div>
             ) : reminders.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-                  <CheckCircle2 className="w-8 h-8 text-gray-400" />
+              <div className="text-center py-16">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-50 to-green-100 rounded-full mb-4">
+                  <CheckCircle2 className="w-10 h-10 text-green-600" />
                 </div>
-                <p className="text-gray-500 text-sm">All caught up! No reminders for today.</p>
+                <p className="text-muted-foreground font-medium">All caught up!</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">No reminders for today</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {reminders.map((r: any) => (
-                  <Card 
-                    key={r.id} 
-                    className={`border transition-all duration-500 ${
-                      completedIds.includes(r.id) 
-                        ? 'opacity-50 scale-95 bg-green-50' 
-                        : 'hover:shadow-md'
-                    }`}
-                  >
-                    <div className="p-4">
-                      {/* Header */}
-                      <div className="flex justify-between items-start gap-3 mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-lg">{priorityIcon[r.priority as keyof typeof priorityIcon]}</span>
-                            <h3 className="font-semibold text-lg">{r.title}</h3>
+              <div className="space-y-3 py-1">
+                {reminders.map((r) => {
+                  const config = priorityConfig[r.priority] || priorityConfig.medium
+                  const isCompleted = completedIds.includes(r.id)
+
+                  return (
+                    <Card
+                      key={r.id}
+                      className={`border-l-4 ${config.color} transition-all duration-300 ${
+                        isCompleted ? 'opacity-40 scale-[0.98]' : 'hover:shadow-md'
+                      }`}
+                    >
+                      <div className="p-5">
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base mb-2 truncate">{r.title}</h3>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <Clock className="w-4 h-4" />
+                                <span className="font-medium">{formatTime(r.date)}</span>
+                              </div>
+                              <Badge variant="outline" className={`${config.badge} text-xs font-medium border`}>
+                                {config.label}
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {format(r.date, "hh:mm a")}
-                            </span>
-                            <Badge className={color[r.priority as keyof typeof color] + " text-xs"}>
-                              {r.priority}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                          onClick={() => handleComplete(r.id)}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
-                          Done
-                        </Button>
-                      </div>
 
-                      {/* Description if available */}
-                      {r.description && (
-                        <p className="text-sm text-gray-600 mb-3 pl-7">{r.description}</p>
-                      )}
-
-                      {/* Quick Actions */}
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs"
-                          onClick={() => handleSnooze(r.id)}
-                        >
-                          <Clock className="w-3 h-3 mr-1" />
-                          Snooze 30m
-                        </Button>
-                        
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200"
-                          onClick={() => handleCreateTask(r)}
-                        >
-                          <ListTodo className="w-3 h-3 mr-1" />
-                          Create Task
-                        </Button>
-                      </div>
-
-                      {/* Postpone Section */}
-                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                        <label className="text-xs font-medium text-gray-600 mb-2 block flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          Postpone to:
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="datetime-local"
-                            className="text-xs flex-1"
-                            value={postponeTime[r.id] || ""}
-                            onChange={(e) => setPostponeTime({ ...postponeTime, [r.id]: e.target.value })}
-                          />
-                          <Button 
-                            size="sm" 
-                            onClick={() => handlePostpone(r.id)}
-                            disabled={!postponeTime[r.id]}
-                            className="text-xs"
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50/80 shrink-0"
+                            onClick={() => handleComplete(r.id)}
+                            disabled={isCompleted}
                           >
-                            Set
+                            <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                            Complete
                           </Button>
                         </div>
+
+                        {r.description && (
+                          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{r.description}</p>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-3 border-t">
+                          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleSnooze(r.id)}>
+                            <Clock className="w-3.5 h-3.5 mr-1.5" />
+                            Snooze 30m
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-8"
+                            onClick={() => handleCreateTask(r)}
+                          >
+                            <ListTodo className="w-3.5 h-3.5 mr-1.5" />
+                            Create Task
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs h-8 ml-auto text-muted-foreground"
+                            onClick={() => setExpandedPostpone(prev => ({ ...prev, [r.id]: !prev[r.id] }))}
+                          >
+                            {expandedPostpone[r.id] ? (
+                              <>
+                                <ChevronUp className="w-3.5 h-3.5 mr-1" />
+                                Less
+                              </>
+                            ) : (
+                              <>
+                                <Calendar className="w-3.5 h-3.5 mr-1" />
+                                Postpone
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        {expandedPostpone[r.id] && (
+                          <div className="mt-3 pt-3 border-t">
+                            <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                              Select new date & time:
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="datetime-local"
+                                className="text-sm h-9 flex-1"
+                                value={postponeTime[r.id] || ""}
+                                onChange={(e) => setPostponeTime(prev => ({ ...prev, [r.id]: e.target.value }))}
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handlePostpone(r.id)}
+                                disabled={!postponeTime[r.id]}
+                                className="h-9 px-4"
+                              >
+                                Set
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  )
+                })}
               </div>
             )}
           </div>
 
-          <div className="flex-shrink-0 flex justify-between items-center pt-4 border-t">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={loadToday}
-              className="text-xs"
-            >
-              Refresh
-            </Button>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+          <div className="flex-shrink-0 pt-4 border-t">
+            <Button variant="outline" onClick={() => setOpen(false)} className="w-full">
               Close
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Create Task Dialog */}
+      {/* Create Task Dialog with Auto-Prefill */}
       <CreateTaskDialog
         isOpen={isCreateTaskOpen}
         onClose={() => {
@@ -296,6 +317,21 @@ export default function TodayRemindersDialog() {
           setSelectedReminder(null)
         }}
         onTaskCreated={handleTaskCreated}
+        prefill={
+          selectedReminder
+            ? {
+                title: selectedReminder.title || "",
+                description: selectedReminder.description || "",
+                priority: ["urgent", "high", "medium", "low"].includes(selectedReminder.priority)
+                  ? selectedReminder.priority
+                  : "medium",
+                deadline: formatForDatetimeLocal(selectedReminder.date),
+                // Optional enhancements:
+                // estimatedHours: "2",
+                // requiresApproval: true,
+              }
+            : undefined
+        }
       />
     </>
   )
