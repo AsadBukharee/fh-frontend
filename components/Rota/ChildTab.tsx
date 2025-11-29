@@ -12,7 +12,7 @@ import {
   Loader2,
   Check,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import {
@@ -29,7 +29,7 @@ import {
   CardTitle,
   CardDescription,
 } from "../ui/card";
-import { Badge } from "../ui/badge";
+
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Alert, AlertDescription } from "../ui/alert";
 import { ShiftCard } from "./shift-card";
@@ -201,6 +201,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("all");
+  
   const [selectedMonth, setSelectedMonth] = useState<string>(
     `${year}-${month}`
   );
@@ -213,6 +214,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     salaryData: Record<string, Record<string, number>>;
   } | null>(null);
   const cookies = useCookies();
+  const role=cookies.get("role");
   const months = generateMonths();
 
   const currentMonthData =
@@ -582,7 +584,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden">
+       {role==="superadmin" ? ( <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Salary</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -616,7 +618,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
               </ResponsiveContainer>
             </div>
           </CardContent>
-        </Card>
+        </Card>):null}
 
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -892,7 +894,12 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                                       <strong>Date:</strong> {format(dayData, "dd/MM/yyyy")}
                                     </p>
                                     <p>
-                                      <strong>Total Salary:</strong> £{totalDailySalary.toFixed(2)}
+                                      {role === "superadmin" ? (
+                                        <strong>
+                                          Total Salary: {'\u00A3'}
+                                          {totalDailySalary.toFixed(2)}
+                                        </strong>
+                                      ) : null}
                                     </p>
                                     <p>
                                       <strong>Total Staff:</strong> {dailyStats.total_staff}

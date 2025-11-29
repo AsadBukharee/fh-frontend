@@ -131,7 +131,11 @@ export default function SiteGrid() {
   const uniqueSiteNames = Array.from(new Set(sites.map(site => site.name))).sort();
   const uniqueContactPositions = Array.from(new Set(sites.map(site => site.contact_position || "N/A"))).sort();
   const uniqueContactNames = Array.from(new Set(sites.map(site => site.created_by || "N/A"))).sort();
-
+const handleSiteCreated = () => {
+    setOpen(false);           // Auto-close dialog
+    showToast("Site created successfully!", "success");
+    fetchSites();             // Refresh list immediately
+  };
   // Apply filters whenever filter states or sites change
   useEffect(() => {
     let filtered = [...sites];
@@ -256,11 +260,11 @@ export default function SiteGrid() {
         <DialogTrigger asChild>
           <GradientButton text="Add Site" Icon={Plus} />
         </DialogTrigger>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto p-6 rounded-lg">
+        <DialogContent className="max-w-4xl max-h-[80vh]  overflow-y-auto p-6 rounded-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">Add New Site</DialogTitle>
           </DialogHeader>
-          <AddSiteForm />
+          <AddSiteForm onSuccess={handleSiteCreated} />
         </DialogContent>
       </Dialog>
     </div>

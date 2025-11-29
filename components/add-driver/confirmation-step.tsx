@@ -190,13 +190,14 @@ export function ConfirmationStep({
         <Separator />
 
         <Section title="Documents">
-          {documentTypes.map((docType) => {
-            const doc = documentsData[docType.id] as ProfessionalCompetency;
-            const status = doc?.has_document
-              ? "Uploaded"
-              : documentsData?.[`${docType.id}_reason`]
-              ? `Not Provided (Reason: ${documentsData[`${docType.id}_reason`]})`
-              : "Not Provided";
+          {documentTypes?.map((docType) => {
+const doc = (documentsData?.[docType.id] as ProfessionalCompetency) || {};
+           const status = doc?.has_document
+  ? "Uploaded"
+  : documentsData?.[`${docType.id}_reason`]
+  ? `Not Provided (Reason: ${documentsData[`${docType.id}_reason`]})`
+  : "Not Provided";
+
 
             return (
               <div

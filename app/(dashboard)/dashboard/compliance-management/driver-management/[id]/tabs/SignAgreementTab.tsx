@@ -7,6 +7,11 @@ import {
   Upload,
   Trash2,
   AlertCircle,
+  X,
+  User,
+  CheckCircle2,
+  Calendar,
+  Edit,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
-import { toast as sonnerToast } from "sonner";
+import { toast as sonnerToast, toast } from "sonner";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -153,7 +158,7 @@ const docConfig: Record<
     title: "Night Worker Agreement",
     fields: ["applicable", "expiry"],
     category: "employment",
-    apiKey: "night_worker_agreements", // UPDATED: matches API key
+    apiKey: "night-worker-agreements", // UPDATED: matches API key
   },
   contractOfEmployment: {
     title: "Contract of Employment",
@@ -165,7 +170,7 @@ const docConfig: Record<
     fields: ["optIn", "optOut"],
     category: "benefits",
     requiresFormOnOptOut: true,
-    apiKey: "pension_info", // UPDATED: matches API key
+    apiKey: "pension-info", // UPDATED: matches API key
   },
   uniformAgreement: {
     title: "Uniform Agreement",
@@ -211,7 +216,7 @@ const getHeaders = (token: string) => ({
 });
 
 const formatDate = (d: string | null) =>
-  d ? format(new Date(d), "dd MMM yyyy") : "—";
+  d ? format(new Date(d), "dd-MM-yyyy") : "—";
 
 const getEndpoint = (key: DocumentKey, id?: number): string => {
   const cfg = docConfig[key];
@@ -333,9 +338,9 @@ function useDriverDocuments(userId: string, token: string) {
         let apiDoc: any = null;
 
         // NEW: Dedicated API sections
-        if (cfg.apiKey === "night_worker_agreements") {
+        if (cfg.apiKey === "night-worker-agreements") {
           apiDoc = nightWorkerAgreements[0];
-        } else if (cfg.apiKey === "pension_info") {
+        } else if (cfg.apiKey === "pension-info") {
           apiDoc = pensionInfo[0];
         }
         // Signable docs
@@ -589,87 +594,192 @@ function DynamicUploadDialog({
 
 /* ────────────────────── Shared Document Detail Dialog ────────────────────── */
 interface DocumentDetailDialogProps {
-  doc: any;
-  cfg: typeof docConfig[DocumentKey];
-  onClose: () => void;
-  onDelete: () => void;
-  onUpdate: () => void;
+  doc: {
+    id: string
+    link?: string
+    driver?: { full_name: string; email: string }
+    isApplicable?: boolean
+    agreement_date?: string
+    contractSigningDate?: string
+    contractStartDate?: string
+    contractDate?: string
+    expiryDate?: string
+    isNightWorker?: boolean
+    uploadDate?: string
+    current_status?: string
+  }
+  cfg: { title: string }
+  onClose: () => void
+  onDelete: () => void
+  onUpdate: () => void
 }
 
-function DocumentDetailDialog({
-  doc,
-  cfg,
-  onClose,
-  onDelete,
-  onUpdate,
-}: DocumentDetailDialogProps) {
-  const fileUrl = doc.link;
-  const isImage = fileUrl && /\.(jpe?g|png|gif|webp)$/i.test(fileUrl);
-  const isPdf = fileUrl && fileUrl.toLowerCase().endsWith(".pdf");
+
+
+
+function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: DocumentDetailDialogProps) {
+  const fileUrl = doc.link
+  const isImage = fileUrl && /\.(jpe?g|png|gif|webp)$/i.test(fileUrl)
+  const isPdf = fileUrl && fileUrl.toLowerCase().endsWith(".pdf")
+
+  const getStatusStyles = (status?: string) => {
+    const baseClass = "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+    switch (status?.toLowerCase()) {
+      case "active":
+      case "approved":
+        return `${baseClass} bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50`
+      case "pending":
+        return `${baseClass} bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50`
+      case "expired":
+      case "rejected":
+        return `${baseClass} bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800/50`
+      default:
+        return `${baseClass} bg-slate-100 text-slate-700 dark:bg-slate-800/50 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50`
+    }
+  }
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-3 border-b flex justify-between items-start">
-          <div>
-            <DialogTitle className="text-xl">{cfg.title}</DialogTitle>
-            {doc.driver && (
-              <DialogDescription className="mt-1">
-                <strong>{doc.driver.full_name}</strong> • {doc.driver.email}
-              </DialogDescription>
+      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 animate-in fade-in zoom-in-95 duration-300">
+        <DialogHeader className="relative bg-[#F15A29] p-8 pb-6 border-b border-white/10">
+        
+
+          <div className="flex justify-between items-start w-full gap-4 pr-10">
+            <div className="space-y-3 flex-1">
+              <DialogTitle className="text-3xl font-bold text-white leading-tight">{cfg.title}</DialogTitle>
+
+              {doc.driver && (
+                <DialogDescription className="flex items-center gap-2 text-slate-300/90">
+                  <User className="w-4 h-4 flex-shrink-0" />
+                  <span className="font-medium">{doc.driver.full_name}</span>
+                  <span className="text-slate-400">•</span>
+                  <span className="text-slate-400">{doc.driver.email}</span>
+                </DialogDescription>
+              )}
+            </div>
+
+            {doc.current_status && (
+              <div className={getStatusStyles(doc.current_status)}>
+                {doc.current_status?.toLowerCase() === "active" || doc.current_status?.toLowerCase() === "approved" ? (
+                  <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                ) : doc.current_status?.toLowerCase() === "expired" ? (
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                ) : null}
+                {doc.current_status}
+              </div>
             )}
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={onUpdate}>
-              Update
-            </Button>
-            <Button size="sm" variant="destructive" onClick={onDelete}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-140px)] p-6">
-          {fileUrl && (
-            <div className="mb-6 rounded-lg overflow-hidden bg-gray-50 border">
-              {isImage ? (
-                <img
-                  src={fileUrl}
-                  alt={cfg.title}
-                  className="w-full h-auto max-h-96 object-contain"
-                  crossOrigin="anonymous"
-                />
-              ) : isPdf ? (
-                <iframe src={fileUrl} className="w-full h-96 border-0" title="PDF Preview" />
-              ) : (
-                <div className="flex items-center justify-center h-64 text-muted-foreground">
-                  <FileText className="h-12 w-12 mr-2" />
-                  <span>Preview not available</span>
+        <ScrollArea className="max-h-[calc(90vh-200px)]">
+          <div className="p-8 space-y-8">
+            {fileUrl && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <div className="w-1 h-4 bg-[#F15A29] rounded-full"></div>
+                  Document Preview
+                </h3>
+                <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                  {isImage ? (
+                    <img
+                      src={fileUrl || "/placeholder.svg"}
+                      alt={cfg.title}
+                      className="w-full h-auto max-h-[400px] object-contain p-6"
+                      crossOrigin="anonymous"
+                    />
+                  ) : isPdf ? (
+                    <iframe src={fileUrl} className="w-full h-[400px] border-0" title="PDF Preview" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                      <FileText className="h-16 w-16 mb-3 opacity-30" />
+                      <span className="text-sm font-medium">No preview available for this file type</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
-          <div className="grid gap-3 text-sm md:grid-cols-2">
-            {doc.id && <div><strong>ID:</strong> {doc.id}</div>}
-            {<div><strong>Applicable:</strong> {doc.isApplicable ? "Yes" : "No"}</div>}
-            {doc.agreement_date && <div><strong>Agreement Date:</strong> {formatDate(doc.agreement_date)}</div>}
-            {doc.contractSigningDate && <div><strong>Signing Date:</strong> {formatDate(doc.contractSigningDate)}</div>}
-            {doc.contractStartDate && <div><strong>Start Date:</strong> {formatDate(doc.contractStartDate)}</div>}
-            {doc.contractDate && <div><strong>Contract Date:</strong> {formatDate(doc.contractDate)}</div>} {/* NEW */}
-            {doc.expiryDate && <div><strong>Expiry Date:</strong> {formatDate(doc.expiryDate)}</div>}
-            {doc.isNightWorker !== undefined && <div><strong>Night Worker:</strong> {doc.isNightWorker ? "Yes" : "No"}</div>}
-            {doc.uploadDate && <div><strong>Uploaded:</strong> {formatDate(doc.uploadDate)}</div>}
-            {doc.current_status && <div><strong>Status:</strong> {doc.current_status}</div>}
+            <div className="space-y-4">
+              <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <div className="w-1 h-4 bg-[#F15A29] rounded-full"></div>
+                Document Details
+              </h3>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[
+                  { label: "ID", value: doc.id, icon: null },
+                  { label: "Status", value: doc.current_status, icon: CheckCircle2 },
+                  { label: "Applicable", value: doc.isApplicable ? "Yes" : "No", icon: null },
+                  {
+                    label: "Agreement Date",
+                    value: doc.agreement_date && formatDate(doc.agreement_date),
+                    icon: Calendar,
+                  },
+                  {
+                    label: "Signing Date",
+                    value: doc.contractSigningDate && formatDate(doc.contractSigningDate),
+                    icon: Calendar,
+                  },
+                  {
+                    label: "Start Date",
+                    value: doc.contractStartDate && formatDate(doc.contractStartDate),
+                    icon: Calendar,
+                  },
+                  { label: "Contract Date", value: doc.contractDate && formatDate(doc.contractDate), icon: Calendar },
+                  { label: "Expiry Date", value: doc.expiryDate && formatDate(doc.expiryDate), icon: Calendar },
+                  {
+                    label: "Night Worker",
+                    value: doc.isNightWorker !== undefined ? (doc.isNightWorker ? "Yes" : "No") : null,
+                    icon: null,
+                  },
+                  { label: "Uploaded", value: doc.uploadDate && formatDate(doc.uploadDate), icon: Calendar },
+                ]
+                  .filter(item => item.value != null)
+                  .map(({ label, value, icon: Icon }) => (
+                    <div
+                      key={label}
+                      className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all duration-200 hover:shadow-md"
+                    >
+                      <div className="flex items-start gap-2 mb-2">
+                        {Icon && <Icon className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0 mt-0.5" />}
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          {label}
+                        </label>
+                      </div>
+                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">{value}</div>
+                    </div>
+                  ))}
+              </div>
+            </div>
           </div>
         </ScrollArea>
 
-        <DialogFooter className="p-4 border-t">
-          <Button variant="outline" onClick={onClose}>Close</Button>
+        <DialogFooter className="p-6 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 flex gap-3 justify-end">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="rounded-lg border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 bg-transparent"
+          >
+            Close
+          </Button>
+          <Button
+            onClick={onUpdate}
+            className="rounded-lg bg-[#F15A29] text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+          >
+            <Edit className="w-4 h-4" />
+            Update
+          </Button>
+          <Button
+            onClick={onDelete}
+            variant="destructive"
+            className="rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 /* ────────────────────── Main Component ────────────────────── */
@@ -801,17 +911,91 @@ export default function SignAgreementAdminTab() {
   };
 
   const toggleApplicable = async (key: DocumentKey) => {
-    const doc = docs[key];
-    if (!doc.id) return;
+  const doc = docs[key];
+  const cfg = docConfig[key];
+  const newApplicable = !doc.isApplicable;
 
-    const endpoint = getEndpoint(key, doc.id);
-    await fetch(endpoint, {
-      method: "PATCH",
+  try {
+    let endpoint = "";
+    let method = "";
+    const payload: any = {
+      driver_id: Number(userId),
+      is_applicable: newApplicable,
+    };
+
+    // Case 1: Document already exists → simple PATCH
+    if (doc.id) {
+      endpoint = getEndpoint(key, doc.id);
+      method = "PATCH";
+      // Only send what we need
+      Object.assign(payload, { is_applicable: newApplicable });
+    }
+    // Case 2: No document yet → we CREATE one just to save applicability
+    else {
+      endpoint = getEndpoint(key); // list/create endpoint
+      method = "POST";
+
+      // Add minimal required fields depending on document type
+      if (key === "nightWorker") {
+        Object.assign(payload, {
+          is_night_worker: true,
+          admin_uploaded: false,
+          agreement_date: new Date().toISOString().split("T")[0], // today
+        });
+      }
+
+      if (key === "pensionInfo") {
+        Object.assign(payload, {
+          eligible: true,
+          auto_enrollment: true,
+          current_status: "not_uploaded", // since no file yet
+        });
+      }
+
+      // For normal signed agreements (contract, NDA, handbook, etc.)
+      if (!cfg.apiKey) {
+        const docName = documentNames.find((d) => d.name === cfg.title);
+        if (!docName) {
+          sonnerToast.error(`Document "${cfg.title}" not found in system`);
+          return;
+        }
+
+        Object.assign(payload, {
+          document_name_id: docName.id,
+          name: cfg.title,
+          category: cfg.category,
+          status: "pending",
+          priority: 1,
+          document_type: "signable",
+          requires_signature: true,
+          is_signed: false,
+          link: null,
+          document_link: null,
+        });
+      }
+    }
+
+    const res = await fetch(endpoint, {
+      method,
       headers: getHeaders(token),
-      body: JSON.stringify({ is_applicable: !doc.isApplicable }),
+      body: JSON.stringify(payload),
     });
-    reload();
-  };
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Failed to save: ${errorText || res.statusText}`);
+    }
+
+    await reload(); // Refresh all documents
+
+    sonnerToast.success(
+      `${cfg.title} is now ${newApplicable ? "Applicable" : "Not Applicable"}`
+    );
+  } catch (err: any) {
+    console.error("toggleApplicable error:", err);
+    sonnerToast.error(err.message || "Failed to update applicability");
+  }
+};
 
   const deleteDoc = async (id?: number, key?: DocumentKey) => {
     if (!id || !key) return;
@@ -824,23 +1008,23 @@ export default function SignAgreementAdminTab() {
   if (docsLoading || namesLoading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-orange-500 border-t-transparent" />
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#F15A29] border-t-transparent" />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-8 bg-white rounded-2xl shadow p-4 md:p-8">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-2xl text-orange-800">
-            <FileText className="h-6 w-6" />
-            Signed Agreements – Driver #{userId}
-          </CardTitle>
-        </CardHeader>
-      </Card>
+return (
+    <div className="space-y-6 bg-gray-50 min-h-screen p-4 md:p-8">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <FileText className="h-6 w-6 text-gray-700" />
+        <h1 className="text-xl font-semibold text-gray-900">
+          Signed Agreements – <span className="text-orange-600">Driver #{userId}</span>
+        </h1>
+      </div>
 
-      <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {/* Document Grid */}
+      <section className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {Object.entries(docConfig).map(([key, cfg]) => {
           const k = key as DocumentKey;
           const d = docs[k];
@@ -859,98 +1043,135 @@ export default function SignAgreementAdminTab() {
           return (
             <Card
               key={key}
-              className={`overflow-hidden transition-all hover:shadow-xl cursor-pointer ${
-                !d.isApplicable ? "opacity-60 grayscale" : ""
+              className={`overflow-hidden bg-white rounded-xl border border-gray-200 transition-all hover:shadow-lg ${
+                !d.isApplicable ? "opacity-50" : ""
               }`}
-              onClick={() => uploaded && setDetail({ open: true, key: k })}
             >
-              <div className="h-40 bg-gradient-to-br from-orange-50 to-orange-100 border-b relative overflow-hidden">
+              {/* Image/Preview Area */}
+              <div 
+                className="h-44 bg-gray-100 relative overflow-hidden cursor-pointer group"
+                onClick={() => uploaded && setDetail({ open: true, key: k })}
+              >
                 {uploaded ? (
                   previewUrl ? (
                     isImage ? (
-                      <img src={previewUrl} alt={cfg.title} className="w-full h-full object-cover" />
+                      <img 
+                        src={previewUrl} 
+                        alt={cfg.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                      />
                     ) : (
-                      <div className="flex items-center justify-center h-full p-4">
-                        <img src={previewUrl} alt="PDF" className="h-20 w-20 drop-shadow-md" />
+                      <div className="flex items-center justify-center h-full">
+                        <FileText className="h-16 w-16 text-[#F15A29]" />
                       </div>
                     )
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-orange-600">
-                      <FileText className="h-12 w-12 mb-2" />
-                      <span className="text-xs font-medium">Document</span>
+                    <div className="flex flex-col items-center justify-center h-full text-[#F15A29]">
+                      <FileText className="h-16 w-16" />
                     </div>
                   )
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                    <Upload className="h-12 w-12 mb-2" />
-                    <span className="text-xs font-medium">No file</span>
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <div className="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center mb-3">
+                      <Upload className="h-10 w-10 text-orange-400" />
+                    </div>
+                    <span className="text-sm text-gray-500">Drag & Drop file here</span>
+                    <span className="text-xs text-gray-400 mt-1">or click upload button</span>
                   </div>
+                )}
+                
+                {/* Delete button overlay for uploaded docs */}
+                {uploaded && (
+                  <button
+                    className="absolute top-3 right-3 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteDoc(d.id, k);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-white" />
+                  </button>
                 )}
               </div>
 
+              {/* Content Area */}
               <div className="p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-semibold text-sm line-clamp-2">{cfg.title}</h3>
+                {/* Title & Toggle */}
+                <div className="flex justify-between items-start gap-2">
+                  <h3 className="font-semibold text-sm text-gray-900 line-clamp-1">{cfg.title}</h3>
                   {cfg.fields.includes("applicable") && (
-                    <div className="flex items-center gap-1 text-xs">
-                      <Switch
-                        checked={d.isApplicable}
-                        onCheckedChange={() => toggleApplicable(k)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <span className="text-xs">{d.isApplicable ? "Yes" : "No"}</span>
+                    <Switch
+                      checked={d.isApplicable}
+                      onCheckedChange={() => toggleApplicable(k)}
+                      // className="data-[state=checked]:bg-green-500"
+                    />
+                  )}
+                </div>
+
+                {/* Category Badge */}
+                {d.categoryLabel && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <FileText className="h-3.5 w-3.5 text-gray-400" />
+                    <span className="text-gray-600">{d.categoryLabel}</span>
+                  </div>
+                )}
+
+                {/* Status Badge */}
+                <div className="flex items-center justify-between">
+                  {getStatusBadge(d)}
+                  
+                  {/* Date info */}
+                  {uploaded && (
+                    <div className="text-xs text-gray-500">
+                      {d.uploadDate && formatDate(d.uploadDate)}
                     </div>
                   )}
                 </div>
 
-                {d.categoryLabel && <div className="text-xs text-muted-foreground">{d.categoryLabel}</div>}
-                <div>{getStatusBadge(d)}</div>
-
+                {/* Additional metadata for uploaded docs */}
                 {uploaded && (
-                  <div className="text-xs text-muted-foreground space-y-0.5">
-                    {d.signedDate && <div><strong>Signed:</strong> {formatDate(d.signedDate)}</div>}
-                    {k === "nightWorker" && (d as NightWorkerDoc).expiryDate && (
-                      <div><strong>Expiry:</strong> {formatDate((d as NightWorkerDoc).expiryDate)}</div>
-                    )}
+                  <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
                     {k === "nightWorker" && (d as NightWorkerDoc).contractSigningDate && (
-                      <div><strong>Signed:</strong> {formatDate((d as NightWorkerDoc).contractSigningDate ?? null)}</div>
-                    )}
-                    {k === "nightWorker" && (d as NightWorkerDoc).contractStartDate && (
-                      <div><strong>Start:</strong> {formatDate((d as NightWorkerDoc).contractStartDate ?? null)}</div>
-                    )}
-                    {k === "pensionInfo" && (d as PensionDoc).optDate && (
-                      <div><strong>Opt date:</strong> {formatDate((d as PensionDoc).optDate)}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">Contract Date:</span>
+                        <span>{formatDate((d as NightWorkerDoc).contractSigningDate ?? null)}</span>
+                      </div>
                     )}
                     {k === "contractOfEmployment" && (d as ContractDoc).contractDate && (
-                      <div><strong>Contract Date:</strong> {formatDate((d as ContractDoc).contractDate ?? null)}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">Contract Date:</span>
+                        <span>{formatDate((d as ContractDoc).contractDate ?? null)}</span>
+                      </div>
                     )}
-                    {d.uploadDate && <div><strong>Uploaded:</strong> {formatDate(d.uploadDate)}</div>}
                   </div>
                 )}
 
-                <div className="flex gap-1.5 pt-2">
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
                   {!uploaded ? (
                     <>
                       <Button
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 bg-[#F15A29] hover:bg-orange-600 text-white"
                         disabled={!documentNames.length && !cfg.apiKey}
                         onClick={(e) => {
                           e.stopPropagation();
                           setUploadDialog({ open: true, key: k });
                         }}
                       >
-                        <Upload className="h-3.5 w-3.5 mr-1" /> Upload
+                        <Upload className="h-4 w-4 mr-1.5" />
+                        Upload
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1"
+                        className="flex-1 text-orange-600 border-orange-200 hover:bg-orange-50"
                         onClick={(e) => {
                           e.stopPropagation();
                           openTaskDialog(cfg.title);
                         }}
                       >
+                        <AlertCircle className="h-4 w-4 mr-1.5" />
                         Later
                       </Button>
                     </>
@@ -958,13 +1179,25 @@ export default function SignAgreementAdminTab() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 text-red-600 hover:bg-red-50"
+                      className="flex-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteDoc(d.id, k);
+                        setUploadDialog({
+                          open: true,
+                          key: k,
+                          initial: {
+                            applicable: d.isApplicable,
+                            expiryDate: (d as any).expiryDate ?? "",
+                            signingDate: (d as any).contractSigningDate ?? (d as any).signingDate ?? "",
+                            startDate: (d as any).contractStartDate ?? (d as any).startDate ?? "",
+                            contractDate: (d as any).contractDate ?? "",
+                            optIn: (d as PensionDoc).optIn,
+                            optOut: (d as PensionDoc).optOut,
+                          },
+                        });
                       }}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      Update
                     </Button>
                   )}
                 </div>
@@ -976,7 +1209,7 @@ export default function SignAgreementAdminTab() {
 
       <Separator className="my-8" />
 
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle className="text-lg">Admin Notes</CardTitle>
         </CardHeader>
@@ -986,7 +1219,7 @@ export default function SignAgreementAdminTab() {
             Save Notes
           </Button>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Shared Dialogs */}
       {detail.open && detail.key && (

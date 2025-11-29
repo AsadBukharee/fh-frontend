@@ -80,6 +80,7 @@ export function ShiftCard({
   const [newHours, setNewHours] = useState<number>(total_hours);
 
   const cookies = useCookies();
+  const role=cookies.get("role");
 
  const handleSaveAll = async () => {
   setIsLoading(true);
@@ -145,7 +146,7 @@ export function ShiftCard({
       }}
     >
       <div className="flex w-full items-center justify-between">
-        <span className="cursor-pointer font-semibold">{shiftType} ({formatPrice(rate)} P/H)</span>
+        <span className="cursor-pointer font-semibold">{shiftType} {role ==="superadmin" ? `(${formatPrice(rate)} P/H)` : null}</span>
 
 
         {/* Edit Button with Modal */}
@@ -224,8 +225,10 @@ export function ShiftCard({
 
       {/* Display Info */}
       <div className="flex justify-between w-full text-xs text-gray-600">
+                {role === "superadmin" ? (
         <span className="cursor-pointer ">Daily Pay:  ({formatPrice(shift_daily_salary)})</span>
         
+        ) : null}
         <span>{total_hours} Hr</span>
       </div>
     </div>

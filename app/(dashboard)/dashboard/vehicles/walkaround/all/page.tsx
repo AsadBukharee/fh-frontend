@@ -86,6 +86,8 @@ const getStatusClasses = (status: Walkaround["status"]) => {
   }
 };
 
+const MAX_WALKAROUNDS_PER_CHAIN = 3;
+
 const WalkaroundPage = () => {
   const [walkarounds, setWalkarounds] = useState<Walkaround[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,8 +96,8 @@ const WalkaroundPage = () => {
   const [openPlus, setOpenPlus] = useState(false);
   const [selectedWalkaround, setSelectedWalkaround] = useState<Walkaround | null>(null);
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date()); // Auto-select current date
-  const [dateTo, setDateTo] = useState<Date | undefined>(new Date()); // Auto-select current date
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date());
+  const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
@@ -233,7 +235,7 @@ const WalkaroundPage = () => {
   }, [openPlus, openDetailsDialog]);
 
   const resetFilters = () => {
-    const currentDate = new Date(); // Explicitly set to current date
+    const currentDate = new Date();
     setDateFrom(currentDate);
     setDateTo(currentDate);
     setPage(1);
@@ -248,6 +250,13 @@ const WalkaroundPage = () => {
 
   const handleAddChildWalkaround = (chainId: number) => {
     const chainWalkarounds = walkarounds.filter((w) => w.chain_id === chainId);
+    const totalInChain = chainWalkarounds.length;
+
+    if (totalInChain >= MAX_WALKAROUNDS_PER_CHAIN) {
+      alert(`Maximum of ${MAX_WALKAROUNDS_PER_CHAIN} walkarounds allowed per vehicle chain. Cannot add more.`);
+      return;
+    }
+
     const latestWalkaround = chainWalkarounds.reduce((latest, current) => {
       return (current.walkaround_step || 0) > (latest.walkaround_step || 0) ? current : latest;
     }, chainWalkarounds[0]);
@@ -287,7 +296,7 @@ const WalkaroundPage = () => {
   return (
     <div className="min-h-screen bg-white p-6 relative">
       {loading && (
-        <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center z-10">
           <div className="text-gray-600">Loading...</div>
         </div>
       )}
@@ -297,42 +306,21 @@ const WalkaroundPage = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Vehicle Walkaround</h1>
             <p className="text-sm text-gray-500 mb-4">View vehicle walkaround details</p>
-            {/* Filter Controls */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-[150px] justify-start text-left font-normal"
-                      aria-label="Select start date"
-                    >
+                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
                       {dateFrom ? formatDmy(dateFrom) : "Pick start date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={dateFrom}
-                      onSelect={(date) => {
-                        setDateFrom(date);
-                        if (date && dateTo && date > dateTo) {
-                          setError("Start date cannot be later than end date.");
-                        } else {
-                          setError(null);
-                        }
-                      }}
-                      initialFocus
-                    />
+                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus />
                   </PopoverContent>
                 </Popover>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-[150px] justify-start text-left font-normal"
-                      aria-label="Select end date"
-                    >
+                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
                       {dateTo ? formatDmy(dateTo) : "Pick end date"}
                     </Button>
                   </PopoverTrigger>
@@ -340,25 +328,15 @@ const WalkaroundPage = () => {
                     <Calendar
                       mode="single"
                       selected={dateTo}
-                      onSelect={(date) => {
-                        setDateTo(date);
-                        if (dateFrom && date && dateFrom > date) {
-                          setError("Start date cannot be later than end date.");
-                        } else {
-                          setError(null);
-                        }
-                      }}
+                      onSelect={setDateTo}
                       initialFocus
                       disabled={(date) => (dateFrom ? date < dateFrom : false)}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
-              <Select
-                value={pageSize.toString()}
-                onValueChange={(value) => setPageSize(Number(value))}
-              >
-                <SelectTrigger className="w-[100px]" aria-label="Select page size">
+              <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
+                <SelectTrigger className="w-[100px]">
                   <SelectValue placeholder="Page size" />
                 </SelectTrigger>
                 <SelectContent>
@@ -368,17 +346,14 @@ const WalkaroundPage = () => {
                   <SelectItem value="100">100</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" onClick={resetFilters} aria-label="Reset filters">
-                Reset Filters
-              </Button>
+              <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
             </div>
             {error && <div className="text-red-500 mt-2">{error}</div>}
           </div>
-          <div className="flex gap-4 items-center justify-center">
+          <div className="flex gap-4 items-center">
             <RefreshCcw
               className="text-gray-500 hover:text-gray-600 cursor-pointer"
               onClick={debouncedFetchWalkarounds}
-              aria-label="Refresh walkarounds"
             />
             <Dialog open={openAdd} onOpenChange={setOpenAdd}>
               <DialogTrigger asChild>
@@ -393,159 +368,122 @@ const WalkaroundPage = () => {
             </Dialog>
           </div>
         </div>
+
         {/* Walkaround List */}
         <div className="space-y-6">
           {Object.entries(groupedWalkarounds).map(([chainId, { root, children }]) => {
             const vehicleInfo = root?.vehicle || children[0]?.vehicle;
+            const chainWalkarounds = walkarounds.filter((w) => w.chain_id === Number(chainId));
+            const canAddMore = chainWalkarounds.length < MAX_WALKAROUNDS_PER_CHAIN;
+
             return (
-              <div key={chainId} className="p-4 border border-gray-200 rounded-lg">
+              <div key={chainId} className="p-4 border border-gray-200 rounded-lg bg-white">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
                   Vehicle: {vehicleInfo?.registration_number} ({vehicleInfo?.vehicles_type_name})
                 </h2>
-                <div className="flex flex-col sm:flex-row bg-white overflow-y-auto items-start sm:items-center gap-4">
+
+                <div className="flex flex-col sm:flex-row bg-white overflow-x-auto items-start sm:items-center gap-4">
+                  {/* Root */}
                   {root && (
-                    <>
-                      <div className={`p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64`}>
-                        <h3 className="text-sm font-semibold">
-                          Step <span className="text-gray-500">{root.walkaround_step}</span>
-                        </h3>
-                        <p className="text-sm font-semibold">
-                          Driver: <span className="text-gray-500">{root.conducted_by || "N/A"}</span>
-                        </p>
-                        <p className="text-sm font-semibold">
-                          Status: <Badge className={`${getStatusClasses(root.status)}`}>   {root.status
-                .split("_")
-                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(" ")}</Badge>
-                        </p>
-                        <p className="text-sm font-semibold">
-                          Date: <span className="text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span>
-                        </p>
-                        <p className="text-sm font-semibold">
-                          Time: <span className="text-gray-500">{root.time}</span>
-                        </p>
-                      <div className="flex gap-2">
-                          <Button
-                          variant="outline"
-                          className="text-xs mt-2"
-                          onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${root.id}`)}
-                          aria-label={`View details for walkaround ${root.id}`}
-                        >
+                    <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
+                      <h3 className="text-sm font-semibold">Step <span className="text-gray-500">{root.walkaround_step}</span></h3>
+                      <p className="text-sm font-semibold">Driver: <span className="text-gray-500">{root.conducted_by || "N/A"}</span></p>
+                      <p className="text-sm font-semibold">
+                        Status: <Badge className={getStatusClasses(root.status)}>
+                          {root.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                        </Badge>
+                      </p>
+                      <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span></p>
+                      <p className="text-sm font-semibold">Time: <span className="text-gray-500">{root.time}</span></p>
+                      <div className="flex gap-2 mt-2">
+                        <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${root.id}`)}>
                           <Eye className="h-4 w-4 mr-1" /> Details
                         </Button>
-                         <Button
-                          variant="outline"
-                          className="text-xs mt-2"
-                          onClick={()=>handleViewDetails(root)}
-                          aria-label={`View details for walkaround ${root.id}`}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleViewDetails(root)}>
                           <Edit className="h-4 w-4 mr-1" /> Update
                         </Button>
                       </div>
-                      </div>
-                      {children.length > 0 && (
-                        <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
-                      )}
-                    </>
+                    </div>
                   )}
+
+                  {children.length > 0 && <MoveRight className="text-gray-400 hidden sm:block" />}
+
+                  {/* Children */}
                   {children
                     .sort((a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0))
                     .map((child, idx) => (
                       <div key={child.id} className="flex items-center gap-4">
-                        <div className={`p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64`}>
-                          <h3 className="text-sm font-semibold">
-                            Step <span className="text-gray-500">{child.walkaround_step}</span>
-                          </h3>
+                        <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
+                          <h3 className="text-sm font-semibold">Step <span className="text-gray-500">{child.walkaround_step}</span></h3>
+                          <p className="text-sm font-semibold">Driver: <span className="text-gray-500">{child.conducted_by || "N/A"}</span></p>
                           <p className="text-sm font-semibold">
-                            Driver: <span className="text-gray-500">{child.conducted_by || "N/A"}</span>
+                            Status: <Badge className={getStatusClasses(child.status)}>
+                              {child.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                            </Badge>
                           </p>
-                          <p className="text-sm font-semibold">
-                            Status: <Badge className={`${getStatusClasses(child.status)}`}>   {child.status
-                .split("_")
-                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(" ")}</Badge>
-                          </p>
-                          <p className="text-sm font-semibold">
-                            Date: <span className="text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span>
-                          </p>
-                          <p className="text-sm font-semibold">
-                            Time: <span className="text-gray-500">{child.time}</span>
-                          </p>
-                     <div className="flex gap-2 ite">
-                           <Button
-                            variant="outline"
-                            className="text-xs mt-2"
-                            onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${child.id}`)}
-                            aria-label={`View details for walkaround ${child.id}`}
-                          >
-                            <Eye className="h-4 w-4 mr-1" /> Details
-                          </Button>
-                             <Button
-                          variant="outline"
-                          className="text-xs mt-2"
-                          onClick={()=>handleViewDetails(child)}
-                          aria-label={`View details for walkaround ${child.id}`}
-                        >
-                          <Edit className="h-4 w-4 mr-1" /> Update
-                        </Button>
-                     </div>
+                          <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span></p>
+                          <p className="text-sm font-semibold">Time: <span className="text-gray-500">{child.time}</span></p>
+                          <div className="flex gap-2 mt-2">
+                            <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${child.id}`)}>
+                              <Eye className="h-4 w-4 mr-1" /> Details
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleViewDetails(child)}>
+                              <Edit className="h-4 w-4 mr-1" /> Update
+                            </Button>
+                          </div>
                         </div>
-                        {idx < children.length - 1 && (
-                          <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
-                        )}
+                        {idx < children.length - 1 && <MoveRight className="text-gray-400 hidden sm:block" />}
                       </div>
                     ))}
-                  <MoveRight className="text-gray-500 hidden sm:block" aria-hidden="true" />
-                  <Dialog open={openPlus} onOpenChange={setOpenPlus}>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="w-8 h-8 flex justify-center items-center bg-purple-700 text-white rounded-full"
-                        onClick={() => handleAddChildWalkaround(Number(chainId))}
-                        aria-label={`Add child walkaround for chain ${chainId}`}
+
+                  {/* Add Button or Limit Indicator */}
+                  {canAddMore ? (
+                    <Dialog open={openPlus} onOpenChange={setOpenPlus}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="w-10 h-10 rounded-full bg-purple-700 text-white hover:bg-purple-800 shadow-lg"
+                          onClick={() => handleAddChildWalkaround(Number(chainId))}
+                        >
+                          <Plus className="h-5 w-5" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Add Follow-up Walkaround</DialogTitle>
+                        </DialogHeader>
+                        <PlusWalkaround
+                          setOpen={setOpenPlus}
+                          refreshWalkarounds={debouncedFetchWalkarounds}
+                          parentId={selectedWalkaround?.id || 0}
+                          walkaround={selectedWalkaround}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                  ) : (
+                    <div className="flex items-center justify-center w-10 h-10">
+                      <div
+                        className="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-bold"
+                        title="Maximum 3 walkarounds reached"
                       >
-                        +
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Add Child Walkaround</DialogTitle>
-                      </DialogHeader>
-                      <PlusWalkaround
-                        setOpen={setOpenPlus}
-                        refreshWalkarounds={debouncedFetchWalkarounds}
-                        parentId={selectedWalkaround?.id || 0}
-                        walkaround={selectedWalkaround}
-                      />
-                    </DialogContent>
-                  </Dialog>
+                        3
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
-        {/* Pagination Controls */}
+
+        {/* Pagination */}
         <div className="flex justify-between items-center mt-6">
           <p className="text-sm text-gray-500">
             Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} walkarounds | Page {page} of {totalPages}
           </p>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage((prev) => prev - 1)}
-              aria-label="Previous page"
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              disabled={page === totalPages || totalCount === 0}
-              onClick={() => setPage((prev) => prev + 1)}
-              aria-label="Next page"
-            >
-              Next
-            </Button>
+            <Button variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
+            <Button variant="outline" disabled={page === totalPages || totalCount === 0} onClick={() => setPage(p => p + 1)}>Next</Button>
           </div>
         </div>
       </div>

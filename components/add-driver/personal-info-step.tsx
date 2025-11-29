@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar, Phone, MapPin, Hash, CreditCard, FileText, Car, Briefcase } from "lucide-react";
 import { useStepper } from "./DriverStepper";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -107,22 +108,22 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
 
   const validatePhone = (phone: string) => {
     const cleaned = phone.replace(/\D/g, "");
-    return cleaned.length === 11 ? "" : "Phone number must be exactly 11 digits (e.g., 01234567890)";
+    return cleaned.length === 11 ? "" : "Phone number must be exactly 11 digits";
   };
 
   const validateAccountNo = (accountNo: string) => {
     const cleaned = accountNo.replace(/\D/g, "");
-    return cleaned.length === 8 ? "" : "Account number must be exactly 8 digits (e.g., 12345678)";
+    return cleaned.length === 8 ? "" : "Account number must be exactly 8 digits";
   };
 
   const validateSortCode = (sortCode: string) => {
     const sortCodeRegex = /^\d{2}-\d{2}-\d{2}$/;
-    return sortCodeRegex.test(sortCode) ? "" : "Sort code must be in the format XX-XX-XX (e.g., 12-34-56)";
+    return sortCodeRegex.test(sortCode) ? "" : "Sort code must be in the format XX-XX-XX";
   };
 
   const validateLicenseIssueNumber = (licenseIssueNo: string) => {
     const cleaned = licenseIssueNo.replace(/\D/g, "");
-    return cleaned.length === 9 ? "" : "License issue number must be exactly 9 digits (e.g., 123456789)";
+    return cleaned.length === 2 ? "" : "License issue number must be exactly 2 digits";
   };
 
   const validateField = (name: keyof PersonalInfo, value: string) => {
@@ -147,37 +148,35 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
     let formattedValue = value;
 
     if (name === "phone" || name === "account_no" || name === "license_issue_number") {
-      formattedValue = value.replace(/\D/g, "").slice(0, name === "phone" ? 11 : name === "account_no" ? 8 : 9);
+      formattedValue = value.replace(/\D/g, "").slice(0, name === "phone" ? 11 : name === "account_no" ? 8: 9);
     } else if (name === "sort_code") {
-      let cleaned = value.replace(/[^\d-]/g, "");
-      if (cleaned.length > 2 && cleaned[2] !== "-") cleaned = cleaned.slice(0, 2) + "-" + cleaned.slice(2);
-      if (cleaned.length > 5 && cleaned[5] !== "-") cleaned = cleaned.slice(0, 5) + "-" + cleaned.slice(5);
-      formattedValue = cleaned.slice(0, 8);
+      // Remove all non-digit characters
+      const digitsOnly = value.replace(/\D/g, "");
+      
+      // Limit to 6 digits max
+      const limited = digitsOnly.slice(0, 6);
+      
+      // Auto-format as XX-XX-XX
+      if (limited.length === 0) {
+        formattedValue = "";
+      } else if (limited.length <= 2) {
+        formattedValue = limited;
+      } else if (limited.length <= 4) {
+        formattedValue = `${limited.slice(0, 2)}-${limited.slice(2)}`;
+      } else {
+        formattedValue = `${limited.slice(0, 2)}-${limited.slice(2, 4)}-${limited.slice(4)}`;
+      }
     }
 
     setFormData({ ...formData, [name]: formattedValue });
     setErrors({ ...errors, [name]: validateField(name as keyof PersonalInfo, formattedValue) });
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async () => {
     setIsPending(true);
     setErrors({});
 
-    const formDataFromEvent = new FormData(event.currentTarget);
-    const rawPersonalInfo: PersonalInfo = {
-      date_of_birth: formDataFromEvent.get("date_of_birth") as string,
-      phone: formDataFromEvent.get("phone") as string,
-      address1: formDataFromEvent.get("address1") as string,
-      post_code: formDataFromEvent.get("post_code") as string,
-      account_no: formDataFromEvent.get("account_no") as string,
-      sort_code: formDataFromEvent.get("sort_code") as string,
-      national_insurance_no: formDataFromEvent.get("national_insurance_no") as string,
-      license_number: formDataFromEvent.get("license_number") as string,
-      license_issue_number: formDataFromEvent.get("license_issue_number") as string,
-      have_other_jobs: formDataFromEvent.get("have_other_jobs") === "true",
-      have_other_jobs_note: formDataFromEvent.get("have_other_jobs_note") as string,
-    };
+    const rawPersonalInfo: PersonalInfo = { ...formData };
 
     const requiredFields: (keyof PersonalInfo)[] = [
       "date_of_birth",
@@ -250,232 +249,277 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
 
       const driverId = result.data.id || 123;
       setDriverId(driverId);
-      localStorage.setItem("driver_id", driverId.toString());
-      setPersonalInfoData(rawPersonalInfo); // Changed to rawPersonalInfo for consistency
+      setPersonalInfoData(rawPersonalInfo);
       goToNextStep();
     } catch (error: unknown) {
       setErrors({ general: `Error submitting personal information: ${(error as Error).message}` });
-      localStorage.removeItem("driver_id");
     } finally {
       setIsPending(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Step 1: Personal Information</CardTitle>
-        <CardDescription>Provide your personal details.</CardDescription>
+    <Card className="border-none ">
+      <CardHeader className="pb-6">
+        <CardTitle className="text-2xl">
+          <span className="text-orange-500">Step 1 : </span>
+          <span className="text-gray-900">Personal Information</span>
+        </CardTitle>
+        <CardDescription className="text-gray-500">Provide your personal details.</CardDescription>
       </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="min-h-[200px]">
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label htmlFor="date_of_birth">Date of Birth</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Input
-                    id="date_of_birth"
-                    name="date_of_birth"
-                    type="date"
-                    required
-                    value={formData.date_of_birth}
-                    onChange={handleInputChange}
-                    max={new Date().toISOString().split("T")[0]}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                {errors.date_of_birth && <p className="text-sm text-red-500">{errors.date_of_birth}</p>}
+      <CardContent className="min-h-[200px]">
+        <div className="space-y-1">
+          {/* Date of Birth and Driver Age */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="date_of_birth" className="text-sm font-medium text-gray-700">
+                Date of Birth
+              </Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="date_of_birth"
+                  name="date_of_birth"
+                  type="date"
+                  value={formData.date_of_birth}
+                  onChange={handleInputChange}
+                  max={new Date().toISOString().split("T")[0]}
+                  className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
+                  placeholder="mm/dd/yyyy"
+                />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="driver_age">Driver Age</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <div className="p-2">{calculateAge(formData.date_of_birth)}</div>
+              {errors.date_of_birth && <p className="text-sm text-red-500">{errors.date_of_birth}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="driver_age" className="text-sm font-medium text-gray-700">
+                Driver Age
+              </Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <div className="h-12 pl-10 pr-3 border border-gray-200 rounded-md flex items-center bg-gray-50 text-gray-500">
+                  {calculateAge(formData.date_of_birth)}
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label htmlFor="phone">Phone Number</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    placeholder="01234567890"
-                    required
-                    maxLength={11}
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="address1">Address Line 1</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Input
-                    id="address1"
-                    name="address1"
-                    placeholder="123 Main St"
-                    required
-                    value={formData.address1}
-                    onChange={handleInputChange}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                {errors.address1 && <p className="text-sm text-red-500">{errors.address1}</p>}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label htmlFor="post_code">Post Code</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Input
-                    id="post_code"
-                    name="post_code"
-                    placeholder="12345"
-                    required
-                    value={formData.post_code}
-                    onChange={handleInputChange}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                {errors.post_code && <p className="text-sm text-red-500">{errors.post_code}</p>}
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="national_insurance_no">National Insurance No.</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Input
-                    id="national_insurance_no"
-                    name="national_insurance_no"
-                    placeholder="AB123456C"
-                    required
-                    value={formData.national_insurance_no}
-                    onChange={handleInputChange}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                {errors.national_insurance_no && <p className="text-sm text-red-500">{errors.national_insurance_no}</p>}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label htmlFor="account_no">Account Number</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Input
-                    id="account_no"
-                    name="account_no"
-                    placeholder="12345678"
-                    required
-                    maxLength={8}
-                    value={formData.account_no}
-                    onChange={handleInputChange}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                {errors.account_no && <p className="text-sm text-red-500">{errors.account_no}</p>}
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="sort_code">Sort Code</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Input
-                    id="sort_code"
-                    name="sort_code"
-                    placeholder="12-34-56"
-                    required
-                    maxLength={8}
-                    value={formData.sort_code}
-                    onChange={handleInputChange}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                {errors.sort_code && <p className="text-sm text-red-500">{errors.sort_code}</p>}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label htmlFor="license_number">License Number</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Input
-                    id="license_number"
-                    name="license_number"
-                    placeholder="BOL12345678"
-                    required
-                    value={formData.license_number}
-                    onChange={handleInputChange}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                {errors.license_number && <p className="text-sm text-red-500">{errors.license_number}</p>}
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="license_issue_number">License Issue Number</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Input
-                    id="license_issue_number"
-                    name="license_issue_number"
-                    placeholder="123456789"
-                    required
-                    maxLength={9}
-                    value={formData.license_issue_number}
-                    onChange={handleInputChange}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                {errors.license_issue_number && <p className="text-sm text-red-500">{errors.license_issue_number}</p>}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Do you have another job?</Label>
-              <RadioGroup
-                name="have_other_jobs"
-                onValueChange={(value) => {
-                  const hasJobs = value === "true";
-                  setHasOtherJobs(hasJobs);
-                  setFormData({ ...formData, have_other_jobs: hasJobs, have_other_jobs_note: hasJobs ? formData.have_other_jobs_note : "" });
-                }}
-                value={formData.have_other_jobs ? "true" : "false"}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="true" id="have_other_jobs_yes" />
-                  <Label htmlFor="have_other_jobs_yes">Yes</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="false" id="have_other_jobs_no" />
-                  <Label htmlFor="have_other_jobs_no">No</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            {hasOtherJobs && (
-              <div className="space-y-1">
-                <Label htmlFor="have_other_jobs_note">Other Jobs Note</Label>
-                <div className="relative w-full gradient-border cursor-glow">
-                  <Textarea
-                    id="have_other_jobs_note"
-                    name="have_other_jobs_note"
-                    placeholder="Provide details about your other job(s)"
-                    value={formData.have_other_jobs_note}
-                    onChange={handleInputChange}
-                    className="pl-3 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-              </div>
-            )}
           </div>
-          {errors.general && (
-            <p className="text-sm text-red-500 mt-4" aria-live="polite">
-              {errors.general}
-            </p>
+
+          {/* Phone Number and Address */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
+                Phone Number
+              </Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="Phone Number"
+                  maxLength={11}
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
+                />
+              </div>
+              {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address1" className="text-sm font-medium text-gray-700">
+                Address Line 1
+              </Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="address1"
+                  name="address1"
+                  placeholder="Address Line 1"
+                  value={formData.address1}
+                  onChange={handleInputChange}
+                  className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
+                />
+              </div>
+              {errors.address1 && <p className="text-sm text-red-500">{errors.address1}</p>}
+            </div>
+          </div>
+
+          {/* Post Code and National Insurance */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="post_code" className="text-sm font-medium text-gray-700">
+                Post Code
+              </Label>
+              <div className="relative">
+                <Hash className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="post_code"
+                  name="post_code"
+                  placeholder="Post Code"
+                  value={formData.post_code}
+                  onChange={handleInputChange}
+                  className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
+                />
+              </div>
+              {errors.post_code && <p className="text-sm text-red-500">{errors.post_code}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="national_insurance_no" className="text-sm font-medium text-gray-700">
+                National Insurance No
+              </Label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="national_insurance_no"
+                  name="national_insurance_no"
+                  placeholder="National Insurance No."
+                  value={formData.national_insurance_no}
+                  onChange={handleInputChange}
+                  className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
+                />
+              </div>
+              {errors.national_insurance_no && <p className="text-sm text-red-500">{errors.national_insurance_no}</p>}
+            </div>
+          </div>
+
+          {/* Account Number and Sort Code */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="account_no" className="text-sm font-medium text-gray-700">
+                Account No
+              </Label>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="account_no"
+                  name="account_no"
+                  placeholder="Account No"
+                  maxLength={8}
+                  value={formData.account_no}
+                  onChange={handleInputChange}
+                  className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
+                />
+              </div>
+              {errors.account_no && <p className="text-sm text-red-500">{errors.account_no}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sort_code" className="text-sm font-medium text-gray-700">
+                Sort Code
+              </Label>
+              <div className="relative">
+                <Hash className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400 rotate-90" />
+                <Input
+                  id="sort_code"
+                  name="sort_code"
+                  placeholder="Sort Code"
+                  maxLength={8}
+                  value={formData.sort_code}
+                  onChange={handleInputChange}
+                  className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
+                />
+              </div>
+              {errors.sort_code && <p className="text-sm text-red-500">{errors.sort_code}</p>}
+            </div>
+          </div>
+
+          {/* License Number and Issue Number */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="license_number" className="text-sm font-medium text-gray-700">
+                License No
+              </Label>
+              <div className="relative">
+                <Car className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="license_number"
+                  name="license_number"
+                  placeholder="License No"
+                  value={formData.license_number}
+                  maxLength={2}
+                  onChange={handleInputChange}
+                  className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
+                />
+              </div>
+              {errors.license_number && <p className="text-sm text-red-500">{errors.license_number}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="license_issue_number" className="text-sm font-medium text-gray-700">
+                License Issue Number
+              </Label>
+              <div className="relative">
+                <Car className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="license_issue_number"
+                  name="license_issue_number"
+                  placeholder="License Issue Number"
+                  maxLength={2}
+                  value={formData.license_issue_number}
+                  onChange={handleInputChange}
+                  className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
+                />
+              </div>
+              {errors.license_issue_number && <p className="text-sm text-red-500">{errors.license_issue_number}</p>}
+            </div>
+          </div>
+
+          {/* Other Jobs Radio */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium text-gray-700">Do you have any other job</Label>
+            <RadioGroup
+              name="have_other_jobs"
+              onValueChange={(value) => {
+                const hasJobs = value === "true";
+                setHasOtherJobs(hasJobs);
+                setFormData({ ...formData, have_other_jobs: hasJobs, have_other_jobs_note: hasJobs ? formData.have_other_jobs_note : "" });
+              }}
+              value={formData.have_other_jobs ? "true" : "false"}
+              className="flex gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="true" id="have_other_jobs_yes" className="border-orange-500 text-orange-500" />
+                <Label htmlFor="have_other_jobs_yes" className="font-normal cursor-pointer">Yes</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="false" id="have_other_jobs_no" className="border-orange-500 text-orange-500" />
+                <Label htmlFor="have_other_jobs_no" className="font-normal cursor-pointer">No</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* Other Jobs Note */}
+          {hasOtherJobs && (
+            <div className="space-y-2">
+              <Label htmlFor="have_other_jobs_note" className="text-sm font-medium text-gray-700">
+                Other Jobs Note
+              </Label>
+              <div className="relative">
+                <Briefcase className="absolute left-3 z-10 top-3 h-4 w-4 text-gray-400" />
+                <Textarea
+                  id="have_other_jobs_note"
+                  name="have_other_jobs_note"
+                  placeholder="Provide details about your other job(s)"
+                  value={formData.have_other_jobs_note}
+                  onChange={handleInputChange}
+                  className="pl-10 min-h-[100px] border-gray-200 focus-visible:ring-orange-500"
+                />
+              </div>
+            </div>
           )}
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button type="submit" className="bg-magenta text-white" disabled={isPending}>
-            {isPending ? "Saving..." : "Save & Continue"}
-          </Button>
-        </CardFooter>
-      </form>
+        </div>
+        {errors.general && (
+          <p className="text-sm text-red-500 mt-4" aria-live="polite">
+            {errors.general}
+          </p>
+        )}
+      </CardContent>
+      <CardFooter className="flex justify-end pt-6">
+        <Button 
+          onClick={handleSubmit} 
+          className="text-[#F97316] bg-[#F97316]/20 w-full hover:bg-[#EA580C]/30 font-medium px-8 py-5" 
+          disabled={isPending}
+        >
+          {isPending ? "Saving..." : "Save & continue"}
+        </Button>
+      </CardFooter>
     </Card>
   );
 }

@@ -3,6 +3,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Check } from "lucide-react"
 
 // Stepper Context
 interface StepperContextType {
@@ -11,7 +12,8 @@ interface StepperContextType {
   goToNextStep: () => void
   goToPreviousStep: () => void
   goToStep: (step: number) => void
-  disableBack?: boolean // Added to context
+  disableBack?: boolean
+  completedSteps: Set<number>
 }
 
 const StepperContext = React.createContext<StepperContextType | undefined>(undefined)
@@ -28,26 +30,37 @@ function useStepper() {
 interface StepperProviderProps {
   initialStep?: number
   totalSteps: number
-  disableBack?: boolean // Added prop
+  disableBack?: boolean
+  onStepChange?: (step: number) => void
   children: React.ReactNode
 }
 
-function StepperProvider({ initialStep = 0, totalSteps, disableBack = false, children }: StepperProviderProps) {
+function StepperProvider({ initialStep = 0, totalSteps, disableBack = false, onStepChange, children }: StepperProviderProps) {
   const [currentStep, setCurrentStep] = React.useState(initialStep)
+  const [completedSteps, setCompletedSteps] = React.useState<Set<number>>(new Set())
 
   const goToNextStep = React.useCallback(() => {
-    setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1))
-  }, [totalSteps])
+    const nextStep = Math.min(currentStep + 1, totalSteps - 1)
+    setCompletedSteps((prev) => new Set([...prev, currentStep]))
+    setCurrentStep(nextStep)
+    onStepChange?.(nextStep)
+  }, [currentStep, totalSteps, onStepChange])
 
   const goToPreviousStep = React.useCallback(() => {
-    if (!disableBack) {
-      setCurrentStep((prev) => Math.max(prev - 1, 0))
+    if (!disableBack && currentStep > 0) {
+      const prevStep = currentStep - 1
+      setCurrentStep(prevStep)
+      onStepChange?.(prevStep)
     }
-  }, [disableBack])
+  }, [currentStep, disableBack, onStepChange])
 
   const goToStep = React.useCallback((step: number) => {
-    setCurrentStep(Math.max(0, Math.min(step, totalSteps - 1)))
-  }, [totalSteps])
+    const targetStep = Math.max(0, Math.min(step, totalSteps - 1))
+    if (!disableBack || targetStep >= currentStep || completedSteps.has(targetStep)) {
+      setCurrentStep(targetStep)
+      onStepChange?.(targetStep)
+    }
+  }, [currentStep, totalSteps, disableBack, completedSteps, onStepChange])
 
   const value = React.useMemo(() => ({
     currentStep,
@@ -56,7 +69,8 @@ function StepperProvider({ initialStep = 0, totalSteps, disableBack = false, chi
     goToPreviousStep,
     goToStep,
     disableBack,
-  }), [currentStep, totalSteps, goToNextStep, goToPreviousStep, goToStep, disableBack])
+    completedSteps,
+  }), [currentStep, totalSteps, goToNextStep, goToPreviousStep, goToStep, disableBack, completedSteps])
 
   return <StepperContext.Provider value={value}>{children}</StepperContext.Provider>
 }
@@ -65,12 +79,13 @@ function StepperProvider({ initialStep = 0, totalSteps, disableBack = false, chi
 interface StepperProps extends React.HTMLAttributes<HTMLDivElement> {
   initialStep?: number
   totalSteps: number
-  disableBack?: boolean // Added prop
+  disableBack?: boolean
+  onStepChange?: (step: number) => void
 }
 
-function Stepper({ initialStep, totalSteps, disableBack = false, className, children, ...props }: StepperProps) {
+function Stepper({ initialStep, totalSteps, disableBack = false, onStepChange, className, children, ...props }: StepperProps) {
   return (
-    <StepperProvider initialStep={initialStep} totalSteps={totalSteps} disableBack={disableBack}>
+    <StepperProvider initialStep={initialStep} totalSteps={totalSteps} disableBack={disableBack} onStepChange={onStepChange}>
       <div className={cn("flex flex-col gap-6", className)} {...props}>
         {children}
       </div>
@@ -81,59 +96,80 @@ function Stepper({ initialStep, totalSteps, disableBack = false, className, chil
 // Stepper Tabs
 interface StepperTabsProps extends React.HTMLAttributes<HTMLDivElement> {
   labels?: string[]
+  icons?: React.ReactNode[]
 }
 
-function StepperTabs({ labels, className, ...props }: StepperTabsProps) {
-  const { currentStep, totalSteps, goToStep, disableBack } = useStepper()
+function StepperTabs({
+  labels,
+  className,
+  ...props
+}: StepperTabsProps) {
+  const { currentStep, totalSteps, goToStep } = useStepper();
+  const safeLabels = labels ?? Array.from({ length: totalSteps }, (_, i) => `Step ${i + 1}`);
+
+  // Calculate progress percentage (0% → 100%)
+  const progress = currentStep > 0 ? ((currentStep) / (totalSteps - 1)) * 100 : 0;
 
   return (
-    <div className={cn("flex items-center justify-between gap-4", className)} {...props}>
-      {Array.from({ length: totalSteps }).map((_, index) => (
-        <React.Fragment key={index}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={currentStep === index}
-            aria-controls={`stepper-panel-${index}`}
-            onClick={() => {
-              if (!disableBack || index >= currentStep) {
-                goToStep(index)
-              }
-            }}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-2 group",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              "disabled:pointer-events-none disabled:opacity-50"
-            )}
-            disabled={disableBack && index < currentStep} // Disable clicking on previous steps if disableBack is true
-          >
-            <div className={cn(
-              "flex size-8 items-center justify-center rounded-full border-2",
-              currentStep === index
-                ? "border-orange bg-orange text-orange-foreground"
-                : "border-input bg-background text-muted-foreground group-hover:border-orange group-hover:text-orange"
-            )}>
-              {index + 1}
-            </div>
-            {labels?.[index] && (
-              <span className={cn(
-                "text-sm font-medium text-center",
-                currentStep === index
-                  ? "text-orange"
-                  : "text-muted-foreground group-hover:text-foreground"
-              )}>
-                {labels[index]}
-              </span>
-            )}
-          </button>
+    <div className={cn("relative w-full", className)} {...props}>
+      {/* Background Line (Gray) */}
+      <div className="absolute top-5 left-10 right-10 h-0.5 bg-gray-300" />
 
-          {index < totalSteps - 1 && (
-            <div className={cn("h-0.5 flex-1 rounded-full", currentStep > index ? "bg-orange" : "bg-muted")} />
-          )}
-        </React.Fragment>
-      ))}
+      {/* Progress Line (Red) - Smoothly grows from left */}
+      <div
+        className="absolute top-5 left-10 h-0.5 bg-[#e53339] transition-all duration-500 ease-in-out origin-left"
+        style={{
+          right: `${100 - progress}%`,
+        }}
+      />
+
+      {/* Steps */}
+      <div className="relative flex items-center justify-between">
+        {safeLabels.map((label, index) => {
+          const isCompleted = index < currentStep;
+          const isCurrent = index === currentStep;
+
+          return (
+            <div
+              key={index}
+              // onClick={() => goToStep(index)}
+              className="z-10 flex flex-col items-center gap-3 focus:outline-none"
+            >
+              {/* Circle */}
+              <div
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300",
+                  isCompleted
+                    ? "bg-[#e53339] border-[#e53339]"
+                    : isCurrent
+                      ? "bg-white border-[#e53339]"
+                      : "bg-white border-gray-300"
+                )}
+              >
+                {isCompleted ? (
+                  <Check className="w-5 h-5 text-white" strokeWidth={3} />
+                ) : isCurrent ? (
+                  <div className="w-5 h-5 rounded-full bg-[#e53339]" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-gray-300" />
+                )}
+              </div>
+
+              {/* Label */}
+              <span
+                className={cn(
+                  "text-xs font-medium whitespace-nowrap transition-colors duration-300",
+                  isCurrent ? "text-[#e53339]" : isCompleted ? "text-black" : "text-gray-400"
+                )}
+              >
+                {label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
-  )
+  );
 }
 
 // Stepper Content
@@ -145,37 +181,81 @@ function StepperContent({ children, className, ...props }: StepperContentProps) 
   const { currentStep } = useStepper()
   return (
     <Card className={cn("p-6", className)} {...props}>
-      {children[currentStep]}
+      <div className="animate-in fade-in-50 duration-300">
+        {children[currentStep]}
+      </div>
     </Card>
   )
 }
 
 // Stepper Navigation
 interface StepperNavigationProps extends React.HTMLAttributes<HTMLDivElement> {
-  disableBack?: boolean // Added prop
+  disableBack?: boolean
+  nextLabel?: string
+  previousLabel?: string
+  showSaveButton?: boolean
+  saveLabel?: string
+  onSave?: () => void
+  onNext?: () => void
+  onPrevious?: () => void
 }
 
-function StepperNavigation({ className, disableBack: disableBackProp, ...props }: StepperNavigationProps) {
+function StepperNavigation({ 
+  className, 
+  disableBack: disableBackProp,
+  nextLabel = "Next",
+  previousLabel = "Previous",
+  showSaveButton = false,
+  saveLabel = "Save & Continue",
+  onSave,
+  onNext,
+  onPrevious,
+  ...props 
+}: StepperNavigationProps) {
   const { currentStep, totalSteps, goToNextStep, goToPreviousStep, disableBack: disableBackContext } = useStepper()
-  const disableBack = disableBackProp ?? disableBackContext ?? false // Use prop if provided, otherwise context
+  const disableBack = disableBackProp ?? disableBackContext ?? false
+  const isLastStep = currentStep === totalSteps - 1
+
+  const handleNext = () => {
+    onNext?.()
+    goToNextStep()
+  }
+
+  const handlePrevious = () => {
+    onPrevious?.()
+    goToPreviousStep()
+  }
 
   return (
-    <div className={cn("flex justify-end gap-2", className)} {...props}>
-      <Button
-        variant="outline"
-        onClick={goToPreviousStep}
-        disabled={disableBack || currentStep === 0}
-        className="bg-magenta text-white"
-      >
-        Previous
-      </Button>
-      <Button
-        onClick={goToNextStep}
-        className="bg-orange text-white"
-        disabled={currentStep === totalSteps - 1}
-      >
-        {currentStep === totalSteps - 1 ? "Finish" : "Next"}
-      </Button>
+    <div className={cn("flex flex-col gap-3", className)} {...props}>
+      {showSaveButton && (
+        <Button
+          type="button"
+          onClick={onSave}
+          className="w-full bg-orange hover:bg-orange/90 text-white"
+        >
+          {saveLabel}
+        </Button>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handlePrevious}
+          disabled={disableBack || currentStep === 0}
+          className="bg-magenta hover:bg-magenta/90 text-white"
+        >
+          {previousLabel}
+        </Button>
+        <Button
+          type="button"
+          onClick={handleNext}
+          className="bg-orange hover:bg-orange/90 text-white"
+          disabled={isLastStep}
+        >
+          {isLastStep ? "Finish" : nextLabel}
+        </Button>
+      </div>
     </div>
   )
 }

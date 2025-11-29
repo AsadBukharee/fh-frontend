@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useStepper } from "./DriverStepper";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
+import { ChevronLeft, ChevronRight, Link2, Mail, MapPin, Phone, User } from "lucide-react";
 
 interface NextOfKinData {
   kin_name: string;
@@ -152,82 +153,127 @@ export function NextOfKinStep({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Step 2: Next of Kin Details</CardTitle>
-        <CardDescription>Provide details for your next of kin.</CardDescription>
+    <Card className="border-none shadow-none">
+      <CardHeader className="px-0">
+        <CardTitle className="text-xl">
+          <span className="text-orange-500">Step 2</span> : Next of Kin
+        </CardTitle>
+        <CardDescription className="text-sm text-gray-600">
+          Provide details for your next of kin.
+        </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-6 min-h-[200px]">
+        <CardContent className="space-y-4 min-h-[200px] px-0">
           {driverId === null ? (
             <div className="text-center text-red-500 font-medium py-8" aria-live="polite">
               Please complete the &quot;Personal Info&quot; step first to enable this section.
             </div>
           ) : (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Next of Kin Details</h3>
-              <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="kin_name">Name</Label>
-                  <Input
-                    id="kin_name"
-                    name="kin_name"
-                    placeholder="Jane Doe"
-                    value={formData.kin_name}
-                    onChange={handleInputChange}
-                    required
-                  />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="kin_name" className="text-sm font-medium text-gray-700">
+                    Name
+                  </Label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 z-1 -translate-y-1/2 text-gray-400">
+                      <User size={20} />
+                    </div>
+                    <Input
+                      id="kin_name"
+                      name="kin_name"
+                      placeholder="Enter name"
+                      value={formData.kin_name}
+                      onChange={handleInputChange}
+                      className="pl-10 "
+                      required
+                    />
+                  </div>
                   {errors.kin_name && <p className="text-sm text-red-500">{errors.kin_name}</p>}
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="kin_contact">Contact Number</Label>
-                  <Input
-                    id="kin_contact"
-                    name="kin_contact"
-                    type="tel"
-                    placeholder="+447700112233"
-                    value={formData.kin_contact}
-                    onChange={handleInputChange}
-                    required
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="kin_contact" className="text-sm font-medium text-gray-700">
+                    Phone Number
+                  </Label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 z-1 -translate-y-1/2 text-gray-400">
+                      <Phone size={20} />
+                    </div>
+                    <Input
+                      id="kin_contact"
+                      name="kin_contact"
+                      type="tel"
+                      placeholder="Phone Number"
+                      value={formData.kin_contact}
+                      onChange={handleInputChange}
+                      className="pl-10 "
+                      required
+                    />
+                  </div>
                   {errors.kin_contact && <p className="text-sm text-red-500">{errors.kin_contact}</p>}
                 </div>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="kin_relationship">Relationship</Label>
-                <Input
-                  id="kin_relationship"
-                  name="kin_relationship"
-                  placeholder="Wife"
-                  value={formData.kin_relationship}
-                  onChange={handleInputChange}
-                  required
-                />
-                {errors.kin_relationship && <p className="text-sm text-red-500">{errors.kin_relationship}</p>}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="kin_relationship" className="text-sm font-medium text-gray-700">
+                    Relation
+                  </Label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 z-1 -translate-y-1/2 text-gray-400">
+                      <Link2 size={20} />
+                    </div>
+                    <Input
+                      id="kin_relationship"
+                      name="kin_relationship"
+                      placeholder="Enter your relation"
+                      value={formData.kin_relationship}
+                      onChange={handleInputChange}
+                      className="pl-10 "
+                      required
+                    />
+                  </div>
+                  {errors.kin_relationship && <p className="text-sm text-red-500">{errors.kin_relationship}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="kin_email" className="text-sm font-medium text-gray-700">
+                    Email
+                  </Label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 z-1 -translate-y-1/2 text-gray-400">
+                      <Mail size={20} />
+                    </div>
+                    <Input
+                      id="kin_email"
+                      name="kin_email"
+                      type="email"
+                      placeholder="Email Address "
+                      value={formData.kin_email}
+                      onChange={handleInputChange}
+                      className="pl-10 "
+                      required
+                    />
+                  </div>
+                  {errors.kin_email && <p className="text-sm text-red-500">{errors.kin_email}</p>}
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="kin_email">Email</Label>
-                <Input
-                  id="kin_email"
-                  name="kin_email"
-                  type="email"
-                  placeholder="jane.doe@example.com"
-                  value={formData.kin_email}
-                  onChange={handleInputChange}
-                  required
-                />
-                {errors.kin_email && <p className="text-sm text-red-500">{errors.kin_email}</p>}
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="kin_address">Address</Label>
-                <Input
-                  id="kin_address"
-                  name="kin_address"
-                  placeholder="25 Church Street, Bolton"
-                  value={formData.kin_address}
-                  onChange={handleInputChange}
-                  required
-                />
+              <div className="space-y-2">
+                <Label htmlFor="kin_address" className="text-sm font-medium text-gray-700">
+                  Address
+                </Label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 z-1 -translate-y-1/2 text-gray-400">
+                  <MapPin size={20} />
+                  </div>
+                  <Input
+                    id="kin_address"
+                    name="kin_address"
+                    placeholder="Address"
+                    value={formData.kin_address}
+                    onChange={handleInputChange}
+                    className="pl-10 "
+                    required
+                  />
+                </div>
                 {errors.kin_address && <p className="text-sm text-red-500">{errors.kin_address}</p>}
               </div>
             </div>
@@ -238,25 +284,40 @@ export function NextOfKinStep({
             </p>
           )}
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button
-            type="button"
-            variant="outline"
-            className="border border-magenta text-magenta"
-            onClick={goToPreviousStep}
-            disabled={disableBack || loading}
-          >
-            Previous
-          </Button>
-          <Button
+         <CardFooter className="flex justify-between">
+         
+          
+           <div className="grid grid-cols-3 gap-3 w-full">
+                     <Button
+                       type="button"
+                       variant="outline"
+                       className="bg-yellow-50 border-none text-yellow-600 hover:bg-yellow-100 h-12 rounded-lg"
+                       onClick={goToPreviousStep}
+                       disabled={disableBack || loading}
+                     >
+                      <ChevronLeft />
+                       Previous
+                     </Button>
+                   <Button
             type="submit"
-            className="bg-magenta text-white"
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12 rounded-lg"
             disabled={loading || driverId === null}
           >
-            {loading ? "Saving..." : "Save & Continue"}
+            {loading ? "Saving..." : "Save"}
           </Button>
+                     <Button
+                       type="button"
+                       variant="outline"
+                       className="bg-yellow-50 border-none text-yellow-600 hover:bg-yellow-100 h-12 rounded-lg"
+                       onClick={handleSubmit}
+                       disabled={loading}
+                     >
+                       Next & Save
+                      <ChevronRight />
+                     </Button>
+                   </div>
         </CardFooter>
       </form>
     </Card>
   );
-}
+  }

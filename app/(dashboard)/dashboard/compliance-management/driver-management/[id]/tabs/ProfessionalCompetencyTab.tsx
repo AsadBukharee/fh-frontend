@@ -1,47 +1,75 @@
-"use client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ExternalLink, Edit, Save, X, File, FileText, Calendar, CheckCircle, AlertCircle, Clock, BookOpen, Upload, Image as ImageIcon, FileCheck } from "lucide-react";
-import FileUploader from "@/components/Media/MediaUpload";
-import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
+"use client"
+import { useState, useCallback } from "react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Edit,
+  Save,
+  File,
+  FileText,
+  Calendar,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  BookOpen,
+  Upload,
+  Plus,
+  X,
+  ExternalLink,
+  Trash2,
+  Image as ImageIcon,
+  FileCheck,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Separator } from "@/components/ui/separator"
+import FileUploader from "@/components/Media/MediaUpload"
+
+const DEFAULT_DOCUMENTS = [
+  { id: 1, document_name: "Driving License", document_type: "driving-license", has_expiry: true },
+  { id: 2, document_name: "CPC Card", document_type: "cpc-card", has_expiry: true },
+  { id: 3, document_name: "Tacho Card", document_type: "tacho-card", has_expiry: true },
+  { id: 4, document_name: "Passport", document_type: "passport", has_expiry: false },
+  { id: 5, document_name: "Proof of Address", document_type: "proof-of-address", has_expiry: false },
+]
 
 interface ProfessionalCompetencyTabProps {
-  competencyData: any[];
-  formatDate: (date: string | null) => string;
-  isPdfUrl: (url: string) => boolean;
-  showToast: (message: string, type: string) => void;
-  cookies: any;
-  API_URL: string;
-  fetchCompetencyData: () => void;
+  competencyData: any[]
+  formatDate: (date: string | null) => string
+  isPdfUrl: (url: string) => boolean
+  showToast: (message: string, type: string) => void
+  cookies: any
+  API_URL: string
+  driverId: number
+  fetchCompetencyData: () => void
 }
 
 export default function ProfessionalCompetencyTab({
   competencyData,
   formatDate,
   isPdfUrl,
+  driverId,
   showToast,
   cookies,
   API_URL,
   fetchCompetencyData,
 }: ProfessionalCompetencyTabProps) {
-  const [selectedCompetency, setSelectedCompetency] = useState<any | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [editData, setEditData] = useState<any>(null);
-  const [uploadRequired, setUploadRequired] = useState(false);
-  const [originalExpiryDate, setOriginalExpiryDate] = useState<string | null>(null);
-  const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null);
-  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
-  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
+  const [selectedCompetency, setSelectedCompetency] = useState<any | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editData, setEditData] = useState<any>(null)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null)
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false)
+  const [uploadRequired, setUploadRequired] = useState(false)
+  const [originalExpiryDate, setOriginalExpiryDate] = useState<string | null>(null)
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false)
   const [reminderData, setReminderData] = useState({
     title: "",
     description: "",
@@ -49,34 +77,53 @@ export default function ProfessionalCompetencyTab({
     start_date: "",
     recurrence: "once",
     recurrence_interval: 1,
-  });
+  })
+
+  const getCompletedDocumentsList = () => {
+    const uploadedMap = new Map(competencyData.map((d) => [d.document_type, d]))
+    return DEFAULT_DOCUMENTS.map(
+      (doc) =>
+        uploadedMap.get(doc.document_type) || {
+          ...doc,
+          has_document: false,
+          urls: [],
+          modules: [],
+          next_five_modules: [],
+          request_status: "pending",
+          description: "",
+          expiry_date: null,
+          has_back_side: false,
+          has_description: false,
+          driver: null,
+        },
+    )
+  }
 
   const handleCardClick = (competency: any) => {
-    setSelectedCompetency(competency);
+    setSelectedCompetency(competency)
     
-    // Ensure next_five_modules always has exactly 5 items
-    const nextFiveModules = competency.next_five_modules || [];
-    const normalizedModules = [
-      ...nextFiveModules,
-      ...Array(5 - nextFiveModules.length).fill("")
-    ].slice(0, 5);
-    
+    // Ensure modules are properly set from API data
+    const modules = competency.modules || []
+    const nextFiveModules = competency.next_five_modules || []
+    const normalizedModules = [...nextFiveModules, ...Array(5 - nextFiveModules.length).fill("")].slice(0, 5)
+
     setEditData({
       ...competency,
-      modules: competency.modules || [],
+      modules: modules, // Use the modules from API directly
       next_five_modules: normalizedModules,
-    });
-    setOriginalExpiryDate(competency.expiry_date);
-    setUploadRequired(false);
-    setIsModalOpen(true);
-    setIsEditing(false);
-  };
+    })
+    setOriginalExpiryDate(competency.expiry_date)
+    setUploadRequired(false)
+    setFormErrors({})
+    setIsModalOpen(true)
+    setIsEditing(false)
+  }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = useCallback((field: string, value: any) => {
     setEditData((prev: any) => {
       // If expiry date is being changed, check if documents need to be uploaded
       if (field === "expiry_date" && value !== originalExpiryDate && prev.has_document) {
-        setUploadRequired(true);
+        setUploadRequired(true)
       }
       
       // If expiry date is being added for the first time
@@ -85,68 +132,81 @@ export default function ProfessionalCompetencyTab({
           ...prev,
           [field]: value,
           has_expiry: true,
-        };
+        }
       }
       
       return {
         ...prev,
         [field]: value,
-      };
-    });
-  };
+      }
+    })
+    setFormErrors((prev) => ({ ...prev, [field]: "" }))
+  }, [originalExpiryDate])
+
+  const handleFileUpload = useCallback(
+    (url: string, isBackSide: boolean) => {
+      setEditData((prev: any) => {
+        const updatedUrls = [...(prev.urls || ["", ""])]
+        if (isBackSide) {
+          updatedUrls[1] = url
+        } else {
+          updatedUrls[0] = url
+        }
+        
+        // Reset upload required flag when documents are uploaded
+        const hasAllRequiredDocs = prev.has_back_side 
+          ? updatedUrls[0] && updatedUrls[1]
+          : updatedUrls[0]
+        
+        if (hasAllRequiredDocs && uploadRequired) {
+          setUploadRequired(false)
+        }
+        
+        return {
+          ...prev,
+          urls: updatedUrls,
+          has_document: true,
+        }
+      })
+      showToast("Document uploaded successfully", "success")
+    },
+    [showToast, uploadRequired],
+  )
 
   const handleModuleChange = (index: number, field: string, value: string) => {
     setEditData((prev: any) => ({
       ...prev,
-      modules: prev.modules.map((module: any, i: number) =>
-        i === index ? { ...module, [field]: value } : module
-      ),
-    }));
-  };
+      modules: prev.modules.map((m: any, i: number) => (i === index ? { ...m, [field]: value } : m)),
+    }))
+  }
+
+  const addModule = () => {
+    setEditData((prev: any) => ({
+      ...prev,
+      modules: [...prev.modules, { module_name: "", description: "", expiry_date: "" }],
+    }))
+  }
+
+  const deleteModule = (index: number) => {
+    setEditData((prev: any) => ({
+      ...prev,
+      modules: prev.modules.filter((_: any, i: number) => i !== index),
+    }))
+  }
 
   const handleNextFiveModulesChange = (index: number, value: string) => {
     setEditData((prev: any) => ({
       ...prev,
-      next_five_modules: prev.next_five_modules.map((module: string, i: number) =>
-        i === index ? value : module
-      ),
-    }));
-  };
-
-  const handleFileUpload = (url: string, isBackSide: boolean) => {
-    setEditData((prev: any) => {
-      const updatedUrls = [...(prev.urls || [])];
-      if (isBackSide) {
-        updatedUrls[1] = url;
-      } else {
-        updatedUrls[0] = url;
-      }
-      
-      // Reset upload required flag when documents are uploaded
-      const hasAllRequiredDocs = prev.has_back_side 
-        ? updatedUrls[0] && updatedUrls[1]
-        : updatedUrls[0];
-      
-      if (hasAllRequiredDocs && uploadRequired) {
-        setUploadRequired(false);
-      }
-      
-      return {
-        ...prev,
-        urls: updatedUrls,
-        has_document: true,
-      };
-    });
-    showToast("Document uploaded successfully", "success");
-  };
+      next_five_modules: prev.next_five_modules.map((m: string, i: number) => (i === index ? value : m)),
+    }))
+  }
 
   const saveChanges = async () => {
-    if (!editData) return;
-
-    setSaving(true);
+    if (!editData) return
+    setSaving(true)
     try {
       const payload = {
-        driver: editData.driver,
+        driver: driverId,
         document_name: editData.document_name,
         has_expiry: editData.has_expiry || !!editData.expiry_date,
         description: editData.description || "",
@@ -154,65 +214,80 @@ export default function ProfessionalCompetencyTab({
         has_document: editData.has_document,
         has_back_side: editData.has_back_side,
         urls: editData.urls || [],
-        request_status: editData.request_status,
+        request_status: editData.request_status || "pending",
         has_description: editData.has_description || !!editData.description,
         next_five_modules: editData.next_five_modules.filter((m: string) => m.trim() !== ""),
-        modules: editData.modules.map((module: any) => ({
-          module_name: module.module_name,
-          description: module.description,
-          expiry_date: module.expiry_date,
+        modules: editData.modules.map((m: any) => ({
+          module_name: m.module_name,
+          description: m.description,
+          expiry_date: m.expiry_date,
         })),
-      };
+      }
 
-      const response = await fetch(`${API_URL}/api/profiles/professional-competency/${editData.id}/`, {
-        method: "PUT",
+      const endpoint = editData.id
+        ? `${API_URL}/api/profiles/professional-competency/${editData.id}/`
+        : `${API_URL}/api/profiles/professional-competency/`
+
+      const method = editData.id ? "PUT" : "POST"
+
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
         body: JSON.stringify(payload),
-      });
+      })
 
-      if (!response.ok) {
-        throw new Error("Failed to update professional competency");
-      }
+      if (!response.ok) throw new Error("Failed to save professional competency")
 
-      const result = await response.json();
+      const result = await response.json()
       if (result.success) {
-        showToast("Professional competency updated successfully", "success");
-        setIsModalOpen(false);
-        setIsEditing(false);
-        setUploadRequired(false);
-        fetchCompetencyData();
+        showToast("Professional competency saved successfully", "success")
+        setIsModalOpen(false)
+        setIsEditing(false)
+        setUploadRequired(false)
+        fetchCompetencyData()
       } else {
-        throw new Error(result.message || "Failed to update");
+        throw new Error(result.message || "Failed to save")
       }
     } catch (error) {
-      console.error("Error updating competency:", error);
-      showToast(error instanceof Error ? error.message : "Failed to update", "error");
+      console.error("Error saving competency:", error)
+      showToast(error instanceof Error ? error.message : "Failed to save", "error")
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   const handleSave = async () => {
-    if (!editData) return;
+    if (!editData) return
 
     // Validate if documents are required when expiry date changed
     if (uploadRequired && editData.has_document) {
       const hasAllRequiredDocs = editData.has_back_side 
         ? editData.urls[0] && editData.urls[1]
-        : editData.urls[0];
+        : editData.urls[0]
       
       if (!hasAllRequiredDocs) {
-        // Open reminder dialog instead of showing error
-        openReminderDialog();
-        return;
+        openReminderDialog()
+        return
       }
     }
 
-    await saveChanges();
-  };
+    await saveChanges()
+  }
+
+  const openReminderDialog = () => {
+    setReminderData({
+      title: `Upload documents for ${editData?.document_name}`,
+      description: `Upload updated documents for ${editData?.document_name} with new expiry date: ${editData?.expiry_date}`,
+      priority: "high",
+      start_date: new Date().toISOString().split('T')[0],
+      recurrence: "once",
+      recurrence_interval: 1,
+    })
+    setIsReminderDialogOpen(true)
+  }
 
   const handleRemindMeLater = async () => {
     try {
@@ -223,16 +298,16 @@ export default function ProfessionalCompetencyTab({
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
         body: JSON.stringify(reminderData),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error("Failed to create reminder");
+        throw new Error("Failed to create reminder")
       }
 
-      const result = await response.json();
+      const result = await response.json()
       if (result.success || response.status === 201) {
-        showToast("Reminder created successfully", "success");
-        setIsReminderDialogOpen(false);
+        showToast("Reminder created successfully", "success")
+        setIsReminderDialogOpen(false)
         
         // Reset reminder data
         setReminderData({
@@ -242,62 +317,51 @@ export default function ProfessionalCompetencyTab({
           start_date: "",
           recurrence: "once",
           recurrence_interval: 1,
-        });
+        })
         
         // Save changes without documents
-        await saveChanges();
+        await saveChanges()
       } else {
-        throw new Error(result.message || "Failed to create reminder");
+        throw new Error(result.message || "Failed to create reminder")
       }
     } catch (error) {
-      console.error("Error creating reminder:", error);
-      showToast(error instanceof Error ? error.message : "Failed to create reminder", "error");
+      console.error("Error creating reminder:", error)
+      showToast(error instanceof Error ? error.message : "Failed to create reminder", "error")
     }
-  };
-
-  const openReminderDialog = () => {
-    // Pre-fill reminder data with document info
-    setReminderData({
-      title: `Upload documents for ${editData?.document_name}`,
-      description: `Upload updated documents for ${editData?.document_name} with new expiry date: ${editData?.expiry_date}`,
-      priority: "high",
-      start_date: new Date().toISOString().split('T')[0],
-      recurrence: "once",
-      recurrence_interval: 1,
-    });
-    setIsReminderDialogOpen(true);
-  };
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
-        return "bg-green-50 text-green-700 border-green-200";
+        return "bg-green-50 text-green-700 border-green-200"
       case "pending":
-        return "bg-orange-50 text-orange-700 border-orange-200";
+        return "bg-orange-50 text-orange-700 border-orange-200"
       case "not_approved":
-        return "bg-red-50 text-red-700 border-red-200";
+        return "bg-red-50 text-red-700 border-red-200"
       default:
-        return "bg-gray-50 text-gray-700 border-gray-200";
+        return "bg-gray-50 text-gray-700 border-gray-200"
     }
-  };
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "approved":
-        return <CheckCircle className="h-4 w-4" />;
+        return <CheckCircle className="h-4 w-4" />
       case "pending":
-        return <Clock className="h-4 w-4" />;
+        return <Clock className="h-4 w-4" />
       case "not_approved":
-        return <AlertCircle className="h-4 w-4" />;
+        return <AlertCircle className="h-4 w-4" />
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   const openPdfModal = (url: string) => {
-    setSelectedPdfUrl(url);
-    setIsPdfModalOpen(true);
-  };
+    setSelectedPdfUrl(url)
+    setIsPdfModalOpen(true)
+  }
+
+  const allDocuments = getCompletedDocumentsList()
 
   return (
     <div className="space-y-6">
@@ -318,92 +382,125 @@ export default function ProfessionalCompetencyTab({
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          {competencyData.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-orange-100 rounded-full mb-4">
-                <FileText className="h-10 w-10 text-orange-600" />
-              </div>
-              <p className="text-gray-600 text-lg">No professional competency records found</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {competencyData.map((competency: any) => (
-                <Card
-                  key={competency.id}
-                  className="group cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 border-orange-100 hover:border-orange-400 bg-white hover:scale-105 relative overflow-hidden"
-                  onClick={() => handleCardClick(competency)}
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/10 to-indigo-500/10 rounded-bl-full transform translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform"></div>
-                  
-                  <CardContent className="p-6 space-y-4 relative z-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="p-2 bg-gradient-to-br from-orange-100 to-indigo-100 rounded-lg group-hover:from-orange-200 group-hover:to-indigo-200 transition-colors">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {allDocuments.map((competency: any) => (
+              <Card
+                key={competency.id}
+                className={cn(
+                  "group cursor-pointer transition-all duration-300 border-2 relative overflow-hidden",
+                  competency.has_document
+                    ? "hover:shadow-2xl border-orange-100 hover:border-orange-400 bg-white hover:scale-105"
+                    : "border-dashed border-gray-300 bg-gray-50/50 hover:border-orange-400 hover:bg-orange-50/50",
+                )}
+                onClick={() => handleCardClick(competency)}
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/10 to-indigo-500/10 rounded-bl-full transform translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform"></div>
+
+                <CardContent className="p-6 space-y-4 relative z-0">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div
+                          className={cn(
+                            "p-2 rounded-lg transition-colors group-hover:from-orange-200 group-hover:to-indigo-200",
+                            competency.has_document 
+                              ? "bg-gradient-to-br from-orange-100 to-indigo-100" 
+                              : "bg-gray-200 group-hover:bg-orange-200",
+                          )}
+                        >
+                          {competency.has_document ? (
                             <FileText className="h-6 w-6 text-orange-700" />
-                          </div>
+                          ) : (
+                            <Upload className="h-6 w-6 text-gray-500 group-hover:text-orange-700" />
+                          )}
                         </div>
-                        <h3 className="font-bold text-xl text-gray-900 mb-1 line-clamp-2 group-hover:text-orange-700 transition-colors">
-                          {competency.document_name}
-                        </h3>
-                        <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">
-                          {competency.document_type}
+                      </div>
+                      <h3
+                        className={cn(
+                          "font-bold text-xl mb-1 line-clamp-2 transition-colors",
+                          competency.has_document
+                            ? "text-gray-900 group-hover:text-orange-700"
+                            : "text-gray-500 group-hover:text-orange-700",
+                        )}
+                      >
+                        {competency.document_name}
+                      </h3>
+                      <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">
+                        {competency.document_type}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Separator className={competency.has_document ? "bg-orange-100" : "bg-gray-200"} />
+
+                  <div className="space-y-3">
+                    {competency.has_document ? (
+                      <>
+                        <Badge
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-semibold border inline-flex items-center gap-1.5",
+                            getStatusColor(competency.request_status),
+                          )}
+                        >
+                          {getStatusIcon(competency.request_status)}
+                          {competency.request_status.replace("_", " ").toUpperCase()}
+                        </Badge>
+
+                        {competency.has_expiry && competency.expiry_date && (
+                          <div className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 rounded-lg p-3">
+                            <Calendar className="h-4 w-4 text-orange-600" />
+                            <span className="font-medium">Expires:</span>
+                            <span className="font-semibold text-orange-700">{formatDate(competency.expiry_date)}</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-4 text-sm">
+                          {competency.modules && competency.modules.length > 0 && (
+                            <div className="flex items-center gap-2 text-gray-700 bg-indigo-50 rounded-lg px-3 py-2">
+                              <BookOpen className="h-4 w-4 text-indigo-600" />
+                              <span className="font-semibold">{competency.modules.length}</span>
+                              <span>Module{competency.modules.length !== 1 ? "s" : ""}</span>
+                            </div>
+                          )}
+                          {competency.has_document && (
+                            <div className="flex items-center gap-2 text-gray-700 bg-green-50 rounded-lg px-3 py-2">
+                              <FileCheck className="h-4 w-4 text-green-600" />
+                              <span className="font-semibold">{competency.urls?.length || 0}</span>
+                              <span>Doc{competency.urls?.length !== 1 ? "s" : ""}</span>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="py-4 text-center">
+                        <Plus className="h-8 w-8 text-gray-400 mx-auto mb-2 group-hover:text-orange-500 transition-colors" />
+                        <p className="text-sm font-medium text-gray-600 group-hover:text-orange-700 transition-colors">
+                          Click to upload
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {competency.has_expiry ? "Document with expiry" : "Non-expiring document"}
                         </p>
                       </div>
-                    </div>
-                    
-                    <Separator className="bg-orange-100" />
-                    
-                    <div className="space-y-3">
-                      <Badge className={cn("px-3 py-1.5 text-xs font-semibold border inline-flex items-center gap-1.5", getStatusColor(competency.request_status))}>
-                        {getStatusIcon(competency.request_status)}
-                        {competency.request_status.replace("_", " ").toUpperCase()}
-                      </Badge>
-                      
-                      {competency.has_expiry && (
-                        <div className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 rounded-lg p-3">
-                          <Calendar className="h-4 w-4 text-orange-600" />
-                          <span className="font-medium">Expires:</span>
-                          <span className="font-semibold text-orange-700">{formatDate(competency.expiry_date)}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-4 text-sm">
-                        {competency.modules.length > 0 && (
-                          <div className="flex items-center gap-2 text-gray-700 bg-indigo-50 rounded-lg px-3 py-2">
-                            <BookOpen className="h-4 w-4 text-indigo-600" />
-                            <span className="font-semibold">{competency.modules.length}</span>
-                            <span>Module{competency.modules.length !== 1 ? "s" : ""}</span>
-                          </div>
-                        )}
-                        {competency.has_document && (
-                          <div className="flex items-center gap-2 text-gray-700 bg-green-50 rounded-lg px-3 py-2">
-                            <FileCheck className="h-4 w-4 text-green-600" />
-                            <span className="font-semibold">{competency.urls.length}</span>
-                            <span>Doc{competency.urls.length !== 1 ? "s" : ""}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    )}
+                  </div>
 
-                    <div className="pt-2">
-                      <Button
-                        variant="ghost"
-                        className="w-full text-orange-600 hover:text-orange-700 hover:bg-orange-50 font-semibold"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCardClick(competency);
-                        }}
-                      >
-                        View Details
-                        <ExternalLink className="h-4 w-4 ml-2" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                  <div className="pt-2">
+                    <Button
+                      variant="ghost"
+                      className="w-full text-orange-600 hover:text-orange-700 hover:bg-orange-50 font-semibold"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCardClick(competency)
+                      }}
+                    >
+                      {competency.has_document ? "View Details" : "Add Document"}
+                      <ExternalLink className="h-4 w-4 ml-2" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -456,7 +553,7 @@ export default function ProfessionalCompetencyTab({
                     className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white shadow-lg"
                   >
                     <Edit className="h-5 w-5 mr-2" />
-                    Edit Document
+                    {editData?.has_document ? "Edit Document" : "Add Document"}
                   </Button>
                 )}
               </div>
@@ -496,11 +593,11 @@ export default function ProfessionalCompetencyTab({
                     </p>
                   </div>
                   
-                  <div className="space-y-2 flex gap-4 items-center ">
+                  <div className="space-y-2 flex gap-4 items-center">
                     <Label className="text-sm font-semibold text-gray-700">Status</Label>
                     {isEditing ? (
                       <Select
-                        value={editData.request_status}
+                        value={editData.request_status || "pending"}
                         onValueChange={(value) => handleInputChange("request_status", value)}
                       >
                         <SelectTrigger className="border-orange-300 focus:ring-2 focus:ring-orange-500">
@@ -550,7 +647,7 @@ export default function ProfessionalCompetencyTab({
                         />
                       ) : (
                         <p className="font-semibold text-lg text-orange-900 bg-orange-50 p-3 rounded-lg">
-                          {formatDate(editData.expiry_date)}
+                          {editData.expiry_date ? formatDate(editData.expiry_date) : "No expiry date set"}
                         </p>
                       )}
                     </div>
@@ -597,7 +694,7 @@ export default function ProfessionalCompetencyTab({
               </Card>
 
               {/* Documents Section */}
-              {editData.has_document && (
+              {(editData.has_document || isEditing) && (
                 <Card className="border-2 border-indigo-200 shadow-md hover:shadow-lg transition-shadow">
                   <CardHeader className="bg-gradient-to-r from-indigo-50 to-orange-50 border-b border-indigo-200">
                     <CardTitle className="text-xl text-indigo-900 flex items-center gap-2">
@@ -651,7 +748,7 @@ export default function ProfessionalCompetencyTab({
                               id={`file-upload-front-${editData.id}`}
                             />
                           </div>
-                          {editData.urls[0] && (
+                          {editData.urls?.[0] && (
                             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                               <p className="text-sm text-green-700 font-medium flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4" />
@@ -661,7 +758,7 @@ export default function ProfessionalCompetencyTab({
                           )}
                         </div>
                         
-                        {editData.has_back_side && (
+                        {(editData.has_back_side || isEditing) && (
                           <div className="space-y-3">
                             <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                               <Upload className="h-4 w-4" />
@@ -681,7 +778,7 @@ export default function ProfessionalCompetencyTab({
                                 id={`file-upload-back-${editData.id}`}
                               />
                             </div>
-                            {editData.urls[1] && (
+                            {editData.urls?.[1] && (
                               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                                 <p className="text-sm text-green-700 font-medium flex items-center gap-2">
                                   <CheckCircle className="h-4 w-4" />
@@ -692,32 +789,50 @@ export default function ProfessionalCompetencyTab({
                           </div>
                         )}
                       </div>
-                    ) : (
+                    ) : editData.urls?.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {editData.urls.map((url: string, index: number) => (
-                          <Button
-                            key={index}
-                            variant="outline"
-                            onClick={() => isPdfUrl(url) ? openPdfModal(url) : window.open(url, "_blank")}
-                            className="h-auto p-4 border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 justify-start group"
-                          >
-                            <div className="flex items-center gap-3 w-full">
-                              <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
-                                <ExternalLink className="h-5 w-5 text-indigo-600" />
+                          url && (
+                            <Button
+                              key={index}
+                              variant="outline"
+                              onClick={() => isPdfUrl(url) ? openPdfModal(url) : window.open(url, "_blank")}
+                              className="h-auto p-4 border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 justify-start group"
+                            >
+                              <div className="flex items-center gap-3 w-full">
+                                <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+                                  <ExternalLink className="h-5 w-5 text-indigo-600" />
+                                </div>
+                                <div className="text-left flex-1">
+                                  <p className="font-semibold text-gray-900">
+                                    {editData.has_back_side && index === 0 
+                                      ? "Front Side" 
+                                      : editData.has_back_side && index === 1 
+                                      ? "Back Side" 
+                                      : `Document ${index + 1}`}
+                                  </p>
+                                  <p className="text-xs text-gray-500 mt-1">Click to view</p>
+                                </div>
                               </div>
-                              <div className="text-left flex-1">
-                                <p className="font-semibold text-gray-900">
-                                  {editData.has_back_side && index === 0 
-                                    ? "Front Side" 
-                                    : editData.has_back_side && index === 1 
-                                    ? "Back Side" 
-                                    : `Document ${index + 1}`}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">Click to view</p>
-                              </div>
-                            </div>
-                          </Button>
+                            </Button>
+                          )
                         ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <Upload className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p>No documents uploaded yet</p>
+                      </div>
+                    )}
+
+                    {isEditing && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                        <input
+                          type="checkbox"
+                          checked={editData.has_back_side}
+                          onChange={(e) => handleInputChange("has_back_side", e.target.checked)}
+                        />
+                        <label>This document has a back side</label>
                       </div>
                     )}
                   </CardContent>
@@ -725,7 +840,7 @@ export default function ProfessionalCompetencyTab({
               )}
 
               {/* Modules Section - Enhanced */}
-              {editData.modules.length > 0 && (
+              {(editData.document_type === "cpc-card" || editData.modules.length > 0) && (
                 <Card className="border-2 border-orange-200 shadow-md hover:shadow-lg transition-shadow">
                   <CardHeader className="bg-gradient-to-r from-orange-600 to-indigo-600 text-white">
                     <CardTitle className="text-2xl flex items-center gap-3">
@@ -736,86 +851,117 @@ export default function ProfessionalCompetencyTab({
                       <Badge className="ml-auto bg-white/20 text-white border-white/30 text-lg px-4 py-1">
                         {editData.modules.length} {editData.modules.length === 1 ? "Module" : "Modules"}
                       </Badge>
+                      {isEditing && (
+                        <Button onClick={addModule} size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Module
+                        </Button>
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {editData.modules.map((module: any, index: number) => (
-                        <Card 
-                          key={index} 
-                          className="border-2 border-orange-200 hover:border-orange-400 transition-all hover:shadow-xl bg-gradient-to-br from-white to-orange-50/30 overflow-hidden group"
-                        >
-                          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-400/10 to-indigo-400/10 rounded-bl-full transform translate-x-8 -translate-y-8"></div>
-                          
-                          <CardHeader className="bg-white/80 backdrop-blur border-b border-orange-200 relative z-10">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-orange-600 to-indigo-600 text-white rounded-lg font-bold text-lg shadow-md">
-                                {index + 1}
-                              </div>
-                              <CardTitle className="text-lg text-orange-900 flex-1">
-                                Module {index + 1}
-                              </CardTitle>
-                            </div>
-                          </CardHeader>
-                          
-                          <CardContent className="p-5 space-y-4 relative z-10">
-                            <div className="space-y-2">
-                              <Label className="text-sm font-semibold text-gray-700">Module Name</Label>
-                              {isEditing ? (
-                                <Input
-                                  value={module.module_name}
-                                  onChange={(e) => handleModuleChange(index, "module_name", e.target.value)}
-                                  className="border-orange-300 focus:ring-2 focus:ring-orange-500 font-semibold"
-                                  placeholder="Enter module name..."
-                                />
-                              ) : (
-                                <p className="font-bold text-lg text-orange-900 bg-orange-50 p-3 rounded-lg">
-                                  {module.module_name}
-                                </p>
-                              )}
-                            </div>
+                    {editData.modules.length === 0 ? (
+                      <div className="text-center py-8">
+                        <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                        <p className="text-gray-500">No modules added yet</p>
+                        {isEditing && (
+                          <Button onClick={addModule} className="mt-4">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add First Module
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {editData.modules.map((module: any, index: number) => (
+                          <Card 
+                            key={index} 
+                            className="border-2 border-orange-200 hover:border-orange-400 transition-all hover:shadow-xl bg-gradient-to-br from-white to-orange-50/30 overflow-hidden group"
+                          >
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-400/10 to-indigo-400/10 rounded-bl-full transform translate-x-8 -translate-y-8"></div>
                             
-                            <div className="space-y-2">
-                              <Label className="text-sm font-semibold text-gray-700">Description</Label>
-                              {isEditing ? (
-                                <Textarea
-                                  value={module.description}
-                                  onChange={(e) => handleModuleChange(index, "description", e.target.value)}
-                                  className="border-orange-300 focus:ring-2 focus:ring-orange-500 min-h-[80px]"
-                                  placeholder="Enter module description..."
-                                />
-                              ) : (
-                                <p className="text-gray-700 bg-gray-50 p-3 rounded-lg leading-relaxed min-h-[80px]">
-                                  {module.description}
-                                </p>
-                              )}
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-orange-600" />
-                                Expiry Date
-                              </Label>
-                              {isEditing ? (
-                                <Input
-                                  type="date"
-                                  value={module.expiry_date}
-                                  onChange={(e) => handleModuleChange(index, "expiry_date", e.target.value)}
-                                  className="border-orange-300 focus:ring-2 focus:ring-orange-500"
-                                />
-                              ) : (
-                                <div className="flex items-center gap-2 bg-orange-50 p-3 rounded-lg">
-                                  <Calendar className="h-4 w-4 text-orange-600" />
-                                  <p className="font-semibold text-orange-900">
-                                    {formatDate(module.expiry_date)}
-                                  </p>
+                            <CardHeader className="bg-white/80 backdrop-blur border-b border-orange-200 relative z-10">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-orange-600 to-indigo-600 text-white rounded-lg font-bold text-lg shadow-md">
+                                    {index + 1}
+                                  </div>
+                                  <CardTitle className="text-lg text-orange-900">
+                                    Module {index + 1}
+                                  </CardTitle>
                                 </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
+                                {isEditing && (
+                                  <Button 
+                                    onClick={() => deleteModule(index)} 
+                                    size="sm" 
+                                    variant="ghost"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </CardHeader>
+                            
+                            <CardContent className="p-5 space-y-4 relative z-10">
+                              <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-gray-700">Module Name</Label>
+                                {isEditing ? (
+                                  <Input
+                                    value={module.module_name}
+                                    onChange={(e) => handleModuleChange(index, "module_name", e.target.value)}
+                                    className="border-orange-300 focus:ring-2 focus:ring-orange-500 font-semibold"
+                                    placeholder="Enter module name..."
+                                  />
+                                ) : (
+                                  <p className="font-bold text-lg text-orange-900 bg-orange-50 p-3 rounded-lg">
+                                    {module.module_name}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-gray-700">Description</Label>
+                                {isEditing ? (
+                                  <Textarea
+                                    value={module.description}
+                                    onChange={(e) => handleModuleChange(index, "description", e.target.value)}
+                                    className="border-orange-300 focus:ring-2 focus:ring-orange-500 min-h-[80px]"
+                                    placeholder="Enter module description..."
+                                  />
+                                ) : (
+                                  <p className="text-gray-700 bg-gray-50 p-3 rounded-lg leading-relaxed min-h-[80px]">
+                                      {module.description}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-orange-600" />
+                                  Expiry Date
+                                </Label>
+                                {isEditing ? (
+                                  <Input
+                                    type="date"
+                                    value={module.expiry_date}
+                                    onChange={(e) => handleModuleChange(index, "expiry_date", e.target.value)}
+                                    className="border-orange-300 focus:ring-2 focus:ring-orange-500"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-2 bg-orange-50 p-3 rounded-lg">
+                                      <Calendar className="h-4 w-4 text-orange-600" />
+                                      <p className="font-semibold text-orange-900">
+                                        {formatDate(module.expiry_date)}
+                                      </p>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -917,7 +1063,7 @@ export default function ProfessionalCompetencyTab({
                               Upcoming CPC Training Schedule
                             </p>
                             <p className="text-xs text-indigo-700 mt-1">
-                              These modules represent the next five training sessions required for CPC certification maintenance. Click &qout;Edit Document&qout; to update.
+                              These modules represent the next five training sessions required for CPC certification maintenance. Click &quot;Edit Document&quot; to update.
                             </p>
                           </div>
                         </div>
@@ -933,7 +1079,7 @@ export default function ProfessionalCompetencyTab({
                               Save Your Changes
                             </p>
                             <p className="text-xs text-orange-700 mt-1">
-                              Don&apos;t forget to click &qout;Save Changes&qout; button at the top to save your module updates.
+                              Don&apos;t forget to click &quot;Save Changes&quot; button at the top to save your module updates.
                             </p>
                           </div>
                         </div>
@@ -1119,5 +1265,5 @@ export default function ProfessionalCompetencyTab({
         </DialogContent>
       </Dialog>
     </div>
-  );
+  )
 }

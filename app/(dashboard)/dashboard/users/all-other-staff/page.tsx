@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
+  Filter,
   Download,
   Loader2,
   Save,
@@ -82,6 +84,7 @@ interface Site {
   status?: string;
   image?: string | null;
 }
+
 interface User {
   id: number;
   email: string;
@@ -96,11 +99,13 @@ interface User {
   shifts_count: number;
   avatar?: string | null;
 }
+
 interface Contract {
   id: number;
   name: string;
   description: string;
 }
+
 interface Role {
   id: number;
   slug: string;
@@ -116,6 +121,7 @@ interface Role {
     }>;
   };
 }
+
 interface UserForm {
   email: string;
   full_name: string;
@@ -126,6 +132,7 @@ interface UserForm {
   siteId?: string;
   is_active: boolean;
 }
+
 interface Filters {
   role: string;
   contract: string;
@@ -286,7 +293,7 @@ const AddUserModal = React.memo(
     <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto z-50 bg-white">
         <DialogHeader className="space-y-3">
-          <DialogTitle >
+          <DialogTitle className="flex items-center gap-2 text-xl">
             <UserPlus className="w-5 h-5" />
             Add User
           </DialogTitle>
@@ -294,10 +301,303 @@ const AddUserModal = React.memo(
             Create a new user account with the specified role and permissions.
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleAddUserSubmit} className="space-y-6">
-          {/* ... (unchanged form content) ... */}
-          {/* [Full form content from your original code] */}
-          {/* Omitted for brevity – copy from your original AddUserModal */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Personal Information
+            </div>
+            <Separator />
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="add-email" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Email Address *
+                </Label>
+                <Input
+                  id="add-email"
+                  name="email"
+                  type="email"
+                  placeholder="Enter email address"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className={formErrors.email ? "border-red-500" : ""}
+                  required
+                />
+                {formErrors.email && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {formErrors.email}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="add-full_name" className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Full Name *
+                </Label>
+                <Input
+                  id="add-full_name"
+                  name="full_name"
+                  placeholder="Enter full name"
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  className={formErrors.full_name ? "border-red-500" : ""}
+                  required
+                />
+                {formErrors.full_name && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {formErrors.full_name}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="add-password" className="flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
+                  Password *
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="add-password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className={formErrors.password ? "border-red-500" : ""}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {formErrors.password && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {formErrors.password}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="add-password_confirm" className="flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
+                  Confirm Password *
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="add-password_confirm"
+                    name="password_confirm"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm password"
+                    value={formData.password_confirm}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password_confirm: e.target.value })
+                    }
+                    className={formErrors.password_confirm ? "border-red-500" : ""}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                {formErrors.password_confirm && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {formErrors.password_confirm}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Role & Permissions
+            </div>
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="add-role" className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                User Role *
+              </Label>
+              <Select
+                name="role"
+                required
+                value={formData.role}
+                onValueChange={(value) => setFormData({ ...formData, role: value })}
+              >
+                <SelectTrigger className={formErrors.role ? "border-red-500" : ""}>
+                  <SelectValue placeholder={`Select role (default: ${selectedUserType})`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {rolesLoading ? (
+                    <SelectItem value="loading" disabled>
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading roles...
+                      </div>
+                    </SelectItem>
+                  ) : roles.length === 0 ? (
+                    <SelectItem value="none" disabled>
+                      No roles available
+                    </SelectItem>
+                  ) : (
+                    roles.map((role) => (
+                      <SelectItem key={role.id} value={role.slug}>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getTypeColor(role.slug)} variant="secondary">
+                            {role.name}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {formErrors.role && (
+                <p className="text-sm text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {formErrors.role}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Contract Assignment
+            </div>
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="add-contract" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Assigned Contract
+              </Label>
+              {contractsLoading ? (
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-gray-500">Loading contracts...</span>
+                </div>
+              ) : (
+                <Select
+                  name="contract"
+                  value={formData.contractId}
+                  onValueChange={(value) => setFormData({ ...formData, contractId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a contract (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Contract</SelectItem>
+                    {contracts.map((contract) => (
+                      <SelectItem key={contract.id} value={contract.id.toString()}>
+                        <div className="space-y-1">
+                          <div className="font-medium">{contract.name}</div>
+                          {contract.description && (
+                            <div className="text-sm text-gray-500">{contract.description}</div>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-sm text-gray-500">
+                Assign a contract to define user responsibilities and access levels
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Site Assignment
+            </div>
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="add-site" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Assigned Site
+              </Label>
+              {sitesLoading ? (
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-gray-500">Loading sites...</span>
+                </div>
+              ) : (
+                <Select
+                  name="site"
+                  value={formData.siteId}
+                  onValueChange={(value) => setFormData({ ...formData, siteId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a site (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Site</SelectItem>
+                    {sites.map((site) => (
+                      <SelectItem key={site.id} value={site.id.toString()}>
+                        <div className="space-y-1">
+                          <div className="font-medium">{site.name}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-sm text-gray-500">
+                Assign a site to define user location or operational area
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+              disabled={editLoading}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={editLoading || rolesLoading}
+              className="bg-gradient-to-r from-orange to-magenta hover:from-orange-700 hover:to-magenta-700"
+            >
+              {editLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Create User
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -349,15 +649,397 @@ const EditUserModal = React.memo(
             Update user information and permissions. Changes will be saved immediately.
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleEditUserSubmit} className="space-y-6">
-          {/* ... (unchanged edit form) ... */}
-          {/* [Full form content from your original EditUserModal] */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Personal Information
+            </div>
+            <Separator />
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-email" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Email Address
+                </Label>
+                <Input
+                  id="edit-email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Enter email address"
+                  className={formErrors.email ? "border-red-500" : ""}
+                />
+                {formErrors.email && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {formErrors.email}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-full_name">Full Name</Label>
+                <Input
+                  id="edit-full_name"
+                  name="full_name"
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  placeholder="Enter full name"
+                  className={formErrors.full_name ? "border-red-500" : ""}
+                />
+                {formErrors.full_name && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {formErrors.full_name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Role & Permissions
+            </div>
+            <Separator />
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-role">User Role</Label>
+                <Select
+                  name="role"
+                  value={formData.role}
+                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                >
+                  <SelectTrigger className={formErrors.role ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rolesLoading ? (
+                      <SelectItem value="loading" disabled>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Loading roles...
+                        </div>
+                      </SelectItem>
+                    ) : roles.length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        No roles available
+                      </SelectItem>
+                    ) : (
+                      roles.map((role) => (
+                        <SelectItem key={role.id} value={role.slug}>
+                          <div className="flex items-center gap-2">
+                            <Badge className={getTypeColor(role.slug)} variant="secondary">
+                              {role.name}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {formErrors.role && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {formErrors.role}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="space-y-1">
+                  <Label className="flex items-center gap-2">
+                    <ToggleLeft className="w-4 h-4" />
+                    Account Status
+                  </Label>
+                  <p className="text-sm text-gray-500">
+                    {formData.is_active ? "User can access the system" : "User access is disabled"}
+                  </p>
+                </div>
+                <Switch
+                  name="is_active"
+                  checked={formData.is_active}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Contract Assignment
+            </div>
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-contract">Assigned Contract</Label>
+              {contractsLoading ? (
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-gray-500">Loading contracts...</span>
+                </div>
+              ) : (
+                <Select
+                  name="contract"
+                  value={formData.contractId}
+                  onValueChange={(value) => setFormData({ ...formData, contractId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a contract (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Contract</SelectItem>
+                    {contracts.map((contract) => (
+                      <SelectItem key={contract.id} value={contract.id.toString()}>
+                        <div className="space-y-1">
+                          <div className="font-medium">{contract.name}</div>
+                          {contract.description && (
+                            <div className="text-sm text-gray-500">{contract.description}</div>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-sm text-gray-500">
+                Assign a contract to define user responsibilities and access levels
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Site Assignment
+            </div>
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-site">Assigned Site</Label>
+              {sitesLoading ? (
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-gray-500">Loading sites...</span>
+                </div>
+              ) : (
+                <Select
+                  name="site"
+                  value={formData.siteId}
+                  onValueChange={(value) => setFormData({ ...formData, siteId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a site (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Site</SelectItem>
+                    {sites.map((site) => (
+                      <SelectItem key={site.id} value={site.id.toString()}>
+                        <div className="space-y-1">
+                          <div className="font-medium">{site.name}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-sm text-gray-500">
+                Assign a site to define user location or operational area
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEditModalOpen(false)}
+              disabled={editLoading}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={editLoading || rolesLoading}
+              className="bg-gradient-to-r from-orange-500 to-magenta hover:from-orange-700 hover:to-purple-700"
+            >
+              {editLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   ),
 );
 EditUserModal.displayName = "EditUserModal";
+
+// FilterModal Component
+const FilterModal = React.memo(
+  ({
+    isFilterModalOpen,
+    setIsFilterModalOpen,
+    filters,
+    setFilters,
+    roles,
+    contracts,
+    sites,
+    applyFilters,
+  }: {
+    isFilterModalOpen: boolean;
+    setIsFilterModalOpen: (open: boolean) => void;
+    filters: Filters;
+    setFilters: (filters: Filters) => void;
+    roles: Role[];
+    contracts: Contract[];
+    sites: Site[];
+    applyFilters: () => void;
+  }) => (
+    <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto z-50 bg-white">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Filter className="w-5 h-5" />
+            Filter Users
+          </DialogTitle>
+          <DialogDescription>
+            Apply filters to narrow down the user list.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <Label htmlFor="filter-role" className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Role
+            </Label>
+            <Select
+              value={filters.role}
+              onValueChange={(value) => setFilters({ ...filters, role: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.slug}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-4">
+            <Label htmlFor="filter-contract" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Contract
+            </Label>
+            <Select
+              value={filters.contract}
+              onValueChange={(value) => setFilters({ ...filters, contract: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Contracts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Contracts</SelectItem>
+                <SelectItem value="none">No Contract</SelectItem>
+                {contracts.map((contract) => (
+                  <SelectItem key={contract.id} value={contract.id.toString()}>
+                    {contract.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-4">
+            <Label htmlFor="filter-site" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Site
+            </Label>
+            <Select
+              value={filters.site}
+              onValueChange={(value) => setFilters({ ...filters, site: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Sites" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sites</SelectItem>
+                <SelectItem value="none">No Site</SelectItem>
+                {sites.map((site) => (
+                  <SelectItem key={site.id} value={site.id.toString()}>
+                    {site.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-4">
+            <Label htmlFor="filter-status" className="flex items-center gap-2">
+              <ToggleLeft className="w-4 h-4" />
+              Status
+            </Label>
+            <Select
+              value={filters.status}
+              onValueChange={(value) => setFilters({ ...filters, status: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">In-Active</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setFilters({ role: "all", contract: "all", site: "all", status: "all" });
+              applyFilters();
+            }}
+          >
+            Clear Filters
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              applyFilters();
+              setIsFilterModalOpen(false);
+            }}
+            className="bg-gradient-to-r from-orange to-magenta hover:from-orange-700 hover:to-magenta-700"
+          >
+            Apply Filters
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+);
+FilterModal.displayName = "FilterModal";
 
 // UsersPage Component
 export default function UsersPage() {
@@ -366,6 +1048,7 @@ export default function UsersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
   const [selectedUserType, setSelectedUserType] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -411,6 +1094,8 @@ export default function UsersPage() {
   const filterUsers = useCallback(
     (users: User[], filters: Filters, query: string): User[] => {
       let filteredUsers = [...users];
+
+      // Apply search query filter
       if (query) {
         const lowerQuery = query.toLowerCase();
         filteredUsers = filteredUsers.filter(
@@ -420,9 +1105,13 @@ export default function UsersPage() {
             user.display_name.toLowerCase().includes(lowerQuery),
         );
       }
+
+      // Apply role filter
       if (filters.role !== "all") {
         filteredUsers = filteredUsers.filter((user) => user.role === filters.role);
       }
+
+      // Apply contract filter
       if (filters.contract !== "all") {
         if (filters.contract === "none") {
           filteredUsers = filteredUsers.filter((user) => !user.contract);
@@ -432,6 +1121,8 @@ export default function UsersPage() {
           );
         }
       }
+
+      // Apply site filter
       if (filters.site !== "all") {
         if (filters.site === "none") {
           filteredUsers = filteredUsers.filter((user) => !user.site || user.site.length === 0);
@@ -441,16 +1132,20 @@ export default function UsersPage() {
           );
         }
       }
+
+      // Apply status filter
       if (filters.status !== "all") {
         filteredUsers = filteredUsers.filter(
           (user) => user.is_active === (filters.status === "active"),
         );
       }
+
       return filteredUsers;
     },
     [],
   );
 
+  // Debounced fetch users
   const debouncedFetchUsers = useMemo(
     () =>
       debounce(async (query: string, page: number) => {
@@ -469,7 +1164,9 @@ export default function UsersPage() {
             showToast("Session expired. Please log in again.", "error");
             return;
           }
-          if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
           const data = await response.json();
           if (data.success) {
             setRawUsers(data?.data?.results);
@@ -493,12 +1190,19 @@ export default function UsersPage() {
     [cookies, showToast, perPage, filters, filterUsers],
   );
 
+  const applyFilters = useCallback(() => {
+    setCurrentPage(1); // Reset to first page when applying filters
+    const filteredUsers = filterUsers(rawUsers, filters, searchQuery);
+    setUsers(filteredUsers);
+    setTotalPages(Math.ceil(filteredUsers.length / perPage) || 1);
+  }, [rawUsers, filters, searchQuery, perPage, filterUsers]);
+
   const fetchUsers = useCallback(() => {
     debouncedFetchUsers(searchQuery, currentPage);
   }, [debouncedFetchUsers, searchQuery, currentPage]);
 
   const fetchRoles = useCallback(async () => {
-    if (roles.length > 0) return;
+    if (roles.length > 0) return; // Cache roles
     setRolesLoading(true);
     try {
       const response = await fetch(`${API_URL}/roles/`, {
@@ -511,12 +1215,19 @@ export default function UsersPage() {
         showToast("Session expired. Please log in again.", "error");
         return;
       }
-      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
       const data = await response.json();
-      if (data.success) setRoles(data.data);
-      else showToast(data.message || "Failed to fetch roles", "error");
-    } catch {
+      if (data.success) {
+        setRoles(data.data);
+      } else {
+        showToast(data.message || "Failed to fetch roles", "error");
+        setRoles([]);
+      }
+    } catch (error) {
       showToast("Failed to fetch roles", "error");
+      setRoles([]);
     } finally {
       setRolesLoading(false);
     }
@@ -528,9 +1239,9 @@ export default function UsersPage() {
   }, [fetchUsers, fetchRoles]);
 
   useEffect(() => {
-    if (isEditModalOpen || isModalOpen) {
+    if (isEditModalOpen || isModalOpen || isFilterModalOpen) {
       const fetchContracts = async () => {
-        if (contracts.length > 0) return;
+        if (contracts.length > 0) return; // Cache contracts
         setContractsLoading(true);
         try {
           const response = await fetch(`${API_URL}/api/staff/contracts/`, {
@@ -539,7 +1250,13 @@ export default function UsersPage() {
               Authorization: `Bearer ${cookies.get("access_token")}`,
             },
           });
-          if (!response.ok) throw new Error();
+          if (response.status === 401) {
+            showToast("Session expired. Please log in again.", "error");
+            return;
+          }
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
           const data = await response.json();
           setContracts(data);
         } catch {
@@ -548,8 +1265,9 @@ export default function UsersPage() {
           setContractsLoading(false);
         }
       };
+
       const fetchSites = async () => {
-        if (sites.length > 0) return;
+        if (sites.length > 0) return; // Cache sites
         setSitesLoading(true);
         try {
           const response = await fetch(`${API_URL}/api/sites/list-names/`, {
@@ -558,20 +1276,30 @@ export default function UsersPage() {
               Authorization: `Bearer ${cookies.get("access_token")}`,
             },
           });
-          if (!response.ok) throw new Error();
+          if (response.status === 401) {
+            showToast("Session expired. Please log in again.", "error");
+            return;
+          }
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
           const data = await response.json();
-          if (data.success) setSites(data.data);
-          else showToast(data.message || "Failed to fetch sites", "error");
+          if (data.success) {
+            setSites(data.data);
+          } else {
+            showToast(data.message || "Failed to fetch sites", "error");
+          }
         } catch {
           showToast("Failed to fetch sites", "error");
         } finally {
           setSitesLoading(false);
         }
       };
+
       fetchContracts();
       fetchSites();
     }
-  }, [isEditModalOpen, isModalOpen, cookies, showToast, contracts.length, sites.length]);
+  }, [isEditModalOpen, isModalOpen, isFilterModalOpen, cookies, showToast, contracts.length, sites.length]);
 
   const handleMouseMove = useCallback(
     (key: string) => (e: React.MouseEvent) => {
@@ -590,17 +1318,28 @@ export default function UsersPage() {
   const getTypeColor = useCallback((roleName: string | undefined | null) => {
     const normalizedRole = roleName?.toLowerCase();
     switch (normalizedRole) {
-      case "admin": return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-      case "manager": return "bg-red-100 text-red-700 hover:bg-red-100";
-      case "supervisor": return "bg-orange-100 text-orange-700 hover:bg-orange-100";
-      case "superadmin": return "bg-purple-100 text-purple-700 hover:bg-purple-100";
-      case "shahwar": return "bg-indigo-100 text-indigo-700 hover:bg-indigo-100";
-      case "accounts": return "bg-green-100 text-green-700 hover:bg-green-100";
-      case "crh": return "bg-teal-100 text-teal-700 hover:bg-teal-100";
-      case "dvsa": return "bg-cyan-100 text-cyan-700 hover:bg-cyan-100";
-      case "mechanic": return "bg-gray-100 text-gray-700 hover:bg-gray-100";
-      case "driver": return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-      default: return "bg-gray-100 text-gray-700 hover:bg-gray-100";
+      case "admin":
+        return "bg-blue-100 text-blue-700 hover:bg-blue-100";
+      case "manager":
+        return "bg-red-100 text-red-700 hover:bg-red-100";
+      case "supervisor":
+        return "bg-orange-100 text-orange-700 hover:bg-orange-100";
+      case "superadmin":
+        return "bg-purple-100 text-purple-700 hover:bg-purple-100";
+      case "shahwar":
+        return "bg-indigo-100 text-indigo-700 hover:bg-indigo-100";
+      case "accounts":
+        return "bg-green-100 text-green-700 hover:bg-green-100";
+      case "crh":
+        return "bg-teal-100 text-teal-700 hover:bg-teal-100";
+      case "dvsa":
+        return "bg-cyan-100 text-cyan-700 hover:bg-cyan-100";
+      case "mechanic":
+        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
+      case "driver":
+        return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
+      default:
+        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
     }
   }, []);
 
@@ -652,30 +1391,63 @@ export default function UsersPage() {
 
   const validateAddUserForm = useCallback((formData: FormData): Partial<UserForm> => {
     const errors: Partial<UserForm> = {};
+
     const email = formData.get("email") as string;
     const full_name = formData.get("full_name") as string;
     const password = formData.get("password") as string;
     const password_confirm = formData.get("password_confirm") as string;
     const role = formData.get("role") as string;
-    if (!email?.trim()) errors.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Please enter a valid email address";
-    if (!full_name?.trim()) errors.full_name = "Full name is required";
-    else if (full_name.trim().length < 2) errors.full_name = "Full name must be at least 2 characters";
-    if (!password?.trim()) errors.password = "Password is required";
-    else if (password.length < 6) errors.password = "Password must be at least 6 characters";
-    if (!password_confirm?.trim()) errors.password_confirm = "Password confirmation is required";
-    else if (password !== password_confirm) errors.password_confirm = "Passwords do not match";
-    if (!role) errors.role = "Role is required";
+
+    if (!email?.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (!full_name?.trim()) {
+      errors.full_name = "Full name is required";
+    } else if (full_name.trim().length < 2) {
+      errors.full_name = "Full name must be at least 2 characters";
+    }
+
+    if (!password?.trim()) {
+      errors.password = "Password is required";
+    } else if (password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+
+    if (!password_confirm?.trim()) {
+      errors.password_confirm = "Password confirmation is required";
+    } else if (password !== password_confirm) {
+      errors.password_confirm = "Passwords do not match";
+    }
+
+    if (!role) {
+      errors.role = "Role is required";
+    }
+
     return errors;
   }, []);
 
   const validateEditUserForm = useCallback((data: UserForm): Partial<UserForm> => {
     const errors: Partial<UserForm> = {};
-    if (!data.email.trim()) errors.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) errors.email = "Please enter a valid email address";
-    if (!data.full_name.trim()) errors.full_name = "Full name is required";
-    else if (data.full_name.trim().length < 2) errors.full_name = "Full name must be at least 2 characters";
-    if (!data.role) errors.role = "Role is required";
+
+    if (!data.email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (!data.full_name.trim()) {
+      errors.full_name = "Full name is required";
+    } else if (data.full_name.trim().length < 2) {
+      errors.full_name = "Full name must be at least 2 characters";
+    }
+
+    if (!data.role) {
+      errors.role = "Role is required";
+    }
+
     return errors;
   }, []);
 
@@ -684,11 +1456,13 @@ export default function UsersPage() {
       e.preventDefault();
       const formData = new FormData(e.currentTarget);
       const errors = validateAddUserForm(formData);
+
       setFormErrors(errors);
       if (Object.keys(errors).length > 0) {
         showToast("Please fix the form errors", "error");
         return;
       }
+
       const newUser = {
         email: formData.get("email") as string,
         full_name: formData.get("full_name") as string,
@@ -698,7 +1472,9 @@ export default function UsersPage() {
         contractId: formData.get("contract") as string | undefined,
         siteId: formData.get("site") as string | undefined,
       };
+
       setEditLoading(true);
+
       try {
         const payload = {
           email: newUser.email,
@@ -707,6 +1483,7 @@ export default function UsersPage() {
           password_confirm: newUser.password_confirm,
           role: newUser.role,
         };
+
         const response = await fetch(`${API_URL}/users/`, {
           method: "POST",
           headers: {
@@ -716,14 +1493,17 @@ export default function UsersPage() {
           body: JSON.stringify(payload),
         });
         const data = await response.json();
+
         if (response.status !== 200) {
-          showToast(data.message || "Failed to create user", "error");
+          alert(data.message);
           return;
         }
+
         if (data.success) {
           showToast(data.message || "User created successfully", "success");
           setIsModalOpen(false);
           await fetchUsers();
+
           const userId = data.data?.id;
           if (userId) {
             const promises = [];
@@ -739,6 +1519,7 @@ export default function UsersPage() {
                 }),
               );
             }
+
             if (newUser.siteId && newUser.siteId !== "none") {
               promises.push(
                 fetch(`${API_URL}/users/${userId}/allocate-sites/`, {
@@ -751,7 +1532,9 @@ export default function UsersPage() {
                 }),
               );
             }
+
             await Promise.all(promises);
+
             if (newUser.role.toLowerCase() === "driver") {
               setNewDriverUserId(userId);
               setIsAddDriverModalOpen(true);
@@ -760,7 +1543,7 @@ export default function UsersPage() {
         } else {
           showToast(data.message || "Failed to create user", "error");
         }
-      } catch {
+      } catch (err) {
         showToast("An error occurred while creating the user", "error");
       } finally {
         setEditLoading(false);
@@ -781,14 +1564,18 @@ export default function UsersPage() {
         siteId: form.get("site") as string,
         is_active: (form.get("is_active") as string) === "on",
       };
+
       const errors = validateEditUserForm(editFormData);
       setFormErrors(errors);
       if (Object.keys(errors).length > 0) {
         showToast("Please fix the form errors", "error");
         return;
       }
+
       if (!selectedUser) return;
+
       setEditLoading(true);
+
       try {
         const promises = [
           fetch(`${API_URL}/users/${selectedUser.id}/`, {
@@ -805,6 +1592,7 @@ export default function UsersPage() {
             }),
           }),
         ];
+
         if (editFormData.contractId && editFormData.contractId !== "none") {
           promises.push(
             fetch(`${API_URL}/users/${selectedUser.id}/assign-contract/`, {
@@ -817,6 +1605,7 @@ export default function UsersPage() {
             }),
           );
         }
+
         promises.push(
           fetch(`${API_URL}/users/${selectedUser.id}/allocate-sites/`, {
             method: "POST",
@@ -832,7 +1621,9 @@ export default function UsersPage() {
             }),
           }),
         );
+
         const responses = await Promise.all(promises);
+
         for (const response of responses) {
           if (response.status === 401) {
             showToast("Session expired. Please log in again.", "error");
@@ -844,12 +1635,16 @@ export default function UsersPage() {
             return;
           }
         }
+
         showToast("User updated successfully", "success");
         setIsEditModalOpen(false);
         setSelectedUser(null);
         await fetchUsers();
-      } catch {
-        showToast("An error occurred while updating the user", "error");
+      } catch (error) {
+        showToast(
+          error instanceof Error ? error.message : "An error occurred while updating the user",
+          "error",
+        );
       } finally {
         setEditLoading(false);
       }
@@ -859,6 +1654,7 @@ export default function UsersPage() {
 
   const handleDeleteUser = useCallback(async () => {
     if (!userToDelete) return;
+
     try {
       const response = await fetch(`${API_URL}/users/${userToDelete.id}/`, {
         method: "DELETE",
@@ -867,11 +1663,14 @@ export default function UsersPage() {
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
       });
+
       if (response.status === 401) {
         showToast("Session expired. Please log in again.", "error");
         return;
       }
+
       const data = await response.json();
+
       if (response.ok && data.success) {
         showToast(
           data.message || `${userToDelete.full_name} has been deleted successfully`,
@@ -899,44 +1698,150 @@ export default function UsersPage() {
 
   return (
     <div className="p-6 bg-white">
-      <header className="bg-white p-4">
-        <div className="container mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-            <p className="text-sm text-gray-500">Manage your team members and their permissions</p>
-          </div>
-          <div className="space-x-2 flex">
-            <ExportButton data={users} fileName="Other Staff" />
-            <button
-              onClick={fetchUsers}
-              disabled={loading}
-              className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100"
-            >
-              Refresh
-            </button>
-            <Button
-              ref={(el) => {
-                buttonRefs.current["add-user"] = el;
-              }}
-              className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
-              style={{
-                background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
-              }}
-              onClick={() => handleAddUserClick("driver")}
-              onMouseMove={handleMouseMove("add-user")}
-            >
-              <UserPlus className="w-4 h-4" />
-              Add User
-            </Button>
-          </div>
-        </div>
-      </header>
+    <header className="bg-white ">
+  <div className="container mx-auto flex flex-col gap-6">
+    {/* Page Title + Action Buttons */}
+    <div className="flex items-center justify-between">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+        <p className="text-sm text-gray-500">Manage your team members and their permissions</p>
+      </div>
 
-      {/* SEARCH + INLINE FILTERS */}
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end">
-        {/* Search */}
+      <div className="flex items-center gap-3">
+        <ExportButton data={users} fileName="Other Staff" />
+        
+        <button
+          onClick={fetchUsers}
+          disabled={loading}
+          className="px-4 py-2 border border-gray-300 rounded-lg flex items-center gap-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refresh"}
+        </button>
+
+        <Button
+          className="flex items-center gap-2 rounded-xl px-6 py-3 text-white font-medium shadow-md"
+          style={{
+            background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+          }}
+          onClick={() => handleAddUserClick("driver")}
+        >
+          <UserPlus className="w-4 h-4" />
+          Add User
+        </Button>
+      </div>
+    </div>
+
+    {/* ==== FILTERS — ALWAYS VISIBLE ON SCREEN ==== */}
+    <div className=" p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <Filter className="w-5 h-5" />
+          Filters
+        </h3>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setFilters({ role: "all", contract: "all", site: "all", status: "all" });
+            applyFilters();
+          }}
+        >
+          Clear All Filters
+        </Button>
+      </div>
+
+      {/* Filter Dropdowns – Always Open */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Role */}
+        <div>
+          <Label className="flex items-center gap-2 mb-2 text-gray-700">
+            <Shield className="w-4 h-4" />
+            Role
+          </Label>
+          <Select value={filters.role} onValueChange={(v) => { setFilters(prev => ({ ...prev, role: v })); applyFilters(); }}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Roles" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Roles</SelectItem>
+              {roles.map((role) => (
+                <SelectItem key={role.id} value={role.slug}>
+                  {role.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Contract */}
+        <div>
+          <Label className="flex items-center gap-2 mb-2 text-gray-700">
+            <FileText className="w-4 h-4" />
+            Contract
+          </Label>
+          <Select value={filters.contract} onValueChange={(v) => { setFilters(prev => ({ ...prev, contract: v })); applyFilters(); }}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Contracts" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Contracts</SelectItem>
+              <SelectItem value="none">No Contract</SelectItem>
+              {contracts.map((c) => (
+                <SelectItem key={c.id} value={c.id.toString()}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Site */}
+        <div>
+          <Label className="flex items-center gap-2 mb-2 text-gray-700">
+            <FileText className="w-4 h-4" />
+            Site
+          </Label>
+          <Select value={filters.site} onValueChange={(v) => { setFilters(prev => ({ ...prev, site: v })); applyFilters(); }}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Sites" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sites</SelectItem>
+              <SelectItem value="none">No Site</SelectItem>
+              {sites.map((s) => (
+                <SelectItem key={s.id} value={s.id.toString()}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Status */}
+        <div>
+          <Label className="flex items-center gap-2 mb-2 text-gray-700">
+            <ToggleLeft className="w-4 h-4" />
+            Status
+          </Label>
+          <Select value={filters.status} onValueChange={(v) => { setFilters(prev => ({ ...prev, status: v })); applyFilters(); }}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">In-Active</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div className="mb-6">
         <div
-          className="relative w-full md:w-80 gradient-border cursor-glow"
+          className="relative w-80 gradient-border cursor-glow"
           onMouseMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -951,156 +1856,16 @@ export default function UsersPage() {
             className="pl-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
             value={searchQuery}
             onChange={(e) => {
-              const q = e.target.value;
-              setSearchQuery(q);
-              const filtered = filterUsers(rawUsers, filters, q);
-              setUsers(filtered);
-              setTotalPages(Math.ceil(filtered.length / perPage) || 1);
+              setSearchQuery(e.target.value);
+              const filteredUsers = filterUsers(rawUsers, filters, e.target.value);
+              setUsers(filteredUsers);
+              setTotalPages(Math.ceil(filteredUsers.length / perPage) || 1);
               setCurrentPage(1);
             }}
           />
         </div>
-
-        {/* Inline Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 flex-1">
-          {/* Role */}
-          <div>
-            <Label className="flex items-center gap-1 text-xs">
-              <Shield className="w-3 h-3" /> Role
-            </Label>
-            <Select
-              value={filters.role}
-              onValueChange={(v) => {
-                const newF = { ...filters, role: v };
-                setFilters(newF);
-                const filtered = filterUsers(rawUsers, newF, searchQuery);
-                setUsers(filtered);
-                setTotalPages(Math.ceil(filtered.length / perPage) || 1);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="All Roles" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                {roles.map((r) => (
-                  <SelectItem key={r.id} value={r.slug}>
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Contract */}
-          <div>
-            <Label className="flex items-center gap-1 text-xs">
-              <FileText className="w-3 h-3" /> Contract
-            </Label>
-            <Select
-              value={filters.contract}
-              onValueChange={(v) => {
-                const newF = { ...filters, contract: v };
-                setFilters(newF);
-                const filtered = filterUsers(rawUsers, newF, searchQuery);
-                setUsers(filtered);
-                setTotalPages(Math.ceil(filtered.length / perPage) || 1);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="All Contracts" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Contracts</SelectItem>
-                <SelectItem value="none">No Contract</SelectItem>
-                {contracts.map((c) => (
-                  <SelectItem key={c.id} value={c.id.toString()}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Site */}
-          <div>
-            <Label className="flex items-center gap-1 text-xs">
-              <FileText className="w-3 h-3" /> Site
-            </Label>
-            <Select
-              value={filters.site}
-              onValueChange={(v) => {
-                const newF = { ...filters, site: v };
-                setFilters(newF);
-                const filtered = filterUsers(rawUsers, newF, searchQuery);
-                setUsers(filtered);
-                setTotalPages(Math.ceil(filtered.length / perPage) || 1);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="All Sites" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sites</SelectItem>
-                <SelectItem value="none">No Site</SelectItem>
-                {sites.map((s) => (
-                  <SelectItem key={s.id} value={s.id.toString()}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Status */}
-          <div>
-            <Label className="flex items-center gap-1 text-xs">
-              <ToggleLeft className="w-3 h-3" /> Status
-            </Label>
-            <Select
-              value={filters.status}
-              onValueChange={(v) => {
-                const newF = { ...filters, status: v };
-                setFilters(newF);
-                const filtered = filterUsers(rawUsers, newF, searchQuery);
-                setUsers(filtered);
-                setTotalPages(Math.ceil(filtered.length / perPage) || 1);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">In-Active</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Clear Filters */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            const cleared = { role: "all", contract: "all", site: "all", status: "all" };
-            setFilters(cleared);
-            const filtered = filterUsers(rawUsers, cleared, searchQuery);
-            setUsers(filtered);
-            setTotalPages(Math.ceil(filtered.length / perPage) || 1);
-            setCurrentPage(1);
-          }}
-        >
-          Clear
-        </Button>
       </div>
 
-      {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin mr-2" />
@@ -1128,7 +1893,7 @@ export default function UsersPage() {
             </TableHeader>
             <TableBody>
               {users
-                .slice((currentPage - 1) * perPage, currentPage * perPage)
+                ?.slice((currentPage - 1) * perPage, currentPage * perPage)
                 .map((user) => (
                   <UserRow
                     key={user.id}
@@ -1147,7 +1912,6 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Pagination */}
       <div className="flex items-center justify-between mt-6">
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-600">Page</span>
@@ -1198,7 +1962,6 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Modals */}
       <AddUserModal
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
@@ -1220,6 +1983,7 @@ export default function UsersPage() {
         getTypeColor={getTypeColor}
         handleAddUserSubmit={handleAddUserSubmit}
       />
+
       <EditUserModal
         isEditModalOpen={isEditModalOpen}
         setIsEditModalOpen={setIsEditModalOpen}
@@ -1237,7 +2001,17 @@ export default function UsersPage() {
         handleEditUserSubmit={handleEditUserSubmit}
       />
 
-      {/* Driver Modal */}
+      <FilterModal
+        isFilterModalOpen={isFilterModalOpen}
+        setIsFilterModalOpen={setIsFilterModalOpen}
+        filters={filters}
+        setFilters={setFilters}
+        roles={roles}
+        contracts={contracts}
+        sites={sites}
+        applyFilters={applyFilters}
+      />
+
       {newDriverUserId && (
         <Dialog open={isAddDriverModalOpen} onOpenChange={setIsAddDriverModalOpen}>
           <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto z-50 bg-white">
@@ -1259,7 +2033,6 @@ export default function UsersPage() {
         </Dialog>
       )}
 
-      {/* Delete Confirmation */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1269,7 +2042,7 @@ export default function UsersPage() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete <strong>{userToDelete?.full_name}</strong>? This action
-              cannot be undone.
+              cannot be undone and will permanently remove the user from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

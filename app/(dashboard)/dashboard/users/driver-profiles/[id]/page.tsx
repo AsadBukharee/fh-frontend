@@ -11,6 +11,7 @@ import ProfessionalCompetencyTab from "./tabs/ProfessionalCompetencyTab";
 import DriverDetailTab from "./tabs/DriverDetailTab";
 import SignAgreementTab from "./tabs/SignAgreementTab";
 import HealthAnswerTab from "./tabs/HealthAnswerTab";
+    import { User, BadgeCheck, HeartPulse, FileSignature } from "lucide-react"
 
 interface DriverData {
   id: number;
@@ -268,7 +269,7 @@ export default function DriverDetailPage() {
     setHealthLoading(true);
     
     try {
-      const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${user_id}`, {
+      const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -322,7 +323,7 @@ export default function DriverDetailPage() {
       fetchCompetencyData();
       fetchHealthData();
     }
-  }, [id, cookies,user_id]);
+  }, [id, cookies, user_id]);
 
   useEffect(() => {
     const fetchContracts = async () => {
@@ -674,38 +675,53 @@ export default function DriverDetailPage() {
   }
 
   return (
-    <div className="container p-8 space-y-8 bg-gray-100 min-h-screen">
+    <div className="container p-8 space-y-8 bg-white min-h-screen">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-4 bg-white border border-orange-200 rounded-xl p-2 shadow-sm">
-          <TabsTrigger
-            value="driver-detail"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
-          >
-            Driver Details
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="professional-competency"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
-          >
-            Professional Details
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="health-answer"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
-          >
-            Health Questions
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="sign-agreement"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
-          >
-            Signed Agreements
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
-        </TabsList>
+
+<TabsList className="flex justify-start w-full gap-8 bg-[#f9f9f9] py-8 px-6">
+
+  <TabsTrigger
+    value="driver-detail"
+    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
+      data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
+       transition-colors"
+  >
+    <User size={16} className="text-gray-400  data-[state=active]:text-[#F15A29] " />
+    Driver Details
+  </TabsTrigger>
+
+  <TabsTrigger
+    value="professional-competency"
+    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
+      data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
+       transition-colors"
+  >
+    <BadgeCheck size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
+    Professional Details
+  </TabsTrigger>
+
+  <TabsTrigger
+    value="health-answer"
+    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
+      data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
+       transition-colors"
+  >
+    <HeartPulse size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
+    Health Questions
+  </TabsTrigger>
+
+  <TabsTrigger
+    value="sign-agreement"
+    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
+      data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
+       transition-colors"
+  >
+    <FileSignature size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
+    Sign Agreement
+  </TabsTrigger>
+
+</TabsList>
+
         <TabsContent value="driver-detail">
        <DriverDetailTab
        driverData={driverData}
@@ -739,6 +755,7 @@ export default function DriverDetailPage() {
           <ProfessionalCompetencyTab
             competencyData={competencyData}
             formatDate={formatDate}
+            driverId={driverData.id}
             isPdfUrl={isPdfUrl}
             showToast={showToast}
             cookies={cookies}

@@ -6,7 +6,6 @@ import { PersonalInfoStep } from "./personal-info-step";
 import { NextOfKinStep } from "./next-of-kin-step";
 import { HealthQuestionsStep } from "./health-questions-step";
 import { DocumentsStep } from "./documents-step";
-import { ConfirmationStep } from "./confirmation-step";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
@@ -17,7 +16,9 @@ interface AddDriverProps {
 }
 
 const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => {
-  const stepLabels = ["Personal Info", "Next of Kin", "Health Questions", "Documents", "Confirmation"];
+  // Removed "Confirmation" from labels
+  const stepLabels = ["Personal Info", "Next of Kin", "Health Questions", "Documents"];
+
   const [driverId, setDriverId] = useState<number | null>(null);
   const [personalInfoData, setPersonalInfoData] = useState<any>(null);
   const [nextOfKinData, setNextOfKinData] = useState<any>(null);
@@ -29,27 +30,32 @@ const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => 
       <div className="w-full max-w-4xl relative">
         <Stepper totalSteps={stepLabels.length} initialStep={0} disableBack={true}>
           <StepperTabs labels={stepLabels} />
+
           <StepperContent>
-            <PersonalInfoStep setDriverId={setDriverId} user_id={userId} setPersonalInfoData={setPersonalInfoData} />
-            <NextOfKinStep driverId={driverId} user_id={userId} setNextOfKinData={setNextOfKinData} />
-            <HealthQuestionsStep driverId={driverId} setHealthQuestionsData={setHealthQuestionsData} />
-            <DocumentsStep driverId={driverId} setDocumentsData={setDocumentsData} />
-            <ConfirmationStep
-              personalInfoData={personalInfoData}
-              nextOfKinData={nextOfKinData}
-              healthQuestionsData={healthQuestionsData}
-              documentsData={documentsData}
+            <PersonalInfoStep
+              setDriverId={setDriverId}
+              user_id={userId}
+              setPersonalInfoData={setPersonalInfoData}
             />
+            <NextOfKinStep
+              driverId={driverId}
+              user_id={userId}
+              setNextOfKinData={setNextOfKinData}
+            />
+            <HealthQuestionsStep
+              driverId={driverId}
+              setHealthQuestionsData={setHealthQuestionsData}
+            />
+            {/* Documents is now the final step */}
+            <DocumentsStep driverId={driverId} setDocumentsData={setDocumentsData} />
+            {/* ConfirmationStep removed */}
           </StepperContent>
-          <StepperNavigation />
+
+          {/* Optional: re-enable navigation if you want Prev/Next buttons */}
+          {/* <StepperNavigation /> */}
         </Stepper>
-        <Button
-          variant="ghost"
-          className="absolute top-0 right-0"
-          onClick={() => onOpenChange(false)}
-        >
-          <X className="h-6 w-6" />
-        </Button>
+
+      
       </div>
     </div>
   );
