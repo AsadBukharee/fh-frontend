@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
+import { Textarea } from '../ui/textarea';
 
 interface User {
   id: number;
@@ -254,7 +255,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
           {/* Description */}
           <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
-            <Input
+            <Textarea
               id="description"
               placeholder="Optional details"
               value={description}

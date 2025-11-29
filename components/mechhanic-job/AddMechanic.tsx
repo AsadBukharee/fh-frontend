@@ -37,14 +37,16 @@ interface AddMechanicJobDialogProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   onJobAdded: () => void
+  defaultVehicleId?: string     // Optional – auto-filled if present
+  defaultNotes?: string
 }
 
-export default function AddMechanicJobDialog({ isOpen, onOpenChange, onJobAdded }: AddMechanicJobDialogProps) {
+export default function AddMechanicJobDialog({ isOpen, onOpenChange, onJobAdded, defaultVehicleId, defaultNotes }: AddMechanicJobDialogProps) {
   const [formData, setFormData] = useState({
-    vehicle: "",
+    vehicle: defaultVehicleId || "",
     mechanic: "",
     assignee: "",
-    notes: "",
+    notes: defaultNotes || "",
     source: "walkaround",
     status: "in_house",
   })

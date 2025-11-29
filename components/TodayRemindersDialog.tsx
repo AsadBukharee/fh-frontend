@@ -44,44 +44,51 @@ export default function TodayRemindersDialog() {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
   const [selectedReminder, setSelectedReminder] = useState<any>(null)
 
-  // Load today's reminders
-  const loadToday = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch(`${API_URL}/api/reminders/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (!res.ok) throw new Error("Failed to fetch reminders")
+// Load only TODAY's reminders using date_from and date_to
+const loadToday = async () => {
+  setLoading(true)
+  try {
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
 
-      const data = await res.json()
+    const dateStr = `${year}-${month}-${day}`
 
-      const todayOnly = data
-        .map((item: any) => ({
-          ...item,
-          date: fixDate(item.next_reminder || item.start_date || item.created_at)
-        }))
-        .filter((item: any) => {
-          const now = new Date()
-          const d = item.date
-          return (
-            d.getFullYear() === now.getFullYear() &&
-            d.getMonth() === now.getMonth() &&
-            d.getDate() === now.getDate()
-          )
-        })
-        .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
+    const url = `${API_URL}/api/reminders/?date_from=${dateStr}&date_to=${dateStr}`
 
-      setReminders(todayOnly)
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
 
-      // Auto-open if there are reminders
-      if (todayOnly.length > 0) setOpen(true)
-    } catch (err) {
-      console.error("Failed to load reminders:", err)
-      setReminders([])
-    } finally {
-      setLoading(false)
+    if (!res.ok) {
+      const errorText = await res.text()
+      throw new Error(`Failed to fetch reminders: ${res.status} ${errorText}`)
     }
+
+    const data = await res.json()
+
+    // Now sort by time (since backend might not sort)
+    const sortedReminders = data
+      .map((item: any) => ({
+        ...item,
+        date: fixDate(item.next_reminder || item.start_date || item.created_at)
+      }))
+      .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
+
+    setReminders(sortedReminders)
+
+    // Auto-open dialog if there are reminders
+    if (sortedReminders.length > 0) {
+      setOpen(true)
+    }
+  } catch (err) {
+    console.error("Failed to load today's reminders:", err)
+    setReminders([])
+  } finally {
+    setLoading(false)
   }
+}
 
   // Load on mount
   useEffect(() => {
@@ -218,7 +225,7 @@ export default function TodayRemindersDialog() {
                             </div>
                           </div>
 
-                          <Button
+                          {/* <Button
                             size="sm"
                             variant="ghost"
                             className="text-green-600 hover:text-green-700 hover:bg-green-50/80 shrink-0"
@@ -227,7 +234,7 @@ export default function TodayRemindersDialog() {
                           >
                             <CheckCircle2 className="w-4 h-4 mr-1.5" />
                             Complete
-                          </Button>
+                          </Button> */}
                         </div>
 
                         {r.description && (

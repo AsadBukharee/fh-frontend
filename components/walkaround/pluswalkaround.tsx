@@ -239,7 +239,7 @@ const PlusWalkaround = ({
   const saveSignature = () => {
     if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
       const signatureData = sigCanvas.current
-        .getTrimmedCanvas()
+        .getCanvas()
         .toDataURL("image/png");
       setFormData((prev) => ({ ...prev, signature: signatureData }));
       setErrors((prev) => ({ ...prev, signature: undefined }));

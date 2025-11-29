@@ -106,7 +106,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
   const [walkaroundId, setWalkaroundId] = useState<number | null>(null);
   const [vehicleId, setVehicleId] = useState<number | null>(null);
   
-  const sigCanvas = useRef<SignatureCanvas>(null);
+  const sigCanvas = useRef<SignatureCanvas | null>(null);
   const cookies = useCookies();
   const token = cookies.get('access_token');
 
@@ -212,7 +212,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
   const saveSignature = () => {
     if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
       const signatureData = sigCanvas.current
-        .getTrimmedCanvas()
+        .getCanvas()
         .toDataURL("image/png");
       setFormData((prev) => ({ ...prev, signature: signatureData }));
       setErrors((prev) => ({ ...prev, signature: undefined }));

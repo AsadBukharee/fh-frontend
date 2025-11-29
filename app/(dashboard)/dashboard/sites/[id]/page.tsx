@@ -634,7 +634,7 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
               </h3>
 
               {/* Top Stats: Employees and Vehicles */}
-              <div className="grid grid-cols-2 gap-6 mb-6 p-4 bg-orange-50/20 rounded-lg">
+              {/* <div className="grid grid-cols-2 gap-6 mb-6 p-4 bg-orange-50/20 rounded-lg">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-500">Employees</p>
                   <div className="flex items-center gap-2">
@@ -659,7 +659,7 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
                     <span className="text-sm font-medium text-green-600">Operational</span>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Fuel Usage Chart */}
               <div className="mb-6">

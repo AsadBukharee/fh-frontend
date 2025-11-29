@@ -1,12 +1,10 @@
-
 "use client"
 
 import type React from "react"
-import { useRef, useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -32,64 +30,52 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Search,
-  MoreHorizontal,
   Eye,
   Trash2,
+  MoreVertical,
   ChevronLeft,
   ChevronRight,
   Car,
   Filter,
-  Download,
+  RefreshCw,
   Loader2,
   AlertCircle,
-  RefreshCw,
   X,
 } from "lucide-react"
+
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { useToast } from "@/app/Context/ToastContext"
 import Link from "next/link"
 import AddVehicleStepper from "@/components/Vehicles/VehiclesStepper"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import ExportButton from "@/app/utils/ExportButton"
 
 interface Vehicle {
   id: number
   registration_number: string
+  vehicles_type: { name: string }
   vehicle_status: string
   is_roadworthy: boolean
-  vehicles_type: {
-    id: number
-    name: string
-  }
-  site_allocated?: {
-    id: number
-    name: string
-    postcode: string
-  } | null
-  assignee_driver?: {
-    id: number
-    full_name: string
-  } | null
-  warnings: string[]
-  inspection_expire: string
-  mot_expiry: string
-  tax_expiry: string
-  insurance_expiry: string
+  vehicle_roadworthy_status: string
+  current_mileage: string
+  assignee_driver: { full_name: string } | null
+  walkaround_count: number | null
   vehicle_picture: string
-  last_mileage: string
-  vehicle_type_name: string
-  status_indicators: {
-    mot_expiring: boolean
-    tax_expiring: boolean
-    insurance_expiring: boolean
-    inspection_due: boolean
-  }
+  warnings: string[]
+  status_indicators: any
 }
 
 export default function VehiclesPage() {
-  const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
@@ -99,7 +85,6 @@ export default function VehiclesPage() {
   const [error, setError] = useState<string | null>(null)
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState({
     vehicleStatus: "",
@@ -118,53 +103,46 @@ export default function VehiclesPage() {
       }`
       const response = await fetch(url, {
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
       })
+
       if (response.status === 401) {
         showToast("Session expired. Please log in again.", "error")
         return
       }
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`)
-      }
-      const data = await response.json()
-      if (data.success) {
-        const mappedVehicles = data.data.map((vehicle: any) => ({
-          id: vehicle.id,
-          registration_number: vehicle.registration_number,
-          vehicle_status: vehicle.vehicle_status,
-          is_roadworthy: vehicle.is_roadworthy,
-          vehicles_type: vehicle.vehicles_type,
-          site_allocated: vehicle.site_allocated,
-          assignee_driver: vehicle.assignee_driver,
-          warnings: vehicle.warnings,
-          inspection_expire: vehicle.inspection_expire,
-          mot_expiry: vehicle.mot_expiry,
-          tax_expiry: vehicle.tax_expiry,
-          insurance_expiry: vehicle.insurance_expiry,
-          vehicle_picture: vehicle.vehicle_picture,
-          last_mileage: vehicle.last_mileage,
-          vehicle_type_name: vehicle.vehicle_type_name,
-          status_indicators: vehicle.status_indicators,
+      if (!response.ok) throw new Error("Failed to fetch vehicles")
+
+      const json = await response.json()
+      if (json.success) {
+        const mapped = json.data.map((v: any) => ({
+          id: v.id,
+          registration_number: v.registration_number,
+          vehicles_type: { name: v.vehicles_type.name },
+          vehicle_status: v.vehicle_status,
+          is_roadworthy: v.is_roadworthy,
+          vehicle_roadworthy_status: v.vehicle_roadworthy_status || "no_defect",
+          current_mileage: v.current_mileage || "0.00",
+          assignee_driver: v.assignee_driver,
+          walkaround_count: v.walkaround_count,
+          vehicle_picture: v.vehicle_picture || "",
+          warnings: v.warnings || [],
+          status_indicators: v.status_indicators || {},
         }))
-        setVehicles(mappedVehicles)
-        setFilteredVehicles(mappedVehicles) // Initialize filteredVehicles with all vehicles
-        setTotalPages(data.total_pages || 1)
+        setVehicles(mapped)
+        setFilteredVehicles(mapped)
         setError(null)
       } else {
-        setError(data.message || "Failed to fetch vehicles")
-        showToast(data.message || "Failed to fetch vehicles", "error")
+        throw new Error(json.message || "Failed to load vehicles")
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching vehicles"
-      setError(errorMessage)
-      showToast(errorMessage, "error")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Network error"
+      setError(msg)
+      showToast(msg, "error")
     } finally {
       setLoading(false)
     }
-  }, [cookies, showToast, currentPage, searchQuery])
+  }, [currentPage, searchQuery, cookies, showToast])
 
   useEffect(() => {
     fetchVehicles()
@@ -174,95 +152,93 @@ export default function VehiclesPage() {
   useEffect(() => {
     let result = [...vehicles]
 
-    // Apply vehicle status filter
     if (filters.vehicleStatus) {
-      result = result.filter((vehicle) => vehicle.vehicle_status.toLowerCase() === filters.vehicleStatus.toLowerCase())
+      result = result.filter((v) => v.vehicle_status === filters.vehicleStatus)
     }
-
-    // Apply roadworthy filter
     if (filters.isRoadworthy) {
-      const isRoadworthy = filters.isRoadworthy === "true"
-      result = result.filter((vehicle) => vehicle.is_roadworthy === isRoadworthy)
+      const val = filters.isRoadworthy === "true"
+      result = result.filter((v) => v.is_roadworthy === val)
     }
-
-    // Apply vehicle type filter
     if (filters.vehicleType) {
-      result = result.filter((vehicle) => vehicle.vehicles_type.name === filters.vehicleType)
+      result = result.filter((v) => v.vehicles_type.name === filters.vehicleType)
     }
 
     setFilteredVehicles(result)
-    setTotalPages(Math.ceil(result.length / perPage))
-    setCurrentPage(1) // Reset to first page when filters change
-  }, [filters, vehicles, perPage])
+    setCurrentPage(1)
+  }, [filters, vehicles])
 
-  // Paginate filtered vehicles
   const paginatedVehicles = useMemo(() => {
-    const startIndex = (currentPage - 1) * perPage
-    return filteredVehicles.slice(startIndex, startIndex + perPage)
-  }, [filteredVehicles, currentPage, perPage])
+    const start = (currentPage - 1) * perPage
+    return filteredVehicles.slice(start, start + perPage)
+  }, [filteredVehicles, currentPage])
 
-  const handleMouseMove = (key: string) => (e: React.MouseEvent) => {
-    const button = buttonRefs.current[key]
-    if (button) {
-      const rect = button.getBoundingClientRect()
-      const x = ((e.clientX - rect.left) / rect.width) * 100
-      const y = ((e.clientY - rect.top) / rect.height) * 100
-      button.style.setProperty("--mouse-x", `${x}%`)
-      button.style.setProperty("--mouse-y", `${y}%`)
-    }
+  const totalPages = Math.ceil(filteredVehicles.length / perPage) || 1
+
+  const uniqueVehicleTypes = Array.from(new Set(vehicles.map((v) => v.vehicles_type.name)))
+
+  const formatMileage = (mileage: string) => {
+    return parseFloat(mileage).toLocaleString("en-GB")
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "available":
-        return "bg-green-100 text-green-700 hover:bg-green-100"
-      case "unavailable":
-        return "bg-red-100 text-red-700 hover:bg-red-100"
-      case "assigned":
-        return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
-      default:
-        return "bg-gray-100 text-gray-700 hover:bg-gray-100"
-    }
+ const getRoadworthyBadge = (vehicle: Vehicle) => {
+  // Contract-based roadworthy (e.g., "15/12/25 Contract")
+  if (vehicle.vehicle_roadworthy_status.includes("contract")) {
+    const dateMatch = vehicle.vehicle_roadworthy_status.match(/(\d{2}\/\d{2}\/\d{2})\s+Contract/)
+    const date = dateMatch ? dateMatch[1] : "Contract"
+    return (
+      <Badge className="bg-amber-100 text-amber-900 border border-amber-300 font-semibold text-xs px-3 py-1 rounded-full">
+        {date} Contract
+      </Badge>
+    )
   }
 
-  const getRoadworthyColor = (isRoadworthy: boolean) => {
-    return isRoadworthy
-      ? "bg-green-100 text-green-700 hover:bg-green-100"
-      : "bg-red-100 text-red-700 hover:bg-red-100"
+  // Fully Approved → Vibrant Green
+  if (vehicle.is_roadworthy) {
+    return (
+      <Badge className="bg-green-100 text-green-800 border border-green-300 font-semibold text-xs px-3 py-1 rounded-full ring-1 ring-green-200">
+        <span className="w-2 h-2 bg-green-500 rounded-full inline-block mr-1.5" />
+        Approved
+      </Badge>
+    )
   }
 
-  const handleAddVehicleClick = () => {
-    setIsModalOpen(true)
-  }
+  // Not Approved → Bold Red (Phase 2 Red)
+  return (
+    <Badge className="bg-red-100 text-red-800 border border-red-300 font-semibold text-xs px-3 py-1 rounded-full ring-1 ring-red-200">
+      <span className="w-2 h-2 bg-red-600 rounded-full inline-block mr-1.5 animate-pulse" />
+      Not Approved
+    </Badge>
+  )
+}
 
-  const handleDeleteVehicleClick = (vehicle: Vehicle) => {
-    setVehicleToDelete(vehicle)
-    setIsDeleteDialogOpen(true)
-  }
+  const getWalkaroundBadge = (count: number | null) => {
+  const num = count ?? 0
+  const display = num < 10 ? `0${num}` : num.toString()
+  const variant =
+    num >= 20
+      ? "bg-green-100 text-green-800"           // Good → keep green
+      : num >= 10
+      ? "bg-amber-100 text-amber-800 ring-1 ring-amber-300"  // Warning → Amber
+      : "bg-red-100 text-red-800 ring-1 ring-red-300"        // Danger → Red
+  return <Badge className={`${variant} text-xs font-medium px-2 py-0.5`}>{display}</Badge>
+}
 
   const handleDeleteVehicle = async () => {
     if (!vehicleToDelete) return
 
     try {
-      const response = await fetch(`${API_URL}/api/vehicles/${vehicleToDelete.id}/`, {
+      const res = await fetch(`${API_URL}/api/vehicles/${vehicleToDelete.id}/`, {
         method: "DELETE",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
       })
 
-      if (response.status === 401) {
-        showToast("Session expired. Please log in again.", "error")
-        return
-      }
-
-      const data = await response.json()
-
-      if (response.ok && data.success) {
-        showToast(data.message || `Vehicle ${vehicleToDelete.registration_number} has been deleted successfully`, "success")
-        await fetchVehicles()
+      if (res.ok) {
+        showToast(`Vehicle ${vehicleToDelete.registration_number} deleted successfully`, "success")
+        fetchVehicles()
       } else {
+        const data = await res.json()
         showToast(data.message || "Failed to delete vehicle", "error")
       }
     } catch {
@@ -273,231 +249,199 @@ export default function VehiclesPage() {
     }
   }
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1)
-  }
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1)
-  }
-
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value === "all" ? "" : value }))
-  }
-
   const clearFilters = () => {
-    setFilters({
-      vehicleStatus: "",
-      isRoadworthy: "",
-      vehicleType: "",
-    })
-    setCurrentPage(1)
+    setFilters({ vehicleStatus: "", isRoadworthy: "", vehicleType: "" })
+    setIsFilterDialogOpen(false)
   }
-
-  const uniqueVehicleTypes = Array.from(new Set(vehicles.map((v) => v.vehicles_type.name)))
 
   return (
     <TooltipProvider>
-      <div className="p-6 bg-white">
-        <header className="bg-white p-4">
-          <div className="container mx-auto flex items-center justify-between">
+      <div className="p-6 bg-white min-h-screen">
+        {/* Header */}
+        <header className="bg-white mb-6">
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Vehicles Management</h1>
-              <p className="text-sm text-gray-500">Manage your fleet and track vehicle details</p>
+              <p className="text-sm text-gray-500 mt-1">Manage your fleet and track vehicle details</p>
             </div>
-            <div className="space-x-2 flex">
-              <Button
-                onClick={() => setIsFilterDialogOpen(true)}
-                className="px-4 border bg-white border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100"
-              >
-                <Filter className="w-4 h-4" />
-                Filter
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => setIsFilterDialogOpen(true)}>
+                <Filter className="w-4 h-4 mr-2" /> Filter
               </Button>
-          <ExportButton data={vehicles} fileName="Vehicles" />
-              <button
-                onClick={fetchVehicles}
-                disabled={loading}
-                className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              <ExportButton data={vehicles} fileName="Vehicles" />
+              <Button variant="outline" size="sm" onClick={fetchVehicles} disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                 Refresh
-              </button>
+              </Button>
               <Button
-                ref={(el: HTMLButtonElement | null) => {
-                  buttonRefs.current["add-vehicle"] = el
-                }}
-                className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
-                style={{
-                  background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
-                }}
-                onMouseMove={handleMouseMove("add-vehicle")}
-                onClick={handleAddVehicleClick}
+               className="bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 
+             text-white font-semibold 
+             hover:from-red-700 hover:via-orange-600 hover:to-amber-600 
+             shadow-lg transform transition hover:scale-105 
+             transition-all duration-200"
+  onClick={() => setIsModalOpen(true)}
               >
-                <Car className="w-4 h-4" />
+                <Car className="w-4 h-4 mr-2" />
                 Add Vehicle
               </Button>
             </div>
           </div>
-        </header>
 
-        <div className="mb-6">
-          <div
-            className="relative w-80 gradient-border cursor-glow"
-            onMouseMove={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const x = ((e.clientX - rect.left) / rect.width) * 100
-              const y = ((e.clientY - rect.top) / rect.height) * 100
-              e.currentTarget.style.setProperty("--mouse-x", `${x}%`)
-              e.currentTarget.style.setProperty("--mouse-y", `${y}%`)
-            }}
-          >
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
+          <div className="mt-6 relative max-w-md">
+            <Search className="absolute left-3 z-1 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
-              placeholder="Search vehicles"
-              className="pl-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+              placeholder="Search vehicles..."
+              className="pl-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </div>
+        </header>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin mr-2" />
-            <span>Loading vehicles...</span>
-          </div>
-        ) : error ? (
-          <div className="flex items-center justify-center py-12 text-red-600">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            {error}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginatedVehicles.map((vehicle) => (
-              <Card key={vehicle.id} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="relative bg-gray-100 p-4">
-                  <img
-                    src={vehicle.vehicle_picture}
-                    alt={`${vehicle.registration_number} image`}
-                    className="w-full h-40 object-cover rounded-t-lg"
-                  />
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="bg-pink-100 text-pink-800 text-[10px] font-semibold px-2 py-1 rounded-full">
-                      Last Inspection: {vehicle.inspection_expire}
-                    </div>
-                    <div className="flex space-x-2">
-                      {vehicle.status_indicators.inspection_due && (
-                        <Badge className="bg-yellow-100 text-yellow-700 text-[10px]">1 Due</Badge>
-                      )}
-                      <Badge className={getStatusColor(vehicle.vehicle_status)}>
-                        {vehicle.vehicle_status}
-                      </Badge>
-                    </div>
-                  </div>
-                  <CardTitle className="text-lg flex justify-between items-center text-gray-600 mb-1">
-                    <span className="text-black">{vehicle.registration_number}</span>
-                    {vehicle.vehicle_type_name}
-                  </CardTitle>
-                  <div className="flex justify-center items-center mb-2">
-                    <div className="w-[280px] h-[1px] bg-black"></div>
-                  </div>
-                  <div className="space-y-1 text-sm text-gray-700">
-                    <p><strong>Plate Number:</strong> {vehicle.registration_number}</p>
-                    <p><strong>Mileage:</strong> {vehicle.last_mileage} miles</p>
-                    {vehicle.assignee_driver && (
-                      <p><strong>Driver:</strong> {vehicle.assignee_driver.full_name}</p>
-                    )}
-                    {vehicle.site_allocated && (
-                      <p><strong>Site:</strong> {vehicle.site_allocated.name} ({vehicle.site_allocated.postcode})</p>
-                    )}
-                  </div>
-                  {vehicle.warnings.length > 0 && (
-                    <div className="mt-2">
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Badge className="bg-red-100 text-red-700 cursor-pointer">
-                            Warnings: {vehicle.warnings.length}
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <ul className="text-xs list-disc list-inside">
-                            {vehicle.warnings.map((warning, index) => (
-                              <li key={index}>{warning}</li>
-                            ))}
-                          </ul>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  )}
-                  <Link
-                    href={`/dashboard/vehicles/list/${vehicle.id}`}
-                    className="mt-4 inline-flex items-center justify-center w-full px-4 py-2 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-md text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-300"
+        {/* Table */}
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin mr-3" />
+              <span>Loading vehicles...</span>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center py-16 text-red-600">
+              <AlertCircle className="w-6 h-6 mr-2" />
+              {error}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
+                    <tr>
+                      <th className="px-6 py-4 text-left font-medium">Index</th>
+                      <th className="px-6 py-4 text-left font-medium">Vehicle Reg</th>
+                      <th className="px-6 py-4 text-left font-medium">Vehicle Type</th>
+                      <th className="px-6 py-4 text-left font-medium">Roadworthy Status</th>
+                      <th className="px-6 py-4 text-left font-medium">Current Mileage</th>
+                      <th className="px-6 py-4 text-left font-medium">Current Driver</th>
+                      <th className="px-6 py-4 text-center font-medium">Walkarounds</th>
+                      <th className="px-6 py-4 text-center font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {paginatedVehicles.map((vehicle, idx) => {
+                      const index = (currentPage - 1) * perPage + idx + 1
+                      return (
+                        <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 text-gray-600 font-medium">{index}</td>
+                          <td className="px-6 py-4 font-medium text-gray-900">{vehicle.registration_number}</td>
+                          <td className="px-6 py-4 text-gray-700">{vehicle.vehicles_type.name}</td>
+                          <td className="px-6 py-4">{getRoadworthyBadge(vehicle)}</td>
+                          <td className="px-6 py-4 text-gray-700">{formatMileage(vehicle.current_mileage)} KMS</td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {vehicle.assignee_driver?.full_name || "Not Assigned"}
+                          </td>
+                          <td className="px-6 py-4 text-center">{getWalkaroundBadge(vehicle.walkaround_count)}</td>
+
+                          {/* ACTIONS DROPDOWN */}
+                          <td className="px-6 py-4">
+                            <div className="flex justify-center">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4" />
+                                    <span className="sr-only">Open menu</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem asChild>
+                                    <Link
+                                      href={`/dashboard/vehicles/list/${vehicle.id}`}
+                                      className="flex items-center gap-2 w-full cursor-pointer"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                      View Details
+                                    </Link>
+                                  </DropdownMenuItem>
+
+                                  <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                    onClick={() => {
+                                      setVehicleToDelete(vehicle)
+                                      setIsDeleteDialogOpen(true)
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Vehicle
+                                  </DropdownMenuItem>
+
+                                  {/* Add more actions here in the future */}
+                                  {/* <DropdownMenuSeparator />
+                                  <DropdownMenuItem>
+                                    <Wrench className="h-4 w-4 mr-2" />
+                                    Schedule Service
+                                  </DropdownMenuItem> */}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600">
+                  Showing {(currentPage - 1) * perPage + 1} to{" "}
+                  {Math.min(currentPage * perPage, filteredVehicles.length)} of {filteredVehicles.length} vehicles
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
                   >
-                    More Details
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between mt-6">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Page</span>
-            <Badge variant="outline" className="bg-gray-100">
-              {currentPage}
-            </Badge>
-            <span className="text-sm text-gray-600">of {totalPages}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              ref={(el: HTMLButtonElement | null) => {
-                buttonRefs.current["prev"] = el
-              }}
-              variant="ghost"
-              size="sm"
-              className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-              onMouseMove={handleMouseMove("prev")}
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1 || loading}
-            >
-              <ChevronLeft className="w-4 h-4 mr-1 relative z-10" />
-              <span className="relative z-10">Previous</span>
-            </Button>
-            <Button
-              ref={(el: HTMLButtonElement | null) => {
-                buttonRefs.current["page1"] = el
-              }}
-              size="sm"
-              className="bg-red-600 hover:bg-red-700 text-white ripple cursor-glow"
-              onMouseMove={handleMouseMove("page1")}
-            >
-              <span className="relative z-10">{currentPage}</span>
-            </Button>
-            <Button
-              ref={(el: HTMLButtonElement | null) => {
-                buttonRefs.current["next"] = el
-              }}
-              variant="ghost"
-              size="sm"
-              className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-              onMouseMove={handleMouseMove("next")}
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages || loading}
-            >
-              <span className="relative z-10">Next</span>
-              <ChevronRight className="w-4 h-4 ml-1 relative z-10" />
-            </Button>
-          </div>
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+                  <div className="flex gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                    {totalPages > 5 && <span className="px-2 text-gray-500">...</span>}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
+        {/* Add Vehicle Dialog */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-xl">
+          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-semibold">Add Vehicle</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
+              <DialogDescription>
                 Fill in the details to register a new vehicle into the system.
               </DialogDescription>
             </DialogHeader>
@@ -505,44 +449,40 @@ export default function VehiclesPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Filter Dialog */}
         <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Filter Vehicles</DialogTitle>
-              <DialogDescription>
-                Apply filters to narrow down the vehicle list.
-              </DialogDescription>
+              <DialogDescription>Apply filters to narrow down the vehicle list.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="vehicleStatus" className="text-right">
-                  Status
-                </label>
+                <label htmlFor="status" className="text-right font-medium">Status</label>
                 <Select
                   value={filters.vehicleStatus}
-                  onValueChange={(value) => handleFilterChange("vehicleStatus", value === "all" ? "" : value)}
+                  onValueChange={(v) => setFilters((prev) => ({ ...prev, vehicleStatus: v === "all" ? "" : v }))}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="available">Available</SelectItem>
-                    <SelectItem value="unavailable">Unavailable</SelectItem>
                     <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="unavailable">Unavailable</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="isRoadworthy" className="text-right">
-                  Roadworthy
-                </label>
+                <label htmlFor="roadworthy" className="text-right font-medium">Roadworthy</label>
                 <Select
                   value={filters.isRoadworthy}
-                  onValueChange={(value) => handleFilterChange("isRoadworthy", value === "all" ? "" : value)}
+                  onValueChange={(v) => setFilters((prev) => ({ ...prev, isRoadworthy: v === "all" ? "" : v }))}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select roadworthy status" />
+                    <SelectValue placeholder="All" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
@@ -551,16 +491,15 @@ export default function VehiclesPage() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="vehicleType" className="text-right">
-                  Vehicle Type
-                </label>
+                <label htmlFor="type" className="text-right font-medium">Vehicle Type</label>
                 <Select
                   value={filters.vehicleType}
-                  onValueChange={(value) => handleFilterChange("vehicleType", value === "all" ? "" : value)}
+                  onValueChange={(v) => setFilters((prev) => ({ ...prev, vehicleType: v === "all" ? "" : v }))}
                 >
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select vehicle type" />
+                    <SelectValue placeholder="All types" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
@@ -574,19 +513,15 @@ export default function VehiclesPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-                className="flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear Filters
+              <Button variant="outline" onClick={clearFilters}>
+                <X className="w-4 h-4 mr-2" /> Clear Filters
               </Button>
               <Button onClick={() => setIsFilterDialogOpen(false)}>Apply Filters</Button>
             </div>
           </DialogContent>
         </Dialog>
 
+        {/* Delete Confirmation */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -595,7 +530,10 @@ export default function VehiclesPage() {
                 Delete Vehicle
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete vehicle <strong>{vehicleToDelete?.registration_number}</strong>? This action cannot be undone and will permanently remove the vehicle from the system.
+                Are you sure you want to delete vehicle{" "}
+                <strong>{vehicleToDelete?.registration_number}</strong>?
+                <br />
+                This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
