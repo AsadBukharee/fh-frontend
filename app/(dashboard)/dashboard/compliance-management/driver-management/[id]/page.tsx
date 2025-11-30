@@ -717,7 +717,7 @@ export default function DriverDetailPage() {
        transition-colors"
   >
     <FileSignature size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
-    Sign Agreement
+    Signed Agreement
   </TabsTrigger>
 
 </TabsList>
