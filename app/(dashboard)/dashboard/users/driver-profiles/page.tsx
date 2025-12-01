@@ -977,7 +977,7 @@ export default function DriversPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           <Link 
-                            href={`/dashboard/users/driver-profiles/${driver.id}`}
+                            href={`/dashboard/users/driver-profiles/${driver.id}?name=${driver.user.full_name}`}
                             className="hover:text-orange-600 transition-colors"
                           >
                             {driver.user.full_name}

@@ -209,44 +209,48 @@ const DriverManagementPage = () => {
     }
   };
 
-  const renderDateCell = (id: number, field: string, value: string, driver: Driver) => {
-    const isExpired = isDateExpired(value);
-
-    return (
-      <TableCell
-        className={`whitespace-nowrap ${isExpired ? 'text-red-600 bg-red-100' : ''}`}
-      >
-        <Popover>
-          <PopoverTrigger asChild>
-            <span className="cursor-pointer hover:underline">
-              {value ? format(new Date(value), 'dd MMM yyyy') : '-'}
-              {isExpired && <span className="ml-2 text-xs font-bold">(Expired)</span>}
-            </span>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 text-sm">
-            <div className="space-y-1">
-              {[
-                { key: 'driver_licence_expiry', label: 'License Expiry' },
-                { key: 'dbs_expiry_date', label: 'DBS Expiry' },
-                { key: 'tacho_expiry', label: 'Tacho Expiry' },
-                { key: 'night_worker_assessment_expiry', label: 'DOC Expiry' },
-              ].map(({ key, label }) => {
-                const date = driver.driver_compliance[key as keyof typeof driver.driver_compliance];
-                if (!date) return null;
-                const days = differenceInDays(parseISO(date), new Date());
-                const expired = days < 0;
-                return (
-                  <div key={key} className={expired ? 'text-red-600' : ''}>
-                    <strong>{label}:</strong> {expired ? `Expired ${Math.abs(days)} days ago` : `${days} days left`}
-                  </div>
-                );
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
-      </TableCell>
-    );
-  };
+ const renderDateCell = (id: number, field: string, value: string, driver: Driver) => {
+  const isExpired = isDateExpired(value);
+  
+  // Check if the field name contains "last" or "first" (case insensitive)
+  const shouldShowExpired = !field.toLowerCase().includes('last') && 
+                           !field.toLowerCase().includes('first');
+  
+  return (
+    <TableCell
+      className={`whitespace-nowrap ${isExpired ? 'text-red-600 bg-red-100' : ''}`}
+    >
+      <Popover>
+        <PopoverTrigger asChild>
+          <span className="cursor-pointer hover:underline">
+            {value ? format(new Date(value), 'dd MMM yyyy') : '-'}
+            {isExpired && shouldShowExpired && <span className="ml-2 text-xs font-bold">(Expired)</span>}
+          </span>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 text-sm">
+          <div className="space-y-1">
+            {[
+              { key: 'driver_licence_expiry', label: 'License Expiry' },
+              { key: 'dbs_expiry_date', label: 'DBS Expiry' },
+              { key: 'tacho_expiry', label: 'Tacho Expiry' },
+              { key: 'night_worker_assessment_expiry', label: 'CPC/DQC Expiry' },
+            ].map(({ key, label }) => {
+              const date = driver.driver_compliance[key as keyof typeof driver.driver_compliance];
+              if (!date) return null;
+              const days = differenceInDays(parseISO(date), new Date());
+              const expired = days < 0;
+              return (
+                <div key={key} className={expired ? 'text-red-600' : ''}>
+                  <strong>{label}:</strong> {expired ? `Expired ${Math.abs(days)} days ago` : `${days} days left`}
+                </div>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </TableCell>
+  );
+};
 
   const renderDatePicker = (label: string, field: string, value: string) => (
     <div className="space-y-2">
@@ -440,7 +444,7 @@ const DriverManagementPage = () => {
                 <TableHead>Next Check Due</TableHead>
                 <TableHead>Tacho Expiry</TableHead>
                 <TableHead>DBS Expiry</TableHead>
-                <TableHead>DOC Expiry</TableHead>
+                <TableHead>CPC/DQC Expiry</TableHead>
                 <TableHead>Last Tacho DL</TableHead>
                 <TableHead>Next Tacho DL</TableHead>
               </TableRow>
@@ -462,7 +466,7 @@ const DriverManagementPage = () => {
                 drivers.map((driver) => (
                   <TableRow key={driver.id}>
                     <TableCell className="font-medium">
-                      <Link href={`/dashboard/compliance-management/driver-management/${driver.id}`} className="text-blue-600 hover:underline">
+                      <Link href={`/dashboard/compliance-management/driver-management/${driver.id}?name=${driver.user.full_name}`} className="text-blue-600 hover:underline">
                         {driver.user.full_name}
                       </Link>
                     </TableCell>
