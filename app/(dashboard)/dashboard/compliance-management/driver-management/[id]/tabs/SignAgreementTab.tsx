@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import { toast as sonnerToast, toast } from "sonner";
 import { format } from "date-fns";
@@ -143,7 +143,6 @@ type DocMap = {
   crhRules: BaseDoc;
 };
 
-/* ────────────────────── Document Config ────────────────────── */
 const docConfig: Record<
   DocumentKey,
   {
@@ -156,21 +155,21 @@ const docConfig: Record<
 > = {
   nightWorker: {
     title: "Night Worker Agreement",
-    fields: ["applicable", "expiry"],
+    fields: ["applicable", "expiry"], // Keep existing
     category: "employment",
-    apiKey: "night-worker-agreements", // UPDATED: matches API key
+    apiKey: "night-worker-agreements",
   },
   contractOfEmployment: {
     title: "Contract of Employment",
-    fields: ["start", "contract"], // NEW: contract date
+    fields: ["applicable", "start", "contract"], // Added "applicable"
     category: "employment",
   },
   pensionInfo: {
     title: "Pension Opt In/Out",
-    fields: ["optIn", "optOut"],
+    fields: ["applicable", "optIn", "optOut"], // Added "applicable"
     category: "benefits",
     requiresFormOnOptOut: true,
-    apiKey: "pension-info", // UPDATED: matches API key
+    apiKey: "pension-info",
   },
   uniformAgreement: {
     title: "Uniform Agreement",
@@ -786,6 +785,8 @@ function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: Documen
 export default function SignAgreementAdminTab() {
   const { id } = useParams();
   const userId = id as string;
+  const searchParams = useSearchParams();
+  const name = searchParams.get("name");
   const cookies = useCookies();
   const token = cookies.get("access_token") ?? "";
 
@@ -1019,7 +1020,7 @@ return (
       <div className="flex items-center gap-3 mb-6">
         <FileText className="h-6 w-6 text-gray-700" />
         <h1 className="text-xl font-semibold text-gray-900">
-          Signed Agreements – <span className="text-orange-600">Driver #{userId}</span>
+          Signed Agreements – <span className="text-orange-600"><span className="text-black">Driver </span>{ name ?name:`# ${userId}`}</span>
         </h1>
       </div>
 
@@ -1099,13 +1100,13 @@ return (
                 {/* Title & Toggle */}
                 <div className="flex justify-between items-start gap-2">
                   <h3 className="font-semibold text-sm text-gray-900 line-clamp-1">{cfg.title}</h3>
-                  {cfg.fields.includes("applicable") && (
+                  {/* {cfg.fields.includes("applicable") && ( */}
                     <Switch
                       checked={d.isApplicable}
                       onCheckedChange={() => toggleApplicable(k)}
                       // className="data-[state=checked]:bg-green-500"
                     />
-                  )}
+                  {/* )} */}
                 </div>
 
                 {/* Category Badge */}
