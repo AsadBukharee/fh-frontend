@@ -1346,13 +1346,30 @@ const validateCurrentStep = (): boolean => {
                 <Label htmlFor="price" className="text-sm font-medium">
                   Price (£)
                 </Label>
-                <Input
-                  id="price"
-                  name="price"
-                  placeholder="0.00"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                />
+             <Input
+  id="price"
+  name="price"
+  placeholder="0"
+  type="number"
+  value={formData.price}
+  onChange={(e) => {
+    const v = e.target.value;
+
+    // Allow only digits
+    if (/^\d*$/.test(v)) {
+      handleInputChange(e);
+    }
+  }}
+  onKeyDown={(e) => {
+    // Block . , e - + and other non-digit keys
+    if (
+      ["e", "E", ".", ",", "-", "+"].includes(e.key)
+    ) {
+      e.preventDefault();
+    }
+  }}
+/>
+
               </div>
 
               <div className="flex items-center justify-between p-4  bg-white">
@@ -1388,6 +1405,7 @@ const validateCurrentStep = (): boolean => {
   name="vat_amount"
   value={formData.vat_amount}
   readOnly
+  disabled
 />
 
                 </div>
