@@ -487,7 +487,11 @@ export default function Others() {
                             : "right-1 bg-orange-500"
                         }`}
                     ></div>
+                   
                   </div>
+                    <span className={`text-sm font-medium capitalize transition-colors duration-300 ${item.status === "before" ? "text-pink-600" : "text-orange-600"}`}>
+                      {item.status}
+                    </span>
                 </label>
               </div>
 

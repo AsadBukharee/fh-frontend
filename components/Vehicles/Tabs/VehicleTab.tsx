@@ -438,7 +438,7 @@ export default function VehiclesPage() {
 
         {/* Add Vehicle Dialog */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl">
+          <DialogContent className="max-w-[1000px] w-[1000px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-semibold">Add Vehicle</DialogTitle>
               <DialogDescription>

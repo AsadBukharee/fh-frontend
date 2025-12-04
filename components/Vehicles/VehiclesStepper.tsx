@@ -128,6 +128,19 @@ interface VehicleState {
   validationErrors: ValidationErrors
 }
 
+// Default values for tyre checks
+const TYRE_DEFAULTS = {
+  // Default expiry: current week + 1 year (in WWYY format)
+  expiry: "0124", // Example: Week 01 of 2024
+  // Default depth: safe value above minimum
+  depth: "3.5",
+  // Default pressures
+  frontPressure: 66.5,
+  rearPressure: 57.0,
+  // Default torque
+  torque: 205,
+}
+
 const initialState: VehicleState = {
   formData: {
     vin: "",
@@ -171,28 +184,29 @@ const initialState: VehicleState = {
     next_valet_check_date: "",
     last_equipment_check_date: "",
     next_equipment_check_date: "",
-    tyre_expiry_front_driver: "",
-    tyre_expiry_front_passenger: "",
-    tyre_expiry_rear_inner_driver: "",
-    tyre_expiry_rear_inner_passenger: "",
-    tyre_expiry_rear_outer_driver: "",
-    tyre_expiry_rear_outer_passenger: "",
-    tyre_pressure_front_driver: null,
-    tyre_pressure_front_passenger: null,
-    tyre_pressure_rear_outer_driver: null,
-    tyre_pressure_rear_outer_passenger: null,
-    tyre_pressure_rear_inner_driver: null,
-    tyre_pressure_rear_inner_passenger: null,
-    tyre_depth_front_driver: "",
-    tyre_depth_front_passenger: "",
-    tyre_depth_rear_outer_driver: "",
-    tyre_depth_rear_outer_passenger: "",
-    tyre_depth_rear_inner_driver: "",
-    tyre_depth_rear_inner_passenger: "",
-    tyre_torque_front_driver: null,
-    tyre_torque_front_passenger: null,
-    tyre_torque_rear_outer_driver: null,
-    tyre_torque_rear_outer_passenger: null,
+    // Tyre defaults
+    tyre_expiry_front_driver: TYRE_DEFAULTS.expiry,
+    tyre_expiry_front_passenger: TYRE_DEFAULTS.expiry,
+    tyre_expiry_rear_inner_driver: TYRE_DEFAULTS.expiry,
+    tyre_expiry_rear_inner_passenger: TYRE_DEFAULTS.expiry,
+    tyre_expiry_rear_outer_driver: TYRE_DEFAULTS.expiry,
+    tyre_expiry_rear_outer_passenger: TYRE_DEFAULTS.expiry,
+    tyre_pressure_front_driver: TYRE_DEFAULTS.frontPressure,
+    tyre_pressure_front_passenger: TYRE_DEFAULTS.frontPressure,
+    tyre_pressure_rear_outer_driver: TYRE_DEFAULTS.rearPressure,
+    tyre_pressure_rear_outer_passenger: TYRE_DEFAULTS.rearPressure,
+    tyre_pressure_rear_inner_driver: TYRE_DEFAULTS.rearPressure,
+    tyre_pressure_rear_inner_passenger: TYRE_DEFAULTS.rearPressure,
+    tyre_depth_front_driver: TYRE_DEFAULTS.depth,
+    tyre_depth_front_passenger: TYRE_DEFAULTS.depth,
+    tyre_depth_rear_outer_driver: TYRE_DEFAULTS.depth,
+    tyre_depth_rear_outer_passenger: TYRE_DEFAULTS.depth,
+    tyre_depth_rear_inner_driver: TYRE_DEFAULTS.depth,
+    tyre_depth_rear_inner_passenger: TYRE_DEFAULTS.depth,
+    tyre_torque_front_driver: TYRE_DEFAULTS.torque,
+    tyre_torque_front_passenger: TYRE_DEFAULTS.torque,
+    tyre_torque_rear_outer_driver: TYRE_DEFAULTS.torque,
+    tyre_torque_rear_outer_passenger: TYRE_DEFAULTS.torque,
     vehicle_invoice_docs: "",
     mot_check_docs: "",
     pmi_inspection_docs: "",
@@ -328,12 +342,17 @@ const validateRequiredArray = (value: number[], fieldName: string): string | nul
   return null
 }
 
+// Updated tyre depth validation to accept "NV" (Null Value)
 const validateTyreDepth = (value: string, fieldName: string): string | null => {
   if (!value) return `${fieldName} is required`
+  
+  // Allow "NV" (case-insensitive) for null values
+  if (value.toUpperCase() === "NV") return null
+  
   const numValue = parseFloat(value)
-  if (isNaN(numValue)) return `${fieldName} must be a valid number`
+  if (isNaN(numValue)) return `${fieldName} must be a valid number or "NV"`
   if (numValue < 1.6) {
-    return `${fieldName} must be at least 1.6 mm`
+    return `${fieldName} must be at least 1.6 mm or "NV"`
   }
   return null
 }
@@ -341,8 +360,8 @@ const validateTyreDepth = (value: string, fieldName: string): string | null => {
 const validateTyrePressure = (value: number | null, fieldName: string): string | null => {
   const error = validatePositiveNumber(value, fieldName)
   if (error) return error
-  if (value !== null && (value < 30 || value > 35)) {
-    return `${fieldName} must be between 30-35 PSI`
+  if (value !== null && (value < 65 || value > 68)) {
+    return `${fieldName} must be between 65-68 PSI`
   }
   return null
 }
@@ -350,8 +369,15 @@ const validateTyrePressure = (value: number | null, fieldName: string): string |
 const validateTyreTorque = (value: number | null, fieldName: string): string | null => {
   const error = validatePositiveNumber(value, fieldName)
   if (error) return error
-  if (value !== null && (value < 110 || value > 130)) {
-    return `${fieldName} must be between 110-130 Nm`
+  if (value !== null && (value < 200 || value > 210)) {
+    return `${fieldName} must be between 200-210 Nm`
+  }
+  return null
+}
+
+const validateRequiredDocument = (value: string, fieldName: string): string | null => {
+  if (!value.trim()) {
+    return `${fieldName} is required`
   }
   return null
 }
@@ -424,7 +450,6 @@ function AddVehicleStepperForm() {
   const { currentStep, goToNextStep, goToPreviousStep } = useStepper()
 
   const handleFileUploadSuccess = (field: keyof VehicleFormData) => (url: string) => {
-    // Cast to Partial<VehicleFormData> to satisfy TypeScript when updating a dynamic key
     dispatch(setFormData({ [field]: url } as unknown as Partial<VehicleFormData>))
     const key = String(field)
     if (validationErrors[key]) {
@@ -485,48 +510,45 @@ function AddVehicleStepperForm() {
     fetchVehicleTypes()
   }, [cookies, dispatch])
 
- const handleInputChange = (
-  e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-) => {
-  const { name, value, type } = e.target;
-  const isCheckbox = type === "checkbox";
-  const newValue: string | boolean = isCheckbox ? (e.target as HTMLInputElement).checked : value;
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value, type } = e.target;
+    const isCheckbox = type === "checkbox";
+    const newValue: string | boolean = isCheckbox ? (e.target as HTMLInputElement).checked : value;
 
-  const updated: any = { ...formData, [name]: newValue };
+    const updated: any = { ...formData, [name]: newValue };
 
-  // Handle VAT recalculation when price changes
-  if (name === "price" && formData.has_vat) {
-    // Ensure we pass a string to parseFloat (newValue can be boolean for checkboxes)
-    const numericPrice = parseFloat(String(newValue)) || 0;
-    updated.vat_amount = (numericPrice * 0.20).toFixed(2);
-  }
-
-  // Handle VAT calculation when VAT switch toggles on
-  if (name === "has_vat") {
-    if (newValue === true) {
-      const numericPrice = parseFloat(formData.price || "0") || 0;
+    // Handle VAT recalculation when price changes
+    if (name === "price" && formData.has_vat) {
+      const numericPrice = parseFloat(String(newValue)) || 0;
       updated.vat_amount = (numericPrice * 0.20).toFixed(2);
-    } else {
-      updated.vat_amount = "";
     }
-  }
 
-  dispatch(setFormData(updated));
+    // Handle VAT calculation when VAT switch toggles on
+    if (name === "has_vat") {
+      if (newValue === true) {
+        const numericPrice = parseFloat(formData.price || "0") || 0;
+        updated.vat_amount = (numericPrice * 0.20).toFixed(2);
+      } else {
+        updated.vat_amount = "";
+      }
+    }
 
-  if (validationErrors[name]) {
-    dispatch(clearValidationError(name));
-  }
-};
+    dispatch(setFormData(updated));
 
+    if (validationErrors[name]) {
+      dispatch(clearValidationError(name));
+    }
+  };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const { name, value } = e.target
-  // Send null for empty dates, otherwise send the date value
-  dispatch(setFormData({ [name]: value || null }))
-  if (validationErrors[name]) {
-    dispatch(clearValidationError(name))
+    const { name, value } = e.target
+    dispatch(setFormData({ [name]: value || null }))
+    if (validationErrors[name]) {
+      dispatch(clearValidationError(name))
+    }
   }
-}
 
   const handleTyreExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -560,7 +582,14 @@ function AddVehicleStepperForm() {
 
   const handleStringNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    dispatch(setFormData({ [name]: value }))
+  
+    // For tyre depth fields, accept "NV" (case-insensitive)
+    if (name.includes('tyre_depth')) {
+      dispatch(setFormData({ [name]: value }))
+    } else {
+      dispatch(setFormData({ [name]: value }))
+    }
+    
     if (validationErrors[name]) {
       dispatch(clearValidationError(name))
     }
@@ -572,178 +601,119 @@ function AddVehicleStepperForm() {
       dispatch(clearValidationError(name))
     }
   }
-// Add this validation function after the existing validation functions
-const validateRequiredDocument = (value: string, fieldName: string): string | null => {
-  if (!value.trim()) {
-    return `${fieldName} is required`
-  }
-  return null
-}
- // --------------------------------------------------
-// Tyre Specs Configuration
-// --------------------------------------------------
-const TYRE_SPECS = {
-  torqueMin: 200,
-  torqueMax: 210,
-  frontMin: 65,
-  frontMax: 68,
-  rearMin: 56,
-  rearMax: 58,
-};
 
+  // Tyre Specs Configuration
+  const TYRE_SPECS = {
+    torqueMin: 200,
+    torqueMax: 210,
+    frontMin: 65,
+    frontMax: 68,
+    rearMin: 56,
+    rearMax: 58,
+  };
 
-// --------------------------------------------------
-// INDIVIDUAL VALIDATION FUNCTIONS
-// --------------------------------------------------
+  // INDIVIDUAL VALIDATION FUNCTIONS
+  const validateTyrePressure = (value: number | null, fieldLabel: string): string | null => {
+    if (value === null || value === undefined)
+      return `${fieldLabel} is required.`;
 
-// Expiry format: WWYY
-const validateTyreExpiry = (value: string) => {
-  if (!value) return "Expiry is required.";
-  if (!/^\d{4}$/.test(value)) return "Expiry must be in WWYY format.";
-  return null;
-};
+    const lower = fieldLabel.toLowerCase();
+    const isFront = lower.includes("front");
+    const isRear = lower.includes("rear");
 
+    if (isFront) {
+      if (value < TYRE_SPECS.frontMin || value > TYRE_SPECS.frontMax)
+        return `${fieldLabel} must be ${TYRE_SPECS.frontMin}–${TYRE_SPECS.frontMax} PSI.`;
+    }
 
-// Depth ≥ 1.6mm
-const validateTyreDepth = (value: string, fieldLabel: string) => {
-  if (!value) return `${fieldLabel} is required.`;
+    if (isRear) {
+      if (value < TYRE_SPECS.rearMin || value > TYRE_SPECS.rearMax)
+        return `${fieldLabel} must be ${TYRE_SPECS.rearMin}–${TYRE_SPECS.rearMax} PSI.`;
+    }
 
-  const num = parseFloat(value);
-  if (isNaN(num)) return `${fieldLabel} must be a number.`;
-  if (num < 1.6) return `${fieldLabel} must be at least 1.6 mm.`;
+    return null;
+  };
 
-  return null;
-};
+  const validateTyreTorque = (value: number | null, fieldLabel: string): string | null => {
+    if (value === null || value === undefined)
+      return `${fieldLabel} is required.`;
 
+    if (value < TYRE_SPECS.torqueMin || value > TYRE_SPECS.torqueMax)
+      return `${fieldLabel} must be ${TYRE_SPECS.torqueMin}–${TYRE_SPECS.torqueMax} Nm.`;
 
-// Front/Rear PSI ranges
-const validateTyrePressure = (value: number | null, fieldLabel: string) => {
-  if (value === null || value === undefined)
-    return `${fieldLabel} is required.`;
+    return null;
+  };
 
-  const lower = fieldLabel.toLowerCase();
-
-  const isFront = lower.includes("front");
-  const isRear = lower.includes("rear");
-
-  if (isFront) {
-    if (value < TYRE_SPECS.frontMin || value > TYRE_SPECS.frontMax)
-      return `${fieldLabel} must be ${TYRE_SPECS.frontMin}–${TYRE_SPECS.frontMax} PSI.`;
-  }
-
-  if (isRear) {
-    if (value < TYRE_SPECS.rearMin || value > TYRE_SPECS.rearMax)
-      return `${fieldLabel} must be ${TYRE_SPECS.rearMin}–${TYRE_SPECS.rearMax} PSI.`;
+  // Add this date validation function
+  const validateDateFormat = (value: string, fieldName: string): string | null => {
+    if (!value) return null // Allow empty dates for optional fields
+    
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+    if (!dateRegex.test(value)) {
+      return `${fieldName} must be in YYYY-MM-DD format`
+    }
+    
+    const date = new Date(value)
+    if (isNaN(date.getTime())) {
+      return `${fieldName} is not a valid date`
+    }
+    
+    return null
   }
 
-  return null;
-};
+  // Update the main validation function to include date validation
+  const validateCurrentStep = (): boolean => {
+    const errors: ValidationErrors = {}
 
+    // STEP 0 VALIDATION
+    if (currentStep === 0) {
+      const vinError = validateRequiredString(formData.vin, "VIN")
+      if (vinError) errors.vin = vinError
 
-// Torque 200–210 Nm
-const validateTyreTorque = (value: number | null, fieldLabel: string) => {
-  if (value === null || value === undefined)
-    return `${fieldLabel} is required.`;
+      const regError = validateRegistrationNumber(formData.registration_number)
+      if (regError) errors.registration_number = regError
 
-  if (value < TYRE_SPECS.torqueMin || value > TYRE_SPECS.torqueMax)
-    return `${fieldLabel} must be ${TYRE_SPECS.torqueMin}–${TYRE_SPECS.torqueMax} Nm.`;
+      const makeError = validateRequiredString(formData.make, "Make")
+      if (makeError) errors.make = makeError
 
-  return null;
-};
+      const modelError = validateRequiredString(formData.model, "Model")
+      if (modelError) errors.model = modelError
 
+      const typeError = validateRequiredNumber(formData.vehicles_type, "Vehicle Type")
+      if (typeError) errors.vehicles_type = typeError
 
-// Add this date validation function
-const validateDateFormat = (value: string, fieldName: string): string | null => {
-  if (!value) return null // Allow empty dates for optional fields
-  
-  // Check if it's a valid date string in YYYY-MM-DD format
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-  if (!dateRegex.test(value)) {
-    return `${fieldName} must be in YYYY-MM-DD format`
-  }
-  
-  // Check if it's a valid date
-  const date = new Date(value)
-  if (isNaN(date.getTime())) {
-    return `${fieldName} is not a valid date`
-  }
-  
-  return null
-}
+      const sitesError = validateRequiredArray(formData.site_allocated, "Allocated Site(s)")
+      if (sitesError) errors.site_allocated = sitesError
+    }
 
-// Update the main validation function to include date validation
-const validateCurrentStep = (): boolean => {
-  const errors: ValidationErrors = {}
-
-  // STEP 0 VALIDATION
-  if (currentStep === 0) {
-    const vinError = validateRequiredString(formData.vin, "VIN")
-    if (vinError) errors.vin = vinError
-
-    const regError = validateRegistrationNumber(formData.registration_number)
-    if (regError) errors.registration_number = regError
-
-    const makeError = validateRequiredString(formData.make, "Make")
-    if (makeError) errors.make = makeError
-
-    const modelError = validateRequiredString(formData.model, "Model")
-    if (modelError) errors.model = modelError
-
-    const typeError = validateRequiredNumber(formData.vehicles_type, "Vehicle Type")
-    if (typeError) errors.vehicles_type = typeError
-
-    const sitesError = validateRequiredArray(formData.site_allocated, "Allocated Site(s)")
-    if (sitesError) errors.site_allocated = sitesError
-  }
-
-  // STEP 1 VALIDATION
-  if (currentStep === 1) {
-    const requiredDocuments = [
-      { field: "vehicle_picture", label: "Vehicle Picture" },
-      { field: "new_vehicle_checklist_docs", label: "New Vehicle Checklist" },
-      { field: "logbook_docs", label: "Logbook / V5" },
-      { field: "COIF_technical_docs", label: "COIF / Technical Data" },
-      { field: "vehicle_invoice_docs", label: "Vehicle Invoice" },
-      { field: "mot_check_docs", label: "MOT Certificate" },
-    ]
-
-    requiredDocuments.forEach(({ field, label }) => {
-      const value = formData[field as keyof VehicleFormData] as string
-      const error = validateRequiredDocument(value, label)
-      if (error) errors[field] = error
-    })
-  }
-
-  // STEP 3 VALIDATION (Expiry Dates)
-  if (currentStep === 3) {
-    // Validate date fields that are required
-    const requiredDateFields = [
-      { field: "mot_expiry", label: "MOT Expiry Date" },
-      { field: "insurance_expiry", label: "Insurance Expiry Date" },
-      { field: "tax_expiry", label: "Tax Expiry Date" },
-    ]
-
-    requiredDateFields.forEach(({ field, label }) => {
-      const value = formData[field as keyof VehicleFormData] as string
-      const error = validateRequiredString(value, label)
-      if (!error) {
-        const dateError = validateDateFormat(value, label)
-        if (dateError) errors[field] = dateError
-      } else {
-        errors[field] = error
-      }
-    })
-
-    // Validate tacho dates if tacho is fitted
-    if (formData.is_tacho_fitted) {
-      const tachoDateFields = [
-        { field: "tacho_calibration_expiry", label: "Tacho Calibration Expiry" },
-        { field: "next_techo_calibration_book_date", label: "Next Tacho Calibration Date" },
-        { field: "last_tacho_download_date", label: "Last Tacho Download Date" },
-        { field: "next_tacho_download_date", label: "Next Tacho Download Date" },
+    // STEP 1 VALIDATION
+    if (currentStep === 1) {
+      const requiredDocuments = [
+        { field: "vehicle_picture", label: "Vehicle Picture" },
+        { field: "new_vehicle_checklist_docs", label: "New Vehicle Checklist" },
+        { field: "logbook_docs", label: "Logbook / V5" },
+        { field: "COIF_technical_docs", label: "COIF / Technical Data" },
+        { field: "vehicle_invoice_docs", label: "Vehicle Invoice" },
+        { field: "mot_check_docs", label: "MOT Certificate" },
       ]
 
-      tachoDateFields.forEach(({ field, label }) => {
+      requiredDocuments.forEach(({ field, label }) => {
+        const value = formData[field as keyof VehicleFormData] as string
+        const error = validateRequiredDocument(value, label)
+        if (error) errors[field] = error
+      })
+    }
+
+    // STEP 3 VALIDATION (Expiry Dates)
+    if (currentStep === 3) {
+      // Validate date fields that are required
+      const requiredDateFields = [
+        { field: "mot_expiry", label: "MOT Expiry Date" },
+        { field: "insurance_expiry", label: "Insurance Expiry Date" },
+        { field: "tax_expiry", label: "Tax Expiry Date" },
+      ]
+
+      requiredDateFields.forEach(({ field, label }) => {
         const value = formData[field as keyof VehicleFormData] as string
         const error = validateRequiredString(value, label)
         if (!error) {
@@ -753,179 +723,205 @@ const validateCurrentStep = (): boolean => {
           errors[field] = error
         }
       })
-    }
-  }
 
-  // STEP 4 TYRE VALIDATION
-  if (currentStep === 4) {
-    // Your existing tyre validation code...
-    // Expiry fields
-    const tyreExpiryFields = [
-      "tyre_expiry_front_driver", "tyre_expiry_front_passenger",
-      "tyre_expiry_rear_outer_driver", "tyre_expiry_rear_outer_passenger",
-      "tyre_expiry_rear_inner_driver", "tyre_expiry_rear_inner_passenger",
-    ]
+      // Validate tacho dates if tacho is fitted
+      if (formData.is_tacho_fitted) {
+        const tachoDateFields = [
+          { field: "tacho_calibration_expiry", label: "Tacho Calibration Expiry" },
+          { field: "next_techo_calibration_book_date", label: "Next Tacho Calibration Date" },
+          { field: "last_tacho_download_date", label: "Last Tacho Download Date" },
+          { field: "next_tacho_download_date", label: "Next Tacho Download Date" },
+        ]
 
-    tyreExpiryFields.forEach((field) => {
-      const value = formData[field as keyof VehicleFormData] as string
-      const error = validateTyreExpiry(value)
-      if (error) errors[field] = error
-    })
-
-    // Depth fields
-    const tyreDepthFields = [
-      "tyre_depth_front_driver", "tyre_depth_front_passenger",
-      "tyre_depth_rear_outer_driver", "tyre_depth_rear_outer_passenger",
-      "tyre_depth_rear_inner_driver", "tyre_depth_rear_inner_passenger",
-    ]
-
-    tyreDepthFields.forEach((field) => {
-      const value = formData[field as keyof VehicleFormData] as string
-      const error = validateTyreDepth(value, field.replace(/_/g, " "))
-      if (error) errors[field] = error
-    })
-
-    // Pressure fields
-    const tyrePressureFields = [
-      "tyre_pressure_front_driver", "tyre_pressure_front_passenger",
-      "tyre_pressure_rear_outer_driver", "tyre_pressure_rear_outer_passenger",
-      "tyre_pressure_rear_inner_driver", "tyre_pressure_rear_inner_passenger",
-    ]
-
-    tyrePressureFields.forEach((field) => {
-      const value = formData[field as keyof VehicleFormData] as number | null
-      const error = validateTyrePressure(value, field.replace(/_/g, " "))
-      if (error) errors[field] = error
-    })
-
-    // Torque fields
-    const tyreTorqueFields = [
-      "tyre_torque_front_driver", "tyre_torque_front_passenger",
-      "tyre_torque_rear_outer_driver", "tyre_torque_rear_outer_passenger",
-    ]
-
-    tyreTorqueFields.forEach((field) => {
-      const value = formData[field as keyof VehicleFormData] as number | null
-      const error = validateTyreTorque(value, field.replace(/_/g, " "))
-      if (error) errors[field] = error
-    })
-  }
-
-  // APPLY ERRORS
-  dispatch(setValidationErrors(errors))
-
-  return Object.keys(errors).length === 0
-}
-
-
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  
-  if (!validateCurrentStep()) {
-    toast.error("Validation Error", {
-      description: "Please fix all validation errors before submitting.",
-    })
-    return
-  }
-
-  const token = cookies.get("access_token")
-  
-  // Prepare data for submission - clean up empty date strings
-  const submitData = {
-    ...formData,
-    is_wheelchair_lift_fitted: formData.is_wheelchair_lift_fitted ? "Yes" : "No",
-    
-    // Convert empty date strings to null
-    date_of_purchase: formData.date_of_purchase || null,
-    last_pmi_date: formData.last_pmi_date || null,
-    pmi_booked_date: formData.pmi_booked_date || null,
-    mot_expiry: formData.mot_expiry || null,
-    insurance_expiry: formData.insurance_expiry || null,
-    tax_expiry: formData.tax_expiry || null,
-    loller_test_expiry_date: formData.loller_test_expiry_date || null,
-    next_loller_test_date: formData.next_loller_test_date || null,
-    tacho_calibration_expiry: formData.tacho_calibration_expiry || null,
-    next_techo_calibration_book_date: formData.next_techo_calibration_book_date || null,
-    last_tacho_download_date: formData.last_tacho_download_date || null,
-    next_tacho_download_date: formData.next_tacho_download_date || null,
-    last_tyre_maintenance_check_date: formData.last_tyre_maintenance_check_date || null,
-    next_tyre_maintenance_check_date: formData.next_tyre_maintenance_check_date || null,
-    last_valet_check_date: formData.last_valet_check_date || null,
-    next_valet_check_date: formData.next_valet_check_date || null,
-    last_equipment_check_date: formData.last_equipment_check_date || null,
-    next_equipment_check_date: formData.next_equipment_check_date || null,
-  }
-
-  dispatch(setSubmitLoading(true))
-  
-  try {
-    const response = await fetch(`${API_URL}/api/vehicles/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(submitData),
-    })
-    
-    const data = await response.json()
-    
-    if (response.ok) {
-      toast.success("Vehicle added successfully!", {
-        description: "The vehicle has been added to the system.",
-      })
-      dispatch(resetForm())
-    } else {
-      // Handle validation errors from backend
-      if (data.message && data.message.includes("Validation failed")) {
-        const backendErrors: ValidationErrors = {}
-        
-        // Parse backend validation errors
-        if (data.message.includes("tacho_calibration_expiry")) {
-          backendErrors.tacho_calibration_expiry = "Date has wrong format. Use YYYY-MM-DD format."
-        }
-        if (data.message.includes("next_techo_calibration_book_date")) {
-          backendErrors.next_techo_calibration_book_date = "Date has wrong format. Use YYYY-MM-DD format."
-        }
-        if (data.message.includes("last_tacho_download_date")) {
-          backendErrors.last_tacho_download_date = "Date has wrong format. Use YYYY-MM-DD format."
-        }
-        if (data.message.includes("next_tacho_download_date")) {
-          backendErrors.next_tacho_download_date = "Date has wrong format. Use YYYY-MM-DD format."
-        }
-        if (data.message.includes("next_valet_check_date")) {
-          backendErrors.next_valet_check_date = "Date has wrong format. Use YYYY-MM-DD format."
-        }
-        if (data.message.includes("last_equipment_check_date")) {
-          backendErrors.last_equipment_check_date = "Date has wrong format. Use YYYY-MM-DD format."
-        }
-        if (data.message.includes("next_equipment_check_date")) {
-          backendErrors.next_equipment_check_date = "Date has wrong format. Use YYYY-MM-DD format."
-        }
-        if (data.message.includes("tyre_torque_rear_outer_driver")) {
-          backendErrors.tyre_torque_rear_outer_driver = "A valid integer is required."
-        }
-        
-        dispatch(setValidationErrors(backendErrors))
-        
-        toast.error("Validation Failed", {
-          description: "Please check the form for errors.",
-        })
-      } else {
-        toast.error("Failed to add vehicle", {
-          description: data.message || "Please try again.",
+        tachoDateFields.forEach(({ field, label }) => {
+          const value = formData[field as keyof VehicleFormData] as string
+          const error = validateRequiredString(value, label)
+          if (!error) {
+            const dateError = validateDateFormat(value, label)
+            if (dateError) errors[field] = dateError
+          } else {
+            errors[field] = error
+          }
         })
       }
     }
-  } catch (error) {
-    console.error("Error adding vehicle:", error)
-    toast.error("An error occurred", {
-      description: "Failed to add the vehicle. Please check your connection and try again.",
-    })
-  } finally {
-    dispatch(setSubmitLoading(false))
+
+    // STEP 4 TYRE VALIDATION
+    if (currentStep === 4) {
+      // Expiry fields
+      const tyreExpiryFields = [
+        "tyre_expiry_front_driver", "tyre_expiry_front_passenger",
+        "tyre_expiry_rear_outer_driver", "tyre_expiry_rear_outer_passenger",
+        "tyre_expiry_rear_inner_driver", "tyre_expiry_rear_inner_passenger",
+      ]
+
+      tyreExpiryFields.forEach((field) => {
+        const value = formData[field as keyof VehicleFormData] as string
+        const error = validateTyreExpiry(value)
+        if (error) errors[field] = error
+      })
+
+      // Depth fields
+      const tyreDepthFields = [
+        "tyre_depth_front_driver", "tyre_depth_front_passenger",
+        "tyre_depth_rear_outer_driver", "tyre_depth_rear_outer_passenger",
+        "tyre_depth_rear_inner_driver", "tyre_depth_rear_inner_passenger",
+      ]
+
+      tyreDepthFields.forEach((field) => {
+        const value = formData[field as keyof VehicleFormData] as string
+        const error = validateTyreDepth(value, field.replace(/_/g, " "))
+        if (error) errors[field] = error
+      })
+
+      // Pressure fields
+      const tyrePressureFields = [
+        "tyre_pressure_front_driver", "tyre_pressure_front_passenger",
+        "tyre_pressure_rear_outer_driver", "tyre_pressure_rear_outer_passenger",
+        "tyre_pressure_rear_inner_driver", "tyre_pressure_rear_inner_passenger",
+      ]
+
+      tyrePressureFields.forEach((field) => {
+        const value = formData[field as keyof VehicleFormData] as number | null
+        const error = validateTyrePressure(value, field.replace(/_/g, " "))
+        if (error) errors[field] = error
+      })
+
+      // Torque fields
+      const tyreTorqueFields = [
+        "tyre_torque_front_driver", "tyre_torque_front_passenger",
+        "tyre_torque_rear_outer_driver", "tyre_torque_rear_outer_passenger",
+      ]
+
+      tyreTorqueFields.forEach((field) => {
+        const value = formData[field as keyof VehicleFormData] as number | null
+        const error = validateTyreTorque(value, field.replace(/_/g, " "))
+        if (error) errors[field] = error
+      })
+    }
+
+    // APPLY ERRORS
+    dispatch(setValidationErrors(errors))
+
+    return Object.keys(errors).length === 0
   }
-}
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateCurrentStep()) {
+      toast.error("Validation Error", {
+        description: "Please fix all validation errors before submitting.",
+      })
+      return
+    }
+
+    const token = cookies.get("access_token")
+    
+    // Prepare data for submission - convert "NV" to null for tyre depth
+    const submitData = {
+      ...formData,
+      is_wheelchair_lift_fitted: formData.is_wheelchair_lift_fitted ? "Yes" : "No",
+      
+      // Convert "NV" in tyre depth fields to null
+      tyre_depth_front_driver: formData.tyre_depth_front_driver.toUpperCase() === "NV" ? null : formData.tyre_depth_front_driver,
+      tyre_depth_front_passenger: formData.tyre_depth_front_passenger.toUpperCase() === "NV" ? null : formData.tyre_depth_front_passenger,
+      tyre_depth_rear_outer_driver: formData.tyre_depth_rear_outer_driver.toUpperCase() === "NV" ? null : formData.tyre_depth_rear_outer_driver,
+      tyre_depth_rear_outer_passenger: formData.tyre_depth_rear_outer_passenger.toUpperCase() === "NV" ? null : formData.tyre_depth_rear_outer_passenger,
+      tyre_depth_rear_inner_driver: formData.tyre_depth_rear_inner_driver.toUpperCase() === "NV" ? null : formData.tyre_depth_rear_inner_driver,
+      tyre_depth_rear_inner_passenger: formData.tyre_depth_rear_inner_passenger.toUpperCase() === "NV" ? null : formData.tyre_depth_rear_inner_passenger,
+      
+      // Convert empty date strings to null
+      date_of_purchase: formData.date_of_purchase || null,
+      last_pmi_date: formData.last_pmi_date || null,
+      pmi_booked_date: formData.pmi_booked_date || null,
+      mot_expiry: formData.mot_expiry || null,
+      insurance_expiry: formData.insurance_expiry || null,
+      tax_expiry: formData.tax_expiry || null,
+      loller_test_expiry_date: formData.loller_test_expiry_date || null,
+      next_loller_test_date: formData.next_loller_test_date || null,
+      tacho_calibration_expiry: formData.tacho_calibration_expiry || null,
+      next_techo_calibration_book_date: formData.next_techo_calibration_book_date || null,
+      last_tacho_download_date: formData.last_tacho_download_date || null,
+      next_tacho_download_date: formData.next_tacho_download_date || null,
+      last_tyre_maintenance_check_date: formData.last_tyre_maintenance_check_date || null,
+      next_tyre_maintenance_check_date: formData.next_tyre_maintenance_check_date || null,
+      last_valet_check_date: formData.last_valet_check_date || null,
+      next_valet_check_date: formData.next_valet_check_date || null,
+      last_equipment_check_date: formData.last_equipment_check_date || null,
+      next_equipment_check_date: formData.next_equipment_check_date || null,
+    }
+
+    dispatch(setSubmitLoading(true))
+    
+    try {
+      const response = await fetch(`${API_URL}/api/vehicles/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(submitData),
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        toast.success("Vehicle added successfully!", {
+          description: "The vehicle has been added to the system.",
+        })
+        dispatch(resetForm())
+      } else {
+        // Handle validation errors from backend
+        if (data.message && data.message.includes("Validation failed")) {
+          const backendErrors: ValidationErrors = {}
+          
+          // Parse backend validation errors
+          if (data.message.includes("tacho_calibration_expiry")) {
+            backendErrors.tacho_calibration_expiry = "Date has wrong format. Use YYYY-MM-DD format."
+          }
+          if (data.message.includes("next_techo_calibration_book_date")) {
+            backendErrors.next_techo_calibration_book_date = "Date has wrong format. Use YYYY-MM-DD format."
+          }
+          if (data.message.includes("last_tacho_download_date")) {
+            backendErrors.last_tacho_download_date = "Date has wrong format. Use YYYY-MM-DD format."
+          }
+          if (data.message.includes("next_tacho_download_date")) {
+            backendErrors.next_tacho_download_date = "Date has wrong format. Use YYYY-MM-DD format."
+          }
+          if (data.message.includes("next_valet_check_date")) {
+            backendErrors.next_valet_check_date = "Date has wrong format. Use YYYY-MM-DD format."
+          }
+          if (data.message.includes("last_equipment_check_date")) {
+            backendErrors.last_equipment_check_date = "Date has wrong format. Use YYYY-MM-DD format."
+          }
+          if (data.message.includes("next_equipment_check_date")) {
+            backendErrors.next_equipment_check_date = "Date has wrong format. Use YYYY-MM-DD format."
+          }
+          if (data.message.includes("tyre_torque_rear_outer_driver")) {
+            backendErrors.tyre_torque_rear_outer_driver = "A valid integer is required."
+          }
+          
+          dispatch(setValidationErrors(backendErrors))
+          
+          toast.error("Validation Failed", {
+            description: "Please check the form for errors.",
+          })
+        } else {
+          toast.error("Failed to add vehicle", {
+            description: data.message || "Please try again.",
+          })
+        }
+      }
+    } catch (error) {
+      console.error("Error adding vehicle:", error)
+      toast.error("An error occurred", {
+        description: "Failed to add the vehicle. Please check your connection and try again.",
+      })
+    } finally {
+      dispatch(setSubmitLoading(false))
+    }
+  }
 
   const ErrorMessage = ({ field }: { field: string }) => {
     if (!validationErrors[field]) return null
@@ -1741,14 +1737,15 @@ const validateCurrentStep = (): boolean => {
           <AlertDescription className="text-amber-900">
   <strong>All tyre fields are required.</strong> 
   Expiry format: WWYY (e.g., 0124 for week 1 of 2024). 
-  Depth ≥1.6mm, Front Pressure 65–68 PSI, Rear Pressure 56–58 PSI, Torque 200–210 Nm.
+  Depth ≥1.6mm or &quot;NV&quot; for Null Value, Front Pressure 65–68 PSI, Rear Pressure 56–58 PSI, Torque 200–210 Nm.
 </AlertDescription>
 
           </Alert>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-4">
             {/* Front Driver */}
-            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-blue-50 to-white">
+           <div className=" w-full flex justify-between ">
+             <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-blue-50 to-white">
               <h4 className="font-semibold mb-4 text-blue-900">Front Driver</h4>
               <div className="space-y-4">
                 <div>
@@ -1771,7 +1768,7 @@ const validateCurrentStep = (): boolean => {
                   </Label>
                   <Input
                     name="tyre_depth_front_driver"
-                    placeholder="7.2"
+                    placeholder="3.5 or NV"
                     value={formData.tyre_depth_front_driver}
                     onChange={handleStringNumberInputChange}
                     className={cn("", validationErrors.tyre_depth_front_driver && "border-red-500")}
@@ -1786,7 +1783,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_pressure_front_driver"
                     type="number"
                     step="0.1"
-                    placeholder="32.5"
+                    placeholder="66.5"
                     value={formData.tyre_pressure_front_driver || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_pressure_front_driver && "border-red-500")}
@@ -1801,7 +1798,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_torque_front_driver"
                     type="number"
                     step="0.1"
-                    placeholder="120.0"
+                    placeholder="205"
                     value={formData.tyre_torque_front_driver || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_torque_front_driver && "border-red-500")}
@@ -1835,7 +1832,7 @@ const validateCurrentStep = (): boolean => {
                   </Label>
                   <Input
                     name="tyre_depth_front_passenger"
-                    placeholder="7.1"
+                    placeholder="3.5 or NV"
                     value={formData.tyre_depth_front_passenger}
                     onChange={handleStringNumberInputChange}
                     className={cn("", validationErrors.tyre_depth_front_passenger && "border-red-500")}
@@ -1850,7 +1847,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_pressure_front_passenger"
                     type="number"
                     step="0.1"
-                    placeholder="32.0"
+                    placeholder="66.5"
                     value={formData.tyre_pressure_front_passenger || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_pressure_front_passenger && "border-red-500")}
@@ -1865,7 +1862,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_torque_front_passenger"
                     type="number"
                     step="0.1"
-                    placeholder="120.0"
+                    placeholder="205"
                     value={formData.tyre_torque_front_passenger || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_torque_front_passenger && "border-red-500")}
@@ -1874,8 +1871,10 @@ const validateCurrentStep = (): boolean => {
                 </div>
               </div>
             </div>
+           </div>
 
-            {/* Rear Outer Driver */}
+          <div className=" flex gap-4">
+              {/* Rear Outer Driver */}
             <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-purple-50 to-white">
               <h4 className="font-semibold mb-4 text-purple-900">Rear Outer Driver</h4>
               <div className="space-y-4">
@@ -1899,7 +1898,7 @@ const validateCurrentStep = (): boolean => {
                   </Label>
                   <Input
                     name="tyre_depth_rear_outer_driver"
-                    placeholder="6.9"
+                    placeholder="3.5 or NV"
                     value={formData.tyre_depth_rear_outer_driver}
                     onChange={handleStringNumberInputChange}
                     className={cn("", validationErrors.tyre_depth_rear_outer_driver && "border-red-500")}
@@ -1914,7 +1913,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_pressure_rear_outer_driver"
                     type="number"
                     step="0.1"
-                    placeholder="35.0"
+                    placeholder="57.0"
                     value={formData.tyre_pressure_rear_outer_driver || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_pressure_rear_outer_driver && "border-red-500")}
@@ -1929,7 +1928,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_torque_rear_outer_driver"
                     type="number"
                     step="0.1"
-                    placeholder="125.0"
+                    placeholder="205"
                     value={formData.tyre_torque_rear_outer_driver || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_torque_rear_outer_driver && "border-red-500")}
@@ -1963,7 +1962,7 @@ const validateCurrentStep = (): boolean => {
                   </Label>
                   <Input
                     name="tyre_depth_rear_outer_passenger"
-                    placeholder="7.0"
+                    placeholder="3.5 or NV"
                     value={formData.tyre_depth_rear_outer_passenger}
                     onChange={handleStringNumberInputChange}
                     className={cn("", validationErrors.tyre_depth_rear_outer_passenger && "border-red-500")}
@@ -1978,7 +1977,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_pressure_rear_outer_passenger"
                     type="number"
                     step="0.1"
-                    placeholder="35.5"
+                    placeholder="57.0"
                     value={formData.tyre_pressure_rear_outer_passenger || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_pressure_rear_outer_passenger && "border-red-500")}
@@ -1993,7 +1992,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_torque_rear_outer_passenger"
                     type="number"
                     step="0.1"
-                    placeholder="125.0"
+                    placeholder="205"
                     value={formData.tyre_torque_rear_outer_passenger || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_torque_rear_outer_passenger && "border-red-500")}
@@ -2027,7 +2026,7 @@ const validateCurrentStep = (): boolean => {
                   </Label>
                   <Input
                     name="tyre_depth_rear_inner_driver"
-                    placeholder="7.2"
+                    placeholder="3.5 or NV"
                     value={formData.tyre_depth_rear_inner_driver}
                     onChange={handleStringNumberInputChange}
                     className={cn("", validationErrors.tyre_depth_rear_inner_driver && "border-red-500")}
@@ -2042,7 +2041,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_pressure_rear_inner_driver"
                     type="number"
                     step="0.1"
-                    placeholder="35.0"
+                    placeholder="57.0"
                     value={formData.tyre_pressure_rear_inner_driver || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_pressure_rear_inner_driver && "border-red-500")}
@@ -2076,7 +2075,7 @@ const validateCurrentStep = (): boolean => {
                   </Label>
                   <Input
                     name="tyre_depth_rear_inner_passenger"
-                    placeholder="7.1"
+                    placeholder="3.5 or NV"
                     value={formData.tyre_depth_rear_inner_passenger}
                     onChange={handleStringNumberInputChange}
                     className={cn("", validationErrors.tyre_depth_rear_inner_passenger && "border-red-500")}
@@ -2091,7 +2090,7 @@ const validateCurrentStep = (): boolean => {
                     name="tyre_pressure_rear_inner_passenger"
                     type="number"
                     step="0.1"
-                    placeholder="35.0"
+                    placeholder="57.0"
                     value={formData.tyre_pressure_rear_inner_passenger || ""}
                     onChange={handleNumberInputChange}
                     className={cn("", validationErrors.tyre_pressure_rear_inner_passenger && "border-red-500")}
@@ -2100,6 +2099,7 @@ const validateCurrentStep = (): boolean => {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       ),
@@ -2213,19 +2213,27 @@ const validateCurrentStep = (): boolean => {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Front Driver:</span>
-                  <span className="font-medium">{formData.tyre_expiry_front_driver || "N/A"}</span>
+                  <span className="font-medium">
+                    {formData.tyre_depth_front_driver ? (formData.tyre_depth_front_driver.toUpperCase() === "NV" ? "NV (Null Value)" : `${formData.tyre_depth_front_driver}mm`) : "N/A"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Front Pass:</span>
-                  <span className="font-medium">{formData.tyre_expiry_front_passenger || "N/A"}</span>
+                  <span className="font-medium">
+                    {formData.tyre_depth_front_passenger ? (formData.tyre_depth_front_passenger.toUpperCase() === "NV" ? "NV (Null Value)" : `${formData.tyre_depth_front_passenger}mm`) : "N/A"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Rear Driver:</span>
-                  <span className="font-medium">{formData.tyre_expiry_rear_outer_driver || "N/A"}</span>
+                  <span className="font-medium">
+                    {formData.tyre_depth_rear_outer_driver ? (formData.tyre_depth_rear_outer_driver.toUpperCase() === "NV" ? "NV (Null Value)" : `${formData.tyre_depth_rear_outer_driver}mm`) : "N/A"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Rear Pass:</span>
-                  <span className="font-medium">{formData.tyre_expiry_rear_outer_passenger || "N/A"}</span>
+                  <span className="font-medium">
+                    {formData.tyre_depth_rear_outer_passenger ? (formData.tyre_depth_rear_outer_passenger.toUpperCase() === "NV" ? "NV (Null Value)" : `${formData.tyre_depth_rear_outer_passenger}mm`) : "N/A"}
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -2264,7 +2272,7 @@ const validateCurrentStep = (): boolean => {
 
                       {index === 2 && "Record purchase details and PMI information for your records."}
                       {index === 3 && "Track compliance dates and upload related documents."}
-                      {index === 4 && "Complete all tyre checks with required safety metrics."}
+                      {index === 4 && "Complete all tyre checks with required safety metrics. Enter 'NV' for Null Value in depth fields."}
                       {index === 5 && "Review all information and submit the vehicle registration."}
                     </CardDescription>
                   </CardHeader>
