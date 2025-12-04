@@ -6,15 +6,6 @@ import { Button } from "@/components/ui/button"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 
-// Utility function to transform ID to title
-const formatTitle = (id: string) => {
-  return id
-    .replace(/_/g, ' ')
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ')
-}
-
 interface AuditItem {
   id: string
   title: string
@@ -25,91 +16,37 @@ interface AuditItem {
 
 const API = `${API_URL}/activity/audit-expiry-driver/`
 
-// 🔄 API → UI
+// Fixed mapping — this is the ONLY critical change
 const transformFromApi = (data: any): AuditItem[] => [
-  {
-    id: "license_expiry",
-    title: formatTitle("license_expiry"),
-    subtitle: "Alert Before Drivers License Expiry",
-    days: Math.abs(data.license_expiry),
-    status: data.license_expiry < 0 ? "before" : "after",
-  },
-  {
-    id: "d_category_expiry",
-    title: formatTitle("d_category_expiry"),
-    subtitle: "Alert Before D Category Expiry",
-    days: Math.abs(data.d_category_expiry),
-    status: data.d_category_expiry < 0 ? "before" : "after",
-  },
-  {
-    id: "last_code_expiry",
-    title: formatTitle("last_code_expiry"),
-    subtitle: "Alert After Last Code Expiry",
-    days: Math.abs(data.last_code_expiry),
-    status: data.last_code_expiry < 0 ? "before" : "after",
-  },
-  {
-    id: "last_code_check",
-    title: formatTitle("last_code_check"),
-    subtitle: "Alert Before Last Code Check",
-    days: Math.abs(data.last_code_check),
-    status: data.last_code_check < 0 ? "before" : "after",
-  },
-  {
-    id: "tacho_expiry",
-    title: formatTitle("tacho_expiry"),
-    subtitle: "Alert After Tacho Expiry",
-    days: Math.abs(data.tacho_expiry),
-    status: data.tacho_expiry < 0 ? "before" : "after",
-  },
-  {
-    id: "last_tacho_download",
-    title: formatTitle("last_tacho_download"),
-    subtitle: "Alert Before Last Tacho Download",
-    days: Math.abs(data.last_tacho_download),
-    status: data.last_tacho_download < 0 ? "before" : "after",
-  },
-  {
-    id: "cpc_expiry",
-    title: formatTitle("cpc_expiry"),
-    subtitle: "Alert Before CPC Expiry",
-    days: Math.abs(data.cpc_expiry),
-    status: data.cpc_expiry < 0 ? "before" : "after",
-  },
-  {
-    id: "dbs_expiry",
-    title: formatTitle("dbs_expiry"),
-    subtitle: "Alert After DBS Expiry",
-    days: Math.abs(data.dbs_expiry),
-    status: data.dbs_expiry < 0 ? "before" : "after",
-  },
-  {
-    id: "night_worker_assessment",
-    title: formatTitle("night_worker_assessment"),
-    subtitle: "Alert Before Night Worker Assessment",
-    days: Math.abs(data.night_worker_assessment),
-    status: data.night_worker_assessment < 0 ? "before" : "after",
-  },
+  { id: "license_expiry",                  title: "License Expiry", subtitle: "Alert Before Drivers License Expiry", days: Math.abs(data.license_expiry ?? 0), status: (data.license_expiry ?? 0) < 0 ? "before" : "after" },
+  { id: "d_d1_category_expiry",            title: "D/D1 Category Expiry", subtitle: "Alert Before D Category Expiry", days: Math.abs(data.d_d1_category_expiry ?? 0), status: (data.d_d1_category_expiry ?? 0) < 0 ? "before" : "after" },
+  { id: "licence_check_code_expiry",       title: "Licence Check Code Expiry", subtitle: "Alert After Last Code Expiry", days: Math.abs(data.licence_check_code_expiry ?? 0), status: (data.licence_check_code_expiry ?? 0) < 0 ? "before" : "after" },
+  { id: "days_after_last_license_check_cod", title: "Days After Last License Check Code", subtitle: "Alert After Last Code Check", days: Math.abs(data.days_after_last_license_check_cod ?? 0), status: (data.days_after_last_license_check_cod ?? 0) < 0 ? "before" : "after" },
+  { id: "days_after_last_tacho_download",  title: "Days After Last Tacho Download", subtitle: "Alert After Last Tacho Download", days: Math.abs(data.days_after_last_tacho_download ?? 0), status: (data.days_after_last_tacho_download ?? 0) < 0 ? "before" : "after" },
+  { id: "tacho_expiry",                    title: "Tacho Expiry", subtitle: "Alert Before Tacho Expiry", days: Math.abs(data.tacho_expiry ?? 0), status: (data.tacho_expiry ?? 0) < 0 ? "before" : "after" },
+  { id: "last_tacho_download",             title: "Last Tacho Download", subtitle: "Alert After Last Tacho Download", days: Math.abs(data.last_tacho_download ?? 0), status: (data.last_tacho_download ?? 0) < 0 ? "before" : "after" },
+  { id: "cpc_dqc_expiry",                  title: "CPC/DQC Expiry", subtitle: "Alert Before CPC Expiry", days: Math.abs(data.cpc_dqc_expiry ?? 0), status: (data.cpc_dqc_expiry ?? 0) < 0 ? "before" : "after" },
+  { id: "dbs_expiry",                      title: "DBS Expiry", subtitle: "Alert Before DBS Expiry", days: Math.abs(data.dbs_expiry ?? 0), status: (data.dbs_expiry ?? 0) < 0 ? "before" : "after" },
+  { id: "night_worker_assessment",         title: "Night Worker Assessment", subtitle: "Alert Before Night Worker Assessment", days: Math.abs(data.night_worker_assessment ?? 0), status: (data.night_worker_assessment ?? 0) < 0 ? "before" : "after" },
 ]
 
-// 🔄 UI → API
 const transformToApi = (items: AuditItem[]) => {
-  const getVal = (id: string) => {
-    const i = items.find((x) => x.id === id)
-    if (!i) return 0
-    return i.status === "before" ? -Math.abs(i.days) : Math.abs(i.days)
+  const v = (id: string) => {
+    const i = items.find(x => x.id === id)
+    return i ? (i.status === "before" ? -i.days : i.days) : 0
   }
   return {
     id: 1,
-    license_expiry: getVal("license_expiry"),
-    d_category_expiry: getVal("d_category_expiry"),
-    last_code_expiry: getVal("last_code_expiry"),
-    last_code_check: getVal("last_code_check"),
-    tacho_expiry: getVal("tacho_expiry"),
-    last_tacho_download: getVal("last_tacho_download"),
-    cpc_expiry: getVal("cpc_expiry"),
-    dbs_expiry: getVal("dbs_expiry"),
-    night_worker_assessment: getVal("night_worker_assessment"),
+    license_expiry: v("license_expiry"),
+    d_d1_category_expiry: v("d_d1_category_expiry"),
+    licence_check_code_expiry: v("licence_check_code_expiry"),
+    days_after_last_license_check_cod: v("days_after_last_license_check_cod"),
+    days_after_last_tacho_download: v("days_after_last_tacho_download"),
+    tacho_expiry: v("tacho_expiry"),
+    last_tacho_download: v("last_tacho_download"),
+    cpc_dqc_expiry: v("cpc_dqc_expiry"),
+    dbs_expiry: v("dbs_expiry"),
+    night_worker_assessment: v("night_worker_assessment"),
   }
 }
 
@@ -118,62 +55,44 @@ export default function Drivers() {
   const [loading, setLoading] = useState(true)
   const token = useCookies().get("access_token")
 
-  // Load data
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await fetch(`${API}1/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         })
         const json = await res.json()
         if (json.success && json.data) {
           setAuditItems(transformFromApi(json.data))
         }
-      } catch (err) {
-        console.error("Error fetching audit data:", err)
-      } finally {
-        setLoading(false)
-      }
+      } catch (err) { console.error(err) }
+      finally { setLoading(false) }
     }
     fetchData()
   }, [token])
 
-  // Update days
-  const updateDays = (id: string, newDays: number) => {
-    setAuditItems((items) =>
-      items.map((item) => (item.id === id ? { ...item, days: newDays } : item))
-    )
+  const updateDays = (id: string, days: number) => {
+    setAuditItems(prev => prev.map(i => i.id === id ? { ...i, days: days < 0 ? 0 : days } : i))
   }
 
-  // Toggle before/after
   const toggleStatus = (id: string) => {
-    setAuditItems((items) =>
-      items.map((item) =>
-        item.id === id ? { ...item, status: item.status === "after" ? "before" : "after" } : item
-      )
-    )
+    setAuditItems(prev => prev.map(i => i.id === id ? { ...i, status: i.status === "before" ? "after" : "before" } : i))
   }
 
-  // Save data
   const handleSave = async () => {
     setLoading(true)
-    const payload = transformToApi(auditItems)
     try {
-      const res = await fetch(`${API}1/`, {
+      await fetch(`${API}1/`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(transformToApi(auditItems)),
       })
-      const json = await res.json()
-      console.log("Saved successfully:", json)
+      alert("Saved successfully!")
     } catch (err) {
-      console.error("Error saving audit items:", err)
+      alert("Save failed")
     } finally {
       setLoading(false)
     }
@@ -182,10 +101,11 @@ export default function Drivers() {
   return (
     <div className="min-h-screen relative p-3 bg-white">
       {loading && (
-        <div className=" absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pink-500"></div>
         </div>
       )}
+
       <div className="mx-auto bg-white mb-2">
         <div className="bg-green-200 px-6 py-4">
           <h1 className="text-lg font-semibold text-gray-800">Drivers</h1>
@@ -193,23 +113,14 @@ export default function Drivers() {
         </div>
 
         <div>
-          {/* Header */}
           <div className="grid grid-cols-12 gap-4 py-6 px-2 border-b bg-gray-100 border-gray-200">
-            <div className="col-span-7 text-sm font-medium text-gray-500 uppercase tracking-wide">
-              AUDIT ITEM
-            </div>
-            <div className="col-span-2 text-sm font-medium text-gray-500 uppercase tracking-wide text-center">
-              DAYS
-            </div>
+            <div className="col-span-7 text-sm font-medium text-gray-500 uppercase tracking-wide">AUDIT ITEM</div>
+            <div className="col-span-2 text-sm font-medium text-gray-500 uppercase tracking-wide text-center">DAYS</div>
           </div>
 
-          {/* Items */}
           <div className="bg-white px-2">
             {auditItems.map((item) => (
-              <div
-                key={item.id}
-                className="grid grid-cols-12 gap-4 py-4 border-b border-gray-100 last:border-b-0"
-              >
+              <div key={item.id} className="grid grid-cols-12 gap-4 py-4 border-b border-gray-100 last:border-b-0">
                 <div className="col-span-7">
                   <div className="font-medium text-gray-900 text-sm">{item.title}</div>
                   <div className="text-xs text-gray-500 mt-1">{item.subtitle}</div>
@@ -220,32 +131,18 @@ export default function Drivers() {
                     type="number"
                     value={item.days}
                     onChange={(e) => updateDays(item.id, Number.parseInt(e.target.value) || 0)}
-                    className="w-16 h-8  text-center text-sm border-gray-300"
+                    className="w-16 h-8 text-center text-sm "
                     min="0"
                   />
                 </div>
 
                 <div className="col-span-3 flex items-center justify-center">
                   <label className="flex items-center cursor-pointer space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={item.status === "after"}
-                      onChange={() => toggleStatus(item.id)}
-                      className="hidden"
-                    />
-                    <div
-                      className={`relative w-16 h-8 flex items-center rounded-full transition-colors duration-300 
-                      ${item.status === "before" ? "bg-pink-100" : "bg-orange-100"}`}
-                    >
-                      <div
-                        className={`w-5 h-5 rounded-full absolute shadow-md transition-all duration-300
-                        ${item.status === "before" ? "left-1 bg-pink-600" : "right-1 bg-orange-500"}`}
-                      ></div>
+                    <input type="checkbox" checked={item.status === "after"} onChange={() => toggleStatus(item.id)} className="hidden" />
+                    <div className={`relative w-16 h-8 flex items-center rounded-full transition-colors duration-300 ${item.status === "before" ? "bg-pink-100" : "bg-orange-100"}`}>
+                      <div className={`w-5 h-5 rounded-full absolute shadow-md transition-all duration-300 ${item.status === "before" ? "left-1 bg-pink-600" : "right-1 bg-orange-500"}`}></div>
                     </div>
-                    <span
-                      className={`text-sm font-medium capitalize transition-colors duration-300 
-                      ${item.status === "before" ? "text-pink-600" : "text-orange-600"}`}
-                    >
+                    <span className={`text-sm font-medium capitalize transition-colors duration-300 ${item.status === "before" ? "text-pink-600" : "text-orange-600"}`}>
                       {item.status}
                     </span>
                   </label>
@@ -255,11 +152,7 @@ export default function Drivers() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-white">
-            <Button
-              onClick={handleSave}
-              className="bg-pink-500 w-full hover:bg-pink-600 text-white px-8 py-2"
-              disabled={loading}
-            >
+            <Button onClick={handleSave} className="bg-pink-500 w-full hover:bg-pink-600 text-white px-8 py-2" disabled={loading}>
               {loading ? "Saving..." : "Save"}
             </Button>
           </div>

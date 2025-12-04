@@ -368,7 +368,7 @@ export default function DriverDetailPage() {
   return (
     <div className="container p-8 space-y-8 bg-gray-100 min-h-screen">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-4 bg-white border border-orange-200 rounded-xl p-2 shadow-sm">
+        <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-3 bg-white border border-orange-200 rounded-xl p-2 shadow-sm">
           <TabsTrigger
             value="overview"
             className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
@@ -390,13 +390,7 @@ export default function DriverDetailPage() {
             Sites
             <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
-          <TabsTrigger
-            value="permissions"
-            className="relative py-3 text-sm font-semibold data-[state=active]:bg-orange-600 data-[state=active]:text-white rounded-lg transition-all hover:bg-orange-100"
-          >
-            Permissions
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
-          </TabsTrigger>
+        
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -763,60 +757,7 @@ export default function DriverDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="permissions" className="space-y-4">
-          <Card className="border-orange-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-800">
-                <Shield className="h-5 w-5 text-orange-600" />
-                Role Permissions
-              </CardTitle>
-              <CardDescription className="text-gray-500">Detailed breakdown of user permissions by resource</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {driverData.aggregated_permissions.roles.map((role) => (
-                <div key={role.id} className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold capitalize text-orange-800">{role.name} Role</h3>
-                    <Badge variant="outline" className="border-orange-600 text-orange-600">ID: {role.id}</Badge>
-                  </div>
-                  <div className="grid gap-2">
-                    {Object.entries(role.permissions).map(([resource, perms]) => (
-                      <div key={resource} className="flex items-center justify-between p-3 border rounded-lg border-orange-200">
-                        <span className="font-medium capitalize text-gray-500">{resource.replace(/([A-Z])/g, " $1").trim()}</span>
-                        <div className="flex gap-2">
-                          <Badge
-                            variant={perms.view ? "default" : "secondary"}
-                            className={perms.view ? "bg-orange-600 text-white" : "bg-orange-200 text-orange-800"}
-                          >
-                            View
-                          </Badge>
-                          <Badge
-                            variant={perms.create ? "default" : "secondary"}
-                            className={perms.create ? "bg-orange-600 text-white" : "bg-orange-200 text-orange-800"}
-                          >
-                            Create
-                          </Badge>
-                          <Badge
-                            variant={perms.update ? "default" : "secondary"}
-                            className={perms.update ? "bg-orange-600 text-white" : "bg-orange-200 text-orange-800"}
-                          >
-                            Update
-                          </Badge>
-                          <Badge
-                            variant={perms.delete ? "default" : "secondary"}
-                            className={perms.delete ? "bg-orange-600 text-white" : "bg-orange-200 text-orange-800"}
-                          >
-                            Delete
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        
       </Tabs>
 
       <div className="fixed bottom-6 right-5 z-50 flex flex-col gap-2">
