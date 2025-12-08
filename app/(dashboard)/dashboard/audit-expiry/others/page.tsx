@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -27,199 +27,81 @@ interface AuditItem {
   subtitle: string;
   days: number;
   status: "after" | "before";
-  lastCheckDate: string | null;
+  lastCheckDate: string | null; // ISO format: "2025-09-10"
   directory: string | null;
-  tempLastCheckDate?: string | null; // Temporary date before upload
 }
 
 const API = `${API_URL}/activity/audit-expiry-others/`;
 
-// 🔄 API → UI
-const transformFromApi = (data: any): AuditItem[] => [
-  {
-    id: "operator_compliance_score",
-    title: formatTitle("operator_compliance_score"),
-    subtitle: "Alert Before Operator Compliance Score",
-    days: Math.abs(data.operator_compliance_score),
-    status: data.operator_compliance_score < 0 ? "before" : "after",
-    lastCheckDate: data.operator_compliance_score_reference_date,
-    directory: data.operator_compliance_score_directory,
-  },
-  {
-    id: "test_report_history",
-    title: formatTitle("test_report_history"),
-    subtitle: "Alert After Test Report History",
-    days: Math.abs(data.test_report_history),
-    status: data.test_report_history < 0 ? "before" : "after",
-    lastCheckDate: data.test_report_history_reference_date,
-    directory: data.test_report_history_directory,
-  },
-  {
-    id: "vehicle_encounter_report",
-    title: formatTitle("vehicle_encounter_report"),
-    subtitle: "Alert Before Vehicle Encounter Report",
-    days: Math.abs(data.vehicle_encounter_report),
-    status: data.vehicle_encounter_report < 0 ? "before" : "after",
-    lastCheckDate: data.vehicle_encounter_report_reference_date,
-    directory: data.vehicle_encounter_report_directory,
-  },
-  {
-    id: "yearly_maintenance_provider_audit",
-    title: formatTitle("yearly_maintenance_provider_audit"),
-    subtitle: "Alert After Yearly Maintenance Provider Audit",
-    days: Math.abs(data.yearly_maintenance_provider_audit),
-    status: data.yearly_maintenance_provider_audit < 0 ? "before" : "after",
-    lastCheckDate: data.yearly_maintenance_provider_audit_reference_date,
-    directory: data.yearly_maintenance_provider_audit_directory,
-  },
-  {
-    id: "yearly_garage_equipment_audit",
-    title: formatTitle("yearly_garage_equipment_audit"),
-    subtitle: "Alert Before Yearly Garage Equipment Audit",
-    days: Math.abs(data.yearly_garage_equipment_audit),
-    status: data.yearly_garage_equipment_audit < 0 ? "before" : "after",
-    lastCheckDate: data.yearly_garage_equipment_audit_reference_date,
-    directory: data.yearly_garage_equipment_audit_directory,
-  },
-  {
-    id: "vol_review",
-    title: formatTitle("vol_review"),
-    subtitle: "Alert Before VOL Review",
-    days: Math.abs(data.vol_review),
-    status: data.vol_review < 0 ? "before" : "after",
-    lastCheckDate: data.vol_review_reference_date,
-    directory: data.vol_review_directory,
-  },
-  {
-    id: "transport_manager_refresher_check",
-    title: formatTitle("transport_manager_refresher_check"),
-    subtitle: "Alert After Transport Manager Refresher Check",
-    days: Math.abs(data.transport_manager_refresher_check),
-    status: data.transport_manager_refresher_check < 0 ? "before" : "after",
-    lastCheckDate: data.transport_manager_refresher_check_reference_date,
-    directory: data.transport_manager_refresher_check_directory,
-  },
-  {
-    id: "transport_manager_cpc_card_check",
-    title: formatTitle("transport_manager_cpc_card_check"),
-    subtitle: "Alert After Transport Manager CPC Card Check",
-    days: Math.abs(data.transport_manager_cpc_card_check),
-    status: data.transport_manager_cpc_card_check < 0 ? "before" : "after",
-    lastCheckDate: data.transport_manager_cpc_card_check_reference_date,
-    directory: data.transport_manager_cpc_card_check_directory,
-  },
-];
+// API → UI (normalize dates to ISO)
+const transformFromApi = (data: any): AuditItem[] => {
+  const toISO = (date: string | null) => (date ? new Date(date).toISOString().split("T")[0] : null);
 
-// 🔄 UI → API
+  return [
+    { id: "operator_compliance_score", title: formatTitle("operator_compliance_score"), subtitle: "Alert Before Operator Compliance Score", days: Math.abs(data.operator_compliance_score || 0), status: data.operator_compliance_score < 0 ? "before" : "after", lastCheckDate: toISO(data.operator_compliance_score_reference_date), directory: data.operator_compliance_score_directory },
+    { id: "test_report_history", title: formatTitle("test_report_history"), subtitle: "Alert After Test Report History", days: Math.abs(data.test_report_history || 0), status: data.test_report_history < 0 ? "before" : "after", lastCheckDate: toISO(data.test_report_history_reference_date), directory: data.test_report_history_directory },
+    { id: "vehicle_encounter_report", title: formatTitle("vehicle_encounter_report"), subtitle: "Alert Before Vehicle Encounter Report", days: Math.abs(data.vehicle_encounter_report || 0), status: data.vehicle_encounter_report < 0 ? "before" : "after", lastCheckDate: toISO(data.vehicle_encounter_report_reference_date), directory: data.vehicle_encounter_report_directory },
+    { id: "yearly_maintenance_provider_audit", title: formatTitle("yearly_maintenance_provider_audit"), subtitle: "Alert After Yearly Maintenance Provider Audit", days: Math.abs(data.yearly_maintenance_provider_audit || 0), status: data.yearly_maintenance_provider_audit < 0 ? "before" : "after", lastCheckDate: toISO(data.yearly_maintenance_provider_audit_reference_date), directory: data.yearly_maintenance_provider_audit_directory },
+    { id: "yearly_garage_equipment_audit", title: formatTitle("yearly_garage_equipment_audit"), subtitle: "Alert Before Yearly Garage Equipment Audit", days: Math.abs(data.yearly_garage_equipment_audit || 0), status: data.yearly_garage_equipment_audit < 0 ? "before" : "after", lastCheckDate: toISO(data.yearly_garage_equipment_audit_reference_date), directory: data.yearly_garage_equipment_audit_directory },
+    { id: "vol_review", title: formatTitle("vol_review"), subtitle: "Alert Before VOL Review", days: Math.abs(data.vol_review || 0), status: data.vol_review < 0 ? "before" : "after", lastCheckDate: toISO(data.vol_review_reference_date), directory: data.vol_review_directory },
+    { id: "transport_manager_refresher_check", title: formatTitle("transport_manager_refresher_check"), subtitle: "Alert After Transport Manager Refresher Check", days: Math.abs(data.transport_manager_refresher_check || 0), status: data.transport_manager_refresher_check < 0 ? "before" : "after", lastCheckDate: toISO(data.transport_manager_refresher_check_reference_date), directory: data.transport_manager_refresher_check_directory },
+    { id: "transport_manager_cpc_card_check", title: formatTitle("transport_manager_cpc_card_check"), subtitle: "Alert After Transport Manager CPC Card Check", days: Math.abs(data.transport_manager_cpc_card_check || 0), status: data.transport_manager_cpc_card_check < 0 ? "before" : "after", lastCheckDate: toISO(data.transport_manager_cpc_card_check_reference_date), directory: data.transport_manager_cpc_card_check_directory },
+  ];
+};
+
+// UI → API
 const transformToApi = (items: AuditItem[]) => {
   const getVal = (id: string) => {
-    const i = items.find((x) => x.id === id);
-    if (!i) return 0;
-    return i.status === "before" ? -Math.abs(i.days) : Math.abs(i.days);
+    const item = items.find((x) => x.id === id);
+    if (!item) return 0;
+    return item.status === "before" ? -item.days : item.days;
   };
+  const get = (id: string) => items.find((x) => x.id === id);
+
   return {
     id: 1,
     operator_compliance_score: getVal("operator_compliance_score"),
-    operator_compliance_score_reference_date:
-      items.find((x) => x.id === "operator_compliance_score")?.lastCheckDate ||
-      null,
-    operator_compliance_score_directory:
-      items.find((x) => x.id === "operator_compliance_score")?.directory ||
-      null,
+    operator_compliance_score_reference_date: get("operator_compliance_score")?.lastCheckDate || null,
+    operator_compliance_score_directory: get("operator_compliance_score")?.directory || null,
     test_report_history: getVal("test_report_history"),
-    test_report_history_reference_date:
-      items.find((x) => x.id === "test_report_history")?.lastCheckDate || null,
-    test_report_history_directory:
-      items.find((x) => x.id === "test_report_history")?.directory || null,
+    test_report_history_reference_date: get("test_report_history")?.lastCheckDate || null,
+    test_report_history_directory: get("test_report_history")?.directory || null,
     vehicle_encounter_report: getVal("vehicle_encounter_report"),
-    vehicle_encounter_report_reference_date:
-      items.find((x) => x.id === "vehicle_encounter_report")?.lastCheckDate ||
-      null,
-    vehicle_encounter_report_directory:
-      items.find((x) => x.id === "vehicle_encounter_report")?.directory || null,
-    yearly_maintenance_provider_audit: getVal(
-      "yearly_maintenance_provider_audit"
-    ),
-    yearly_maintenance_provider_audit_reference_date:
-      items.find((x) => x.id === "yearly_maintenance_provider_audit")
-        ?.lastCheckDate || null,
-    yearly_maintenance_provider_audit_directory:
-      items.find((x) => x.id === "yearly_maintenance_provider_audit")
-        ?.directory || null,
+    vehicle_encounter_report_reference_date: get("vehicle_encounter_report")?.lastCheckDate || null,
+    vehicle_encounter_report_directory: get("vehicle_encounter_report")?.directory || null,
+    yearly_maintenance_provider_audit: getVal("yearly_maintenance_provider_audit"),
+    yearly_maintenance_provider_audit_reference_date: get("yearly_maintenance_provider_audit")?.lastCheckDate || null,
+    yearly_maintenance_provider_audit_directory: get("yearly_maintenance_provider_audit")?.directory || null,
     yearly_garage_equipment_audit: getVal("yearly_garage_equipment_audit"),
-    yearly_garage_equipment_audit_reference_date:
-      items.find((x) => x.id === "yearly_garage_equipment_audit")
-        ?.lastCheckDate || null,
-    yearly_garage_equipment_audit_directory:
-      items.find((x) => x.id === "yearly_garage_equipment_audit")?.directory ||
-      null,
+    yearly_garage_equipment_audit_reference_date: get("yearly_garage_equipment_audit")?.lastCheckDate || null,
+    yearly_garage_equipment_audit_directory: get("yearly_garage_equipment_audit")?.directory || null,
     vol_review: getVal("vol_review"),
-    vol_review_reference_date:
-      items.find((x) => x.id === "vol_review")?.lastCheckDate || null,
-    vol_review_directory:
-      items.find((x) => x.id === "vol_review")?.directory || null,
-    transport_manager_refresher_check: getVal(
-      "transport_manager_refresher_check"
-    ),
-    transport_manager_refresher_check_reference_date:
-      items.find((x) => x.id === "transport_manager_refresher_check")
-        ?.lastCheckDate || null,
-    transport_manager_refresher_check_directory:
-      items.find((x) => x.id === "transport_manager_refresher_check")
-        ?.directory || null,
-    transport_manager_cpc_card_check: getVal(
-      "transport_manager_cpc_card_check"
-    ),
-    transport_manager_cpc_card_check_reference_date:
-      items.find((x) => x.id === "transport_manager_cpc_card_check")
-        ?.lastCheckDate || null,
-    transport_manager_cpc_card_check_directory:
-      items.find((x) => x.id === "transport_manager_cpc_card_check")
-        ?.directory || null,
+    vol_review_reference_date: get("vol_review")?.lastCheckDate || null,
+    vol_review_directory: get("vol_review")?.directory || null,
+    transport_manager_refresher_check: getVal("transport_manager_refresher_check"),
+    transport_manager_refresher_check_reference_date: get("transport_manager_refresher_check")?.lastCheckDate || null,
+    transport_manager_refresher_check_directory: get("transport_manager_refresher_check")?.directory || null,
+    transport_manager_cpc_card_check: getVal("transport_manager_cpc_card_check"),
+    transport_manager_cpc_card_check_reference_date: get("transport_manager_cpc_card_check")?.lastCheckDate || null,
+    transport_manager_cpc_card_check_directory: get("transport_manager_cpc_card_check")?.directory || null,
   };
-};
-const toISODate = (dateStr: string) => {
-  const [day, month, year] = dateStr.split("/");
-  return `${year}-${month}-${day}`; // valid for <input type="date">
 };
 
 export default function Others() {
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editableFields, setEditableFields] = useState<{
-    [key: string]: { days: boolean; date: boolean };
-  }>({});
+  const [saving, setSaving] = useState(false);
+  const [editableDays, setEditableDays] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
-  const [openDialog, setOpenDialog] = useState<string | null>(null); // Track which item's dialog is open
-  const [tempDate, setTempDate] = useState<{
-    id: string;
-    date: string | null;
-  } | null>(null); // Store temporary date
+  const [openDialog, setOpenDialog] = useState<string | null>(null);
+
   const token = useCookies().get("access_token");
-  const clickTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize editable state for each item
-  useEffect(() => {
-    setEditableFields(
-      auditItems.reduce(
-        (acc, item) => ({
-          ...acc,
-          [item.id]: { days: false, date: false },
-        }),
-        {}
-      )
-    );
-  }, [auditItems]);
-
-  // Load data
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await fetch(`${API}1/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         const json = await res.json();
         if (json.success && json.data) {
@@ -231,21 +113,15 @@ export default function Others() {
         setLoading(false);
       }
     };
-    fetchData();
+    if (token) fetchData();
   }, [token]);
 
-  // Update days or lastCheckDate
-  const updateItem = (
-    id: string,
-    field: "days" | "lastCheckDate",
-    value: number | string
-  ) => {
+  const updateItem = (id: string, field: keyof AuditItem, value: any) => {
     setAuditItems((items) =>
       items.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );
   };
 
-  // Toggle before/after
   const toggleStatus = (id: string) => {
     setAuditItems((items) =>
       items.map((item) =>
@@ -256,74 +132,23 @@ export default function Others() {
     );
   };
 
-  // Handle double click/tap
-  const handleDoubleClick = (id: string, field: "days" | "date") => {
-    if (clickTimeout.current) {
-      clearTimeout(clickTimeout.current);
-      clickTimeout.current = null;
-      if (field === "date") {
-        // Open dialog for date change
-        setOpenDialog(id);
-      } else {
-        setEditableFields((prev) => ({
-          ...prev,
-          [id]: { ...prev[id], [field]: true },
-        }));
-      }
-    } else {
-      clickTimeout.current = setTimeout(() => {
-        clickTimeout.current = null;
-      }, 300);
-    }
-  };
-
-  // Handle date change in dialog
-  const handleDateChange = (id: string, value: string) => {
-    setTempDate({ id, date: value || null });
-  };
-
-  // Handle file upload
-  const handleFileUpload = async (id: string, url: string) => {
+  const handleFileUpload = (id: string, url: string) => {
     setUploading((prev) => ({ ...prev, [id]: true }));
-    try {
-      setAuditItems((items) =>
-        items.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                directory: url,
-                lastCheckDate:
-                  tempDate?.id === id ? tempDate.date : item.lastCheckDate,
-              }
-            : item
-        )
-      );
-      setOpenDialog(null); // Close dialog on successful upload
-      setTempDate(null); // Clear temporary date
-    } catch (err) {
-      console.error("Error processing file upload:", err);
-    } finally {
-      setUploading((prev) => ({ ...prev, [id]: false }));
-    }
+    updateItem(id, "directory", url);
+    setTimeout(() => setUploading((prev) => ({ ...prev, [id]: false })), 600);
   };
 
-  // Save data
   const handleSave = async () => {
-    // Check for items with lastCheckDate but no directory
-    const invalidItems = auditItems.filter(
-      (item) => item.lastCheckDate && !item.directory
-    );
-    if (invalidItems.length > 0) {
-      alert(
-        "Cannot save: All items with a Last Check Date must have an uploaded document."
-      );
+    const invalid = auditItems.some((item) => item.lastCheckDate && !item.directory);
+    if (invalid) {
+      alert("Cannot save: All items with a Last Check Date must have an uploaded document.");
       return;
     }
 
-    setLoading(true);
-    const payload = transformToApi(auditItems);
+    setSaving(true);
     try {
-      const res = await fetch(`${API}1/`, {
+      const payload = transformToApi(auditItems);
+      await fetch(`${API}1/`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -331,22 +156,11 @@ export default function Others() {
         },
         body: JSON.stringify(payload),
       });
-      const json = await res.json();
-      console.log("Saved successfully:", json);
-      // Reset editable fields after save
-      setEditableFields(
-        auditItems.reduce(
-          (acc, item) => ({
-            ...acc,
-            [item.id]: { days: false, date: false },
-          }),
-          {}
-        )
-      );
+      alert("Saved successfully!");
     } catch (err) {
-      console.error("Error saving audit items:", err);
+      alert("Save failed. Please try again.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -357,6 +171,7 @@ export default function Others() {
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pink-500"></div>
         </div>
       )}
+
       <div className="mx-auto bg-white mb-2">
         <div className="bg-green-200 px-6 py-4">
           <h1 className="text-lg font-semibold text-gray-800">Others</h1>
@@ -403,59 +218,40 @@ export default function Others() {
 
               {/* Last Check Date */}
               <div className="col-span-3 flex justify-center">
-                {editableFields[item.id]?.date ? (
-                  <Input
-                    type="date"
-                    value={item.lastCheckDate || ""}
-                    onChange={(e) => handleDateChange(item.id, e.target.value)}
-                    className="w-40 h-8 text-center text-sm border-gray-300"
-                    onBlur={() =>
-                      setEditableFields((prev) => ({
-                        ...prev,
-                        [item.id]: { ...prev[item.id], date: false },
-                      }))
-                    }
-                    autoFocus
-                  />
-                ) : (
-                  <div
-                    className="w-40 h-8 flex items-center justify-center text-sm text-gray-700 cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleDoubleClick(item.id, "date")}
-                  >
-                    {item.lastCheckDate
-                      ? format(new Date(item.lastCheckDate), "dd/MM/yyyy")
-                      : "-"}
-                  </div>
-                )}
+                <div
+                  className="w-40 h-8 flex items-center justify-center text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded"
+                  onClick={() => setOpenDialog(item.id)}
+                >
+                  {item.lastCheckDate
+                    ? format(new Date(item.lastCheckDate), "dd/MM/yyyy")
+                    : "-"}
+                </div>
               </div>
 
               {/* Days */}
               <div className="col-span-2 flex justify-center">
-                {editableFields[item.id]?.days ? (
+                {editableDays.has(item.id) ? (
                   <Input
                     type="number"
                     value={item.days}
                     onChange={(e) =>
-                      updateItem(
-                        item.id,
-                        "days",
-                        Number.parseInt(e.target.value) || 0
-                      )
+                      updateItem(item.id, "days", Math.max(0, Number(e.target.value) || 0))
                     }
                     className="w-16 h-8 text-center text-sm border-gray-300"
                     min="0"
                     onBlur={() =>
-                      setEditableFields((prev) => ({
-                        ...prev,
-                        [item.id]: { ...prev[item.id], days: false },
-                      }))
+                      setEditableDays((s) => {
+                        const n = new Set(s);
+                        n.delete(item.id);
+                        return n;
+                      })
                     }
                     autoFocus
                   />
                 ) : (
                   <div
-                    className="w-16 h-8 flex items-center justify-center text-sm text-gray-700 cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleDoubleClick(item.id, "days")}
+                    className="w-16 h-8 flex items-center justify-center text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded"
+                    onDoubleClick={() => setEditableDays((s) => new Set(s).add(item.id))}
                   >
                     {item.days}
                   </div>
@@ -473,40 +269,30 @@ export default function Others() {
                   />
                   <div
                     className={`relative w-12 h-6 flex items-center rounded-full transition-colors duration-300 
-                      ${
-                        item.status === "before"
-                          ? "bg-pink-100"
-                          : "bg-orange-100"
-                      }`}
+                      ${item.status === "before" ? "bg-pink-100" : "bg-orange-100"}`}
                   >
                     <div
                       className={`w-5 h-5 rounded-full absolute shadow-md transition-all duration-300
-                        ${
-                          item.status === "before"
-                            ? "left-1 bg-pink-600"
-                            : "right-1 bg-orange-500"
-                        }`}
+                        ${item.status === "before" ? "left-1 bg-pink-600" : "right-1 bg-orange-500"}`}
                     ></div>
-                   
                   </div>
-                    <span className={`text-sm font-medium capitalize transition-colors duration-300 ${item.status === "before" ? "text-pink-600" : "text-orange-600"}`}>
-                      {item.status}
-                    </span>
+                  <span className={`text-sm font-medium capitalize transition-colors duration-300 ${item.status === "before" ? "text-pink-600" : "text-orange-600"}`}>
+                    {item.status}
+                  </span>
                 </label>
               </div>
 
-              {/* Directory */}
               {/* Directory */}
               <div className="col-span-2 flex justify-center text-center">
                 {uploading[item.id] ? (
                   <span className="text-sm text-gray-500">Uploading...</span>
                 ) : item.directory ? (
-                  <Link
-                    href={item.directory}
+                  <button
+                    onClick={() => setOpenDialog(item.id)}
                     className="text-blue-600 hover:underline text-sm"
                   >
                     Open
-                  </Link>
+                  </button>
                 ) : (
                   <div
                     className="cursor-pointer"
@@ -517,16 +303,8 @@ export default function Others() {
                 )}
               </div>
 
-              {/* Dialog for document upload */}
-              <Dialog.Root
-                open={openDialog === item.id}
-                onOpenChange={(open) => {
-                  if (!open) {
-                    setOpenDialog(null);
-                    setTempDate(null); // Reset temp date if dialog is closed
-                  }
-                }}
-              >
+              {/* DIALOG WITH IMAGE/PDF PREVIEW - 100% YOUR ORIGINAL STYLE */}
+              <Dialog.Root open={openDialog === item.id} onOpenChange={(open) => !open && setOpenDialog(null)}>
                 <Dialog.Portal>
                   <Dialog.Overlay className="fixed inset-0 bg-black/50" />
                   <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
@@ -534,41 +312,67 @@ export default function Others() {
                       Upload Document
                     </Dialog.Title>
                     <Dialog.Description className="text-sm text-gray-600 mt-2">
-                      Please upload a document to confirm the new date for{" "}
-                      {item.title}.
+                      Please upload a document to confirm the new date for {item.title}.
                     </Dialog.Description>
-                    <div className="mt-4 gap-4 flex flex-col">
+
+                    <div className="mt-6 space-y-6">
+                      {/* Current Document Preview */}
+                      {item.directory && (
+                        <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                          <p className="text-xs font-medium text-gray-600 mb-3">Current Document</p>
+                          {item.directory.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                            <img
+                              src={item.directory}
+                              alt="Current document"
+                              className="max-w-full h-auto rounded mx-auto"
+                              style={{ maxHeight: "280px" }}
+                            />
+                          ) : item.directory.endsWith(".pdf") ? (
+                            <iframe
+                              src={`${item.directory}#toolbar=0&navpanes=0`}
+                              className="w-full h-64 border rounded"
+                              title="PDF Preview"
+                            />
+                          ) : (
+                            <div className="text-center py-8">
+                              <FolderClosed size={48} className="mx-auto text-gray-400 mb-2" />
+                              <Link href={item.directory} target="_blank" className="text-blue-600 text-sm hover:underline">
+                                Open Current File
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <DatePickerField
                         label="Last Check Date"
-                        value={
-                          tempDate?.id === item.id
-                            ? tempDate.date || ""
-                            : item.lastCheckDate || ""
-                        }
+                        value={item.lastCheckDate || ""}
                         onDateSelected={(date) =>
-                          handleDateChange(item.id, format(date, "dd/MM/yyyy"))
+                          updateItem(item.id, "lastCheckDate", date ? format(date, "yyyy-MM-dd") : null)
                         }
-                        startDate={-36500} // optional, 100 years back
-                        lastDate={1000} // no future dates
+                        lastDate={0}
                       />
 
-                      <FileUploader
-                        onUploadSuccess={(url) =>
-                          handleFileUpload(item.id, url)
-                        }
-                        accept="image/*,application/pdf"
-                        maxSize={5 * 1024 * 1024} // 5MB limit
-                        id={`file-upload-${item.id}`}
-                      />
+                      <div>
+                        <FileUploader
+                          onUploadSuccess={(url) => handleFileUpload(item.id, url)}
+                          accept="image/*,application/pdf"
+                          maxSize={10 * 1024 * 1024}
+                          id={`file-upload-${item.id}`}
+                        />
+                        {item.directory && (
+                          <p className="text-xs text-amber-600 mt-2">
+                            New upload will replace the current document
+                          </p>
+                        )}
+                      </div>
                     </div>
+
                     <div className="mt-6 flex justify-end space-x-2">
                       <Dialog.Close asChild>
                         <Button
                           className="bg-gray-200 text-gray-800 hover:bg-gray-300 px-4 py-2"
-                          onClick={() => {
-                            setOpenDialog(null);
-                            setTempDate(null); // Reset temp date on cancel
-                          }}
+                          onClick={() => setOpenDialog(null)}
                         >
                           Cancel
                         </Button>
@@ -585,9 +389,9 @@ export default function Others() {
           <Button
             onClick={handleSave}
             className="bg-pink-500 w-full hover:bg-pink-600 text-white px-8 py-2"
-            disabled={loading}
+            disabled={loading || saving}
           >
-            {loading ? "Saving..." : "Save"}
+            {saving ? "Saving..." : "Save"}
           </Button>
         </div>
       </div>

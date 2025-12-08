@@ -775,8 +775,7 @@ export default function DriverDetailPage() {
           />
         </TabsContent>
         <TabsContent value="sign-agreement">
-          <SignAgreementTab
-          />
+          <SignAgreementTab />
         </TabsContent>
       </Tabs>
       <div className="fixed bottom-6 right-5 z-50 flex flex-col gap-2">
