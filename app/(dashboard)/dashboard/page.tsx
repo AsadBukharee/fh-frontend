@@ -82,27 +82,33 @@ interface DashboardData {
   taskActivity: TaskActivity[];
 }
 
-// Components
 const StatCard: React.FC<{
   title: string;
   value: string;
   subtitle: string;
   iconBg: string;
   iconColor: string;
-}> = ({ title, value, subtitle, iconBg, iconColor }) => (
-  <div className="bg-white  w-[300px] rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow">
-    <div className="flex items-start justify-between">
-      <div className="flex-1">
-        <p className="text-[11px] text-gray-600 mb-1.5">{title}</p>
-        <p className="text-3xl font-bold text-gray-900 mb-1">{value}</p>
-        <p className="text-[10px] text-gray-400">{subtitle}</p>
-      </div>
-      <div className={`${iconBg} p-2.5 rounded-lg`}>
-        <Users className={`w-5 h-5 ${iconColor}`} />
+  index: number; // Add index prop
+}> = ({ title, value, subtitle, iconBg, iconColor, index }) => {
+  return (
+    <div 
+      className={`w-[300px] rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow ${
+        index === 0 ? 'bg-gray-200' : 'bg-white'
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-[11px] text-gray-600 mb-1.5">{title}</p>
+          <p className="text-3xl font-bold text-gray-900 mb-1">{value}</p>
+          <p className="text-[10px] text-gray-400">{subtitle}</p>
+        </div>
+        <div className={`${iconBg} p-2.5 rounded-lg`}>
+          <Users className={`w-5 h-5 ${iconColor}`} />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const BarChart: React.FC<{ data: MonthlyData[] }> = ({ data }) => {
   const maxValue = Math.max(...data.map(d => d.value));
@@ -274,16 +280,17 @@ export default function Dashboard() {
 
         {/* Stats Cards Grid */}
         <div className="flex flex-wrap gap-3  justify-between mb-5">
-          {dashboardData.cards.map((card) => (
-            <StatCard
-              key={card.id}
-              title={card.title}
-              value={card.value}
-              subtitle={card.subtitle}
-              iconBg={card.iconBg}
-              iconColor={card.iconColor}
-            />
-          ))}
+     {dashboardData.cards.map((card, index) => (
+  <StatCard
+    key={index}
+    title={card.title}
+    value={card.value}
+    subtitle={card.subtitle}
+    iconBg={card.iconBg}
+    iconColor={card.iconColor}
+    index={index}  // This is what you were missing!
+  />
+))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
