@@ -43,6 +43,7 @@ interface Driver {
     last_driver_check_code_date: string;
     next_driver_check_code_due: string;
     cpc_card_expiry: string;
+    d_d1_expiry:string;
     tacho_expiry: string;
     last_driver_tacho_download: string;
     next_driver_tacho_download: string;
@@ -440,13 +441,17 @@ const DriverManagementPage = () => {
                 <TableHead>Driver Name</TableHead>
                 <TableHead>License No.</TableHead>
                 <TableHead>License Expiry</TableHead>
-                <TableHead>Last Check Code</TableHead>
-                <TableHead>Next Check Due</TableHead>
+                <TableHead>D/D1 Expiry</TableHead>
+
+                <TableHead>Last Driver Check Code</TableHead>
+                <TableHead>Next Driver Check Due</TableHead>
                 <TableHead>Tacho Expiry</TableHead>
                 <TableHead>DBS Expiry</TableHead>
                 <TableHead>CPC/DQC Expiry</TableHead>
                 <TableHead>Last Tacho DL</TableHead>
                 <TableHead>Next Tacho DL</TableHead>
+                                <TableHead>Night Worker Assessment Expiry</TableHead>
+
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -472,13 +477,17 @@ const DriverManagementPage = () => {
                     </TableCell>
                     <TableCell>{driver.user.license_number || "-"}</TableCell>
                     {renderDateCell(driver.id, 'driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
+                    {renderDateCell(driver.id, 'd_d1_expiry', driver.driver_compliance.d_d1_expiry, driver)}
                     {renderDateCell(driver.id, 'last_driver_check_code_date', driver.driver_compliance.last_driver_check_code_date, driver)}
                     {renderDateCell(driver.id, 'next_driver_check_code_due', driver.driver_compliance.next_driver_check_code_due, driver)}
+
                     {renderDateCell(driver.id, 'tacho_expiry', driver.driver_compliance.tacho_expiry, driver)}
                     {renderDateCell(driver.id, 'dbs_expiry_date', driver.driver_compliance.dbs_expiry_date, driver)}
                     {renderDateCell(driver.id, 'night_worker_assessment_expiry', driver.driver_compliance.night_worker_assessment_expiry, driver)}
                     {renderDateCell(driver.id, 'last_driver_tacho_download', driver.driver_compliance.last_driver_tacho_download, driver)}
                     {renderDateCell(driver.id, 'next_driver_tacho_download', driver.driver_compliance.next_driver_tacho_download, driver)}
+                    {renderDateCell(driver.id, 'night_worker_assessment_expiry', driver.driver_compliance.night_worker_assessment_expiry, driver)}
+                  
                   </TableRow>
                 ))
               )}
