@@ -93,7 +93,7 @@ const StatCard: React.FC<{
   return (
     <div 
       className={`w-[300px] rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow ${
-        index === 0 ? 'bg-gray-200' : 'bg-white'
+        index === 0 ? 'bg-white border-orange-300 shadow-orange-300 shadow' : 'bg-white'
       }`}
     >
       <div className="flex items-start justify-between">
