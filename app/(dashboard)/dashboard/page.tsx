@@ -93,7 +93,7 @@ const StatCard: React.FC<{
   return (
     <div 
       className={`w-[300px] rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow ${
-        index === 0 ? 'bg-gray-200' : 'bg-white'
+        index === 0 ? 'bg-white border-orange-300 shadow-orange-300 shadow' : 'bg-white'
       }`}
     >
       <div className="flex items-start justify-between">
@@ -279,19 +279,20 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Cards Grid */}
-        <div className="flex flex-wrap gap-3  justify-between mb-5">
-     {dashboardData.cards.map((card, index) => (
-  <StatCard
-    key={index}
-    title={card.title}
-    value={card.value}
-    subtitle={card.subtitle}
-    iconBg={card.iconBg}
-    iconColor={card.iconColor}
-    index={index}  // This is what you were missing!
-  />
-))}
-        </div>
+<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-5">
+  {dashboardData.cards.map((card, index) => (
+    <StatCard
+      key={index}
+      title={card.title}
+      value={card.value}
+      subtitle={card.subtitle}
+      iconBg={card.iconBg}
+      iconColor={card.iconColor}
+      index={index}
+    />
+  ))}
+</div>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Left Column - Main Charts */}
