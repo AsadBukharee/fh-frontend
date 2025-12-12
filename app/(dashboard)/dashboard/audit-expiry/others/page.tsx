@@ -12,40 +12,105 @@ import * as Dialog from "@radix-ui/react-dialog";
 import FileUploader from "@/components/Media/MediaUpload";
 import { DatePickerField } from "@/components/ui/DatePicker";
 
-// Utility function to transform ID to title
-const formatTitle = (id: string) => {
-  return id
-    .replace(/_/g, " ")
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
-
 interface AuditItem {
   id: string;
   title: string;
   subtitle: string;
   days: number;
   status: "after" | "before";
-  lastCheckDate: string | null; // ISO format: "2025-09-10"
+  lastCheckDate: string | null;
   directory: string | null;
 }
 
 const API = `${API_URL}/activity/audit-expiry-others/`;
 
-// API → UI (normalize dates to ISO)
+// API → UI
 const transformFromApi = (data: any): AuditItem[] => {
   const toISO = (date: string | null) => (date ? new Date(date).toISOString().split("T")[0] : null);
 
   return [
-    { id: "operator_compliance_score", title: formatTitle("operator_compliance_score"), subtitle: "Alert Before Operator Compliance Score", days: Math.abs(data.operator_compliance_score || 0), status: data.operator_compliance_score < 0 ? "before" : "after", lastCheckDate: toISO(data.operator_compliance_score_reference_date), directory: data.operator_compliance_score_directory },
-    { id: "test_report_history", title: formatTitle("test_report_history"), subtitle: "Alert After Test Report History", days: Math.abs(data.test_report_history || 0), status: data.test_report_history < 0 ? "before" : "after", lastCheckDate: toISO(data.test_report_history_reference_date), directory: data.test_report_history_directory },
-    { id: "vehicle_encounter_report", title: formatTitle("vehicle_encounter_report"), subtitle: "Alert Before Vehicle Encounter Report", days: Math.abs(data.vehicle_encounter_report || 0), status: data.vehicle_encounter_report < 0 ? "before" : "after", lastCheckDate: toISO(data.vehicle_encounter_report_reference_date), directory: data.vehicle_encounter_report_directory },
-    { id: "yearly_maintenance_provider_audit", title: formatTitle("yearly_maintenance_provider_audit"), subtitle: "Alert After Yearly Maintenance Provider Audit", days: Math.abs(data.yearly_maintenance_provider_audit || 0), status: data.yearly_maintenance_provider_audit < 0 ? "before" : "after", lastCheckDate: toISO(data.yearly_maintenance_provider_audit_reference_date), directory: data.yearly_maintenance_provider_audit_directory },
-    { id: "yearly_garage_equipment_audit", title: formatTitle("yearly_garage_equipment_audit"), subtitle: "Alert Before Yearly Garage Equipment Audit", days: Math.abs(data.yearly_garage_equipment_audit || 0), status: data.yearly_garage_equipment_audit < 0 ? "before" : "after", lastCheckDate: toISO(data.yearly_garage_equipment_audit_reference_date), directory: data.yearly_garage_equipment_audit_directory },
-    { id: "vol_review", title: formatTitle("vol_review"), subtitle: "Alert Before VOL Review", days: Math.abs(data.vol_review || 0), status: data.vol_review < 0 ? "before" : "after", lastCheckDate: toISO(data.vol_review_reference_date), directory: data.vol_review_directory },
-    { id: "transport_manager_refresher_check", title: formatTitle("transport_manager_refresher_check"), subtitle: "Alert After Transport Manager Refresher Check", days: Math.abs(data.transport_manager_refresher_check || 0), status: data.transport_manager_refresher_check < 0 ? "before" : "after", lastCheckDate: toISO(data.transport_manager_refresher_check_reference_date), directory: data.transport_manager_refresher_check_directory },
-    { id: "transport_manager_cpc_card_check", title: formatTitle("transport_manager_cpc_card_check"), subtitle: "Alert After Transport Manager CPC Card Check", days: Math.abs(data.transport_manager_cpc_card_check || 0), status: data.transport_manager_cpc_card_check < 0 ? "before" : "after", lastCheckDate: toISO(data.transport_manager_cpc_card_check_reference_date), directory: data.transport_manager_cpc_card_check_directory },
+    {
+      id: "operator_compliance_score",
+      title: "Operator Compliance Score",
+      subtitle: "Alert Before Operator Compliance Score",
+      days: Math.abs(data.operator_compliance_score || 0),
+      status: data.operator_compliance_score < 0 ? "before" : "after",
+      lastCheckDate: toISO(data.operator_compliance_score_reference_date),
+      directory: data.operator_compliance_score_directory,
+    },
+    {
+      id: "test_report_history",
+      title: "Test Report History",
+      subtitle: "Alert After Test Report History",
+      days: Math.abs(data.test_report_history || 0),
+      status: data.test_report_history < 0 ? "before" : "after",
+      lastCheckDate: toISO(data.test_report_history_reference_date),
+      directory: data.test_report_history_directory,
+    },
+    {
+      id: "vehicle_encounter_report",
+      title: "Vehicle Encounter Report",
+      subtitle: "Alert Before Vehicle Encounter Report",
+      days: Math.abs(data.vehicle_encounter_report || 0),
+      status: data.vehicle_encounter_report < 0 ? "before" : "after",
+      lastCheckDate: toISO(data.vehicle_encounter_report_reference_date),
+      directory: data.vehicle_encounter_report_directory,
+    },
+    {
+      id: "yearly_maintenance_provider_audit",
+      title: "Yearly Maintenance Provider Audit",
+      subtitle: "Alert After Yearly Maintenance Provider Audit",
+      days: Math.abs(data.yearly_maintenance_provider_audit || 0),
+      status: data.yearly_maintenance_provider_audit < 0 ? "before" : "after",
+      lastCheckDate: toISO(data.yearly_maintenance_provider_audit_reference_date),
+      directory: data.yearly_maintenance_provider_audit_directory,
+    },
+    {
+      id: "yearly_garage_equipment_audit",
+      title: "Yearly Garage Equipment Audit",
+      subtitle: "Alert Before Yearly Garage Equipment Audit",
+      days: Math.abs(data.yearly_garage_equipment_audit || 0),
+      status: data.yearly_garage_equipment_audit < 0 ? "before" : "after",
+      lastCheckDate: toISO(data.yearly_garage_equipment_audit_reference_date),
+      directory: data.yearly_garage_equipment_audit_directory,
+    },
+    {
+      id: "vol_review",
+      title: "VOL Review",
+      subtitle: "Alert Before VOL Review",
+      days: Math.abs(data.vol_review || 0),
+      status: data.vol_review < 0 ? "before" : "after",
+      lastCheckDate: toISO(data.vol_review_reference_date),
+      directory: data.vol_review_directory,
+    },
+    {
+      id: "transport_manager_refresher_check",
+      title: "Transport Manager Refresher Check",
+      subtitle: "Alert After Transport Manager Refresher Check",
+      days: Math.abs(data.transport_manager_refresher_check || 0),
+      status: data.transport_manager_refresher_check < 0 ? "before" : "after",
+      lastCheckDate: toISO(data.transport_manager_refresher_check_reference_date),
+      directory: data.transport_manager_refresher_check_directory,
+    },
+    {
+      id: "transport_manager_cpc_card_check",
+      title: "Transport Manager CPC Card Check",
+      subtitle: "Alert After Transport Manager CPC Card Check",
+      days: Math.abs(data.transport_manager_cpc_card_check || 0),
+      status: data.transport_manager_cpc_card_check < 0 ? "before" : "after",
+      lastCheckDate: toISO(data.transport_manager_cpc_card_check_reference_date),
+      directory: data.transport_manager_cpc_card_check_directory,
+    },
+    // ADDED: Torque Wrench Calibration
+    {
+      id: "torque_wrench_calibration",
+      title: "Torque Wrench Calibration",
+      subtitle: "Alert After Calibration Due",
+      days: data.torque_wrench_calibration === null ? 0 : Math.abs(data.torque_wrench_calibration),
+      status: data.torque_wrench_calibration === null || data.torque_wrench_calibration >= 0 ? "after" : "before",
+      lastCheckDate: toISO(data.torque_wrench_calibration_reference_date ?? null),
+      directory: data.torque_wrench_calibration_directory ?? null,
+    },
   ];
 };
 
@@ -63,27 +128,39 @@ const transformToApi = (items: AuditItem[]) => {
     operator_compliance_score: getVal("operator_compliance_score"),
     operator_compliance_score_reference_date: get("operator_compliance_score")?.lastCheckDate || null,
     operator_compliance_score_directory: get("operator_compliance_score")?.directory || null,
+
     test_report_history: getVal("test_report_history"),
     test_report_history_reference_date: get("test_report_history")?.lastCheckDate || null,
     test_report_history_directory: get("test_report_history")?.directory || null,
+
     vehicle_encounter_report: getVal("vehicle_encounter_report"),
     vehicle_encounter_report_reference_date: get("vehicle_encounter_report")?.lastCheckDate || null,
     vehicle_encounter_report_directory: get("vehicle_encounter_report")?.directory || null,
+
     yearly_maintenance_provider_audit: getVal("yearly_maintenance_provider_audit"),
     yearly_maintenance_provider_audit_reference_date: get("yearly_maintenance_provider_audit")?.lastCheckDate || null,
     yearly_maintenance_provider_audit_directory: get("yearly_maintenance_provider_audit")?.directory || null,
+
     yearly_garage_equipment_audit: getVal("yearly_garage_equipment_audit"),
     yearly_garage_equipment_audit_reference_date: get("yearly_garage_equipment_audit")?.lastCheckDate || null,
     yearly_garage_equipment_audit_directory: get("yearly_garage_equipment_audit")?.directory || null,
+
     vol_review: getVal("vol_review"),
     vol_review_reference_date: get("vol_review")?.lastCheckDate || null,
     vol_review_directory: get("vol_review")?.directory || null,
+
     transport_manager_refresher_check: getVal("transport_manager_refresher_check"),
     transport_manager_refresher_check_reference_date: get("transport_manager_refresher_check")?.lastCheckDate || null,
     transport_manager_refresher_check_directory: get("transport_manager_refresher_check")?.directory || null,
+
     transport_manager_cpc_card_check: getVal("transport_manager_cpc_card_check"),
     transport_manager_cpc_card_check_reference_date: get("transport_manager_cpc_card_check")?.lastCheckDate || null,
     transport_manager_cpc_card_check_directory: get("transport_manager_cpc_card_check")?.directory || null,
+
+    // Torque Wrench
+    torque_wrench_calibration: getVal("torque_wrench_calibration"),
+    torque_wrench_calibration_reference_date: get("torque_wrench_calibration")?.lastCheckDate || null,
+    torque_wrench_calibration_directory: get("torque_wrench_calibration")?.directory || null,
   };
 };
 
@@ -303,7 +380,7 @@ export default function Others() {
                 )}
               </div>
 
-              {/* DIALOG WITH IMAGE/PDF PREVIEW - 100% YOUR ORIGINAL STYLE */}
+              {/* DIALOG - 100% YOUR ORIGINAL STYLE */}
               <Dialog.Root open={openDialog === item.id} onOpenChange={(open) => !open && setOpenDialog(null)}>
                 <Dialog.Portal>
                   <Dialog.Overlay className="fixed inset-0 bg-black/50" />
@@ -325,7 +402,7 @@ export default function Others() {
                               src={item.directory}
                               alt="Current document"
                               className="max-w-full h-auto rounded mx-auto"
-                              style={{ maxHeight: "280px" }}
+                              style={{ maxHeight: "280px "}}
                             />
                           ) : item.directory.endsWith(".pdf") ? (
                             <iframe

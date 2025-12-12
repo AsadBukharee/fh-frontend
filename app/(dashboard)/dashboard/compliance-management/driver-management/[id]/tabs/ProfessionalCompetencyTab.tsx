@@ -384,119 +384,143 @@ export default function ProfessionalCompetencyTab({
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {allDocuments.map((competency: any) => (
-              <Card
+            <Card
                 key={competency.id}
                 className={cn(
                   "group cursor-pointer transition-all duration-300 border-2 relative overflow-hidden",
                   competency.has_document
-                    ? "hover:shadow-2xl border-orange-100 hover:border-orange-400 bg-white hover:scale-105"
-                    : "border-dashed border-gray-300 bg-gray-50/50 hover:border-orange-400 hover:bg-orange-50/50",
+                    ? "hover:shadow-2xl border-green-200 hover:border-orange-400 bg-white hover:scale-[1.02]"
+                    : "border-dashed  border-red-600 bg-gray-50/50 hover:border-orange-400 hover:bg-orange-50/50",
                 )}
                 onClick={() => handleCardClick(competency)}
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/10 to-indigo-500/10 rounded-bl-full transform translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform"></div>
+                {/* Document Preview Image */}
+                {competency.has_document && competency.urls?.[0] && (
+                  <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-10"></div>
+                    {isPdfUrl(competency.urls[0]) ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-indigo-100">
+                        <FileText className="h-20 w-20 text-orange-600 opacity-50" />
+                      </div>
+                    ) : (
+                      <img
+                        src={competency.urls[0]}
+                        alt={competency.document_name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                          e.currentTarget.parentElement!.innerHTML = '<div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-indigo-100"><svg class="h-20 w-20 text-orange-600 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>'
+                        }}
+                      />
+                    )}
+                    <Badge
+                      className={cn(
+                        "absolute top-3 right-3 z-20 px-3 py-1.5 text-xs font-semibold border shadow-lg backdrop-blur-sm inline-flex items-center gap-1.5",
+                        getStatusColor(competency.request_status),
+                      )}
+                    >
+                      {getStatusIcon(competency.request_status)}
+                      {competency.request_status.replace("_", " ").toUpperCase()}
+                    </Badge>
+                  </div>
+                )}
 
-                <CardContent className="p-6 space-y-4 relative z-0">
-                  <div className="flex items-start justify-between">
+                <CardContent className="p-5 space-y-3 relative">
+                  {!competency.has_document && (
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/10 to-indigo-500/10 rounded-bl-full transform translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform"></div>
+                  )}
+
+                  <div className="flex items-start justify-between relative z-10">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <div
                           className={cn(
-                            "p-2 rounded-lg transition-colors group-hover:from-orange-200 group-hover:to-indigo-200",
+                            "p-2.5 rounded-xl transition-all shadow-sm",
                             competency.has_document 
-                              ? "bg-gradient-to-br from-orange-100 to-indigo-100" 
-                              : "bg-gray-200 group-hover:bg-orange-200",
+                              ? "bg-gradient-to-br from-orange-500 to-indigo-500 group-hover:shadow-md" 
+                              : "bg-gray-300 group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-indigo-500",
                           )}
                         >
                           {competency.has_document ? (
-                            <FileText className="h-6 w-6 text-orange-700" />
+                            <FileText className="h-5 w-5 text-white" />
                           ) : (
-                            <Upload className="h-6 w-6 text-gray-500 group-hover:text-orange-700" />
+                            <Upload className="h-5 w-5 text-gray-600 group-hover:text-white transition-colors" />
                           )}
                         </div>
                       </div>
                       <h3
                         className={cn(
-                          "font-bold text-xl mb-1 line-clamp-2 transition-colors",
+                          "font-bold text-lg mb-1 line-clamp-2 transition-colors leading-tight",
                           competency.has_document
-                            ? "text-gray-900 group-hover:text-orange-700"
-                            : "text-gray-500 group-hover:text-orange-700",
+                            ? "text-gray-900"
+                            : "text-gray-600 group-hover:text-orange-700",
                         )}
                       >
                         {competency.document_name}
                       </h3>
-                      <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">
-                        {competency.document_type}
+                      <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                        {competency.document_type.replace("-", " ")}
                       </p>
                     </div>
                   </div>
 
-                  <Separator className={competency.has_document ? "bg-orange-100" : "bg-gray-200"} />
+                  {competency.has_document ? (
+                    <>
+                      <Separator className="bg-orange-100" />
 
-                  <div className="space-y-3">
-                    {competency.has_document ? (
-                      <>
-                        <Badge
-                          className={cn(
-                            "px-3 py-1.5 text-xs font-semibold border inline-flex items-center gap-1.5",
-                            getStatusColor(competency.request_status),
-                          )}
-                        >
-                          {getStatusIcon(competency.request_status)}
-                          {competency.request_status.replace("_", " ").toUpperCase()}
-                        </Badge>
-
+                      <div className="space-y-2">
                         {competency.has_expiry && competency.expiry_date && (
-                          <div className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 rounded-lg p-3">
-                            <Calendar className="h-4 w-4 text-orange-600" />
-                            <span className="font-medium">Expires:</span>
-                            <span className="font-semibold text-orange-700">{formatDate(competency.expiry_date)}</span>
+                          <div className="flex items-center gap-2 text-sm text-gray-700 bg-gradient-to-r from-orange-50 to-indigo-50 rounded-lg p-2.5 border border-orange-100">
+                            <Calendar className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                            <span className="font-medium text-xs">Expires:</span>
+                            <span className="font-bold text-orange-700 ml-auto">{formatDate(competency.expiry_date)}</span>
                           </div>
                         )}
 
-                        <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2 text-sm flex-wrap">
                           {competency.modules && competency.modules.length > 0 && (
-                            <div className="flex items-center gap-2 text-gray-700 bg-indigo-50 rounded-lg px-3 py-2">
-                              <BookOpen className="h-4 w-4 text-indigo-600" />
-                              <span className="font-semibold">{competency.modules.length}</span>
-                              <span>Module{competency.modules.length !== 1 ? "s" : ""}</span>
+                            <div className="flex items-center gap-1.5 text-gray-700 bg-indigo-50 rounded-lg px-2.5 py-1.5 border border-indigo-100">
+                              <BookOpen className="h-3.5 w-3.5 text-indigo-600" />
+                              <span className="font-bold text-xs">{competency.modules.length}</span>
+                              <span className="text-xs">Module{competency.modules.length !== 1 ? "s" : ""}</span>
                             </div>
                           )}
                           {competency.has_document && (
-                            <div className="flex items-center gap-2 text-gray-700 bg-green-50 rounded-lg px-3 py-2">
-                              <FileCheck className="h-4 w-4 text-green-600" />
-                              <span className="font-semibold">{competency.urls?.length || 0}</span>
-                              <span>Doc{competency.urls?.length !== 1 ? "s" : ""}</span>
+                            <div className="flex items-center gap-1.5 text-gray-700 bg-green-50 rounded-lg px-2.5 py-1.5 border border-green-100">
+                              <FileCheck className="h-3.5 w-3.5 text-green-600" />
+                              <span className="font-bold text-xs">{competency.urls?.length || 0}</span>
+                              <span className="text-xs">Doc{competency.urls?.length !== 1 ? "s" : ""}</span>
                             </div>
                           )}
                         </div>
-                      </>
-                    ) : (
-                      <div className="py-4 text-center">
-                        <Plus className="h-8 w-8 text-gray-400 mx-auto mb-2 group-hover:text-orange-500 transition-colors" />
-                        <p className="text-sm font-medium text-gray-600 group-hover:text-orange-700 transition-colors">
-                          Click to upload
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        className="w-full text-orange-600 hover:text-white hover:bg-gradient-to-r hover:from-orange-600 hover:to-indigo-600 font-semibold text-sm py-2 mt-2 transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCardClick(competency)
+                        }}
+                      >
+                        View Full Details
+                        <ExternalLink className="h-4 w-4 ml-2" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Separator className="bg-gray-200" />
+                      <div className="py-6 text-center">
+                        <Plus className="h-10 w-10 text-gray-400 mx-auto mb-3 group-hover:text-orange-500 group-hover:scale-110 transition-all" />
+                        <p className="text-sm font-semibold text-gray-600 group-hover:text-orange-700 transition-colors mb-1">
+                          Click to upload document
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {competency.has_expiry ? "Document with expiry" : "Non-expiring document"}
+                        <p className="text-xs text-gray-500">
+                          {competency.has_expiry ? "📅 Requires expiry date" : "📄 No expiry required"}
                         </p>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="pt-2">
-                    <Button
-                      variant="ghost"
-                      className="w-full text-orange-600 hover:text-orange-700 hover:bg-orange-50 font-semibold"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCardClick(competency)
-                      }}
-                    >
-                      {competency.has_document ? "View Details" : "Add Document"}
-                      <ExternalLink className="h-4 w-4 ml-2" />
-                    </Button>
-                  </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             ))}

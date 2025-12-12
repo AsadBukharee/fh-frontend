@@ -98,8 +98,8 @@ const StatCard: React.FC<{
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-[11px] text-gray-600 mb-1.5">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 mb-1">{value}</p>
+          <p className={`text-[11px] text-gray-600 mb-1.5`}>{title}</p>
+          <p className={`text-3xl font-bold text-gray-900 mb-1 ${index===0?"text-red-600":""}`}>{value}</p>
           <p className="text-[10px] text-gray-400">{subtitle}</p>
         </div>
         <div className={`${iconBg} p-2.5 rounded-lg`}>
