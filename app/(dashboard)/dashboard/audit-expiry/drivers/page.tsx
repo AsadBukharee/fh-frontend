@@ -84,28 +84,67 @@ export default function Drivers() {
         setDates([
           {
             id: "next_check_code",
-            title: "Next Driver Check Code Due",
-            subtitle: "Alert Before Drivers License Expiry",
+            title: "Next Driver Check Code Due (Date to be shown after last driver check code)  ",
+            subtitle: "Last Driver Check Code ",
             ...apiToUI(d.next_driver_check_code_due, 60),
           },
           {
             id: "next_tacho_download_dates",
-            title: "Next Tacho Download",
-            subtitle: "Alert Before Next Tacho Download Due",
+            title: "Next Driver Tacho Download Due (Date to be shown after last driver tacho download) ",
+            subtitle: "Last Driver Tacho Download ",
             ...apiToUI(d.next_tacho_download, 28),
           },
         ])
-
-        setAlerts([
-          { id: "alert_check_code", title: "Next Driver Check Code Due", subtitle: "Alert before next driver check code due", ...apiToUI(a.next_driver_check_code_due, 3) },
-          { id: "license_expiry", title: "License Expiry", subtitle: "Alert before license expiry date", ...apiToUI(a.license_expiry, 60) },
-          { id: "d_d1_category_expiry", title: "D/D1 Category Expiry", subtitle: "Alert before D/D1 Category Expiry", ...apiToUI(a.d_d1_category_expiry, 60) },
-          { id: "tacho_expiry", title: "Tacho Card Expiry", subtitle: "Alert before Tacho card Expiry", ...apiToUI(a.tacho_card_expiry, 60) },
-          { id: "dbs_expiry", title: "DBS Expiry", subtitle: "Alert before DBS Expiry", ...apiToUI(a.dbs_expiry, 45) },
-          { id: "cpc_dqc_expiry", title: "CPC/DQC Expiry", subtitle: "Alert before CPC/DQC expiry", ...apiToUI(a.cpc_dqc_expiry, 120) },
-          { id: "alert_tacho_download", title: "Next Tacho Download", subtitle: "Alert before next tacho download", ...apiToUI(a.next_tacho_download, 7) },
-          { id: "night_worker", title: "Night Worker Assessment", subtitle: "Alert before assessment due", ...apiToUI(a.night_worker_assessment, 2) },
-        ])
+setAlerts([
+  {
+    id: "alert_check_code",
+    title: "Next Driver Check Code Due",
+    subtitle: "Alert before Next Driver Check Code Due",
+    ...apiToUI(a.next_driver_check_code_due, 3)
+  },
+  {
+    id: "license_expiry",
+    title: "License Expiry",
+    subtitle: "Alert before License Expiry Date",
+    ...apiToUI(a.license_expiry, 60)
+  },
+  {
+    id: "d_d1_category_expiry",
+    title: "D/D1 Category Expiry",
+    subtitle: "Alert before D/D1 Category Expiry",
+    ...apiToUI(a.d_d1_category_expiry, 60)
+  },
+  {
+    id: "tacho_expiry",
+    title: "Tacho Card Expiry",
+    subtitle: "Alert before Tacho Card Expiry Date",
+    ...apiToUI(a.tacho_card_expiry, 60)
+  },
+  {
+    id: "dbs_expiry",
+    title: "DBS Expiry Date",
+    subtitle: "Alert before DBS Expiry",
+    ...apiToUI(a.dbs_expiry, 45)
+  },
+  {
+    id: "cpc_dqc_expiry",
+    title: "CPC/DQC Expiry Date",
+    subtitle: "Alert before CPC/DQC Expiry",
+    ...apiToUI(a.cpc_dqc_expiry, 120)
+  },
+  {
+    id: "alert_tacho_download",
+    title: "Next Driver Tacho Download",
+    subtitle: "Alert Before Next Driver Tacho Download",
+    ...apiToUI(a.next_tacho_download, 7)
+  },
+  {
+    id: "night_worker",
+    title: "Night Worker Assessment Due",
+    subtitle: "Alert before Night Worker Assessment Due",
+    ...apiToUI(a.night_worker_assessment, 2)
+  },
+])
       } catch (err: any) {
         setError(err.message || "Failed to load compliance settings")
         console.error("Fetch error:", err)

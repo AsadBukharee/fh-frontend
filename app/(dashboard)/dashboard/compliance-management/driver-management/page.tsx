@@ -435,7 +435,7 @@ const DriverManagementPage = () => {
                 <TableHead>Last Tacho DL</TableHead>
                 <TableHead>Next Tacho DL</TableHead>
                 <TableHead>DBS Expiry</TableHead>
-                <TableHead>Night Worker</TableHead>
+                <TableHead>Night Worker Assessment </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
