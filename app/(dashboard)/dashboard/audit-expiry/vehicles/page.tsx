@@ -26,6 +26,20 @@ export default function Vehicles() {
   const cookies = useCookies()
   const token = cookies.get("access_token")
 
+  // Convert API value (positive = after, negative = before) to UI
+  const toStatusAndDays = (value: number | null | undefined, fallback: number): { days: number; status: "before" | "after" } => {
+    if (value === null || value === undefined) value = fallback >= 0 ? fallback : -fallback
+    return {
+      days: Math.abs(value),
+      status: value >= 0 ? "after" : "before"
+    }
+  }
+
+  // Convert UI to API value
+  const toApiValue = (item: AuditItem): number => {
+    return item.status === "before" ? -item.days : item.days
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       if (!token) {
@@ -42,19 +56,19 @@ export default function Vehicles() {
           fetch(`${HOST}/activity/vehicle-compliance-dates/`, {
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
+              Authorization: `Bearer ${token}`
             }
           }),
           fetch(`${HOST}/activity/vehicle-compliance-alerts/`, {
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
+              Authorization: `Bearer ${token}`
             }
           })
         ])
 
         if (!datesRes.ok || !alertsRes.ok) {
-          throw new Error(`HTTP ${datesRes.status || alertsRes.status}`)
+          throw new Error("Failed to fetch data")
         }
 
         const datesJson = await datesRes.json()
@@ -67,35 +81,135 @@ export default function Vehicles() {
         const d = datesJson.data[0]
         const a = alertsJson.data[0]
 
-        const toStatusAndDays = (value: number | null | undefined, fallback: number): { days: number; status: "before" | "after" } => {
-          if (value === null || value === undefined) value = fallback
-          return {
-            days: Math.abs(value),
-            status: value >= 0 ? "after" : "before"
-          }
-        }
-
+        // === Compliance Dates ===
         setDates([
-          { id: "next_mot_book_from", title: "Next MOT Book From", subtitle: "Alert before MOT expiry date", ...toStatusAndDays(d.next_mot_book_from, 60), status: "before" },
-          { id: "pmi_expiry_alert", title: "PMI Expiry Alert", subtitle: "Alert after PMI expiry", ...toStatusAndDays(d.pmi_expiry_date, 63), status: "after" },
-          { id: "book_next_pmi_from", title: "Book Next PMI From", subtitle: "Alert before PMI expiry date", ...toStatusAndDays(d.book_next_pmi_from, 10), status: "before" },
-          { id: "next_tacho_download", title: "Next Tacho Download Date", subtitle: "Alert after last tacho download", ...toStatusAndDays(d.next_tacho_download_date, 28), status: "after" },
-          { id: "next_tyre_maintenance", title: "Next Tyre Maintenance Check", subtitle: "Alert after last tyre check", ...toStatusAndDays(d.next_tyre_maintenance_check_date, 60), status: "after" }
+          {
+            id: "next_mot_book_from",
+            title: "Next MOT to Be Booked From",
+            subtitle: "Date to be shown before MOT Expiry",
+            ...toStatusAndDays(d.next_mot_book_from, -60),
+            status: "before"
+          },
+          {
+            id: "pmi_expiry_alert",
+            title: "PMI Expiry Date",
+            subtitle: "Date to be shown after last PMI date",
+            ...toStatusAndDays(d.pmi_expiry_date, 63),
+            status: "after"
+          },
+          {
+            id: "book_next_pmi_from",
+            title: "Book Next PMI From",
+            subtitle: "Date to be shown before PMI Expiry",
+            ...toStatusAndDays(d.book_next_pmi_from, -10),
+            status: "before"
+          },
+          {
+            id: "next_tacho_download",
+            title: "Next Vehicle Tacho Download Date",
+            subtitle: "Date to be shown after last vehicle tacho download date",
+            ...toStatusAndDays(d.next_tacho_download_date, 28),
+            status: "after"
+          },
+          {
+            id: "next_tyre_maintenance",
+            title: "Next Tyre Maintenance Check Date",
+            subtitle: "Date to be shown after last tyre maintenance check",
+            ...toStatusAndDays(d.next_tyre_maintenance_check_date, 60),
+            status: "after"
+          },
         ])
 
+        // === Compliance Alerts ===
         setAlerts([
-          { id: "mot_book_alert", title: "Next MOT Book From", subtitle: "Show alert from this date onwards", ...toStatusAndDays(a.next_mot_book_from, 0), status: "after" },
-          { id: "pmi_book_alert", title: "Book Next PMI From", subtitle: "Show alert from this date onwards", ...toStatusAndDays(a.book_next_pmi_from, 0), status: "after" },
-          { id: "tacho_download_alert", title: "Next Tacho Download Date", subtitle: "Show alert before due date", ...toStatusAndDays(a.next_tacho_download_date, -2), status: "before" },
-          { id: "tyre_maintenance_alert", title: "Next Tyre Maintenance Check", subtitle: "Show alert before due date", ...toStatusAndDays(a.next_tyre_maintenance_check_date, -2), status: "before" },
-          { id: "tax_expiry", title: "Tax", subtitle: "Show alert before tax expiry", ...toStatusAndDays(a.tax, -7), status: "before" },
-          { id: "insurance_expiry", title: "Insurance", subtitle: "Show alert before insurance expiry", ...toStatusAndDays(a.insurance, -30), status: "before" },
-          { id: "tacho_calibration", title: "Tacho Calibration", subtitle: "Show alert before calibration due", ...toStatusAndDays(a.tacho_calibration, -45), status: "before" },
-          { id: "loller_calibration", title: "Loller Calibration", subtitle: "Show alert before Loller test due", ...toStatusAndDays(a.loller_calibration, -45), status: "before" }
+          {
+            id: "mot_book_alert",
+            title: "Next Mot To Be Booked From",
+            subtitle: "Show alert after this date",
+            ...toStatusAndDays(a.next_mot_book_from, 0),
+            status: "after"
+          },
+          {
+            id: "next_mot_booked_alert",
+            title: "Next MOT Booked Date",
+            subtitle: "Show alerts before this date (Manual entry date)",
+            ...toStatusAndDays(a.next_mot_booked_date ?? -3, -3),
+            status: "before"
+          },
+          {
+            id: "pre_mot_check",
+            title: "Pre MOT Check",
+            subtitle: "Show alerts before Next MOT Booked Date",
+            ...toStatusAndDays(a.pre_mot_check ?? -10, -10),
+            status: "before"
+          },
+          {
+            id: "pmi_book_alert",
+            title: "Book Next PMI From",
+            subtitle: "Show alerts after this date",
+            ...toStatusAndDays(a.book_next_pmi_from, 0),
+            status: "after"
+          },
+          {
+            id: "next_pmi_booked_alert",
+            title: "Next PMI Booked Date",
+            subtitle: "Show alert before this date (Manual entry date)",
+            ...toStatusAndDays(a.next_pmi_booked_date ?? -3, -3),
+            status: "before"
+          },
+          {
+            id: "pre_pmi_check",
+            title: "Pre PMI Check",
+            subtitle: "Show alerts before Next PMI Booked Date",
+            ...toStatusAndDays(a.pre_pmi_check ?? -5, -5),
+            status: "before"
+          },
+          {
+            id: "tacho_download_alert",
+            title: "Next Vehicle Tacho Download Date",
+            subtitle: "Show alert before",
+            ...toStatusAndDays(a.next_tacho_download_date, -2),
+            status: "before"
+          },
+          {
+            id: "tyre_maintenance_alert",
+            title: "Next Tyre Maintenance Check Date",
+            subtitle: "Show alert before",
+            ...toStatusAndDays(a.next_tyre_maintenance_check_date, -2),
+            status: "before"
+          },
+          {
+            id: "tax_expiry",
+            title: "Tax Expiry",
+            subtitle: "Show alert before",
+            ...toStatusAndDays(a.tax, -7),
+            status: "before"
+          },
+          {
+            id: "insurance_expiry",
+            title: "Insurance Expiry",
+            subtitle: "Show alert before",
+            ...toStatusAndDays(a.insurance, -30),
+            status: "before"
+          },
+          {
+            id: "tacho_calibration",
+            title: "Vehicle Tacho Calibration Expiry",
+            subtitle: "Show alert before",
+            ...toStatusAndDays(a.tacho_calibration, -45),
+            status: "before"
+          },
+          {
+            id: "loller_calibration",
+            title: "Loller Calibration Expiry",
+            subtitle: "Show alert before",
+            ...toStatusAndDays(a.loller_calibration, -45),
+            status: "before"
+          },
         ])
 
       } catch (err: any) {
-        setError("Failed to load settings: " + err.message)
+        setError("Failed to load settings: " + (err.message || "Unknown error"))
         console.error(err)
       } finally {
         setLoading(false)
@@ -106,7 +220,8 @@ export default function Vehicles() {
   }, [token])
 
   const updateDays = (items: AuditItem[], setItems: React.Dispatch<React.SetStateAction<AuditItem[]>>, id: string, value: number) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, days: Math.max(0, value) } : i))
+    const num = value < 0 ? 0 : value
+    setItems(prev => prev.map(i => i.id === id ? { ...i, days: num } : i))
   }
 
   const toggleStatus = (items: AuditItem[], setItems: React.Dispatch<React.SetStateAction<AuditItem[]>>, id: string) => {
@@ -121,8 +236,6 @@ export default function Vehicles() {
 
     setSaving(true)
     try {
-      const toApiValue = (item: AuditItem) => item.status === "before" ? -item.days : item.days
-
       const datesPayload = {
         next_mot_book_from: toApiValue(dates.find(i => i.id === "next_mot_book_from")!),
         pmi_expiry_date: toApiValue(dates.find(i => i.id === "pmi_expiry_alert")!),
@@ -133,7 +246,11 @@ export default function Vehicles() {
 
       const alertsPayload = {
         next_mot_book_from: toApiValue(alerts.find(i => i.id === "mot_book_alert")!),
+        next_mot_booked_date: toApiValue(alerts.find(i => i.id === "next_mot_booked_alert")!),
+        pre_mot_check: toApiValue(alerts.find(i => i.id === "pre_mot_check")!),
         book_next_pmi_from: toApiValue(alerts.find(i => i.id === "pmi_book_alert")!),
+        next_pmi_booked_date: toApiValue(alerts.find(i => i.id === "next_pmi_booked_alert")!),
+        pre_pmi_check: toApiValue(alerts.find(i => i.id === "pre_pmi_check")!),
         next_tacho_download_date: toApiValue(alerts.find(i => i.id === "tacho_download_alert")!),
         next_tyre_maintenance_check_date: toApiValue(alerts.find(i => i.id === "tyre_maintenance_alert")!),
         tax: toApiValue(alerts.find(i => i.id === "tax_expiry")!),
@@ -147,7 +264,7 @@ export default function Vehicles() {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify(datesPayload)
         }),
@@ -155,28 +272,26 @@ export default function Vehicles() {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify(alertsPayload)
         })
       ])
 
       if (!res1.ok || !res2.ok) {
-        const err1 = await res1.text().catch(() => "")
-        const err2 = await res2.text().catch(() => "")
-        throw new Error(`Save failed: ${err1 || err2}`)
+        throw new Error("Failed to save settings")
       }
 
       alert("Vehicle compliance settings saved successfully!")
     } catch (err: any) {
       console.error(err)
-      alert("Failed to save: " + err.message)
+      alert("Failed to save: " + (err.message || "Unknown error"))
     } finally {
       setSaving(false)
     }
   }
 
-  const renderList = (items: AuditItem[], setItems: any) => {
+  const renderList = (items: AuditItem[], setItems: React.Dispatch<React.SetStateAction<AuditItem[]>>) => {
     return items.map((item) => (
       <div key={item.id} className="grid grid-cols-12 gap-4 py-4 border-b border-gray-100 last:border-b-0">
         <div className="col-span-7">
@@ -255,7 +370,7 @@ export default function Vehicles() {
         <Tabs defaultValue="dates" className="mt-6">
           <TabsList className="grid w-full grid-cols-2 bg-gray-200">
             <TabsTrigger value="dates">Compliance Dates</TabsTrigger>
-            <TabsTrigger value="alerts">Compliance Alerts </TabsTrigger>
+            <TabsTrigger value="alerts">Compliance Alerts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dates" className="mt-6">

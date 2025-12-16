@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Calendar,
   ChevronLeft,
@@ -17,6 +19,7 @@ import {
   RefreshCw,
   Check,
   X,
+  Play,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,10 +32,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import Link from "next/link";
-import { toast } from "sonner"; // Assuming you're using sonner for toasts
+import { toast } from "sonner";
 
 interface ApiResponse {
   success: boolean;
@@ -117,10 +129,16 @@ export default function VehicleDashboard() {
   const [vehicleRegFilter, setVehicleRegFilter] = useState("All Registrations");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
 
-  // State for inline editing
+  // Inline editing state
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Sweep Audit dialog state
+  const [sweepDialogOpen, setSweepDialogOpen] = useState(false);
+  const [isSweeping, setIsSweeping] = useState(false);
+  const [sweepTitle, setSweepTitle] = useState("Maintenance Notice");
+  const [sweepMessage, setSweepMessage] = useState("System maintenance scheduled at midnight.");
 
   const cookies = useCookies();
 
@@ -131,11 +149,11 @@ export default function VehicleDashboard() {
 
   const getStatusBadge = (text: string) => {
     if (!text || text === "TBC") 
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium  text-gray-600">TBC</span>;
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-gray-600">TBC</span>;
     if (text.includes("Expired"))
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium  text-red-800">{text}</span>;
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-red-800">{text}</span>;
     if (text.includes("days left"))
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium  text-amber-800">{text}</span>;
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-amber-800">{text}</span>;
     return <span className="text-gray-700 text-sm">{text}</span>;
   };
 
@@ -220,7 +238,6 @@ export default function VehicleDashboard() {
     setCurrentPage(1);
   }, [buildRows, activeFilter, searchQuery, vehicleRegFilter, statusFilter]);
 
-  // Function to handle double click for editing
   const handleDoubleClick = (vehicleId: number, fieldType: EditableField['type'], currentValue: string) => {
     if (currentValue === "TBC" || currentValue === "-" || currentValue === "null null") {
       setEditingField({ type: fieldType, vehicleId, originalValue: "" });
@@ -231,7 +248,6 @@ export default function VehicleDashboard() {
     }
   };
 
-  // Function to save the edited value
   const handleSaveEdit = async () => {
     if (!editingField || editValue.trim() === "") {
       setEditingField(null);
@@ -247,7 +263,6 @@ export default function VehicleDashboard() {
           payload.mot_booked_date = editValue;
           break;
         case 'mot_time':
-          // Convert time to HH:MM:SS format if needed
           payload.mot_booked_time = editValue.includes(':') ? editValue : `${editValue}:00`;
           break;
         case 'pmi_date':
@@ -256,7 +271,7 @@ export default function VehicleDashboard() {
       }
 
       const response = await fetch(`${API_URL}/api/vehicles/${editingField.vehicleId}/`, {
-        method: 'PATCH', // Using PATCH as per your API structure
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${cookies.get("access_token")}`,
@@ -273,7 +288,6 @@ export default function VehicleDashboard() {
       
       if (result.success) {
         toast.success(result.message || "Updated successfully");
-        // Update local state immediately for better UX
         if (fullApiData) {
           const updatedData = { ...fullApiData };
           
@@ -301,21 +315,18 @@ export default function VehicleDashboard() {
       }
     } catch (error) {
       console.error('Update error:', error);
-      toast.error(error instanceof Error ? error.message : "Failed to update. Please try again.");
-      // Revert to original value on error
+      toast.error(error instanceof Error ? error.message : "Failed to update.");
       setEditValue(editingField.originalValue);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // Function to cancel editing
   const handleCancelEdit = () => {
     setEditingField(null);
     setEditValue("");
   };
 
-  // Handle Enter and Escape keys for editing
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!editingField) return;
@@ -331,41 +342,27 @@ export default function VehicleDashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [editingField, editValue]);
 
-  // Format date for input[type="date"] (YYYY-MM-DD)
   const formatDateForInput = (dateString: string) => {
     if (!dateString || dateString === "TBC" || dateString === "-") return "";
-    
-    // If it's already in YYYY-MM-DD format, return as is
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
-    
-    // Try to parse the date
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "";
-    
     return date.toISOString().split('T')[0];
   };
 
-  // Format time for input[type="time"] (HH:MM)
   const formatTimeForInput = (timeString: string) => {
     if (!timeString || timeString === "TBC" || timeString === "-") return "";
-    
-    // If it's already in HH:MM format, return as is
     if (/^\d{2}:\d{2}$/.test(timeString)) return timeString;
-    
-    // If it's in HH:MM:SS format, extract HH:MM
     if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
       return timeString.substring(0, 5);
     }
-    
     return timeString;
   };
 
-  // Render editable cell for MOT booked date
   const renderMOTBookedDate = (row: VehicleRow) => {
     const isEditing = editingField?.type === 'mot_date' && editingField?.vehicleId === row.vehicle;
     const value = formatDate(row.mot?.next_mot_booked_date);
-    const inputValue = isEditing ? editValue : formatDateForInput(row.mot?.next_mot_booked_date || "");
-    
+
     if (isEditing) {
       return (
         <div className="flex items-center gap-1 min-w-[120px]">
@@ -377,22 +374,10 @@ export default function VehicleDashboard() {
             autoFocus
             disabled={isUpdating}
           />
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleSaveEdit}
-            disabled={isUpdating}
-            className="h-8 w-8 p-0"
-          >
+          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
             <Check className="h-4 w-4 text-green-600" />
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleCancelEdit}
-            disabled={isUpdating}
-            className="h-8 w-8 p-0"
-          >
+          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
             <X className="h-4 w-4 text-red-600" />
           </Button>
         </div>
@@ -410,14 +395,12 @@ export default function VehicleDashboard() {
     );
   };
 
-  // Render editable cell for MOT booked time
   const renderMOTBookedTime = (row: VehicleRow) => {
     const isEditing = editingField?.type === 'mot_time' && editingField?.vehicleId === row.vehicle;
     const value = row.mot?.next_mot_booked_time && row.mot.next_mot_booked_time !== "TBC"
       ? row.mot.next_mot_booked_time
       : "-";
-    const inputValue = isEditing ? editValue : formatTimeForInput(row.mot?.next_mot_booked_time || "");
-    
+
     if (isEditing) {
       return (
         <div className="flex items-center gap-1 min-w-[100px]">
@@ -429,22 +412,10 @@ export default function VehicleDashboard() {
             autoFocus
             disabled={isUpdating}
           />
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleSaveEdit}
-            disabled={isUpdating}
-            className="h-8 w-8 p-0"
-          >
+          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
             <Check className="h-4 w-4 text-green-600" />
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleCancelEdit}
-            disabled={isUpdating}
-            className="h-8 w-8 p-0"
-          >
+          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
             <X className="h-4 w-4 text-red-600" />
           </Button>
         </div>
@@ -462,13 +433,11 @@ export default function VehicleDashboard() {
     );
   };
 
-  // Render editable cell for PMI booked date
   const renderPMIBookedDate = (row: VehicleRow) => {
     const isEditing = editingField?.type === 'pmi_date' && editingField?.vehicleId === row.vehicle;
     const shouldShowDate = row.pmi?.book_next_pmi_from === "booked" && row.pmi?.next_pmi_book_date;
     const value = shouldShowDate && row.pmi ? formatDate(row.pmi.next_pmi_book_date) : "-";
-    const inputValue = isEditing ? editValue : formatDateForInput(row.pmi?.next_pmi_book_date || "");
-    
+
     if (isEditing) {
       return (
         <div className="flex items-center gap-1 min-w-[120px]">
@@ -480,29 +449,16 @@ export default function VehicleDashboard() {
             autoFocus
             disabled={isUpdating}
           />
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleSaveEdit}
-            disabled={isUpdating}
-            className="h-8 w-8 p-0"
-          >
+          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
             <Check className="h-4 w-4 text-green-600" />
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleCancelEdit}
-            disabled={isUpdating}
-            className="h-8 w-8 p-0"
-          >
+          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
             <X className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       );
     }
     
-    // PMI date cell with hover popover for All Data view
     if (activeFilter !== "PMI Inspection" && row.pmi?.book_next_pmi_from === "booked" && row.pmi?.hover) {
       return (
         <Popover>
@@ -548,18 +504,12 @@ export default function VehicleDashboard() {
 
   const getVisibleColumns = () => {
     switch (activeFilter) {
-      case "MOT":
-        return { showMOT: true };
-      case "PMI Inspection":
-        return { showPMI: true };
-      case "Vehicle Tacho Download":
-        return { showTacho: true };
-      case "Tyre Maintenance Check":
-        return { showTyre: true };
-      case "Insurance & Check":
-        return { showInsurance: true };
-      case "Calibrations":
-        return { showCalibrations: true };
+      case "MOT": return { showMOT: true };
+      case "PMI Inspection": return { showPMI: true };
+      case "Vehicle Tacho Download": return { showTacho: true };
+      case "Tyre Maintenance Check": return { showTyre: true };
+      case "Insurance & Check": return { showInsurance: true };
+      case "Calibrations": return { showCalibrations: true };
       case "All Data":
       default:
         return {
@@ -573,19 +523,61 @@ export default function VehicleDashboard() {
     }
   };
 
+  const performSweepAudit = async () => {
+    if (!sweepTitle.trim() || !sweepMessage.trim()) {
+      toast.error("Please fill in title and message");
+      return;
+    }
+
+    setIsSweeping(true);
+    try {
+      const nowIso = new Date().toISOString();
+
+      const response = await fetch(`${API_URL}/api/notifications/sweep-vehicle-audit-now/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({
+          title: sweepTitle.trim(),
+          message: sweepMessage.trim(),
+          datetime: nowIso,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to trigger sweep audit");
+      }
+
+      const result = await response.json();
+      toast.success(result.message || "Sweep audit triggered successfully!");
+
+      setSweepDialogOpen(false);
+      setSweepTitle("Maintenance Notice");
+      setSweepMessage("System maintenance scheduled at midnight.");
+    } catch (error) {
+      console.error("Sweep audit error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to trigger sweep audit");
+    } finally {
+      setIsSweeping(false);
+    }
+  };
+
   const visibleColumns = getVisibleColumns();
   const totalPages = Math.ceil(filteredData.length / perPage);
   const paginated = filteredData.slice((currentPage - 1) * perPage, currentPage * perPage);
   const uniqueRegs = ["All Registrations", ...Array.from(new Set(filteredData.map(r => r.vehicle_reg))).sort()];
 
   const tabs = [
-    { key: "All Data", label: "All Data", icon: null, color: "gray" },
-    { key: "MOT", label: "MOT", icon: Calendar, color: "orange" },
-    { key: "PMI Inspection", label: "PMI Inspection", icon: Wrench, color: "rose" },
-    { key: "Vehicle Tacho Download", label: "Tacho Download", icon: Download, color: "blue" },
-    { key: "Tyre Maintenance Check", label: "Tyre Check", icon: Circle, color: "purple" },
-    { key: "Insurance & Check", label: "Insurance", icon: Shield, color: "green" },
-    { key: "Calibrations", label: "Calibrations", icon: Settings, color: "yellow" },
+    { key: "All Data", label: "All Data", icon: null },
+    { key: "MOT", label: "MOT", icon: Calendar },
+    { key: "PMI Inspection", label: "PMI Inspection", icon: Wrench },
+    { key: "Vehicle Tacho Download", label: "Tacho Download", icon: Download },
+    { key: "Tyre Maintenance Check", label: "Tyre Check", icon: Circle },
+    { key: "Insurance & Check", label: "Insurance", icon: Shield },
+    { key: "Calibrations", label: "Calibrations", icon: Settings },
   ];
 
   return (
@@ -598,14 +590,83 @@ export default function VehicleDashboard() {
             <p className="text-sm text-gray-600 mt-1">Monitor and manage vehicle maintenance schedules</p>
             <p className="text-xs text-gray-500 mt-1">Double-click on MOT/PMI booked dates to edit</p>
           </div>
-          <Button onClick={fetchData} disabled={loading || isUpdating} variant="outline" size="sm">
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading || isUpdating ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+
+          <div className="flex gap-3">
+            <Dialog open={sweepDialogOpen} onOpenChange={setSweepDialogOpen}>
+              <DialogTrigger asChild>
+                <Button disabled={loading || isUpdating || isSweeping} variant="outline" className="bg-orange-500 hover:bg-orange-600 cursor-pointer text-white hover:text-white" size="sm">
+                  <Play className={`w-4 h-4 mr-2 ${isSweeping ? 'animate-spin' : ''}`} />
+                  Sweep Audit
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Trigger Sweep Vehicle Audit</DialogTitle>
+                  <DialogDescription>
+                    This will immediately run a vehicle compliance sweep using the current date and time ({new Date().toLocaleString()}).
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="title">Title</Label>
+                    <Input
+                      id="title"
+                      value={sweepTitle}
+                      onChange={(e) => setSweepTitle(e.target.value)}
+                      placeholder="e.g. Maintenance Notice"
+                      disabled={isSweeping}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="message">Message</Label>
+                    <Textarea
+                      id="message"
+                      value={sweepMessage}
+                      onChange={(e) => setSweepMessage(e.target.value)}
+                      placeholder="Describe the reason..."
+                      rows={4}
+                      disabled={isSweeping}
+                    />
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSweepDialogOpen(false)}
+                    disabled={isSweeping}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={performSweepAudit}
+                    disabled={isSweeping}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    {isSweeping ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Triggering...
+                      </>
+                    ) : (
+                      "Trigger Now"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Button onClick={fetchData} disabled={loading || isUpdating || isSweeping} variant="outline" size="sm">
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading || isUpdating || isSweeping ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
-        {/* Improved Tabs */}
-        <div className="bg-white ">
+        {/* Tabs */}
+        <div className="bg-white">
           <div className="flex flex-wrap gap-1">
             {tabs.map(tab => {
               const Icon = tab.icon;
@@ -634,7 +695,7 @@ export default function VehicleDashboard() {
         <div className="bg-white">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[200px] max-w-xs">
-              <Search className=" z-10 absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 placeholder="Search by registration..."
                 className="pl-9 border-gray-300 focus:ring-2 focus:ring-orange-500"
@@ -678,7 +739,7 @@ export default function VehicleDashboard() {
           </div>
         </div>
 
-        {/* Improved Table */}
+        {/* Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16">
@@ -694,7 +755,6 @@ export default function VehicleDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
-                  {/* Category Headers */}
                   <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <th rowSpan={2} className="p-4 text-left font-semibold text-gray-900 sticky left-0 bg-gray-100 z-20 border-r-2 border-gray-300 min-w-[140px]">
                       Vehicle Reg
@@ -755,7 +815,6 @@ export default function VehicleDashboard() {
                     )}
                   </tr>
 
-                  {/* Column Headers */}
                   <tr className="bg-white border-y-2 border-gray-300">
                     {visibleColumns.showMOT && (
                       <>
@@ -898,7 +957,7 @@ export default function VehicleDashboard() {
           )}
         </div>
 
-        {/* Improved Pagination */}
+        {/* Pagination */}
         {filteredData.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -913,7 +972,6 @@ export default function VehicleDashboard() {
                   size="sm" 
                   disabled={currentPage === 1} 
                   onClick={() => setCurrentPage(p => p - 1)}
-                  className="disabled:opacity-50"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous
@@ -932,11 +990,7 @@ export default function VehicleDashboard() {
                         variant={currentPage === pageNum ? "default" : "outline"}
                         size="sm"
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 ${
-                          currentPage === pageNum 
-                            ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white' 
-                            : ''
-                        }`}
+                        className={`w-10 ${currentPage === pageNum ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white' : ''}`}
                       >
                         {pageNum}
                       </Button>
@@ -949,7 +1003,6 @@ export default function VehicleDashboard() {
                   size="sm" 
                   disabled={currentPage === totalPages} 
                   onClick={() => setCurrentPage(p => p + 1)}
-                  className="disabled:opacity-50"
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />

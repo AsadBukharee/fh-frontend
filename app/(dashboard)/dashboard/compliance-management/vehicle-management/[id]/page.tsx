@@ -51,9 +51,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import InspectionDialog from "@/components/Vehicles/expiry/InspectionDialog";
 import { format } from "date-fns";
 import MOTDialog from "@/components/Vehicles/expiry/MOTexpiry/MOTdialog";
+import { toast } from "sonner";
 
 interface VehicleFormData {
   vin: string
@@ -155,6 +157,7 @@ export default function VehicleDetailPage() {
   const [activeTab, setActiveTab] = useState("details");
   const [pmiDialogOpen, setPmiDialogOpen] = useState(false);
   const [motDialogOpen, setMotDialogOpen] = useState(false);
+  const [skipUpload, setSkipUpload] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -259,11 +262,13 @@ export default function VehicleDetailPage() {
         setVehicle(updatedData.data);
         setEditVehicle(updatedData.data);
         setIsEditing(false);
+        toast.success("Vehicle updated successfully");
       } else {
         throw new Error(updatedData.message || "Failed to update vehicle");
       }
     } catch (err) {
       console.error("Error updating vehicle:", err);
+      toast.error("Failed to update vehicle");
     } finally {
       setSaving(false);
     }
@@ -290,10 +295,12 @@ export default function VehicleDetailPage() {
         if (updatedData.success) {
           setVehicle(updatedData.data);
           setEditVehicle(updatedData.data);
+          toast.success("Vehicle image updated");
         }
       }
     } catch (err) {
       console.error("Error updating image:", err);
+      toast.error("Failed to update image");
     }
   };
 
@@ -315,15 +322,19 @@ export default function VehicleDetailPage() {
         if (updatedData.success) {
           setVehicle(updatedData.data);
           setEditVehicle(updatedData.data);
+          toast.success("Document uploaded successfully");
         }
       }
     } catch (err) {
       console.error("Error updating document:", err);
+      toast.error("Failed to upload document");
     }
   };
 
-  const handleDateSave = async (documentUrl: string) => {
-    if (!editDateField || !tempDate || !documentUrl) return;
+  const handleDateSave = async (documentUrl: string | null) => {
+    if (!editDateField || !tempDate) return;
+    
+    const toastId = toast.loading("Saving date...");
     
     try {
       // Prepare the data to send
@@ -343,9 +354,9 @@ export default function VehicleDetailPage() {
         "last_pmi_date": "pmi_inspection_docs"
       };
 
-      // Add the corresponding document field
+      // Add the corresponding document field only if we have a document URL
       const docField = dateToDocMap[editDateField];
-      if (docField) {
+      if (docField && documentUrl) {
         updateData[docField] = documentUrl;
       }
 
@@ -366,26 +377,37 @@ export default function VehicleDetailPage() {
         setEditDateField(null);
         setTempDate("");
         setUploadedDoc("");
+        setSkipUpload(false);
         setDocumentError(null);
+        
+        // Show success message based on whether document was uploaded
+        if (documentUrl) {
+          toast.success("Date and document updated successfully", { id: toastId });
+        } else {
+          toast.success("Date updated successfully. Remember to upload the document later.", { id: toastId });
+        }
       } else {
-        throw new Error(updatedData.message || "Failed to update date and document");
+        throw new Error(updatedData.message || "Failed to update date");
       }
     } catch (err) {
       console.error("Error updating date:", err);
       setDocumentError("Failed to save. Please try again.");
+      toast.error("Failed to update. Please try again.", { id: toastId });
     }
   };
 
   const openEditDateDialog = (field: string, currentValue: string = "") => {
     setEditDateField(field);
-    setTempDate(currentValue || "");
+    setTempDate(currentValue ? currentValue.split("T")[0] : "");
     setUploadedDoc("");
+    setSkipUpload(false);
     setDocumentError(null);
   };
 
   const handleUpdateSuccess = () => {
     // Refresh vehicle data after any update
     const fetchData = async () => {
+      const toastId = toast.loading("Refreshing vehicle data...");
       try {
         const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
           headers: { 
@@ -399,9 +421,11 @@ export default function VehicleDetailPage() {
         if (vehicleData.success) {
           setVehicle(vehicleData.data);
           setEditVehicle(vehicleData.data);
+          toast.success("Vehicle data refreshed successfully", { id: toastId });
         }
       } catch (err) {
         console.error("Error refreshing vehicle data:", err);
+        toast.error("Failed to refresh vehicle data", { id: toastId });
       }
     };
 
@@ -1323,103 +1347,146 @@ export default function VehicleDetailPage() {
         </Tabs>
       </div>
 
-      {/* Date Edit Dialog with Document Upload */}
+      {/* Date Edit Dialog with Optional Document Upload */}
       <Dialog open={!!editDateField} onOpenChange={() => {
         setEditDateField(null);
         setUploadedDoc("");
         setDocumentError(null);
+        setSkipUpload(false);
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {editDateField ? `Edit ${dateFields.find(f => f.key === editDateField)?.label || editDateField}` : 'Edit Date'}
             </DialogTitle>
+            <DialogDescription>
+              Update the date. You can upload a document now or skip to upload later.
+            </DialogDescription>
           </DialogHeader>
+          
           <div className="py-4 space-y-4">
+            {/* Date Selection */}
             <div>
-              <Label className="text-sm font-medium mb-2 block">Select Date</Label>
+              <Label className="text-sm font-medium mb-2 block">Select Date *</Label>
               <Input
                 type="date"
                 value={tempDate}
                 onChange={(e) => setTempDate(e.target.value)}
                 className="w-full"
+                required
               />
             </div>
             
-            <div>
-              <Label className="text-sm font-medium mb-2 block">
-                Upload Supporting Document *
-                {documentError && (
-                  <span className="text-red-500 text-xs ml-2">{documentError}</span>
-                )}
-              </Label>
-              {uploadedDoc ? (
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm truncate">
-                      Document uploaded
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(uploadedDoc, '_blank')}
-                      className="h-7 w-7 p-0"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setUploadedDoc("")}
-                      className="h-7 w-7 p-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
-                  <div 
-                    onClick={() => document.getElementById(`date-${editDateField}-upload`)?.click()}
-                    className="cursor-pointer"
+            {/* Document Upload Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Supporting Document</Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="skip-upload" 
+                    checked={skipUpload}
+                    onCheckedChange={(checked) => setSkipUpload(checked === true)}
+                    className="h-4 w-4"
+                  />
+                  <Label 
+                    htmlFor="skip-upload" 
+                    className="text-sm font-normal cursor-pointer"
                   >
-                    <div className="flex flex-col items-center gap-2">
-                      {isUploadingDoc ? (
-                        <>
-                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
-                          <p className="text-sm text-gray-600">Uploading...</p>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-5 h-5 text-gray-500" />
-                          <div>
-                            <p className="text-sm font-medium">Click to upload</p>
-                            <p className="text-xs text-gray-500">PDF, JPG, PNG, DOC (max 10MB)</p>
-                          </div>
-                        </>
-                      )}
+                    Upload later
+                  </Label>
+                </div>
+              </div>
+              
+              {!skipUpload ? (
+                <>
+                  {uploadedDoc ? (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm truncate">
+                          Document uploaded
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(uploadedDoc, '_blank')}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setUploadedDoc("")}
+                          className="h-7 w-7 p-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                      <div 
+                        onClick={() => document.getElementById(`date-${editDateField}-upload`)?.click()}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          {isUploadingDoc ? (
+                            <>
+                              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
+                              <p className="text-sm text-gray-600">Uploading...</p>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-5 h-5 text-gray-500" />
+                              <div>
+                                <p className="text-sm font-medium">Click to upload</p>
+                                <p className="text-xs text-gray-500">PDF, JPG, PNG, DOC (max 10MB)</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <FileUploader
+                        // onUploadStart={() => setIsUploadingDoc(true)}
+                        onUploadSuccess={(url) => {
+                          setUploadedDoc(url);
+                          setIsUploadingDoc(false);
+                          setDocumentError(null);
+                        }}
+                        // onUploadError={(error) => {
+                        //   setIsUploadingDoc(false);
+                        //   setDocumentError(error);
+                        // }}
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.txt"
+                        maxSize={10 * 1024 * 1024}
+                        id={`date-${editDateField}-upload`}
+                      />
+                    </div>
+                  )}
+                  
+                  {documentError && (
+                    <p className="text-sm text-red-500">{documentError}</p>
+                  )}
+                </>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-yellow-800">Document will be uploaded later</p>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        You can upload the supporting document from the Documents tab later.
+                      </p>
                     </div>
                   </div>
-                  <FileUploader
-                    onUploadSuccess={(url) => {
-                      setUploadedDoc(url);
-                      setIsUploadingDoc(false);
-                      setDocumentError(null);
-                    }}
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.txt"
-                    maxSize={10 * 1024 * 1024}
-                    id={`date-${editDateField}-upload`}
-                  />
                 </div>
               )}
-              <p className="text-xs text-gray-500 mt-2">
-                * Supporting document is required for date update
-              </p>
             </div>
           </div>
+          
           <DialogFooter>
             <Button
               variant="outline"
@@ -1427,22 +1494,29 @@ export default function VehicleDetailPage() {
                 setEditDateField(null);
                 setUploadedDoc("");
                 setDocumentError(null);
+                setSkipUpload(false);
               }}
             >
               Cancel
             </Button>
             <Button
               onClick={() => {
-                if (!uploadedDoc) {
-                  setDocumentError("Please upload a supporting document");
+                if (!tempDate) {
+                  toast.error("Please select a date");
                   return;
                 }
-                handleDateSave(uploadedDoc);
+                
+                if (!skipUpload && !uploadedDoc) {
+                  toast.error("Please upload a document or select 'Upload later'");
+                  return;
+                }
+                
+                handleDateSave(uploadedDoc || null);
               }}
-              disabled={isUploadingDoc || !tempDate || !uploadedDoc}
+              disabled={isUploadingDoc || !tempDate || (!skipUpload && !uploadedDoc)}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Save Date & Document
+              {skipUpload ? "Save Date Only" : "Save Date & Document"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,22 +27,14 @@ const API = `${API_URL}/activity/audit-expiry-others/`;
 const transformFromApi = (data: any): AuditItem[] => {
   const toISO = (date: string | null) => (date ? new Date(date).toISOString().split("T")[0] : null);
 
+  // Exact order and subtitles as in the screenshots/table
   return [
-    {
-      id: "operator_compliance_score",
-      title: "Operator Compliance Score",
-      subtitle: "Alert Before Operator Compliance Score",
-      days: Math.abs(data.operator_compliance_score || 0),
-      status: data.operator_compliance_score < 0 ? "before" : "after",
-      lastCheckDate: toISO(data.operator_compliance_score_reference_date),
-      directory: data.operator_compliance_score_directory,
-    },
     {
       id: "test_report_history",
       title: "Test Report History",
-      subtitle: "Alert After Test Report History",
-      days: Math.abs(data.test_report_history || 0),
-      status: data.test_report_history < 0 ? "before" : "after",
+      subtitle: "Alert After Test History Report",
+      days: data.test_report_history === null || data.test_report_history === undefined ? 0 : Math.abs(data.test_report_history),
+      status: data.test_report_history == null || data.test_report_history >= 0 ? "after" : "before",
       lastCheckDate: toISO(data.test_report_history_reference_date),
       directory: data.test_report_history_directory,
     },
@@ -51,8 +42,8 @@ const transformFromApi = (data: any): AuditItem[] => {
       id: "vehicle_encounter_report",
       title: "Vehicle Encounter Report",
       subtitle: "Alert Before Vehicle Encounter Report",
-      days: Math.abs(data.vehicle_encounter_report || 0),
-      status: data.vehicle_encounter_report < 0 ? "before" : "after",
+      days: data.vehicle_encounter_report === null || data.vehicle_encounter_report === undefined ? 0 : Math.abs(data.vehicle_encounter_report),
+      status: data.vehicle_encounter_report == null || data.vehicle_encounter_report >= 0 ? "after" : "before",
       lastCheckDate: toISO(data.vehicle_encounter_report_reference_date),
       directory: data.vehicle_encounter_report_directory,
     },
@@ -60,26 +51,26 @@ const transformFromApi = (data: any): AuditItem[] => {
       id: "yearly_maintenance_provider_audit",
       title: "Yearly Maintenance Provider Audit",
       subtitle: "Alert After Yearly Maintenance Provider Audit",
-      days: Math.abs(data.yearly_maintenance_provider_audit || 0),
-      status: data.yearly_maintenance_provider_audit < 0 ? "before" : "after",
+      days: data.yearly_maintenance_provider_audit === null || data.yearly_maintenance_provider_audit === undefined ? 355 : Math.abs(data.yearly_maintenance_provider_audit),
+      status: data.yearly_maintenance_provider_audit == null || data.yearly_maintenance_provider_audit >= 0 ? "after" : "before",
       lastCheckDate: toISO(data.yearly_maintenance_provider_audit_reference_date),
       directory: data.yearly_maintenance_provider_audit_directory,
     },
     {
       id: "yearly_garage_equipment_audit",
       title: "Yearly Garage Equipment Audit",
-      subtitle: "Alert Before Yearly Garage Equipment Audit",
-      days: Math.abs(data.yearly_garage_equipment_audit || 0),
-      status: data.yearly_garage_equipment_audit < 0 ? "before" : "after",
+      subtitle: "Alert after Yearly Garage Equipment Audit",
+      days: data.yearly_garage_equipment_audit === null || data.yearly_garage_equipment_audit === undefined ? 350 : Math.abs(data.yearly_garage_equipment_audit),
+      status: data.yearly_garage_equipment_audit == null || data.yearly_garage_equipment_audit >= 0 ? "after" : "before",
       lastCheckDate: toISO(data.yearly_garage_equipment_audit_reference_date),
       directory: data.yearly_garage_equipment_audit_directory,
     },
     {
       id: "vol_review",
       title: "VOL Review",
-      subtitle: "Alert Before VOL Review",
-      days: Math.abs(data.vol_review || 0),
-      status: data.vol_review < 0 ? "before" : "after",
+      subtitle: "Alert After VOL Review",
+      days: data.vol_review === null || data.vol_review === undefined ? 30 : Math.abs(data.vol_review),
+      status: data.vol_review == null || data.vol_review >= 0 ? "after" : "before",
       lastCheckDate: toISO(data.vol_review_reference_date),
       directory: data.vol_review_directory,
     },
@@ -87,8 +78,8 @@ const transformFromApi = (data: any): AuditItem[] => {
       id: "transport_manager_refresher_check",
       title: "Transport Manager Refresher Check",
       subtitle: "Alert After Transport Manager Refresher Check",
-      days: Math.abs(data.transport_manager_refresher_check || 0),
-      status: data.transport_manager_refresher_check < 0 ? "before" : "after",
+      days: data.transport_manager_refresher_check === null || data.transport_manager_refresher_check === undefined ? 120 : Math.abs(data.transport_manager_refresher_check),
+      status: data.transport_manager_refresher_check == null || data.transport_manager_refresher_check >= 0 ? "after" : "before",
       lastCheckDate: toISO(data.transport_manager_refresher_check_reference_date),
       directory: data.transport_manager_refresher_check_directory,
     },
@@ -96,18 +87,17 @@ const transformFromApi = (data: any): AuditItem[] => {
       id: "transport_manager_cpc_card_check",
       title: "Transport Manager CPC Card Check",
       subtitle: "Alert After Transport Manager CPC Card Check",
-      days: Math.abs(data.transport_manager_cpc_card_check || 0),
-      status: data.transport_manager_cpc_card_check < 0 ? "before" : "after",
+      days: data.transport_manager_cpc_card_check === null || data.transport_manager_cpc_card_check === undefined ? 90 : Math.abs(data.transport_manager_cpc_card_check),
+      status: data.transport_manager_cpc_card_check == null || data.transport_manager_cpc_card_check >= 0 ? "after" : "before",
       lastCheckDate: toISO(data.transport_manager_cpc_card_check_reference_date),
       directory: data.transport_manager_cpc_card_check_directory,
     },
-    // ADDED: Torque Wrench Calibration
     {
       id: "torque_wrench_calibration",
       title: "Torque Wrench Calibration",
-      subtitle: "Alert After Calibration Due",
-      days: data.torque_wrench_calibration === null ? 0 : Math.abs(data.torque_wrench_calibration),
-      status: data.torque_wrench_calibration === null || data.torque_wrench_calibration >= 0 ? "after" : "before",
+      subtitle: "Alert After Torque Wrench Calibration",
+      days: data.torque_wrench_calibration === null || data.torque_wrench_calibration === undefined ? 180 : Math.abs(data.torque_wrench_calibration),
+      status: data.torque_wrench_calibration == null || data.torque_wrench_calibration >= 0 ? "after" : "before",
       lastCheckDate: toISO(data.torque_wrench_calibration_reference_date ?? null),
       directory: data.torque_wrench_calibration_directory ?? null,
     },
@@ -116,51 +106,43 @@ const transformFromApi = (data: any): AuditItem[] => {
 
 // UI → API
 const transformToApi = (items: AuditItem[]) => {
-  const getVal = (id: string) => {
+  const getVal = (id: string, defaultDays: number = 0) => {
     const item = items.find((x) => x.id === id);
-    if (!item) return 0;
+    if (!item) return defaultDays;
     return item.status === "before" ? -item.days : item.days;
   };
   const get = (id: string) => items.find((x) => x.id === id);
 
   return {
     id: 1,
-    operator_compliance_score: getVal("operator_compliance_score"),
-    operator_compliance_score_reference_date: get("operator_compliance_score")?.lastCheckDate || null,
-    operator_compliance_score_directory: get("operator_compliance_score")?.directory || null,
-
-    test_report_history: getVal("test_report_history"),
+    test_report_history: getVal("test_report_history", 0),
     test_report_history_reference_date: get("test_report_history")?.lastCheckDate || null,
     test_report_history_directory: get("test_report_history")?.directory || null,
-
-    vehicle_encounter_report: getVal("vehicle_encounter_report"),
+    vehicle_encounter_report: getVal("vehicle_encounter_report", 0),
     vehicle_encounter_report_reference_date: get("vehicle_encounter_report")?.lastCheckDate || null,
     vehicle_encounter_report_directory: get("vehicle_encounter_report")?.directory || null,
-
-    yearly_maintenance_provider_audit: getVal("yearly_maintenance_provider_audit"),
+    yearly_maintenance_provider_audit: getVal("yearly_maintenance_provider_audit", 355),
     yearly_maintenance_provider_audit_reference_date: get("yearly_maintenance_provider_audit")?.lastCheckDate || null,
     yearly_maintenance_provider_audit_directory: get("yearly_maintenance_provider_audit")?.directory || null,
-
-    yearly_garage_equipment_audit: getVal("yearly_garage_equipment_audit"),
+    yearly_garage_equipment_audit: getVal("yearly_garage_equipment_audit", 350),
     yearly_garage_equipment_audit_reference_date: get("yearly_garage_equipment_audit")?.lastCheckDate || null,
     yearly_garage_equipment_audit_directory: get("yearly_garage_equipment_audit")?.directory || null,
-
-    vol_review: getVal("vol_review"),
+    vol_review: getVal("vol_review", 30),
     vol_review_reference_date: get("vol_review")?.lastCheckDate || null,
     vol_review_directory: get("vol_review")?.directory || null,
-
-    transport_manager_refresher_check: getVal("transport_manager_refresher_check"),
+    transport_manager_refresher_check: getVal("transport_manager_refresher_check", 120),
     transport_manager_refresher_check_reference_date: get("transport_manager_refresher_check")?.lastCheckDate || null,
     transport_manager_refresher_check_directory: get("transport_manager_refresher_check")?.directory || null,
-
-    transport_manager_cpc_card_check: getVal("transport_manager_cpc_card_check"),
+    transport_manager_cpc_card_check: getVal("transport_manager_cpc_card_check", 90),
     transport_manager_cpc_card_check_reference_date: get("transport_manager_cpc_card_check")?.lastCheckDate || null,
     transport_manager_cpc_card_check_directory: get("transport_manager_cpc_card_check")?.directory || null,
-
-    // Torque Wrench
-    torque_wrench_calibration: getVal("torque_wrench_calibration"),
+    torque_wrench_calibration: getVal("torque_wrench_calibration", 180),
     torque_wrench_calibration_reference_date: get("torque_wrench_calibration")?.lastCheckDate || null,
     torque_wrench_calibration_directory: get("torque_wrench_calibration")?.directory || null,
+    // Compatibility for any older/unused fields
+    operator_compliance_score: 0,
+    operator_compliance_score_reference_date: null,
+    operator_compliance_score_directory: null,
   };
 };
 
@@ -171,7 +153,6 @@ export default function Others() {
   const [editableDays, setEditableDays] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   const [openDialog, setOpenDialog] = useState<string | null>(null);
-
   const token = useCookies().get("access_token");
 
   useEffect(() => {
@@ -221,7 +202,6 @@ export default function Others() {
       alert("Cannot save: All items with a Last Check Date must have an uploaded document.");
       return;
     }
-
     setSaving(true);
     try {
       const payload = transformToApi(auditItems);
@@ -248,7 +228,6 @@ export default function Others() {
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pink-500"></div>
         </div>
       )}
-
       <div className="mx-auto bg-white mb-2">
         <div className="bg-green-200 px-6 py-4">
           <h1 className="text-lg font-semibold text-gray-800">Others</h1>
@@ -345,7 +324,7 @@ export default function Others() {
                     className="hidden"
                   />
                   <div
-                    className={`relative w-12 h-6 flex items-center rounded-full transition-colors duration-300 
+                    className={`relative w-12 h-6 flex items-center rounded-full transition-colors duration-300
                       ${item.status === "before" ? "bg-pink-100" : "bg-orange-100"}`}
                   >
                     <div
@@ -380,7 +359,7 @@ export default function Others() {
                 )}
               </div>
 
-              {/* DIALOG - 100% YOUR ORIGINAL STYLE */}
+              {/* Dialog */}
               <Dialog.Root open={openDialog === item.id} onOpenChange={(open) => !open && setOpenDialog(null)}>
                 <Dialog.Portal>
                   <Dialog.Overlay className="fixed inset-0 bg-black/50" />
@@ -391,9 +370,7 @@ export default function Others() {
                     <Dialog.Description className="text-sm text-gray-600 mt-2">
                       Please upload a document to confirm the new date for {item.title}.
                     </Dialog.Description>
-
                     <div className="mt-6 space-y-6">
-                      {/* Current Document Preview */}
                       {item.directory && (
                         <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
                           <p className="text-xs font-medium text-gray-600 mb-3">Current Document</p>
@@ -402,7 +379,7 @@ export default function Others() {
                               src={item.directory}
                               alt="Current document"
                               className="max-w-full h-auto rounded mx-auto"
-                              style={{ maxHeight: "280px "}}
+                              style={{ maxHeight: "280px" }}
                             />
                           ) : item.directory.endsWith(".pdf") ? (
                             <iframe
@@ -420,7 +397,6 @@ export default function Others() {
                           )}
                         </div>
                       )}
-
                       <DatePickerField
                         label="Last Check Date"
                         value={item.lastCheckDate || ""}
@@ -429,7 +405,6 @@ export default function Others() {
                         }
                         lastDate={0}
                       />
-
                       <div>
                         <FileUploader
                           onUploadSuccess={(url) => handleFileUpload(item.id, url)}
@@ -444,7 +419,6 @@ export default function Others() {
                         )}
                       </div>
                     </div>
-
                     <div className="mt-6 flex justify-end space-x-2">
                       <Dialog.Close asChild>
                         <Button
