@@ -68,6 +68,7 @@ interface Site {
   operation_hours: OperationHour[];
   warnings: string[];
   presence: Presence;
+  max_staff_allowed:number;
   staff: Staff;
 }
 
@@ -414,7 +415,7 @@ const handleSiteCreated = () => {
                     <Users className="w-6 h-6 text-orange" />
                     <span className="text-black text-lg font-bold">Staff on Site</span>
                   </div>
-                  <span>{`${site.staff.total}/${site.staff.total}`}</span>
+                  <span>{`${site.staff.total}/${site.max_staff_allowed}`}</span>
                 </div>
                 <div className="flex gap-2 mt-2 text-xs justify-evenly items-center">
                   {[
