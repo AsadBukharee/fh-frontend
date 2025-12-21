@@ -977,7 +977,7 @@ export default function DriversPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           <Link 
-                            href={`/dashboard/users/driver-profiles/${driver.id}?name=${driver.user.full_name}`}
+                            href={`/dashboard/users/driver-profiles/${driver.id}?name=${driver.user.full_name}&user_id=${driver.user.id}`}
                             className="hover:text-orange-600 transition-colors"
                           >
                             {driver.user.full_name}
@@ -1044,7 +1044,7 @@ export default function DriversPage() {
                           <DropdownMenuContent align="end" className="w-56">
                             <DropdownMenuItem asChild>
                               <Link 
-                                href={`/dashboard/users/driver-profiles/${driver.id}`}
+                                href={`/dashboard/users/driver-profiles/${driver.id}?name=${driver.user.full_name}&user_id=${driver.user.id}`}
                                 className="flex items-center gap-2 cursor-pointer"
                               >
                                 <Eye className="w-4 h-4" />

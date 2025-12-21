@@ -117,6 +117,104 @@ type EditableField = {
   originalValue: string;
 };
 
+// Date status utility function
+const getDateStatus = (dateString: string | null, compareDate?: string | null): 'green' | 'yellow' | 'red' | 'gray' => {
+  if (!dateString || dateString === "TBC" || dateString === "NA" || dateString === "null" || dateString === "null null") {
+    return 'gray';
+  }
+
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'gray';
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    // Calculate difference in days
+    const diffTime = targetDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // For comparison with another date (e.g., "Book Next From" date)
+    if (compareDate && compareDate !== "TBC" && compareDate !== "NA" && compareDate !== "null") {
+      const compareDateObj = new Date(compareDate);
+      compareDateObj.setHours(0, 0, 0, 0);
+      
+      const todayTime = today.getTime();
+      const targetTime = targetDate.getTime();
+      const compareTime = compareDateObj.getTime();
+      
+      // If we're past the target date (expired)
+      if (targetTime < todayTime) return 'red';
+      
+      // If today is on or after the "book from" date
+      if (todayTime >= compareTime) {
+        // And target date is within 7 days
+        if (diffDays <= 7) return 'yellow';
+        // Just reached "book from" date but still >7 days away
+        return 'green';
+      }
+      
+      // Not yet at "book from" date
+      return 'green';
+    }
+    
+    // Standard expiry logic
+    if (diffDays < 0) return 'red'; // Expired
+    if (diffDays <= 7) return 'yellow'; // Within 7 days
+    return 'green'; // More than 7 days away
+    
+  } catch (error) {
+    return 'gray';
+  }
+};
+
+// Date Display Component
+interface DateDisplayProps {
+  date: string | null;
+  compareDate?: string | null;
+  className?: string;
+  children?: React.ReactNode;
+  onClick?: () => void;
+  isEditable?: boolean;
+}
+
+const DateDisplay: React.FC<DateDisplayProps> = ({ 
+  date, 
+  compareDate, 
+  className = "", 
+  children,
+  onClick,
+  isEditable = false
+}) => {
+  const status = getDateStatus(date, compareDate);
+  
+  const statusClasses = {
+    green: 'text-green-700 bg-green-50 hover:bg-green-100',
+    yellow: 'text-yellow-700 bg-yellow-50 hover:bg-yellow-100',
+    red: 'text-red-700 bg-red-50 hover:bg-red-100',
+    gray: 'text-gray-500 bg-gray-50 hover:bg-gray-100'
+  };
+
+  const formattedDate = date && date !== "TBC" && date !== "NA" && date !== "null" && date !== "null null" 
+    ? new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : date === "TBC" || date === "NA" || date === "null" || date === "null null" ? "NA" : "NA";
+  
+  return (
+    <div
+      className={`px-3 py-4 text-sm rounded min-h-[44px] flex items-center transition-colors ${
+        isEditable ? 'cursor-pointer' : 'cursor-default'
+      } ${statusClasses[status]} ${className}`}
+      onClick={isEditable ? onClick : undefined}
+      title={isEditable ? "Double-click to edit" : ""}
+    >
+      {children || formattedDate}
+    </div>
+  );
+};
+
 export default function VehicleDashboard() {
   const [fullApiData, setFullApiData] = useState<ApiResponse | null>(null);
   const [filteredData, setFilteredData] = useState<VehicleRow[]>([]);
@@ -143,8 +241,14 @@ export default function VehicleDashboard() {
   const cookies = useCookies();
 
   const formatDate = (s: string | null | undefined) => {
-    if (!s || s === "TBC" || s === "null" || s === "null null") return "-";
-    return s;
+    if (!s || s === "TBC" || s === "null" || s === "null null") return "NA";
+    try {
+      const date = new Date(s);
+      if (isNaN(date.getTime())) return "NA";
+      return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return "NA";
+    }
   };
 
   const getStatusBadge = (text: string) => {
@@ -239,7 +343,7 @@ export default function VehicleDashboard() {
   }, [buildRows, activeFilter, searchQuery, vehicleRegFilter, statusFilter]);
 
   const handleDoubleClick = (vehicleId: number, fieldType: EditableField['type'], currentValue: string) => {
-    if (currentValue === "TBC" || currentValue === "-" || currentValue === "null null") {
+    if (currentValue === "TBC" || currentValue === "NA" || currentValue === "null null") {
       setEditingField({ type: fieldType, vehicleId, originalValue: "" });
       setEditValue("");
     } else {
@@ -342,23 +446,6 @@ export default function VehicleDashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [editingField, editValue]);
 
-  const formatDateForInput = (dateString: string) => {
-    if (!dateString || dateString === "TBC" || dateString === "-") return "";
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "";
-    return date.toISOString().split('T')[0];
-  };
-
-  const formatTimeForInput = (timeString: string) => {
-    if (!timeString || timeString === "TBC" || timeString === "-") return "";
-    if (/^\d{2}:\d{2}$/.test(timeString)) return timeString;
-    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
-      return timeString.substring(0, 5);
-    }
-    return timeString;
-  };
-
   const renderMOTBookedDate = (row: VehicleRow) => {
     const isEditing = editingField?.type === 'mot_date' && editingField?.vehicleId === row.vehicle;
     const value = formatDate(row.mot?.next_mot_booked_date);
@@ -385,13 +472,14 @@ export default function VehicleDashboard() {
     }
     
     return (
-      <div
-        className="px-3 py-4 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded min-h-[44px] flex items-center"
-        onDoubleClick={() => handleDoubleClick(row.vehicle, 'mot_date', row.mot?.next_mot_booked_date || "")}
-        title="Double-click to edit"
+      <DateDisplay
+        date={row.mot?.next_mot_booked_date?? null}
+        compareDate={row.mot?.book_next_mot_from}
+        onClick={() => handleDoubleClick(row.vehicle, 'mot_date', row.mot?.next_mot_booked_date || "")}
+        isEditable={true}
       >
         {value}
-      </div>
+      </DateDisplay>
     );
   };
 
@@ -399,7 +487,7 @@ export default function VehicleDashboard() {
     const isEditing = editingField?.type === 'mot_time' && editingField?.vehicleId === row.vehicle;
     const value = row.mot?.next_mot_booked_time && row.mot.next_mot_booked_time !== "TBC"
       ? row.mot.next_mot_booked_time
-      : "-";
+      : "NA";
 
     if (isEditing) {
       return (
@@ -436,7 +524,7 @@ export default function VehicleDashboard() {
   const renderPMIBookedDate = (row: VehicleRow) => {
     const isEditing = editingField?.type === 'pmi_date' && editingField?.vehicleId === row.vehicle;
     const shouldShowDate = row.pmi?.book_next_pmi_from === "booked" && row.pmi?.next_pmi_book_date;
-    const value = shouldShowDate && row.pmi ? formatDate(row.pmi.next_pmi_book_date) : "-";
+    const value = shouldShowDate && row.pmi ? formatDate(row.pmi.next_pmi_book_date) : "NA";
 
     if (isEditing) {
       return (
@@ -471,7 +559,13 @@ export default function VehicleDashboard() {
               }}
               title="Double-click to edit"
             >
-              {formatDate(row.pmi.next_pmi_book_date)}
+              <DateDisplay
+                date={row.pmi?.next_pmi_book_date}
+                compareDate={row.pmi?.book_next_pmi_from}
+                className="!bg-transparent !text-rose-600 hover:!text-rose-800"
+              >
+                {formatDate(row.pmi?.next_pmi_book_date)}
+              </DateDisplay>
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-72">
@@ -492,13 +586,14 @@ export default function VehicleDashboard() {
     }
     
     return (
-      <div
-        className="px-3 py-4 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded min-h-[44px] flex items-center"
-        onDoubleClick={() => handleDoubleClick(row.vehicle, 'pmi_date', row.pmi?.next_pmi_book_date || "")}
-        title="Double-click to edit"
+      <DateDisplay
+        date={row.pmi?.next_pmi_book_date?? null}
+        compareDate={row.pmi?.book_next_pmi_from}
+        onClick={() => handleDoubleClick(row.vehicle, 'pmi_date', row.pmi?.next_pmi_book_date || "")}
+        isEditable={true}
       >
         {value}
-      </div>
+      </DateDisplay>
     );
   };
 
@@ -760,77 +855,85 @@ export default function VehicleDashboard() {
                       Vehicle Reg
                     </th>
 
+                    {/* MOT Information Header */}
                     {visibleColumns.showMOT && (
                       <th colSpan={5} className="px-4 py-3 text-center text-sm font-semibold text-orange-500 bg-orange-100 border-x border-gray-200">
                         <div className="flex items-center justify-center gap-2">
                           <Calendar className="w-4 h-4" />
-                          MOT
+                          MOT Information
                         </div>
                       </th>
                     )}
                     
+                    {/* PMI Information Header */}
                     {visibleColumns.showPMI && (
                       <th colSpan={activeFilter === "PMI Inspection" ? 3 + (Object.keys(paginated[0]?.pmi?.hover || {}).length) : 3} className="px-4 py-3 text-center text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200">
                         <div className="flex items-center justify-center gap-2">
                           <Wrench className="w-4 h-4" />
-                          PMI Inspection
+                          PMI Information
                         </div>
                       </th>
                     )}
                     
+                    {/* Vehicle Tacho Download Information Header */}
                     {visibleColumns.showTacho && (
                       <th colSpan={2} className="px-4 py-3 text-center text-sm font-semibold text-blue-900 bg-blue-50 border-x border-gray-200">
                         <div className="flex items-center justify-center gap-2">
                           <Download className="w-4 h-4" />
-                          Tacho Download
+                          Vehicle Tacho Download Information
                         </div>
                       </th>
                     )}
                     
+                    {/* Tyre Maintenance Information Header */}
                     {visibleColumns.showTyre && (
                       <th colSpan={2} className="px-4 py-3 text-center text-sm font-semibold text-purple-900 bg-purple-50 border-x border-gray-200">
                         <div className="flex items-center justify-center gap-2">
                           <Circle className="w-4 h-4" />
-                          Tyre Maintenance
+                          Tyre Maintenance Information
                         </div>
                       </th>
                     )}
                     
+                    {/* Insurance & Tax Information Header */}
                     {visibleColumns.showInsurance && (
                       <th colSpan={2} className="px-4 py-3 text-center text-sm font-semibold text-green-900 bg-green-50 border-x border-gray-200">
                         <div className="flex items-center justify-center gap-2">
                           <Shield className="w-4 h-4" />
-                          Insurance & Tax
+                          Insurance & Tax Information
                         </div>
                       </th>
                     )}
                     
+                    {/* Vehicle Tacho & Loller Calibration Information Header */}
                     {visibleColumns.showCalibrations && (
                       <th colSpan={4} className="px-4 py-3 text-center text-sm font-semibold text-yellow-900 bg-yellow-50 border-x border-gray-200">
                         <div className="flex items-center justify-center gap-2">
                           <Settings className="w-4 h-4" />
-                          Calibrations
+                          Vehicle Tacho & Loller Calibration Information
                         </div>
                       </th>
                     )}
                   </tr>
 
                   <tr className="bg-white border-y-2 border-gray-300">
+                    {/* MOT Sub-headers */}
                     {visibleColumns.showMOT && (
                       <>
                         <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">Status</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">Expiry Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">Book From</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">Booked Date</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">MOT Expiry Date</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">Book Next MOT From</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">Next MOT Booked Date</th>
                         <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-orange-50/30">Time</th>
                       </>
                     )}
 
+                    {/* PMI Sub-headers */}
                     {visibleColumns.showPMI && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Expiry Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Book From</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Booked Date</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">PMI Expiry Date</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Book Next PMI From</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Next PMI Booked Date</th>
                         {activeFilter === "PMI Inspection" && paginated.length > 0 && paginated[0]?.pmi?.hover && 
                           Object.keys(paginated[0].pmi.hover).map(key => (
                             <th key={key} className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">
@@ -841,20 +944,23 @@ export default function VehicleDashboard() {
                       </>
                     )}
 
+                    {/* Vehicle Tacho Download Sub-headers */}
                     {visibleColumns.showTacho && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-blue-50/30">Last Download</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-blue-50/30">Next Download</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-blue-50/30">Last Vehicle Tacho Download</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-blue-50/30">Next Vehicle Tacho Download</th>
                       </>
                     )}
 
+                    {/* Tyre Maintenance Sub-headers */}
                     {visibleColumns.showTyre && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-purple-50/30">Last Check</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-purple-50/30">Next Check</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-purple-50/30">Last Tyre Check</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-purple-50/30">Next Tyre Check</th>
                       </>
                     )}
 
+                    {/* Insurance & Tax Sub-headers */}
                     {visibleColumns.showInsurance && (
                       <>
                         <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-green-50/30">Insurance Expiry</th>
@@ -862,12 +968,13 @@ export default function VehicleDashboard() {
                       </>
                     )}
 
+                    {/* Calibration Sub-headers */}
                     {visibleColumns.showCalibrations && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">Tacho Calib Expiry</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">Next Tacho Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">Loller Expiry</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-yellow-50/30">Next Loller Date</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">Last Tacho Calib Date</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">Next Tacho Calib Date</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">Last Loller Calib Date</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-yellow-50/30">Next Loller Calib Date</th>
                       </>
                     )}
                   </tr>
@@ -881,11 +988,20 @@ export default function VehicleDashboard() {
                         </Link>
                       </td>
 
+                      {/* MOT Information Columns */}
                       {visibleColumns.showMOT && (
                         <>
                           <td className="px-3 py-4 border-l border-gray-200">{getStatusBadge(row.mot?.mot_status || "")}</td>
-                          <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">{formatDate(row.mot?.mot_expiry)}</td>
-                          <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">{formatDate(row.mot?.book_next_mot_from)}</td>
+                          <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
+                            <DateDisplay date={row.mot?.mot_expiry ?? null}>
+                              {formatDate(row.mot?.mot_expiry)}
+                            </DateDisplay>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
+                            <DateDisplay date={row.mot?.book_next_mot_from ?? null}>
+                              {formatDate(row.mot?.book_next_mot_from)}
+                            </DateDisplay>
+                          </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                             {renderMOTBookedDate(row)}
                           </td>
@@ -895,16 +1011,26 @@ export default function VehicleDashboard() {
                         </>
                       )}
 
+                      {/* PMI Information Columns */}
                       {visibleColumns.showPMI && (
                         <>
-                          <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">{formatDate(row.pmi?.pmi_expiry)}</td>
+                          <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
+                            <DateDisplay 
+                              date={row.pmi?.pmi_expiry?? null} 
+                              compareDate={row.pmi?.book_next_pmi_from}
+                            >
+                              {formatDate(row.pmi?.pmi_expiry)}
+                            </DateDisplay>
+                          </td>
                           <td className="px-3 py-4 text-sm border-l border-gray-200">
                             {row.pmi?.book_next_pmi_from === "booked" ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                 Booked
                               </span>
                             ) : (
-                              <span className="text-gray-700">{formatDate(row.pmi?.book_next_pmi_from)}</span>
+                              <DateDisplay date={row.pmi?.book_next_pmi_from?? null}>
+                                {formatDate(row.pmi?.book_next_pmi_from)}
+                              </DateDisplay>
                             )}
                           </td>
                           <td className="px-3 py-4 text-sm border-l border-gray-200">
@@ -913,40 +1039,84 @@ export default function VehicleDashboard() {
                           {activeFilter === "PMI Inspection" && row.pmi?.hover && 
                             Object.entries(row.pmi.hover).map(([key, value]) => (
                               <td key={key} className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
-                                {value || "-"}
+                                {value || "NA"}
                               </td>
                             ))
                           }
                         </>
                       )}
 
+                      {/* Vehicle Tacho Download Information Columns */}
                       {visibleColumns.showTacho && (
                         <>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">{formatDate(row.tacho?.last_download)}</td>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">{formatDate(row.tacho?.next_download)}</td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <DateDisplay date={row.tacho?.last_download?? null}>
+                              {formatDate(row.tacho?.last_download)}
+                            </DateDisplay>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
+                            <DateDisplay date={row.tacho?.next_download ?? null}>
+                              {formatDate(row.tacho?.next_download)}
+                            </DateDisplay>
+                          </td>
                         </>
                       )}
 
+                      {/* Tyre Maintenance Information Columns */}
                       {visibleColumns.showTyre && (
                         <>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">{formatDate(row.tyre?.last_check)}</td>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">{formatDate(row.tyre?.next_check)}</td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <DateDisplay date={row.tyre?.last_check ?? null}>
+                              {formatDate(row.tyre?.last_check)}
+                            </DateDisplay>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
+                            <DateDisplay date={row.tyre?.next_check?? null}>
+                              {formatDate(row.tyre?.next_check)}
+                            </DateDisplay>
+                          </td>
                         </>
                       )}
 
+                      {/* Insurance & Tax Information Columns */}
                       {visibleColumns.showInsurance && (
                         <>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">{formatDate(row.insurance?.insurance_expiry)}</td>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">{formatDate(row.insurance?.tax_expiry)}</td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <DateDisplay date={row.insurance?.insurance_expiry?? null}>
+                              {formatDate(row.insurance?.insurance_expiry)}
+                            </DateDisplay>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
+                            <DateDisplay date={row.insurance?.tax_expiry?? null}>
+                              {formatDate(row.insurance?.tax_expiry)}
+                            </DateDisplay>
+                          </td>
                         </>
                       )}
 
+                      {/* Vehicle Tacho & Loller Calibration Information Columns */}
                       {visibleColumns.showCalibrations && (
                         <>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">{formatDate(row.calibration?.tacho_calibration_expiry)}</td>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">{formatDate(row.calibration?.next_tacho_calibration_book_date)}</td>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">{formatDate(row.calibration?.loller_test_expiry_date)}</td>
-                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">{formatDate(row.calibration?.next_loller_test_date)}</td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <DateDisplay date={row.calibration?.tacho_calibration_expiry ?? null}>
+                              {formatDate(row.calibration?.tacho_calibration_expiry)}
+                            </DateDisplay>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <DateDisplay date={row.calibration?.next_tacho_calibration_book_date?? null}>
+                              {formatDate(row.calibration?.next_tacho_calibration_book_date)}
+                            </DateDisplay>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <DateDisplay date={row.calibration?.loller_test_expiry_date?? null}>
+                              {formatDate(row.calibration?.loller_test_expiry_date)}
+                            </DateDisplay>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
+                            <DateDisplay date={row.calibration?.next_loller_test_date?? null}>
+                              {formatDate(row.calibration?.next_loller_test_date)}
+                            </DateDisplay>
+                          </td>
                         </>
                       )}
                     </tr>

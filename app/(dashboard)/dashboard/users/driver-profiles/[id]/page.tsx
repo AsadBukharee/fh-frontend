@@ -4,14 +4,33 @@ import { useParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Edit, Save, X, CheckCircle } from "lucide-react";
+import { 
+  Edit, 
+  Save, 
+  X, 
+  CheckCircle,
+  AlertCircle,
+  Mail 
+} from "lucide-react";
+// Add Dialog components
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import API_URL from "@/app/utils/ENV";
 import { formatDmy } from "@/lib/utils";
 import ProfessionalCompetencyTab from "./tabs/ProfessionalCompetencyTab";
 import DriverDetailTab from "./tabs/DriverDetailTab";
 import SignAgreementTab from "./tabs/SignAgreementTab";
 import HealthAnswerTab from "./tabs/HealthAnswerTab";
-    import { User, BadgeCheck, HeartPulse, FileSignature } from "lucide-react"
+import { User, BadgeCheck, HeartPulse, FileSignature } from "lucide-react"
 
 interface DriverData {
   id: number;
@@ -172,11 +191,18 @@ export default function DriverDetailPage() {
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("driver-detail");
   const [currentStep, setCurrentStep] = useState(0);
-  const [user_id,setUser_id]=useState(0)
+  const [user_id,setUser_id]=useState(0);
+  
+  // Add state for disapproval dialog
+  const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
+  const [disapproveRemarks, setDisapproveRemarks] = useState("");
+  const [isDisapproving, setIsDisapproving] = useState(false);
 
   const isPdfUrl = (url: string) => url.toLowerCase().endsWith(".pdf");
   const showToast = (message: string, type: string) => {
     console.log(`${type}: ${message}`);
+    // You can replace this with your actual toast implementation
+    alert(`${type.toUpperCase()}: ${message}`);
   };
   const steps = ["Personal Information", "Next of Kin", "Job Detail", "Bright HR Signup"];
   const getInitials = (name: string) => {
@@ -269,7 +295,7 @@ export default function DriverDetailPage() {
     setHealthLoading(true);
     
     try {
-      const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${id}`, {
+      const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${user_id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -293,7 +319,8 @@ export default function DriverDetailPage() {
       setHealthLoading(false);
     }
   };
- const handleResendActivation = async (userId: number) => {
+  
+  const handleResendActivation = async (userId: number) => {
     try {
       const response = await fetch(`${API_URL}/auth/resend-activation/`, {
         method: "POST",
@@ -302,21 +329,67 @@ export default function DriverDetailPage() {
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
         body: JSON.stringify({ user_id: userId }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (response.status === 401) {
-        alert("Session expired. Please log in again.")
-        return
+        alert("Session expired. Please log in again.");
+        return;
       }
-        alert("Activation email resent successfully")
       
+      if (response.ok && data.success) {
+        showToast("Activation email resent successfully", "success");
+      } else {
+        showToast(data.message || "Failed to resend activation email", "error");
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while resending activation email"
-      showToast(errorMessage, "error")
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while resending activation email";
+      showToast(errorMessage, "error");
     }
-  }
+  };
+  
+  // Add disapproval handler function
+  const handleDisapproveDriver = async () => {
+    if (!disapproveRemarks.trim()) {
+      showToast("Please provide remarks for disapproval", "error");
+      return;
+    }
+
+    setIsDisapproving(true);
+    try {
+      const response = await fetch(`${API_URL}/api/profiles/driver/disapprove/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({
+          driver_id: driverData?.id,
+          remarks: disapproveRemarks,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        showToast("Driver disapproved successfully", "success");
+        // Reset dialog state
+        setDisapproveRemarks("");
+        setIsDisapproveDialogOpen(false);
+        // Refresh driver data
+        await fetchData();
+      } else {
+        showToast(data.message || "Failed to disapprove driver", "error");
+      }
+    } catch (error) {
+      console.error("Error disapproving driver:", error);
+      showToast(error instanceof Error ? error.message : "Failed to disapprove driver", "error");
+    } finally {
+      setIsDisapproving(false);
+    }
+  };
+
   useEffect(() => {
     if (id) {
       fetchData();
@@ -676,80 +749,136 @@ export default function DriverDetailPage() {
 
   return (
     <div className="container p-8 space-y-8 bg-white min-h-screen">
+      {/* Disapprove Driver Dialog */}
+      <Dialog open={isDisapproveDialogOpen} onOpenChange={setIsDisapproveDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <AlertCircle className="h-5 w-5" />
+              Disapprove Driver
+            </DialogTitle>
+            <DialogDescription>
+              Please provide remarks for disapproving this driver. This action will be recorded and the driver will be notified.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="remarks">Remarks *</Label>
+              <Textarea
+                id="remarks"
+                placeholder="Enter the reason for disapproval..."
+                value={disapproveRemarks}
+                onChange={(e) => setDisapproveRemarks(e.target.value)}
+                className="min-h-[120px]"
+                required
+              />
+              <p className="text-sm text-gray-500">
+                Example: &quot;Rejected, because the provided documents are unclear.&quot;
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsDisapproveDialogOpen(false);
+                setDisapproveRemarks("");
+              }}
+              disabled={isDisapproving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-rose-600 hover:bg-rose-700"
+              onClick={handleDisapproveDriver}
+              disabled={isDisapproving || !disapproveRemarks.trim()}
+            >
+              {isDisapproving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Disapproving...
+                </>
+              ) : (
+                "Disapprove Driver"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <TabsList className="flex justify-start w-full gap-8 bg-[#f9f9f9] py-8 px-6">
+          <TabsTrigger
+            value="driver-detail"
+            className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
+              data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
+              transition-colors"
+          >
+            <User size={16} className="text-gray-400  data-[state=active]:text-[#F15A29] " />
+            Driver Details
+          </TabsTrigger>
 
-<TabsList className="flex justify-start w-full gap-8 bg-[#f9f9f9] py-8 px-6">
+          <TabsTrigger
+            value="professional-competency"
+            className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
+              data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
+              transition-colors"
+          >
+            <BadgeCheck size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
+            Professional Details
+          </TabsTrigger>
 
-  <TabsTrigger
-    value="driver-detail"
-    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
-      data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
-       transition-colors"
-  >
-    <User size={16} className="text-gray-400  data-[state=active]:text-[#F15A29] " />
-    Driver Details
-  </TabsTrigger>
+          <TabsTrigger
+            value="health-answer"
+            className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
+              data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
+              transition-colors"
+          >
+            <HeartPulse size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
+            Health Questions
+          </TabsTrigger>
 
-  <TabsTrigger
-    value="professional-competency"
-    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
-      data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
-       transition-colors"
-  >
-    <BadgeCheck size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
-    Professional Details
-  </TabsTrigger>
-
-  <TabsTrigger
-    value="health-answer"
-    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
-      data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
-       transition-colors"
-  >
-    <HeartPulse size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
-    Health Questions
-  </TabsTrigger>
-
-  <TabsTrigger
-    value="sign-agreement"
-    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
-      data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
-       transition-colors"
-  >
-    <FileSignature size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
-    Signed Agreement
-  </TabsTrigger>
-
-</TabsList>
+          <TabsTrigger
+            value="sign-agreement"
+            className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 
+              data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F]
+              transition-colors"
+          >
+            <FileSignature size={16} className="text-gray-400 data-[state=active]:text-orange-600" />
+            Signed Agreement
+          </TabsTrigger>
+        </TabsList>
 
         <TabsContent value="driver-detail">
-       <DriverDetailTab
-       driverData={driverData}
-       editFormData={editFormData}
-       contracts={contracts}
-       sites={sites}
-       selectedContractId={selectedContractId}
-       setSelectedContractId={setSelectedContractId}
-       selectedSiteIds={selectedSiteIds}
-       setSelectedSiteIds={setSelectedSiteIds}
-       //@ts-expect-error any
-       currentStep={currentStep}
-       setCurrentStep={setCurrentStep}
-       steps={steps}
-       getInitials={getInitials}
-       formatDate={formatDate}
-       isEditing={isEditing}
-       handleInputChange={handleInputChange}
-       handleAssignContract={handleAssignContract}
-       handleAssignSites={handleAssignSites}
-       contractsLoading={contractsLoading}
-       sitesLoading={sitesLoading}
-       assigningContract={assigningContract}
-       assigningSites={assigningSites}
-       handleEditToggle={handleEditToggle}
-       handleSaveProfile={handleSaveProfile} // Add this
-       saving={saving} // Add this
-     />
+          <DriverDetailTab
+            driverData={driverData}
+            editFormData={editFormData}
+            contracts={contracts}
+            sites={sites}
+            selectedContractId={selectedContractId}
+            setSelectedContractId={setSelectedContractId}
+            selectedSiteIds={selectedSiteIds}
+            setSelectedSiteIds={setSelectedSiteIds}
+            //@ts-expect-error any
+            currentStep={currentStep}
+            setCurrentStep={setCurrentStep}
+            steps={steps}
+            getInitials={getInitials}
+            formatDate={formatDate}
+            isEditing={isEditing}
+            handleInputChange={handleInputChange}
+            handleAssignContract={handleAssignContract}
+            handleAssignSites={handleAssignSites}
+            contractsLoading={contractsLoading}
+            sitesLoading={sitesLoading}
+            assigningContract={assigningContract}
+            assigningSites={assigningSites}
+            handleEditToggle={handleEditToggle}
+            handleSaveProfile={handleSaveProfile}
+            saving={saving}
+          />
         </TabsContent>
         <TabsContent value="professional-competency">
           <ProfessionalCompetencyTab
@@ -775,8 +904,7 @@ export default function DriverDetailPage() {
           />
         </TabsContent>
         <TabsContent value="sign-agreement">
-          <SignAgreementTab
-          />
+          <SignAgreementTab />
         </TabsContent>
       </Tabs>
       <div className="fixed bottom-6 right-5 z-50 flex flex-col gap-2">
@@ -813,6 +941,15 @@ export default function DriverDetailPage() {
               <Edit className="h-5 w-5 mr-2" />
               Edit Profile
             </Button>
+            {driverData.profile_status === "approved" && (
+              <Button
+                onClick={() => setIsDisapproveDialogOpen(true)}
+                className="bg-rose-600 hover:bg-rose-700 text-white px-6 py-2 rounded-lg transition-all w-48"
+              >
+                <AlertCircle className="h-5 w-5 mr-2" />
+                Disapprove Driver
+              </Button>
+            )}
             {driverData.profile_status !== "approved" && (
               <Button
                 onClick={() => handleApproveDriverClick(driverData.id)}
@@ -822,12 +959,12 @@ export default function DriverDetailPage() {
                 Approve Driver
               </Button>
             )}
-             {driverData.profile_status !== "approved" && (
+            {driverData.profile_status !== "approved" && (
               <Button
-                onClick={() =>handleResendActivation(id as unknown as number)}
-                className="bg-rose-600 hover:bg-rose-700 text-white px-6 py-2 rounded-lg transition-all w-48"
+                onClick={() => handleResendActivation(id as unknown as number)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all w-48"
               >
-                <CheckCircle className="h-5 w-5 mr-2" />
+                <Mail className="h-5 w-5 mr-2" />
                 Resend Email
               </Button>
             )}
