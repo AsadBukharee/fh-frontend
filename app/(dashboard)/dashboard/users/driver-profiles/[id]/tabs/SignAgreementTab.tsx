@@ -784,13 +784,17 @@ function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: Documen
 /* ────────────────────── Main Component ────────────────────── */
 export default function SignAgreementAdminTab() {
   const { id } = useParams();
-  const userId = id as string;
+  const driver_id=id as string;
+  // const searchParams=useSearchParams();
+  
+  // alert(user_id)
   const searchParams = useSearchParams();
+  const userId = searchParams.get("user_id")
   const name = searchParams.get("name");
   const cookies = useCookies();
   const token = cookies.get("access_token") ?? "";
 
-  const { docs, loading: docsLoading, reload } = useDriverDocuments(userId, token);
+  const { docs, loading: docsLoading, reload } = useDriverDocuments(userId ?? "", token);
   const { names: documentNames, loading: namesLoading } = useDocumentNames(token);
 
   const [detail, setDetail] = useState<{ open: boolean; key: DocumentKey | null }>({
@@ -811,14 +815,14 @@ export default function SignAgreementAdminTab() {
   }>({
     open: false,
     title: "",
-    driverId: userId,
+    driverId: driver_id,
   });
 
   const openTaskDialog = (title: string) => {
     setTaskDialog({
       open: true,
       title: `Upload ${title} (Driver #${userId})`,
-      driverId: userId,
+      driverId: driver_id,
     });
   };
 

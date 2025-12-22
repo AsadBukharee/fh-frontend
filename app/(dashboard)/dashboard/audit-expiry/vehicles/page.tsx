@@ -119,94 +119,93 @@ export default function Vehicles() {
             status: "after"
           },
         ])
-
-        // === Compliance Alerts ===
-        setAlerts([
-          {
-            id: "mot_book_alert",
-            title: "Next Mot To Be Booked From",
-            subtitle: "Show alert after this date",
-            ...toStatusAndDays(a.next_mot_book_from, 0),
-            status: "after"
-          },
-          {
-            id: "next_mot_booked_alert",
-            title: "Next MOT Booked Date",
-            subtitle: "Show alerts before this date (Manual entry date)",
-            ...toStatusAndDays(a.next_mot_booked_date ?? -3, -3),
-            status: "before"
-          },
-          {
-            id: "pre_mot_check",
-            title: "Pre MOT Check",
-            subtitle: "Show alerts before Next MOT Booked Date",
-            ...toStatusAndDays(a.pre_mot_check ?? -10, -10),
-            status: "before"
-          },
-          {
-            id: "pmi_book_alert",
-            title: "Book Next PMI From",
-            subtitle: "Show alerts after this date",
-            ...toStatusAndDays(a.book_next_pmi_from, 0),
-            status: "after"
-          },
-          {
-            id: "next_pmi_booked_alert",
-            title: "Next PMI Booked Date",
-            subtitle: "Show alert before this date (Manual entry date)",
-            ...toStatusAndDays(a.next_pmi_booked_date ?? -3, -3),
-            status: "before"
-          },
-          {
-            id: "pre_pmi_check",
-            title: "Pre PMI Check",
-            subtitle: "Show alerts before Next PMI Booked Date",
-            ...toStatusAndDays(a.pre_pmi_check ?? -5, -5),
-            status: "before"
-          },
-          {
-            id: "tacho_download_alert",
-            title: "Next Vehicle Tacho Download Date",
-            subtitle: "Show alert before",
-            ...toStatusAndDays(a.next_tacho_download_date, -2),
-            status: "before"
-          },
-          {
-            id: "tyre_maintenance_alert",
-            title: "Next Tyre Maintenance Check Date",
-            subtitle: "Show alert before",
-            ...toStatusAndDays(a.next_tyre_maintenance_check_date, -2),
-            status: "before"
-          },
-          {
-            id: "tax_expiry",
-            title: "Tax Expiry",
-            subtitle: "Show alert before",
-            ...toStatusAndDays(a.tax, -7),
-            status: "before"
-          },
-          {
-            id: "insurance_expiry",
-            title: "Insurance Expiry",
-            subtitle: "Show alert before",
-            ...toStatusAndDays(a.insurance, -30),
-            status: "before"
-          },
-          {
-            id: "tacho_calibration",
-            title: "Vehicle Tacho Calibration Expiry",
-            subtitle: "Show alert before",
-            ...toStatusAndDays(a.tacho_calibration, -45),
-            status: "before"
-          },
-          {
-            id: "loller_calibration",
-            title: "Loller Calibration Expiry",
-            subtitle: "Show alert before",
-            ...toStatusAndDays(a.loller_calibration, -45),
-            status: "before"
-          },
-        ])
+// === Compliance Alerts ===
+setAlerts([
+  {
+    id: "mot_book_alert",
+    title: "Next MOT To Be Booked From",
+    subtitle: "Show alert after this date",
+    ...toStatusAndDays(a.next_mot_to_be_booked_from, 0), // Updated field name
+    status: "after"
+  },
+  {
+    id: "next_mot_booked_alert",
+    title: "Next MOT Booked Date",
+    subtitle: "Show alerts before this date (Manual entry date)",
+    ...toStatusAndDays(a.next_mot_booked_date ?? -3, -3),
+    status: "before"
+  },
+  {
+    id: "pre_mot_check",
+    title: "Pre MOT Check",
+    subtitle: "Show alerts before Next MOT Booked Date",
+    ...toStatusAndDays(a.pree_mot_check ?? -10, -10), // Note: "pree_mot_check" in API
+    status: "before"
+  },
+  {
+    id: "pmi_book_alert",
+    title: "Book Next PMI From",
+    subtitle: "Show alerts after this date",
+    ...toStatusAndDays(a.book_next_pmi_from, 0),
+    status: "after"
+  },
+  {
+    id: "next_pmi_booked_alert",
+    title: "Next PMI Booked Date",
+    subtitle: "Show alert before this date (Manual entry date)",
+    ...toStatusAndDays(a.next_pmi_booked_date ?? -3, -3),
+    status: "before"
+  },
+  {
+    id: "pre_pmi_check",
+    title: "Pre PMI Check",
+    subtitle: "Show alerts before Next PMI Booked Date",
+    ...toStatusAndDays(a.pre_pmi_check ?? -5, -5),
+    status: "before"
+  },
+  {
+    id: "tacho_download_alert",
+    title: "Next Vehicle Tacho Download Date",
+    subtitle: "Show alert before",
+    ...toStatusAndDays(a.next_tacho_download_date, -2),
+    status: "before"
+  },
+  {
+    id: "tyre_maintenance_alert",
+    title: "Next Tyre Maintenance Check Date",
+    subtitle: "Show alert before",
+    ...toStatusAndDays(a.next_tyre_maintenance_check_date, -2),
+    status: "before"
+  },
+  {
+    id: "tax_expiry",
+    title: "Tax Expiry",
+    subtitle: "Show alert before",
+    ...toStatusAndDays(a.tax, -7),
+    status: "before"
+  },
+  {
+    id: "insurance_expiry",
+    title: "Insurance Expiry",
+    subtitle: "Show alert before",
+    ...toStatusAndDays(a.insurance, -30),
+    status: "before"
+  },
+  {
+    id: "tacho_calibration",
+    title: "Vehicle Tacho Calibration Expiry",
+    subtitle: "Show alert before",
+    ...toStatusAndDays(a.tacho_calibration, -45),
+    status: "before"
+  },
+  {
+    id: "loller_calibration",
+    title: "Loller Calibration Expiry",
+    subtitle: "Show alert before",
+    ...toStatusAndDays(a.loller_calibration, -45),
+    status: "before"
+  },
+])
 
       } catch (err: any) {
         setError("Failed to load settings: " + (err.message || "Unknown error"))
@@ -244,20 +243,20 @@ export default function Vehicles() {
         next_tyre_maintenance_check_date: toApiValue(dates.find(i => i.id === "next_tyre_maintenance")!)
       }
 
-      const alertsPayload = {
-        next_mot_book_from: toApiValue(alerts.find(i => i.id === "mot_book_alert")!),
-        next_mot_booked_date: toApiValue(alerts.find(i => i.id === "next_mot_booked_alert")!),
-        pre_mot_check: toApiValue(alerts.find(i => i.id === "pre_mot_check")!),
-        book_next_pmi_from: toApiValue(alerts.find(i => i.id === "pmi_book_alert")!),
-        next_pmi_booked_date: toApiValue(alerts.find(i => i.id === "next_pmi_booked_alert")!),
-        pre_pmi_check: toApiValue(alerts.find(i => i.id === "pre_pmi_check")!),
-        next_tacho_download_date: toApiValue(alerts.find(i => i.id === "tacho_download_alert")!),
-        next_tyre_maintenance_check_date: toApiValue(alerts.find(i => i.id === "tyre_maintenance_alert")!),
-        tax: toApiValue(alerts.find(i => i.id === "tax_expiry")!),
-        insurance: toApiValue(alerts.find(i => i.id === "insurance_expiry")!),
-        tacho_calibration: toApiValue(alerts.find(i => i.id === "tacho_calibration")!),
-        loller_calibration: toApiValue(alerts.find(i => i.id === "loller_calibration")!)
-      }
+const alertsPayload = {
+  next_mot_to_be_booked_from: toApiValue(alerts.find(i => i.id === "mot_book_alert")!),
+  pree_mot_check: toApiValue(alerts.find(i => i.id === "pre_mot_check")!), // Note: "pree_mot_check" in API
+  next_mot_booked_date: toApiValue(alerts.find(i => i.id === "next_mot_booked_alert")!),
+  book_next_pmi_from: toApiValue(alerts.find(i => i.id === "pmi_book_alert")!),
+  next_pmi_booked_date: toApiValue(alerts.find(i => i.id === "next_pmi_booked_alert")!),
+  pre_pmi_check: toApiValue(alerts.find(i => i.id === "pre_pmi_check")!),
+  next_tacho_download_date: toApiValue(alerts.find(i => i.id === "tacho_download_alert")!),
+  next_tyre_maintenance_check_date: toApiValue(alerts.find(i => i.id === "tyre_maintenance_alert")!),
+  tax: toApiValue(alerts.find(i => i.id === "tax_expiry")!),
+  insurance: toApiValue(alerts.find(i => i.id === "insurance_expiry")!),
+  tacho_calibration: toApiValue(alerts.find(i => i.id === "tacho_calibration")!),
+  loller_calibration: toApiValue(alerts.find(i => i.id === "loller_calibration")!)
+}
 
       const [res1, res2] = await Promise.all([
         fetch(`${HOST}/activity/vehicle-compliance-dates/1/`, {

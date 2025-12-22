@@ -1,5 +1,6 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,11 @@ import {
   Trash2,
   Image as ImageIcon,
   FileCheck,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+  Info,
+  AlertTriangle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
@@ -32,11 +38,37 @@ import FileUploader from "@/components/Media/MediaUpload"
 
 const DEFAULT_DOCUMENTS = [
   { id: 1, document_name: "Driving License", document_type: "driving-license", has_expiry: true },
-  { id: 2, document_name: "CPC Card", document_type: "cpc-card", has_expiry: true },
-  { id: 3, document_name: "Tacho Card", document_type: "tacho-card", has_expiry: true },
-  { id: 4, document_name: "Passport", document_type: "passport", has_expiry: false },
-  { id: 5, document_name: "Proof of Address", document_type: "proof-of-address", has_expiry: false },
+  { id: 2, document_name: "D / D1 Category", document_type: "d-d1-category", has_expiry: true },
+  { id: 3, document_name: "CPC Card", document_type: "cpc-card", has_expiry: true },
+  { id: 4, document_name: "Tacho Card", document_type: "tacho-card", has_expiry: false },
+  { id: 5, document_name: "Passport", document_type: "passport", has_expiry: false },
+  { id: 6, document_name: "Proof of Address", document_type: "proof-of-address", has_expiry: false },
 ]
+
+// Status reasons configuration
+const STATUS_REASONS = {
+  pending: [
+    { value: "pending_verification", label: "Pending verification" },
+    { value: "waiting_upload", label: "Waiting for document upload" },
+    { value: "under_review", label: "Under review" },
+    { value: "additional_info", label: "Additional information required" },
+    { value: "expired_document", label: "Document expired" },
+  ],
+  not_approved: [
+    { value: "poor_quality", label: "Poor quality image" },
+    { value: "expired_document", label: "Document expired" },
+    { value: "incorrect_info", label: "Incorrect information" },
+    { value: "missing_document", label: "Missing document" },
+    { value: "illegible", label: "Document illegible" },
+    { value: "wrong_document", label: "Wrong document uploaded" },
+    { value: "other", label: "Other reason" },
+  ],
+  approved: [
+    { value: "approved", label: "Approved - All requirements met" },
+    { value: "verified", label: "Verified and approved" },
+    { value: "completed", label: "Documentation completed" },
+  ],
+}
 
 interface ProfessionalCompetencyTabProps {
   competencyData: any[]
@@ -78,6 +110,9 @@ export default function ProfessionalCompetencyTab({
     recurrence: "once",
     recurrence_interval: 1,
   })
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showStatusDescription, setShowStatusDescription] = useState(false)
 
   const getCompletedDocumentsList = () => {
     const uploadedMap = new Map(competencyData.map((d) => [d.document_type, d]))
@@ -85,16 +120,21 @@ export default function ProfessionalCompetencyTab({
       (doc) =>
         uploadedMap.get(doc.document_type) || {
           ...doc,
+          id: null,
           has_document: false,
           urls: [],
           modules: [],
           next_five_modules: [],
           request_status: "pending",
           description: "",
+          status_description: "",
+          status_reason: "",
           expiry_date: null,
           has_back_side: false,
           has_description: false,
           driver: null,
+          created_at: null,
+          updated_at: null,
         },
     )
   }
@@ -105,25 +145,59 @@ export default function ProfessionalCompetencyTab({
     // Ensure modules are properly set from API data
     const modules = competency.modules || []
     const nextFiveModules = competency.next_five_modules || []
-    const normalizedModules = [...nextFiveModules, ...Array(5 - nextFiveModules.length).fill("")].slice(0, 5)
+    
+    // If next_five_modules is an array of strings, use it directly
+    // If it's an array of objects (from API), extract module_name
+    const normalizedNextFiveModules = nextFiveModules.map((item: any) => 
+      typeof item === 'string' ? item : (item.module_name || "")
+    ).slice(0, 5)
+    
+    // Fill remaining slots with empty strings if needed
+    while (normalizedNextFiveModules.length < 5) {
+      normalizedNextFiveModules.push("")
+    }
 
     setEditData({
       ...competency,
-      modules: modules, // Use the modules from API directly
-      next_five_modules: normalizedModules,
+      modules: modules,
+      next_five_modules: normalizedNextFiveModules,
+      status_description: competency.status_description || "",
+      status_reason: competency.status_reason || "",
     })
     setOriginalExpiryDate(competency.expiry_date)
     setUploadRequired(false)
     setFormErrors({})
+    setCurrentImageIndex(0)
+    setShowStatusDescription(false)
     setIsModalOpen(true)
     setIsEditing(false)
   }
 
   const handleInputChange = useCallback((field: string, value: any) => {
     setEditData((prev: any) => {
+      if (!prev) return prev;
+      
       // If expiry date is being changed, check if documents need to be uploaded
       if (field === "expiry_date" && value !== originalExpiryDate && prev.has_document) {
         setUploadRequired(true)
+      }
+      
+      // If status is being changed, show status description field for not_approved or pending
+      if (field === "request_status") {
+        setShowStatusDescription(value === "not_approved" || value === "pending")
+      }
+      
+      // If status reason is selected, auto-fill description
+      if (field === "status_reason" && value) {
+        const statusReasons = STATUS_REASONS[(prev?.request_status as keyof typeof STATUS_REASONS) || "pending"]
+        const selectedReason = statusReasons?.find(reason => reason.value === value)
+        if (selectedReason && !prev.status_description) {
+          return {
+            ...prev,
+            [field]: value,
+            status_description: selectedReason.label,
+          }
+        }
       }
       
       // If expiry date is being added for the first time
@@ -146,11 +220,23 @@ export default function ProfessionalCompetencyTab({
   const handleFileUpload = useCallback(
     (url: string, isBackSide: boolean) => {
       setEditData((prev: any) => {
-        const updatedUrls = [...(prev.urls || ["", ""])]
+        if (!prev) return prev;
+        
+        const updatedUrls = [...(prev.urls || [])]
         if (isBackSide) {
-          updatedUrls[1] = url
+          if (updatedUrls.length > 1) {
+            updatedUrls[1] = url
+          } else if (updatedUrls.length === 1) {
+            updatedUrls.push(url)
+          } else {
+            updatedUrls.push("", url)
+          }
         } else {
-          updatedUrls[0] = url
+          if (updatedUrls.length > 0) {
+            updatedUrls[0] = url
+          } else {
+            updatedUrls[0] = url
+          }
         }
         
         // Reset upload required flag when documents are uploaded
@@ -176,14 +262,21 @@ export default function ProfessionalCompetencyTab({
   const handleModuleChange = (index: number, field: string, value: string) => {
     setEditData((prev: any) => ({
       ...prev,
-      modules: prev.modules.map((m: any, i: number) => (i === index ? { ...m, [field]: value } : m)),
+      modules: prev.modules.map((m: any, i: number) => 
+        i === index ? { ...m, [field]: value } : m
+      ),
     }))
   }
 
   const addModule = () => {
     setEditData((prev: any) => ({
       ...prev,
-      modules: [...prev.modules, { module_name: "", description: "", expiry_date: "" }],
+      modules: [...prev.modules, { 
+        id: null, 
+        module_name: "", 
+        description: "", 
+        expiry_date: "" 
+      }],
     }))
   }
 
@@ -197,7 +290,9 @@ export default function ProfessionalCompetencyTab({
   const handleNextFiveModulesChange = (index: number, value: string) => {
     setEditData((prev: any) => ({
       ...prev,
-      next_five_modules: prev.next_five_modules.map((m: string, i: number) => (i === index ? value : m)),
+      next_five_modules: prev.next_five_modules.map((m: string, i: number) => 
+        i === index ? value : m
+      ),
     }))
   }
 
@@ -205,23 +300,35 @@ export default function ProfessionalCompetencyTab({
     if (!editData) return
     setSaving(true)
     try {
+      // Prepare modules data - preserve existing IDs if available
+      const modulesData = editData.modules.map((m: any) => ({
+        ...(m.id ? { id: m.id } : {}),
+        module_name: m.module_name,
+        description: m.description,
+        expiry_date: m.expiry_date || null,
+      }))
+
+      // Filter out empty next five modules
+      const filteredNextFiveModules = editData.next_five_modules
+        .filter((m: string) => m.trim() !== "")
+        .map((m: string) => ({ module_name: m }))
+
       const payload = {
         driver: driverId,
         document_name: editData.document_name,
+        document_type: editData.document_type,
         has_expiry: editData.has_expiry || !!editData.expiry_date,
         description: editData.description || "",
+        status_description: editData.status_description || "",
+        status_reason: editData.status_reason || "",
         expiry_date: editData.expiry_date || null,
         has_document: editData.has_document,
         has_back_side: editData.has_back_side,
         urls: editData.urls || [],
         request_status: editData.request_status || "pending",
-        has_description: editData.has_description || !!editData.description,
-        next_five_modules: editData.next_five_modules.filter((m: string) => m.trim() !== ""),
-        modules: editData.modules.map((m: any) => ({
-          module_name: m.module_name,
-          description: m.description,
-          expiry_date: m.expiry_date,
-        })),
+        has_description: !!editData.description || !!editData.status_description,
+        next_five_modules: filteredNextFiveModules,
+        modules: modulesData,
       }
 
       const endpoint = editData.id
@@ -239,14 +346,18 @@ export default function ProfessionalCompetencyTab({
         body: JSON.stringify(payload),
       })
 
-      if (!response.ok) throw new Error("Failed to save professional competency")
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `Failed to save: ${response.statusText}`)
+      }
 
       const result = await response.json()
-      if (result.success) {
+      if (result.success || response.status === 200 || response.status === 201) {
         showToast("Professional competency saved successfully", "success")
         setIsModalOpen(false)
         setIsEditing(false)
         setUploadRequired(false)
+        setShowStatusDescription(false)
         fetchCompetencyData()
       } else {
         throw new Error(result.message || "Failed to save")
@@ -265,13 +376,20 @@ export default function ProfessionalCompetencyTab({
     // Validate if documents are required when expiry date changed
     if (uploadRequired && editData.has_document) {
       const hasAllRequiredDocs = editData.has_back_side 
-        ? editData.urls[0] && editData.urls[1]
-        : editData.urls[0]
+        ? editData.urls?.[0] && editData.urls?.[1]
+        : editData.urls?.[0]
       
       if (!hasAllRequiredDocs) {
         openReminderDialog()
         return
       }
+    }
+
+    // Validate status description for rejected or pending documents
+    if (isEditing && (editData.request_status === "not_approved" || editData.request_status === "pending") && !editData.status_description?.trim()) {
+      setFormErrors((prev) => ({ ...prev, status_description: "Please provide a reason for this status" }))
+      showToast("Please provide a status description", "error")
+      return
     }
 
     await saveChanges()
@@ -384,17 +502,17 @@ export default function ProfessionalCompetencyTab({
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {allDocuments.map((competency: any) => (
-            <Card
-                key={competency.id}
+              <Card
+                key={competency.id || competency.document_type}
                 className={cn(
                   "group cursor-pointer transition-all duration-300 border-2 relative overflow-hidden",
                   competency.has_document
                     ? "hover:shadow-2xl border-green-200 hover:border-orange-400 bg-white hover:scale-[1.02]"
-                    : "border-dashed  border-red-600 bg-gray-50/50 hover:border-orange-400 hover:bg-orange-50/50",
+                    : "border-dashed border-red-600 bg-gray-50/50 hover:border-orange-400 hover:bg-orange-50/50",
                 )}
                 onClick={() => handleCardClick(competency)}
               >
-                {/* Document Preview Image */}
+                {/* Document Preview Image with Navigation */}
                 {competency.has_document && competency.urls?.[0] && (
                   <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-10"></div>
@@ -403,15 +521,32 @@ export default function ProfessionalCompetencyTab({
                         <FileText className="h-20 w-20 text-orange-600 opacity-50" />
                       </div>
                     ) : (
-                      <img
-                        src={competency.urls[0]}
-                        alt={competency.document_name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none'
-                          e.currentTarget.parentElement!.innerHTML = '<div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-indigo-100"><svg class="h-20 w-20 text-orange-600 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>'
-                        }}
-                      />
+                      <>
+                        <img
+                          src={competency.urls[0]}
+                          alt={competency.document_name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                            e.currentTarget.parentElement!.innerHTML = '<div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-indigo-100"><svg class="h-20 w-20 text-orange-600 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>'
+                          }}
+                        />
+                        {/* Navigation dots for multiple images */}
+                        {competency.urls.length > 1 && (
+                          <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 z-20">
+                            <div className="flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5">
+                              {competency.urls.map((_: any, index: number) => (
+                                <div
+                                  key={index}
+                                  className={`w-2 h-2 rounded-full transition-all ${
+                                    index === 0 ? 'bg-white' : 'bg-white/50'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                     <Badge
                       className={cn(
@@ -477,6 +612,15 @@ export default function ProfessionalCompetencyTab({
                           </div>
                         )}
 
+                        {competency.description && (
+                          <div className="text-xs p-2 rounded bg-gray-50 border border-gray-200">
+                            <div className="flex items-start gap-2">
+                              <Info className="h-3 w-3 text-gray-500 mt-0.5 flex-shrink-0" />
+                              <span className="text-gray-600 line-clamp-2">{competency.description}</span>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-2 text-sm flex-wrap">
                           {competency.modules && competency.modules.length > 0 && (
                             <div className="flex items-center gap-1.5 text-gray-700 bg-indigo-50 rounded-lg px-2.5 py-1.5 border border-indigo-100">
@@ -489,7 +633,7 @@ export default function ProfessionalCompetencyTab({
                             <div className="flex items-center gap-1.5 text-gray-700 bg-green-50 rounded-lg px-2.5 py-1.5 border border-green-100">
                               <FileCheck className="h-3.5 w-3.5 text-green-600" />
                               <span className="font-bold text-xs">{competency.urls?.length || 0}</span>
-                              <span className="text-xs">Doc{competency.urls?.length !== 1 ? "s" : ""}</span>
+                              <span className="text-xs">Image{competency.urls?.length !== 1 ? "s" : ""}</span>
                             </div>
                           )}
                         </div>
@@ -542,7 +686,7 @@ export default function ProfessionalCompetencyTab({
                     {editData?.document_name}
                   </DialogTitle>
                   <p className="text-sm text-gray-600 mt-1 font-medium uppercase tracking-wide">
-                    {editData?.document_type}
+                    {editData?.document_type?.replace("-", " ")}
                   </p>
                 </div>
               </div>
@@ -601,7 +745,7 @@ export default function ProfessionalCompetencyTab({
                       <Input
                         value={editData.document_name}
                         onChange={(e) => handleInputChange("document_name", e.target.value)}
-                        className="border-orange-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="border-orange-300 focus:ring-2 focus:ring-orange-500"
                       />
                     ) : (
                       <p className="font-semibold text-lg text-orange-900 bg-orange-50 p-3 rounded-lg">
@@ -610,53 +754,7 @@ export default function ProfessionalCompetencyTab({
                     )}
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Document Type</Label>
-                    <p className="font-semibold text-lg text-gray-700 bg-gray-50 p-3 rounded-lg uppercase tracking-wide">
-                      {editData.document_type}
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2 flex gap-4 items-center">
-                    <Label className="text-sm font-semibold text-gray-700">Status</Label>
-                    {isEditing ? (
-                      <Select
-                        value={editData.request_status || "pending"}
-                        onValueChange={(value) => handleInputChange("request_status", value)}
-                      >
-                        <SelectTrigger className="border-orange-300 focus:ring-2 focus:ring-orange-500">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="approved">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                              Approved
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="pending">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-orange-600" />
-                              Pending
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="not_approved">
-                            <div className="flex items-center gap-2">
-                              <AlertCircle className="h-4 w-4 text-red-600" />
-                              Not Approved
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge className={cn("px-4 py-2 text-sm font-semibold border inline-flex items-center gap-2", getStatusColor(editData.request_status))}>
-                        {getStatusIcon(editData.request_status)}
-                        {editData.request_status.replace("_", " ").toUpperCase()}
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {editData.has_expiry && (
+                  {(editData.has_expiry || (isEditing && editData.expiry_date)) && (
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
@@ -676,6 +774,109 @@ export default function ProfessionalCompetencyTab({
                       )}
                     </div>
                   )}
+                  
+                  {/* Status Section */}
+                  <div className="space-y-2 flex flex-col">
+                    <Label className="text-sm font-semibold text-gray-700">Status</Label>
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        <Select
+                          value={editData.request_status || "pending"}
+                          onValueChange={(value) => {
+                            handleInputChange("request_status", value)
+                            setShowStatusDescription(value === "not_approved" || value === "pending")
+                          }}
+                        >
+                          <SelectTrigger className="border-orange-300 focus:ring-2 focus:ring-orange-500">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="approved">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                Approved
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="pending">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-orange-600" />
+                                Pending
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="not_approved">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-red-600" />
+                                Not Approved
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        {/* Status Reason Selection */}
+                        {(editData.request_status === "pending" || editData.request_status === "not_approved") && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold text-gray-700">
+                              Reason for {editData.request_status === "pending" ? "Pending" : "Rejection"}
+                            </Label>
+                            <Select
+                              value={editData.status_reason || ""}
+                              onValueChange={(value) => {
+                                handleInputChange("status_reason", value)
+                                if (value !== "other") {
+                                  handleInputChange("custom_reason", "")
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="border-orange-300 focus:ring-2 focus:ring-orange-500">
+                                <SelectValue placeholder="Select a reason" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(STATUS_REASONS[editData.request_status as keyof typeof STATUS_REASONS] || []).map((reason) => (
+                                  <SelectItem key={reason.value} value={reason.value}>
+                                    {reason.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            
+                            {/* Custom Reason Input for "other" option */}
+                            {editData.status_reason === "other" && (
+                              <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-gray-700">
+                                  Custom Reason
+                                </Label>
+                                <Input
+                                  value={editData.custom_reason || ""}
+                                  onChange={(e) => handleInputChange("custom_reason", e.target.value)}
+                                  className="border-orange-300 focus:ring-2 focus:ring-orange-500"
+                                  placeholder="Please specify the reason..."
+                                />
+                                {formErrors.custom_reason && (
+                                  <p className="text-sm text-red-600">{formErrors.custom_reason}</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Badge 
+                          className={cn("px-4 py-2 text-sm font-semibold border w-fit inline-flex items-center gap-2", getStatusColor(editData.request_status))}
+                        >
+                          {getStatusIcon(editData.request_status)}
+                          {editData.request_status.replace("_", " ").toUpperCase()}
+                        </Badge>
+                        {editData.status_reason && (
+                          <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                            Reason: {editData.status_reason === "other" 
+                              ? editData.custom_reason || "Other"
+                              : STATUS_REASONS[editData.request_status as keyof typeof STATUS_REASONS]?.find(r => r.value === editData.status_reason)?.label || editData.status_reason}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   
                   {!editData.has_expiry && isEditing && (
                     <div className="space-y-2">
@@ -714,6 +915,67 @@ export default function ProfessionalCompetencyTab({
                       </p>
                     )}
                   </div>
+                  
+                  {/* Status Description Field */}
+                  {(showStatusDescription || editData.status_description) && (
+                    <div className="md:col-span-2 space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        {editData.request_status === "not_approved" ? (
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
+                        ) : (
+                          <Info className="h-4 w-4 text-orange-600" />
+                        )}
+                        Status Description
+                        <span className="text-xs text-red-600">*Required</span>
+                      </Label>
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={editData.status_description || ""}
+                            onChange={(e) => handleInputChange("status_description", e.target.value)}
+                            className={`border-orange-300 focus:ring-2 focus:ring-orange-500 min-h-[80px] ${
+                              formErrors.status_description ? 'border-red-500' : ''
+                            }`}
+                            placeholder={
+                              editData.request_status === "not_approved" 
+                                ? "Explain why this document was not approved..." 
+                                : "Provide details about why this document is pending..."
+                            }
+                          />
+                          {formErrors.status_description && (
+                            <p className="text-sm text-red-600">{formErrors.status_description}</p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            This information will be visible to users and helps them understand what needs to be fixed.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className={`p-4 rounded-lg border ${
+                          editData.request_status === "not_approved" 
+                            ? 'bg-red-50 border-red-200' 
+                            : 'bg-orange-50 border-orange-200'
+                        }`}>
+                          <div className="flex items-start gap-3">
+                            {editData.request_status === "not_approved" ? (
+                              <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                            ) : (
+                              <Info className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                            )}
+                            <div>
+                              <p className="text-gray-700 leading-relaxed">
+                                {editData.status_description}
+                              </p>
+                              {editData.status_reason && (
+                                <p className="text-xs text-gray-500 mt-2">
+                                  Reason: {STATUS_REASONS[editData.request_status as keyof typeof STATUS_REASONS]?.find(r => r.value === editData.status_reason)?.label}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -721,10 +983,39 @@ export default function ProfessionalCompetencyTab({
               {(editData.has_document || isEditing) && (
                 <Card className="border-2 border-indigo-200 shadow-md hover:shadow-lg transition-shadow">
                   <CardHeader className="bg-gradient-to-r from-indigo-50 to-orange-50 border-b border-indigo-200">
-                    <CardTitle className="text-xl text-indigo-900 flex items-center gap-2">
-                      <ImageIcon className="h-5 w-5" />
-                      Attached Documents
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xl text-indigo-900 flex items-center gap-2">
+                        <ImageIcon className="h-5 w-5" />
+                        Attached Documents
+                        {editData.urls?.length > 1 && (
+                          <span className="text-sm text-indigo-600 ml-2">
+                            ({currentImageIndex + 1}/{editData.urls.length})
+                          </span>
+                        )}
+                      </CardTitle>
+                      {editData.urls?.length > 1 && !isEditing && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentImageIndex(prev => (prev === 0 ? editData.urls.length - 1 : prev - 1))}
+                            className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                          >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentImageIndex(prev => (prev === editData.urls.length - 1 ? 0 : prev + 1))}
+                            className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-4">
                     {uploadRequired && isEditing && (
@@ -751,6 +1042,7 @@ export default function ProfessionalCompetencyTab({
                         </div>
                       </div>
                     )}
+                    
                     {isEditing ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-3">
@@ -814,33 +1106,132 @@ export default function ProfessionalCompetencyTab({
                         )}
                       </div>
                     ) : editData.urls?.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {editData.urls.map((url: string, index: number) => (
-                          url && (
-                            <Button
-                              key={index}
-                              variant="outline"
-                              onClick={() => isPdfUrl(url) ? openPdfModal(url) : window.open(url, "_blank")}
-                              className="h-auto p-4 border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 justify-start group"
-                            >
-                              <div className="flex items-center gap-3 w-full">
-                                <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
-                                  <ExternalLink className="h-5 w-5 text-indigo-600" />
+                      <div className="space-y-4">
+                        {/* Enhanced Image Display with Navigation */}
+                        <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden border-2 border-indigo-200 min-h-[400px] flex items-center justify-center">
+                          {isPdfUrl(editData.urls[currentImageIndex]) ? (
+                            <div className="text-center p-8">
+                              <FileText className="h-20 w-20 text-indigo-600 mx-auto mb-4 opacity-50" />
+                              <p className="text-lg font-semibold text-gray-700">PDF Document</p>
+                              <p className="text-sm text-gray-500 mt-2">Click the button below to view</p>
+                              <Button
+                                onClick={() => openPdfModal(editData.urls[currentImageIndex])}
+                                className="mt-4 bg-gradient-to-r from-indigo-600 to-orange-600 hover:from-indigo-700 hover:to-orange-700 text-white"
+                              >
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                Open PDF
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <img
+                                src={editData.urls[currentImageIndex]}
+                                alt={`${editData.document_name} - ${currentImageIndex === 0 ? 'Front' : 'Back'} side`}
+                                className="max-w-full max-h-[400px] object-contain p-4"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                  e.currentTarget.parentElement!.innerHTML = '<div class="text-center p-8"><svg class="h-20 w-20 text-orange-600 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg><p class="text-lg font-semibold text-gray-700">Image not available</p></div>'
+                                }}
+                              />
+                              {/* Image Navigation Overlay */}
+                              {editData.urls.length > 1 && (
+                                <div className="absolute inset-0 flex items-center justify-between p-4 pointer-events-none">
+                                  <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="pointer-events-auto bg-white/90 hover:bg-white shadow-lg"
+                                    onClick={() => setCurrentImageIndex(prev => (prev === 0 ? editData.urls.length - 1 : prev - 1))}
+                                  >
+                                    <ChevronLeft className="h-6 w-6" />
+                                  </Button>
+                                  <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="pointer-events-auto bg-white/90 hover:bg-white shadow-lg"
+                                    onClick={() => setCurrentImageIndex(prev => (prev === editData.urls.length - 1 ? 0 : prev + 1))}
+                                  >
+                                    <ChevronRight className="h-6 w-6" />
+                                  </Button>
                                 </div>
-                                <div className="text-left flex-1">
-                                  <p className="font-semibold text-gray-900">
-                                    {editData.has_back_side && index === 0 
-                                      ? "Front Side" 
-                                      : editData.has_back_side && index === 1 
-                                      ? "Back Side" 
-                                      : `Document ${index + 1}`}
-                                  </p>
-                                  <p className="text-xs text-gray-500 mt-1">Click to view</p>
+                              )}
+                              {/* Image Counter */}
+                              {editData.urls.length > 1 && (
+                                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                                  <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-full px-4 py-2">
+                                    {editData.urls.map((_: any, index: number) => (
+                                      <button
+                                        key={index}
+                                        onClick={() => setCurrentImageIndex(index)}
+                                        className={`w-2.5 h-2.5 rounded-full transition-all ${
+                                          index === currentImageIndex 
+                                            ? 'bg-white' 
+                                            : 'bg-white/50 hover:bg-white/80'
+                                        }`}
+                                        aria-label={`View image ${index + 1}`}
+                                      />
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            </Button>
-                          )
-                        ))}
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Document List */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {editData.urls.map((url: string, index: number) => (
+                            url && (
+                              <Button
+                                key={index}
+                                variant="outline"
+                                onClick={() => {
+                                  if (isPdfUrl(url)) {
+                                    openPdfModal(url)
+                                  } else {
+                                    setCurrentImageIndex(index)
+                                  }
+                                }}
+                                className={`h-auto p-3 border-2 hover:border-indigo-400 hover:bg-indigo-50 justify-start group transition-all ${
+                                  index === currentImageIndex 
+                                    ? 'border-indigo-500 bg-indigo-50' 
+                                    : 'border-indigo-200'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3 w-full">
+                                  <div className={`p-2 rounded-lg transition-colors ${
+                                    index === currentImageIndex
+                                      ? 'bg-indigo-100 group-hover:bg-indigo-200'
+                                      : 'bg-gray-100 group-hover:bg-gray-200'
+                                  }`}>
+                                    {isPdfUrl(url) ? (
+                                      <FileText className="h-5 w-5 text-indigo-600" />
+                                    ) : (
+                                      <ImageIcon className="h-5 w-5 text-indigo-600" />
+                                    )}
+                                  </div>
+                                  <div className="text-left flex-1">
+                                    <p className="font-semibold text-gray-900">
+                                      {editData.has_back_side 
+                                        ? index === 0 ? "Front Side" : "Back Side"
+                                        : `Document ${index + 1}`}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1 truncate">
+                                      {url.split("/").pop()}
+                                    </p>
+                                    {index === currentImageIndex && !isPdfUrl(url) && (
+                                      <p className="text-xs text-indigo-600 font-medium mt-1">
+                                        Currently viewing
+                                      </p>
+                                    )}
+                                  </div>
+                                  {isPdfUrl(url) && (
+                                    <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-indigo-600" />
+                                  )}
+                                </div>
+                              </Button>
+                            )
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       <div className="text-center py-8 text-gray-500">
@@ -899,7 +1290,7 @@ export default function ProfessionalCompetencyTab({
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {editData.modules.map((module: any, index: number) => (
                           <Card 
-                            key={index} 
+                            key={module.id || index} 
                             className="border-2 border-orange-200 hover:border-orange-400 transition-all hover:shadow-xl bg-gradient-to-br from-white to-orange-50/30 overflow-hidden group"
                           >
                             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-400/10 to-indigo-400/10 rounded-bl-full transform translate-x-8 -translate-y-8"></div>
@@ -911,7 +1302,7 @@ export default function ProfessionalCompetencyTab({
                                     {index + 1}
                                   </div>
                                   <CardTitle className="text-lg text-orange-900">
-                                    Module {index + 1}
+                                    {module.module_name || `Module ${index + 1}`}
                                   </CardTitle>
                                 </div>
                                 {isEditing && (
@@ -932,14 +1323,14 @@ export default function ProfessionalCompetencyTab({
                                 <Label className="text-sm font-semibold text-gray-700">Module Name</Label>
                                 {isEditing ? (
                                   <Input
-                                    value={module.module_name}
+                                    value={module.module_name || ""}
                                     onChange={(e) => handleModuleChange(index, "module_name", e.target.value)}
                                     className="border-orange-300 focus:ring-2 focus:ring-orange-500 font-semibold"
                                     placeholder="Enter module name..."
                                   />
                                 ) : (
                                   <p className="font-bold text-lg text-orange-900 bg-orange-50 p-3 rounded-lg">
-                                    {module.module_name}
+                                    {module.module_name || "Unnamed Module"}
                                   </p>
                                 )}
                               </div>
@@ -948,14 +1339,14 @@ export default function ProfessionalCompetencyTab({
                                 <Label className="text-sm font-semibold text-gray-700">Description</Label>
                                 {isEditing ? (
                                   <Textarea
-                                    value={module.description}
+                                    value={module.description || ""}
                                     onChange={(e) => handleModuleChange(index, "description", e.target.value)}
                                     className="border-orange-300 focus:ring-2 focus:ring-orange-500 min-h-[80px]"
                                     placeholder="Enter module description..."
                                   />
                                 ) : (
                                   <p className="text-gray-700 bg-gray-50 p-3 rounded-lg leading-relaxed min-h-[80px]">
-                                      {module.description}
+                                      {module.description || "No description"}
                                   </p>
                                 )}
                               </div>
@@ -968,7 +1359,7 @@ export default function ProfessionalCompetencyTab({
                                 {isEditing ? (
                                   <Input
                                     type="date"
-                                    value={module.expiry_date}
+                                    value={module.expiry_date || ""}
                                     onChange={(e) => handleModuleChange(index, "expiry_date", e.target.value)}
                                     className="border-orange-300 focus:ring-2 focus:ring-orange-500"
                                   />
@@ -976,7 +1367,7 @@ export default function ProfessionalCompetencyTab({
                                   <div className="flex items-center gap-2 bg-orange-50 p-3 rounded-lg">
                                       <Calendar className="h-4 w-4 text-orange-600" />
                                       <p className="font-semibold text-orange-900">
-                                        {formatDate(module.expiry_date)}
+                                        {module.expiry_date ? formatDate(module.expiry_date) : "No expiry date"}
                                       </p>
                                   </div>
                                 )}
@@ -1044,7 +1435,7 @@ export default function ProfessionalCompetencyTab({
                               {isEditing ? (
                                 <div className="space-y-2">
                                   <Input
-                                    value={module}
+                                    value={module || ""}
                                     onChange={(e) => handleNextFiveModulesChange(index, e.target.value)}
                                     className="border-indigo-300 focus:ring-2 focus:ring-indigo-500 font-medium"
                                     placeholder={`Enter module ${index + 1} name...`}
@@ -1087,7 +1478,7 @@ export default function ProfessionalCompetencyTab({
                               Upcoming CPC Training Schedule
                             </p>
                             <p className="text-xs text-indigo-700 mt-1">
-                              These modules represent the next five training sessions required for CPC certification maintenance. Click &quot;Edit Document&quot; to update.
+                              These modules represent the next five training sessions required for CPC certification maintenance. Click "Edit Document" to update.
                             </p>
                           </div>
                         </div>
@@ -1103,7 +1494,7 @@ export default function ProfessionalCompetencyTab({
                               Save Your Changes
                             </p>
                             <p className="text-xs text-orange-700 mt-1">
-                              Don&apos;t forget to click &quot;Save Changes&quot; button at the top to save your module updates.
+                              Don't forget to click "Save Changes" button at the top to save your module updates.
                             </p>
                           </div>
                         </div>
@@ -1138,7 +1529,7 @@ export default function ProfessionalCompetencyTab({
                     Document Upload Required
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
-                    You&apos;ve changed the expiry date but haven&apos;t uploaded the updated documents yet. 
+                    You've changed the expiry date but haven't uploaded the updated documents yet. 
                     Set a reminder to upload them later, and your changes will be saved.
                   </p>
                 </div>
@@ -1262,7 +1653,7 @@ export default function ProfessionalCompetencyTab({
             </div>
 
             <p className="text-xs text-gray-600 text-center pt-2">
-              Your changes will be saved, and you&apos;ll receive a reminder to upload the documents later.
+              Your changes will be saved, and you'll receive a reminder to upload the documents later.
             </p>
           </div>
         </DialogContent>

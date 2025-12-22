@@ -78,16 +78,30 @@ interface ApiResponse {
   };
 }
 
-const EXPIRY_FIELDS = [
-  'driver_licence_expiry',
-  'cpc_card_expiry',
-  'd_d1_expiry',
-  'tacho_expiry',
-  'dbs_expiry_date',
-  'night_worker_assessment_expiry',
-  'next_driver_check_code_due',
-  'next_driver_tacho_download',
-];
+// Field configurations for different color rules
+const FIELD_CONFIG = {
+  // Fields that follow: Green >90 days, Orange <=90 days, Red expired
+  LICENSE_STYLE_FIELDS: [
+    'driver_licence_expiry',
+    'd_d1_expiry',
+    'cpc_card_expiry',
+    'tacho_expiry',
+    'dbs_expiry_date',
+    'night_worker_assessment_expiry'
+  ],
+  
+  // Next Driver Check Due: Green >3 days, Orange <=3 days, Red expired
+  NEXT_DRIVER_CHECK_DUE: 'next_driver_check_code_due',
+  
+  // Next Tacho Download: Green >60 days, Orange <=60 days, Red expired
+  NEXT_TACHO_DOWNLOAD: 'next_driver_tacho_download',
+  
+  // Last Tacho Download: Just date display
+  LAST_TACHO_DOWNLOAD: 'last_driver_tacho_download',
+  
+  // Last Driver Check Code: Just date display
+  LAST_DRIVER_CHECK: 'last_driver_check_code_date'
+} as const;
 
 const DriverManagementPage = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -187,28 +201,80 @@ const DriverManagementPage = () => {
     setShowMoreFilters(false);
   };
 
-  const isDateExpired = (dateString: string | null): boolean => {
-    if (!dateString) return false;
+  const getDateStatus = (dateString: string | null, field: string): { colorClass: string, label: string } => {
+    if (!dateString) {
+      return { colorClass: '', label: '' };
+    }
+    
     try {
-      return isPast(parseISO(dateString));
+      const date = parseISO(dateString);
+      const today = new Date();
+      const daysUntilExpiry = differenceInDays(date, today);
+      
+      if (isPast(date)) {
+        return { colorClass: 'bg-red-50 text-red-700', label: 'Expired' };
+      }
+      
+      // License style fields: Green >90 days, Orange <=90 days
+      if (FIELD_CONFIG.LICENSE_STYLE_FIELDS.includes(field as typeof FIELD_CONFIG.LICENSE_STYLE_FIELDS[number])) {
+        if (daysUntilExpiry <= 90) {
+          return { colorClass: 'bg-orange-50 text-orange-700', label: `${daysUntilExpiry} days` };
+        }
+        return { colorClass: 'bg-green-50 text-green-700', label: '' };
+      }
+      
+      // Next Driver Check Due: Green >3 days, Orange <=3 days
+      if (field === FIELD_CONFIG.NEXT_DRIVER_CHECK_DUE) {
+        if (daysUntilExpiry <= 3) {
+          return { colorClass: 'bg-orange-50 text-orange-700', label: `${daysUntilExpiry} days` };
+        }
+        return { colorClass: 'bg-green-50 text-green-700', label: '' };
+      }
+      
+      // Next Tacho Download: Green >60 days, Orange <=60 days
+      if (field === FIELD_CONFIG.NEXT_TACHO_DOWNLOAD) {
+        if (daysUntilExpiry <= 60) {
+          return { colorClass: 'bg-orange-50 text-orange-700', label: `${daysUntilExpiry} days` };
+        }
+        return { colorClass: 'bg-green-50 text-green-700', label: '' };
+      }
+      
+      // Last Tacho Download: Always green (not an expiry)
+      if (field === FIELD_CONFIG.LAST_TACHO_DOWNLOAD) {
+        return { colorClass: 'bg-green-50 text-green-700', label: '' };
+      }
+      
+      // Last Driver Check Code: Always green (not an expiry)
+      if (field === FIELD_CONFIG.LAST_DRIVER_CHECK) {
+        return { colorClass: 'bg-green-50 text-green-700', label: '' };
+      }
+      
+      return { colorClass: '', label: '' };
     } catch {
-      return false;
+      return { colorClass: '', label: '' };
     }
   };
 
   const renderDateCell = (field: string, value: string | null, driver: Driver) => {
-    const isExpired = isDateExpired(value);
-    const isExpiryField = EXPIRY_FIELDS.includes(field);
-
+    const { colorClass, label } = getDateStatus(value, field);
+    const displayDate = value ? format(parseISO(value), 'dd MMM yyyy') : 'NA';
+    
+    // Special handling for Last Tacho Download (always show in green)
+    if (field === FIELD_CONFIG.LAST_TACHO_DOWNLOAD || field === FIELD_CONFIG.LAST_DRIVER_CHECK) {
+      return (
+        <TableCell className="bg-green-50 text-green-700 whitespace-nowrap">
+          {displayDate}
+        </TableCell>
+      );
+    }
+    
     return (
-      <TableCell
-        className={`whitespace-nowrap ${isExpired && isExpiryField ? 'text-red-600 bg-red-50 font-medium' : ''}`}
-      >
+      <TableCell className={`whitespace-nowrap ${colorClass}`}>
         <Popover>
           <PopoverTrigger asChild>
             <span className="cursor-pointer hover:underline">
-              {value ? format(parseISO(value), 'dd MMM yyyy') : '-'}
-              {isExpired && isExpiryField && <span className="ml-2 text-xs font-bold">(Expired)</span>}
+              {displayDate}
+              {label && <span className="ml-2 text-xs font-semibold">({label})</span>}
             </span>
           </PopoverTrigger>
           <PopoverContent className="w-80 text-sm">
@@ -435,7 +501,7 @@ const DriverManagementPage = () => {
                 <TableHead>Last Tacho DL</TableHead>
                 <TableHead>Next Tacho DL</TableHead>
                 <TableHead>DBS Expiry</TableHead>
-                <TableHead>Night Worker Assessment </TableHead>
+                <TableHead>Night Worker Assessment</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -456,13 +522,13 @@ const DriverManagementPage = () => {
                   <TableRow key={driver.id}>
                     <TableCell className="font-medium">
                       <Link
-                        href={`/dashboard/compliance-management/driver-management/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}`}
+                        href={`/dashboard/compliance-management/driver-management/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`}
                         className="text-blue-600 hover:underline"
                       >
                         {driver.user.full_name}
                       </Link>
                     </TableCell>
-                    <TableCell>{driver.user.license_number || "-"}</TableCell>
+                    <TableCell>{driver.user.license_number || "NA"}</TableCell>
                     {renderDateCell('driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                     {renderDateCell('d_d1_expiry', driver.driver_compliance.d_d1_expiry, driver)}
                     {renderDateCell('cpc_card_expiry', driver.driver_compliance.cpc_card_expiry, driver)}

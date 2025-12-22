@@ -1,8 +1,8 @@
-// app/drivers/DocumentsStep.tsx (FINAL VERSION)
+// app/drivers/DocumentsStep.tsx (UPDATED VERSION)
 
 "use client";
 
-import React, { useState, useCallback, useTransition } from "react";
+import React, { useState, useCallback, useTransition, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Calendar, Upload, FileText, AlertCircle, Info, Plus, Clock } from "lucide-react";
 import { useStepper } from "./DriverStepper";
 import FileUploader from "../Media/MediaUpload";
 import API_URL from "@/app/utils/ENV";
@@ -26,16 +26,21 @@ import { useCookies } from "next-client-cookies";
 import { toast } from "@/components/ui/use-toast";
 import CreateTaskDialog from "../task/CreateTaskDialog";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export interface Module {
+  id?: number;
   module_name: string;
   description: string;
   expiry_date: string;
 }
 
 export interface ProfessionalCompetency {
+  id?: number;
   driver: { id: number } | null;
   document_name: string;
+  document_type: string;
   has_expiry: boolean;
   description: string;
   expiry_date: string;
@@ -45,101 +50,74 @@ export interface ProfessionalCompetency {
   request_status: string;
   has_description: boolean;
   modules: Module[];
+  next_five_modules: any[];
   upload_later?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface DocumentsStepProps {
   driverId: number | null;
   setDocumentsData: (data: Record<string, ProfessionalCompetency>) => void;
+  existingDocuments?: ProfessionalCompetency[];
 }
 
 const documentTypes = [
-  { id: "d_or_d1_license", label: "D or D1 License" },
-  { id: "cpc", label: "CPC" },
-  { id: "tacho_card", label: "Tacho Card" },
-  { id: "Passport_Right_To_Work", label: "Passport / Right To Work" },
-  { id: "proof_of_address", label: "Proof of Address" },
+  { id: "driving-license", label: "Driving License", document_type: "driving-license", has_expiry: true },
+  { id: "dd1-category", label: "D / D1 Category", document_type: "dd1-category", has_expiry: true },
+  { id: "cpc-card", label: "CPC Card", document_type: "cpc-card", has_expiry: true },
+  { id: "tacho-card", label: "Tacho Card", document_type: "tacho-card", has_expiry: false },
+  { id: "passport", label: "Passport", document_type: "passport", has_expiry: false },
+  { id: "proof-of-address", label: "Proof of Address", document_type: "proof-of-address", has_expiry: false },
 ] as const;
 
-export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps) {
+export function DocumentsStep({ driverId, setDocumentsData, existingDocuments }: DocumentsStepProps) {
   const { goToNextStep, goToPreviousStep, disableBack } = useStepper();
   const [isPending, startTransition] = useTransition();
   const [isSubmittingMainForm, setIsSubmittingMainForm] = useState(false);
   const cookies = useCookies();
   const token = cookies.get("access_token");
-  const router=useRouter()
+  const router = useRouter();
 
-  const [competencies, setCompetencies] = useState<Record<string, ProfessionalCompetency>>({
-    d_or_d1_license: {
-      document_name: "D or D1 License",
-      has_document: true,
-      has_expiry: true,
-      has_description: true,
-      request_status: "pending",
-      modules: [],
-      urls: ["", ""],
-      has_back_side: false,
-      description: "",
-      expiry_date: "",
-      driver: null,
-      upload_later: false,
-    },
-    cpc: {
-      document_name: "CPC",
-      has_document: true,
-      has_expiry: true,
-      has_description: true,
-      request_status: "pending",
-      modules: [],
-      urls: ["", ""],
-      has_back_side: false,
-      description: "",
-      expiry_date: "",
-      driver: null,
-      upload_later: false,
-    },
-    tacho_card: {
-      document_name: "Tacho Card",
-      has_document: false,
-      has_expiry: false,
-      has_description: false,
-      request_status: "pending",
-      modules: [],
-      urls: ["", ""],
-      has_back_side: false,
-      description: "",
-      expiry_date: "",
-      driver: null,
-      upload_later: false,
-    },
-    Passport_Right_To_Work: {
-      document_name: "Passport / Right To Work",
-      has_document: true,
-      has_expiry: true,
-      has_description: true,
-      request_status: "pending",
-      modules: [],
-      urls: ["", ""],
-      has_back_side: false,
-      description: "",
-      expiry_date: "",
-      driver: null,
-      upload_later: false,
-    },
-    proof_of_address: {
-      document_name: "Proof of Address",
-      has_document: true,
-      has_expiry: true,
-      has_description: true,
-      request_status: "pending",
-      modules: [],
-      urls: ["", ""],
-      has_back_side: false,
-      description: "",
-      expiry_date: "",
-      driver: null,
-      upload_later: false,
-    },
+  const [competencies, setCompetencies] = useState<Record<string, ProfessionalCompetency>>(() => {
+    // Initialize with default structure
+    const defaultCompetencies: Record<string, ProfessionalCompetency> = {};
+    
+    documentTypes.forEach(doc => {
+      defaultCompetencies[doc.id] = {
+        id: undefined,
+        document_name: doc.label,
+        document_type: doc.document_type,
+        has_document: false,
+        has_expiry: doc.has_expiry,
+        has_description: false,
+        request_status: "pending",
+        modules: [],
+        next_five_modules: [],
+        urls: ["", ""],
+        has_back_side: false,
+        description: "",
+        expiry_date: "",
+        driver: null,
+        upload_later: false,
+      };
+    });
+    
+    // If existing documents are provided, merge them
+    if (existingDocuments && existingDocuments.length > 0) {
+      existingDocuments.forEach(doc => {
+        if (doc.document_type && defaultCompetencies[doc.document_type]) {
+          defaultCompetencies[doc.document_type] = {
+            ...defaultCompetencies[doc.document_type],
+            ...doc,
+            has_document: doc.urls && doc.urls.length > 0,
+            upload_later: false,
+          };
+        }
+      });
+    }
+    
+    return defaultCompetencies;
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -170,10 +148,11 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
       ...prev,
       [docId]: {
         ...prev[docId],
-        urls: ["", ""],
+        urls: [],
         has_back_side: false,
         upload_later: true,
         description: "Upload later",
+        has_document: false,
       },
     }));
 
@@ -183,7 +162,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
     // Prepare prefill
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-    const deadlineStr = sevenDaysFromNow.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+    const deadlineStr = sevenDaysFromNow.toISOString().slice(0, 16);
 
     setTaskPrefill({
       title: `Upload missing document: ${docLabel}`,
@@ -209,6 +188,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
         ...prev[docId],
         upload_later: false,
         description: "",
+        has_document: false,
       },
     }));
   };
@@ -226,18 +206,21 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
     documentTypes.forEach((docType) => {
       const comp = competencies[docType.id];
 
-      if (docType.id === "tacho_card" && !comp.has_document) {
+      // Skip validation if document is marked as upload later
+      if (comp.upload_later) return;
+
+      if (docType.id === "tacho-card" && !comp.has_document) {
         if (!comp.description.trim()) {
           errors[`${docType.id}_reason`] = "Reason is required if Tacho Card is not provided.";
         }
         return;
       }
 
-      if (comp.has_document && !comp.urls[0] && !comp.upload_later) {
-        errors[`${docType.id}_front_image`] = `Front image is required for ${docType.label}.`;
+      if (comp.has_document && !comp.urls[0]) {
+        errors[`${docType.id}_front_image`] = `${docType.label} is required.`;
       }
 
-      if (comp.has_expiry && !comp.expiry_date) {
+      if (comp.has_expiry && !comp.expiry_date && comp.has_document) {
         errors[`${docType.id}_expiry_date`] = `Expiry date is required for ${docType.label}.`;
       }
 
@@ -249,8 +232,8 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
         }
       }
 
-      if (docType.id === "cpc" && comp.modules.length < 5) {
-        errors["cpc_modules"] = "A minimum of 5 CPC modules are required.";
+      if (docType.id === "cpc-card" && comp.modules.length < 1 && comp.has_document) {
+        errors["cpc_modules"] = "At least 1 CPC module is required.";
       }
     });
 
@@ -260,17 +243,33 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
 
   const handleUploadSuccess = useCallback(
     (docId: string, side: "front" | "back") => (url: string) => {
-      setCompetencies((prev) => ({
-        ...prev,
-        [docId]: {
-          ...prev[docId],
-          urls: side === "front" ? [url, prev[docId].urls[1] || ""] : [prev[docId].urls[0], url],
-          has_back_side: side === "back",
-          upload_later: false,
-          description: prev[docId].upload_later ? "" : prev[docId].description,
-        },
-      }));
-      setFormErrors((prev) => ({ ...prev, [`${docId}_${side}_image`]: "" }));
+      setCompetencies((prev) => {
+        const currentDoc = prev[docId];
+        const newUrls = [...currentDoc.urls];
+        
+        if (side === "front") {
+          newUrls[0] = url;
+        } else {
+          if (newUrls.length < 2) {
+            newUrls.push(url);
+          } else {
+            newUrls[1] = url;
+          }
+        }
+        
+        return {
+          ...prev,
+          [docId]: {
+            ...currentDoc,
+            urls: newUrls.filter(Boolean),
+            has_document: true,
+            upload_later: false,
+            description: currentDoc.upload_later ? "" : currentDoc.description,
+            has_back_side: side === "back" || currentDoc.has_back_side,
+          },
+        };
+      });
+      setFormErrors((prev) => ({ ...prev, [`${docId}_front_image`]: "" }));
     },
     []
   );
@@ -301,8 +300,9 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
         ...prev[docId],
         has_document: checked,
         description: checked ? prev[docId].description : "",
-        urls: checked ? prev[docId].urls : ["", ""],
+        urls: checked ? prev[docId].urls : [],
         upload_later: false,
+        has_back_side: false,
       },
     }));
   }, []);
@@ -315,38 +315,93 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
       startTransition(async () => {
         setIsSubmittingMainForm(true);
 
-        const payload = {
-          professional_competencies: Object.values(competencies)
-            .filter((c) => c.has_document || c.document_name === "Tacho Card")
-            .map((c) => ({
-              driver: driverId,
-              document_name: c.document_name,
-              has_expiry: c.has_expiry,
-              expiry_date: c.has_expiry ? c.expiry_date : "",
-              description: c.description || "",
-              has_document: c.has_document,
-              has_back_side: c.has_back_side,
-              urls: c.urls.filter(Boolean),
-              request_status: c.upload_later ? "pending_upload" : "pending",
-              has_description: c.has_description,
-              modules: c.modules,
+        // Prepare data for each document type
+        const payloadPromises = documentTypes.map(async (docType) => {
+          const comp = competencies[docType.id];
+          
+          // Skip if not applicable (tacho card without document and no upload later)
+          if (docType.id === "tacho-card" && !comp.has_document && !comp.upload_later && !comp.description) {
+            return null;
+          }
+
+          const payload = {
+            driver: driverId,
+            document_name: comp.document_name,
+            document_type: comp.document_type,
+            has_expiry: comp.has_expiry,
+            expiry_date: comp.has_expiry ? comp.expiry_date : null,
+            description: comp.description || "",
+            has_document: comp.has_document,
+            has_back_side: comp.has_back_side,
+            urls: comp.urls.filter(Boolean),
+            request_status: comp.upload_later ? "pending_upload" : "pending",
+            has_description: !!comp.description,
+            modules: comp.modules.map(module => ({
+              ...(module.id ? { id: module.id } : {}),
+              module_name: module.module_name,
+              description: module.description,
+              expiry_date: module.expiry_date,
             })),
-        };
+            next_five_modules: comp.next_five_modules || [],
+          };
+
+          // If document has ID, update it, otherwise create new
+          if (comp.id) {
+            try {
+              const res = await fetch(`${API_URL}/api/profiles/professional-competency/${comp.id}/`, {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+              });
+
+              if (!res.ok) throw new Error(`Failed to update ${docType.label}`);
+              return await res.json();
+            } catch (error) {
+              console.error(`Error updating ${docType.label}:`, error);
+              throw error;
+            }
+          } else {
+            // Only create if document is required or has content
+            if (comp.has_document || comp.upload_later || (docType.id === "tacho-card" && comp.description)) {
+              try {
+                const res = await fetch(`${API_URL}/api/profiles/professional-competency/`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify(payload),
+                });
+
+                if (!res.ok) throw new Error(`Failed to create ${docType.label}`);
+                return await res.json();
+              } catch (error) {
+                console.error(`Error creating ${docType.label}:`, error);
+                throw error;
+              }
+            }
+          }
+          
+          return null;
+        });
 
         try {
-          const res = await fetch(`${API_URL}/api/profiles/professional-competency/bulk-create/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
+          const results = await Promise.all(payloadPromises);
+          
+          // Filter out null results
+          const successfulResults = results.filter(result => result !== null);
+          
+          toast({
+            title: "Success!",
+            description: `Documents saved successfully.`,
           });
-
-          if (!res.ok) throw new Error("Failed to submit");
 
           setDocumentsData(competencies);
           router.refresh();
+          goToNextStep();
         } catch (err) {
           toast({
             title: "Submission Failed",
@@ -358,332 +413,458 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
         }
       });
     },
-    [competencies, driverId, validateForm, setDocumentsData, goToNextStep, token]
+    [competencies, driverId, validateForm, setDocumentsData, goToNextStep, token, router]
   );
+
+  const getDocumentStatus = (docId: string) => {
+    const comp = competencies[docId];
+    if (comp.upload_later) return "pending_upload";
+    if (comp.has_document && comp.urls.length > 0) return "pending";
+    return "not_uploaded";
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Pending</Badge>;
+      case "pending_upload":
+        return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Upload Later</Badge>;
+      case "not_uploaded":
+        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Not Uploaded</Badge>;
+      default:
+        return null;
+    }
+  };
 
   return (
     <>
-      <Card className="w-full max-w-4xl mx-auto">
-        <CardHeader>
-          <CardTitle>
-            <span className="text-orange-500">Step 4:</span> Documents
-          </CardTitle>
-          <CardDescription>Upload required documents or mark as &quot;Upload Later&quot;</CardDescription>
+      <Card className="w-full max-w-6xl mx-auto shadow-lg border-orange-100">
+        <CardHeader className="bg-gradient-to-r from-orange-50 to-white border-b border-orange-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-600 rounded-lg">
+              <FileText className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-2xl text-orange-900">
+                Step 4: Professional Documents
+              </CardTitle>
+              <CardDescription className="text-gray-600">
+                Upload required professional documents and certifications
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-8">
+          <CardContent className="space-y-6 pt-6">
             {driverId === null ? (
-              <p className="text-center text-red-500 py-10">Please complete previous steps first.</p>
+              <div className="text-center py-10 bg-gradient-to-br from-red-50 to-orange-50 rounded-lg border border-red-200">
+                <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                <p className="text-lg font-semibold text-red-600 mb-2">Driver Information Required</p>
+                <p className="text-gray-600">Please complete previous steps to add driver information first.</p>
+              </div>
             ) : (
-              documentTypes.map((doc) => {
-                const comp = competencies[doc.id];
-                const hasFront = !!comp.urls[0];
-                const hasBack = !!comp.urls[1];
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                {documentTypes.map((doc) => {
+                  const comp = competencies[doc.id];
+                  const status = getDocumentStatus(doc.id);
+                  const hasFront = comp.urls.length > 0 && comp.urls[0];
+                  const hasBack = comp.urls.length > 1 && comp.urls[1];
 
-                return (
-                  <div key={doc.id} className="rounded-lg bg-white p-6 shadow-md">
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {doc.id === "tacho_card" && (
+                  return (
+                    <Card key={doc.id} className="border-2 border-orange-100 hover:border-orange-300 transition-all hover:shadow-lg">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${comp.has_document ? 'bg-gradient-to-br from-orange-500 to-indigo-500' : 'bg-gray-200'}`}>
+                              <FileText className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg font-semibold text-gray-900">
+                                {doc.label}
+                              </CardTitle>
+                              <p className="text-xs text-gray-500 uppercase tracking-wider">
+                                {doc.document_type.replace("-", " ")}
+                              </p>
+                            </div>
+                          </div>
+                          {getStatusBadge(status)}
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="space-y-4">
+                        {/* Tacho Card Special Case */}
+                        {doc.id === "tacho-card" && (
+                          <div className="flex items-center space-x-2 mb-4">
                             <Checkbox
+                              id={`${doc.id}-has-document`}
                               checked={comp.has_document}
                               onCheckedChange={(c) => handleCheckboxChange(doc.id, c as boolean)}
                             />
-                          )}
-                          <h3 className="text-lg text-red-500 font-semibold">
-                            {doc.label}
-                            {doc.id !== "tacho_card" && <span className="text-black ml-1">*</span>}
-                          </h3>
-                        </div>
-                      </div>
-                    </div>
-
-                    {(doc.id !== "tacho_card" || comp.has_document) && !comp.upload_later && (
-                      <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-                          <div>
-                            <Label>Front Image <span className="text-red-500">*</span></Label>
-                            {hasFront ? (
-                              <div className="mt-2 text-sm text-green-600 flex items-center gap-1">
-                                <CheckCircle2 className="w-4 h-4" /> Uploaded
-                              </div>
-                            ) : (
-                              <FileUploader
-                                id={`${doc.id}_front`}
-                                onUploadSuccess={handleUploadSuccess(doc.id, "front")}
-                                accept="image/*,application/pdf"
-                                maxSize={10 * 1024 * 1024}
-                              />
-                            )}
-                            {formErrors[`${doc.id}_front_image`] && (
-                              <p className="text-sm text-red-500 mt-1">{formErrors[`${doc.id}_front_image`]}</p>
-                            )}
+                            <Label htmlFor={`${doc.id}-has-document`} className="text-sm font-medium">
+                              Has Tacho Card
+                            </Label>
                           </div>
+                        )}
 
-                          <div>
-                            <Label>Back Image (if applicable)</Label>
-                            {hasBack ? (
-                              <div className="mt-2 text-sm text-green-600 flex items-center gap-1">
-                                <CheckCircle2 className="w-4 h-4" /> Uploaded
+                        {/* Document Upload Section */}
+                        {((doc.id !== "tacho-card") || comp.has_document) && !comp.upload_later && (
+                          <>
+                            <div className="space-y-3">
+                              <div>
+                                <Label className="text-sm font-medium flex items-center gap-2">
+                                  <Upload className="h-3 w-3" />
+                                  Driving License
+                                  <span className="text-red-500">*</span>
+                                </Label>
+                                {hasFront ? (
+                                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                                    <div className="flex items-center gap-2 text-green-700">
+                                      <CheckCircle2 className="h-4 w-4" />
+                                      <span className="text-sm font-medium">Document uploaded</span>
+                                      <Badge variant="outline" className="ml-auto text-xs">
+                                        {comp.urls[0].split("/").pop()?.slice(0, 20)}...
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 border-2 border-dashed border-orange-300 rounded-lg p-4 bg-orange-50/30 hover:border-orange-400 transition-colors">
+                                    <FileUploader
+                                      id={`${doc.id}_front`}
+                                      onUploadSuccess={handleUploadSuccess(doc.id, "front")}
+                                      accept="image/*,application/pdf"
+                                      maxSize={10 * 1024 * 1024}
+                                      // buttonText="Upload Driving License"
+                                      // className="w-full"
+                                    />
+                                  </div>
+                                )}
+                                {formErrors[`${doc.id}_front_image`] && (
+                                  <p className="text-sm text-red-500 mt-1">{formErrors[`${doc.id}_front_image`]}</p>
+                                )}
                               </div>
-                            ) : (
-                              <FileUploader
-                                id={`${doc.id}_back`}
-                                onUploadSuccess={handleUploadSuccess(doc.id, "back")}
-                                accept="image/*,application/pdf"
-                                maxSize={10 * 1024 * 1024}
-                              />
-                            )}
-                          </div>
-                        </div>
 
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mb-6"
-                          onClick={() => setUploadLaterDialog({ open: true, docId: doc.id })}
-                        >
-                          Upload Later
-                        </Button>
+                              <div>
+                                <Label className="text-sm font-medium flex items-center gap-2">
+                                  <Upload className="h-3 w-3" />
+                                  Back Document (Optional)
+                                </Label>
+                                {hasBack ? (
+                                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                                    <div className="flex items-center gap-2 text-green-700">
+                                      <CheckCircle2 className="h-4 w-4" />
+                                      <span className="text-sm font-medium">Back side uploaded</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 border-2 border-dashed border-indigo-300 rounded-lg p-4 bg-indigo-50/30 hover:border-indigo-400 transition-colors">
+                                    <FileUploader
+                                      id={`${doc.id}_back`}
+                                      onUploadSuccess={handleUploadSuccess(doc.id, "back")}
+                                      accept="image/*,application/pdf"
+                                      maxSize={10 * 1024 * 1024}
+                                      // buttonText="Upload Back Document"
+                                      // className="w-full"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
 
-                       
-                        <div className="flex justify-between gap-4">
-                        <div className=" flex flex-col gap-4 min-w-[200px]">
-                            {comp.has_expiry && (
-                            <div>
-                              <Label>Expiry Date</Label>
-                              <Input
-                                type="date"
-                                value={comp.expiry_date}
-                                className="w-[200px]"
-                                onChange={(e) => handleInputChange(doc.id, "expiry_date", e.target.value)}
-                              />
+                            <Separator className="my-4" />
+
+                            {/* Expiry Date Section */}
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-sm font-medium flex items-center gap-2">
+                                  <Calendar className="h-3 w-3" />
+                                  Expiry Date
+                                  {doc.has_expiry && <span className="text-red-500">*</span>}
+                                </Label>
+                                <div className="flex items-center space-x-2">
+                                  <Label htmlFor={`${doc.id}-expiry-toggle`} className="text-sm">
+                                    Has Expiry
+                                  </Label>
+                                  <Switch
+                                    id={`${doc.id}-expiry-toggle`}
+                                    checked={comp.has_expiry}
+                                    onCheckedChange={(c) => toggleExpiryRequired(doc.id, c)}
+                                  />
+                                </div>
+                              </div>
+
+                              {comp.has_expiry && (
+                                <Input
+                                  type="date"
+                                  value={comp.expiry_date}
+                                  onChange={(e) => handleInputChange(doc.id, "expiry_date", e.target.value)}
+                                  className="border-orange-300 focus:ring-2 focus:ring-orange-500"
+                                />
+                              )}
                               {formErrors[`${doc.id}_expiry_date`] && (
                                 <p className="text-sm text-red-500 mt-1">{formErrors[`${doc.id}_expiry_date`]}</p>
                               )}
                             </div>
-                          )}
-                           <div className="flex items-center justify-between mb-4">
-                          <Label htmlFor={`${doc.id}-expiry-toggle`}>Has Expiry Date</Label>
-                          <Switch
-                            id={`${doc.id}-expiry-toggle`}
-                            checked={comp.has_expiry}
-                            onCheckedChange={(c) => toggleExpiryRequired(doc.id, c)}
-                          />
-                        </div>
-                        </div>
 
-                          <div>
-                            <Label>Description (optional)</Label>
-                            <Input
-                              placeholder="e.g. Valid until 2030"
-                              value={comp.description}
-                              onChange={(e) => handleInputChange(doc.id, "description", e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
+                            {/* Description */}
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium flex items-center gap-2">
+                                <Info className="h-3 w-3" />
+                                Description (Optional)
+                              </Label>
+                              <Input
+                                placeholder="e.g., Valid until 2030, Document number, etc."
+                                value={comp.description}
+                                onChange={(e) => handleInputChange(doc.id, "description", e.target.value)}
+                                className="border-gray-300 focus:border-orange-400"
+                              />
+                            </div>
 
-                    {comp.upload_later && (
-                      <div className="my-6 p-5 bg-amber-50 border border-amber-300 rounded-lg">
-                        <p className="font-medium text-amber-800">Document marked as &quot;Upload Later&quot;</p>
-                        <p className="text-sm text-amber-700 mt-1">
-                          A reminder task has been scheduled.
-                        </p>
-                        <Button
-                          type="button"
-                          variant="link"
-                          className="p-0 h-auto text-amber-900 mt-3"
-                          onClick={() => cancelUploadLater(doc.id)}
-                        >
-                          Undo – Upload Now
-                        </Button>
-                      </div>
-                    )}
-
-                    {doc.id === "tacho_card" && !comp.has_document && (
-                      <div className="mt-4">
-                        <Label>Reason for not providing</Label>
-                        <Input
-                          placeholder="e.g. Not required for my role"
-                          value={comp.description}
-                          onChange={(e) => handleInputChange(doc.id, "description", e.target.value)}
-                        />
-                        {formErrors[`${doc.id}_reason`] && (
-                          <p className="text-sm text-red-500 mt-1">{formErrors[`${doc.id}_reason`]}</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* CPC Modules */}
-                    {doc.id === "cpc" && (comp.has_document || comp.upload_later) && (
-                      <div className="mt-8 p-4 rounded-lg bg-gray-50">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <Label className="text-lg font-semibold">CPC Modules</Label>
-                            <p className="text-sm text-gray-600">You must add at least 5 modules</p>
-                          </div>
-                          <span className="text-lg font-bold text-orange-600">
-                            {comp.modules.length} / 5
-                          </span>
-                        </div>
-
-                        {comp.modules.length < 5 && (
-                          <p className="text-sm text-red-600 mb-4">
-                            {5 - comp.modules.length} more module(s) required
-                          </p>
-                        )}
-
-                        <Dialog open={isModuleDialogOpen} onOpenChange={setIsModuleDialogOpen}>
-                          <DialogTrigger asChild>
+                            {/* Upload Later Button */}
                             <Button
                               type="button"
-                              className="mb-4"
-                              onClick={() => {
-                                setCurrentDocId("cpc");
-                                setCurrentModule(null);
-                                setCurrentModuleIndex(null);
-                              }}
+                              variant="outline"
+                              className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                              onClick={() => setUploadLaterDialog({ open: true, docId: doc.id })}
                             >
-                              Add CPC Module
+                              <Clock className="mr-2 h-4 w-4" />
+                              Upload Later
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>{currentModule ? "Edit" : "Add"} CPC Module</DialogTitle>
-                            </DialogHeader>
-                            <ModuleForm
-                              initialData={currentModule}
-                              onSubmit={(data) => {
-                                setCompetencies((prev) => ({
-                                  ...prev,
-                                  cpc: {
-                                    ...prev.cpc,
-                                    modules:
-                                      currentModuleIndex !== null
-                                        ? prev.cpc.modules.map((m, i) => (i === currentModuleIndex ? data : m))
-                                        : [...prev.cpc.modules, data],
-                                  },
-                                }));
-                                setIsModuleDialogOpen(false);
-                                setCurrentModule(null);
-                                setCurrentModuleIndex(null);
-                              }}
-                              onCancel={() => {
-                                setIsModuleDialogOpen(false);
-                                setCurrentModule(null);
-                                setCurrentModuleIndex(null);
-                              }}
-                            />
-                          </DialogContent>
-                        </Dialog>
+                          </>
+                        )}
 
-                        {comp.modules.length > 0 && (
-                          <div className="space-y-3">
-                            {comp.modules.map((m, i) => (
-                              <div key={i} className="flex justify-between items-center border p-4 rounded bg-white">
-                                <div>
-                                  <p className="font-medium">{m.module_name}</p>
-                                  <p className="text-sm text-gray-600">{m.description}</p>
-                                  <p className="text-sm text-gray-500">Expires: {m.expiry_date}</p>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setCurrentModule(m);
-                                      setCurrentModuleIndex(i);
-                                      setIsModuleDialogOpen(true);
-                                    }}
-                                  >
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => {
-                                      setCompetencies((prev) => ({
-                                        ...prev,
-                                        cpc: {
-                                          ...prev.cpc,
-                                          modules: prev.cpc.modules.filter((_, idx) => idx !== i),
-                                        },
-                                      }));
-                                    }}
-                                  >
-                                    Delete
-                                  </Button>
-                                </div>
+                        {/* Upload Later State */}
+                        {comp.upload_later && (
+                          <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg">
+                            <div className="flex items-start gap-3">
+                              <Clock className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <p className="font-semibold text-amber-900">Marked for Later Upload</p>
+                                <p className="text-sm text-amber-700 mt-1">
+                                  A reminder task will be created to upload this document.
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="link"
+                                  className="p-0 h-auto text-amber-900 mt-2 text-sm"
+                                  onClick={() => cancelUploadLater(doc.id)}
+                                >
+                                  Upload now instead
+                                </Button>
                               </div>
-                            ))}
+                            </div>
                           </div>
                         )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
+
+                        {/* Tacho Card without document */}
+                        {doc.id === "tacho-card" && !comp.has_document && !comp.upload_later && (
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium text-gray-700">
+                              Reason for not providing Tacho Card
+                            </Label>
+                            <Input
+                              placeholder="e.g., Not required for my role, Company provided, etc."
+                              value={comp.description}
+                              onChange={(e) => handleInputChange(doc.id, "description", e.target.value)}
+                              className="border-gray-300"
+                            />
+                            {formErrors[`${doc.id}_reason`] && (
+                              <p className="text-sm text-red-500 mt-1">{formErrors[`${doc.id}_reason`]}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* CPC Modules Section */}
+                        {doc.id === "cpc-card" && (comp.has_document || comp.upload_later) && (
+                          <div className="mt-6 pt-4 border-t border-gray-200">
+                            <div className="flex items-center justify-between mb-4">
+                              <div>
+                                <Label className="text-lg font-semibold text-gray-900">CPC Modules</Label>
+                                <p className="text-sm text-gray-600">Add training modules for CPC certification</p>
+                              </div>
+                              <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200">
+                                {comp.modules.length} module{comp.modules.length !== 1 ? 's' : ''}
+                              </Badge>
+                            </div>
+
+                            {comp.modules.length < 1 && (
+                              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p className="text-sm text-yellow-700 flex items-center gap-2">
+                                  <AlertCircle className="h-4 w-4" />
+                                  Add at least 1 CPC module
+                                </p>
+                              </div>
+                            )}
+
+                            <Dialog open={isModuleDialogOpen} onOpenChange={setIsModuleDialogOpen}>
+                              <DialogTrigger asChild>
+                                <Button
+                                  type="button"
+                                  className="w-full mb-4 bg-gradient-to-r from-indigo-600 to-orange-600 hover:from-indigo-700 hover:to-orange-700 text-white"
+                                  onClick={() => {
+                                    setCurrentDocId("cpc-card");
+                                    setCurrentModule(null);
+                                    setCurrentModuleIndex(null);
+                                  }}
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Add CPC Module
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-md">
+                                <DialogHeader>
+                                  <DialogTitle className="text-xl">
+                                    {currentModule ? "Edit" : "Add"} CPC Module
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <ModuleForm
+                                  initialData={currentModule}
+                                  onSubmit={(data) => {
+                                    setCompetencies((prev) => ({
+                                      ...prev,
+                                      "cpc-card": {
+                                        ...prev["cpc-card"],
+                                        modules:
+                                          currentModuleIndex !== null
+                                            ? prev["cpc-card"].modules.map((m, i) => (i === currentModuleIndex ? data : m))
+                                            : [...prev["cpc-card"].modules, data],
+                                      },
+                                    }));
+                                    setIsModuleDialogOpen(false);
+                                    setCurrentModule(null);
+                                    setCurrentModuleIndex(null);
+                                  }}
+                                  onCancel={() => {
+                                    setIsModuleDialogOpen(false);
+                                    setCurrentModule(null);
+                                    setCurrentModuleIndex(null);
+                                  }}
+                                />
+                              </DialogContent>
+                            </Dialog>
+
+                            {comp.modules.length > 0 && (
+                              <div className="space-y-3 max-h-60 overflow-y-auto">
+                                {comp.modules.map((m, i) => (
+                                  <div key={i} className="border border-gray-200 rounded-lg p-3 bg-white hover:bg-gray-50 transition-colors">
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-orange-500 rounded text-white text-xs flex items-center justify-center">
+                                            {i + 1}
+                                          </div>
+                                          <p className="font-semibold text-gray-900">{m.module_name}</p>
+                                        </div>
+                                        <p className="text-sm text-gray-600 mb-2">{m.description}</p>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                          <Calendar className="h-3 w-3" />
+                                          <span>Expires: {m.expiry_date}</span>
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => {
+                                            setCurrentModule(m);
+                                            setCurrentModuleIndex(i);
+                                            setIsModuleDialogOpen(true);
+                                          }}
+                                        >
+                                          Edit
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                          onClick={() => {
+                                            setCompetencies((prev) => ({
+                                              ...prev,
+                                              "cpc-card": {
+                                                ...prev["cpc-card"],
+                                                modules: prev["cpc-card"].modules.filter((_, idx) => idx !== i),
+                                              },
+                                            }));
+                                          }}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
-   <CardFooter className="flex justify-between">
-          <div className="grid grid-cols-3 gap-3 w-full">
-            {/* Previous */}
-            <Button
-              type="button"
-              variant="outline"
-              className="bg-yellow-50 border-none text-yellow-600 hover:bg-yellow-100 h-12 rounded-lg"
-              onClick={goToPreviousStep}
-              disabled={disableBack }
-            >
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Previous
-            </Button>
 
-             <Button
-              type="submit"
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-              disabled={isPending || driverId === null || isSubmittingMainForm}
-            >
-              {isPending ? "Submitting..." : "Complete Registration"}
-            </Button>
+          <CardFooter className="pt-6 border-t border-gray-200">
+            <div className="flex justify-between w-full">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-orange-300 text-orange-700 hover:bg-orange-50 px-6"
+                onClick={goToPreviousStep}
+                disabled={disableBack}
+              >
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Previous
+              </Button>
 
-            {/* Save & Next */}
-            {/* <Button
-              type="button"
-              variant="outline"
-              className="bg-yellow-50 border-none text-yellow-600 hover:bg-yellow-100 h-12 rounded-lg"
-              onClick={ handleSubmit}
-              disabled={ driverId === null }
-            >
-              Next & Save
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button> */}
-          </div>
-        </CardFooter>
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-8 shadow-lg"
+                disabled={isPending || driverId === null || isSubmittingMainForm}
+              >
+                {isSubmittingMainForm ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving Documents...
+                  </>
+                ) : (
+                  <>
+                    Complete Registration
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardFooter>
         </form>
 
         {/* Upload Later Confirmation Dialog */}
         <Dialog open={uploadLaterDialog.open} onOpenChange={(o) => setUploadLaterDialog({ ...uploadLaterDialog, open: o })}>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Upload Later?</DialogTitle>
-              <DialogDescription>
-                This document will be marked as pending and a reminder task will be created.
+              <DialogTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-amber-600" />
+                Upload Document Later?
+              </DialogTitle>
+              <DialogDescription className="text-gray-600">
+                This document will be marked as pending and a reminder task will be created for later upload.
+                You can upload it at any time from the driver&apos;s profile.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setUploadLaterDialog({ open: false, docId: null })}>
+            <DialogFooter className="gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setUploadLaterDialog({ open: false, docId: null })}
+                className="border-gray-300"
+              >
                 Cancel
               </Button>
               <Button
-                className="bg-orange-600 hover:bg-orange-700 text-white"
+                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white"
                 onClick={() => uploadLaterDialog.docId && handleUploadLater(uploadLaterDialog.docId)}
               >
-                Confirm – Upload Later
+                Confirm & Create Reminder
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -701,7 +882,7 @@ export function DocumentsStep({ driverId, setDocumentsData }: DocumentsStepProps
   );
 }
 
-// Module Form (unchanged)
+// Module Form Component
 function ModuleForm({
   initialData,
   onSubmit,
@@ -717,9 +898,17 @@ function ModuleForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!moduleName || !description || !expiryDate) return;
+    if (!moduleName || !description || !expiryDate) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all module fields.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     onSubmit({
+      ...(initialData?.id && { id: initialData.id }),
       module_name: moduleName.trim(),
       description: description.trim(),
       expiry_date: expiryDate,
@@ -728,23 +917,41 @@ function ModuleForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label>Module Name</Label>
-        <Input value={moduleName} onChange={(e) => setModuleName(e.target.value)} required />
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Module Name *</Label>
+        <Input 
+          value={moduleName} 
+          onChange={(e) => setModuleName(e.target.value)} 
+          placeholder="e.g., First Aid Training"
+          className="border-gray-300 focus:border-orange-400"
+          required
+        />
       </div>
-      <div>
-        <Label>Description</Label>
-        <Input value={description} onChange={(e) => setDescription(e.target.value)} required />
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Description *</Label>
+        <Input 
+          value={description} 
+          onChange={(e) => setDescription(e.target.value)} 
+          placeholder="e.g., Complete first aid certification course"
+          className="border-gray-300 focus:border-orange-400"
+          required
+        />
       </div>
-      <div>
-        <Label>Expiry Date</Label>
-        <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} required />
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Expiry Date *</Label>
+        <Input 
+          type="date" 
+          value={expiryDate} 
+          onChange={(e) => setExpiryDate(e.target.value)} 
+          className="border-gray-300 focus:border-orange-400"
+          required
+        />
       </div>
-      <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex justify-end gap-3 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel} className="border-gray-300">
           Cancel
         </Button>
-        <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white">
+        <Button type="submit" className="bg-gradient-to-r from-indigo-600 to-orange-600 hover:from-indigo-700 hover:to-orange-700 text-white">
           {initialData ? "Update" : "Add"} Module
         </Button>
       </div>
