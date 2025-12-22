@@ -36,11 +36,13 @@ interface HealthAnswer {
 interface HealthQuestionsStepProps {
   driverId: number | null;
   setHealthQuestionsData: (data: Record<string, string>) => void;
+  userId:number|null;
 }
 
 export function HealthQuestionsStep({
   driverId,
   setHealthQuestionsData,
+  userId
 }: HealthQuestionsStepProps) {
   const { goToNextStep, goToPreviousStep, disableBack } = useStepper();
   const cookies = useCookies();
@@ -133,9 +135,14 @@ export function HealthQuestionsStep({
     }
 
     // ---------- Prepare payload ----------
+    if (userId === null) {
+      setSubmitError("User ID is missing. Please log in again.");
+      setSubmitting(false);
+      return;
+    }
     const healthAnswers: HealthAnswer[] = healthQuestions.map((q) => ({
       question: q.id,
-      answered_by: driverId,
+      answered_by: userId,
       answer: answers[q.id] === "true",
       note: notes[q.id]?.trim() || "No additional notes",
     }));
