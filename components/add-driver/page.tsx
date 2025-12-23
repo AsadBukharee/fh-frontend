@@ -44,10 +44,13 @@ const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => 
             />
             <HealthQuestionsStep
               driverId={driverId}
+              userId={userId}
               setHealthQuestionsData={setHealthQuestionsData}
             />
             {/* Documents is now the final step */}
-            <DocumentsStep driverId={driverId} setDocumentsData={setDocumentsData} />
+            <DocumentsStep driverId={driverId} setDocumentsData={setDocumentsData} 
+            onOpenchange={onOpenChange}
+            />
             {/* ConfirmationStep removed */}
           </StepperContent>
 

@@ -1,6 +1,7 @@
+// app/Context/ToastContext.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Toast from '../utils/Toast';
 
@@ -20,6 +21,12 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Set isMounted to true when component mounts on client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const showToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = Date.now().toString();
@@ -33,7 +40,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {typeof window !== 'undefined' &&
+      {isMounted &&
         createPortal(
           <div className="fixed top-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 z-[10000000000000000000]">
             {toasts.map(toast => (

@@ -676,8 +676,8 @@ const Page = () => {
                   </Badge>
                 </TableCell>
 
-                <TableCell>{task.assigned_to.full_name}</TableCell>
-                <TableCell>{task.assigned_by.full_name}</TableCell>
+                <TableCell>{task.assigned_to?.full_name}</TableCell>
+                <TableCell>{task.assigned_by?.full_name}</TableCell>
 
                 <TableCell>
                   {new Date(task.created_at).toLocaleDateString()}

@@ -28,7 +28,7 @@ interface PersonalInfo {
 
 interface ApiPayload {
   user_id: number;
-  personal_info: {
+ 
     date_of_birth: string;
     phone: string;
     address: string;
@@ -40,7 +40,7 @@ interface ApiPayload {
     license_issue_number: string;
     have_other_jobs: boolean;
     have_other_jobs_note: string;
-  };
+  
   timestamp: string;
 }
 
@@ -213,7 +213,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
 
     const payload: ApiPayload = {
       user_id,
-      personal_info: {
+     
         date_of_birth: rawPersonalInfo.date_of_birth,
         phone: rawPersonalInfo.phone,
         address,
@@ -225,7 +225,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
         license_issue_number: rawPersonalInfo.license_issue_number,
         have_other_jobs: rawPersonalInfo.have_other_jobs,
         have_other_jobs_note: rawPersonalInfo.have_other_jobs ? rawPersonalInfo.have_other_jobs_note || "" : "",
-      },
+      
       timestamp: new Date().toISOString(),
     };
 

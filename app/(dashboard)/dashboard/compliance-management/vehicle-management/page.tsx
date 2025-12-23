@@ -20,6 +20,8 @@ import {
   Check,
   X,
   Play,
+  User,
+  Car,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -54,7 +56,7 @@ interface ApiResponse {
       vehicle: number;
       vehicle_reg: string;
       mot_expiry: string;
-      book_next_mot_from: string | null;
+      book_next_mot_from: string;
       next_mot_booked_date: string;
       next_mot_booked_time: string;
       mot_status: string;
@@ -62,7 +64,7 @@ interface ApiResponse {
     pmi: Array<{
       vehicle: number;
       vehicle_reg: string;
-      pmi_expiry: string;
+      pmi_expiry: string | null;
       last_pmi_date: string | null;
       book_next_pmi_from: string | null;
       next_pmi_book_date: string;
@@ -112,19 +114,49 @@ type TabType = "All Data" | "MOT" | "PMI Inspection" | "Vehicle Tacho Download" 
   "Tyre Maintenance Check" | "Insurance & Check" | "Calibrations";
 
 type EditableField = {
-  type: 'mot_date' | 'mot_time' | 'pmi_date';
+  type: 'mot_date' | 'mot_time' | 'pmi_date' | 'tacho_calib_date' | 'loller_calib_date';
   vehicleId: number;
   originalValue: string;
 };
 
+// Helper function to check if value should show TBC
+const shouldShowTBC = (value: string | null | undefined, fieldType?: string): boolean => {
+  if (!value || value === "TBC" || value === "NA" || value === "null" || value === "null null") {
+    return true;
+  }
+  
+  // For MOT/PMI booked dates, show TBC if they're empty or invalid
+  if (fieldType === 'booking' && (!value.trim() || value === "")) {
+    return true;
+  }
+  
+  return false;
+};
+
 // Date status utility function
 const getDateStatus = (dateString: string | null, compareDate?: string | null): 'green' | 'yellow' | 'red' | 'gray' => {
-  if (!dateString || dateString === "TBC" || dateString === "NA" || dateString === "null" || dateString === "null null") {
+  if (shouldShowTBC(dateString)) {
     return 'gray';
   }
 
   try {
-    const date = new Date(dateString);
+    let date: Date;
+    
+    // Parse UK date format DD/MM/YYYY
+    if (dateString && dateString.includes('/')) {
+      const parts = dateString.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        date = new Date(year, month, day);
+      } else {
+        date = new Date(dateString);
+      }
+    } else {
+      date = new Date(dateString!);
+    }
+    
     if (isNaN(date.getTime())) return 'gray';
     
     const today = new Date();
@@ -138,8 +170,24 @@ const getDateStatus = (dateString: string | null, compareDate?: string | null): 
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     // For comparison with another date (e.g., "Book Next From" date)
-    if (compareDate && compareDate !== "TBC" && compareDate !== "NA" && compareDate !== "null") {
-      const compareDateObj = new Date(compareDate);
+    if (compareDate && !shouldShowTBC(compareDate)) {
+      let compareDateObj: Date;
+      
+      // Parse compare date if it's in UK format
+      if (compareDate.includes('/')) {
+        const parts = compareDate.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          compareDateObj = new Date(year, month, day);
+        } else {
+          compareDateObj = new Date(compareDate);
+        }
+      } else {
+        compareDateObj = new Date(compareDate);
+      }
+      
       compareDateObj.setHours(0, 0, 0, 0);
       
       const todayTime = today.getTime();
@@ -179,6 +227,8 @@ interface DateDisplayProps {
   children?: React.ReactNode;
   onClick?: () => void;
   isEditable?: boolean;
+  showTBC?: boolean;
+  fieldType?: string;
 }
 
 const DateDisplay: React.FC<DateDisplayProps> = ({ 
@@ -187,7 +237,9 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
   className = "", 
   children,
   onClick,
-  isEditable = false
+  isEditable = false,
+  showTBC = true,
+  fieldType
 }) => {
   const status = getDateStatus(date, compareDate);
   
@@ -198,9 +250,27 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
     gray: 'text-gray-500 bg-gray-50 hover:bg-gray-100'
   };
 
-  const formattedDate = date && date !== "TBC" && date !== "NA" && date !== "null" && date !== "null null" 
-    ? new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : date === "TBC" || date === "NA" || date === "null" || date === "null null" ? "NA" : "NA";
+  let displayText = children;
+  
+  if (!children) {
+    if (shouldShowTBC(date, fieldType)) {
+      displayText = showTBC ? "TBC" : "NA";
+    } else if (date && date.includes('/')) {
+      // Keep UK format for display
+      displayText = date;
+    } else {
+      try {
+        const dateObj = new Date(date!);
+        if (!isNaN(dateObj.getTime())) {
+          displayText = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } else {
+          displayText = showTBC ? "TBC" : "NA";
+        }
+      } catch {
+        displayText = showTBC ? "TBC" : "NA";
+      }
+    }
+  }
   
   return (
     <div
@@ -210,10 +280,22 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
       onClick={isEditable ? onClick : undefined}
       title={isEditable ? "Double-click to edit" : ""}
     >
-      {children || formattedDate}
+      {displayText}
     </div>
   );
 };
+
+// Display component for driver/vehicle related fields (shows NA)
+const NAField: React.FC<{ label?: string; icon?: React.ReactNode; className?: string }> = ({ 
+  label, 
+  icon,
+  className = "" 
+}) => (
+  <div className={`px-3 py-4 text-sm text-gray-500 bg-gray-50 rounded min-h-[44px] flex items-center justify-center ${className}`}>
+    {icon && <span className="mr-2">{icon}</span>}
+    {label || "NA"}
+  </div>
+);
 
 export default function VehicleDashboard() {
   const [fullApiData, setFullApiData] = useState<ApiResponse | null>(null);
@@ -240,19 +322,39 @@ export default function VehicleDashboard() {
 
   const cookies = useCookies();
 
-  const formatDate = (s: string | null | undefined) => {
-    if (!s || s === "TBC" || s === "null" || s === "null null") return "NA";
+  const formatDate = (s: string | null | undefined, showTBC: boolean = true): string => {
+    if (shouldShowTBC(s)) {
+      return showTBC ? "TBC" : "NA";
+    }
+    
     try {
-      const date = new Date(s);
-      if (isNaN(date.getTime())) return "NA";
+      let date: Date;
+      
+      // Parse UK date format
+      if (s && s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          date = new Date(year, month, day);
+        } else {
+          date = new Date(s);
+        }
+      } else {
+        date = new Date(s!);
+      }
+      
+      if (isNaN(date.getTime())) return showTBC ? "TBC" : "NA";
+      
       return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch {
-      return "NA";
+      return showTBC ? "TBC" : "NA";
     }
   };
 
   const getStatusBadge = (text: string) => {
-    if (!text || text === "TBC") 
+    if (shouldShowTBC(text)) 
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-gray-600">TBC</span>;
     if (text.includes("Expired"))
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-red-800">{text}</span>;
@@ -309,6 +411,9 @@ export default function VehicleDashboard() {
         maps.mot.get(id)?.vehicle_reg ||
         maps.pmi.get(id)?.vehicle_reg ||
         maps.insurance.get(id)?.vehicle_reg ||
+        maps.tacho.get(id)?.vehicle_reg ||
+        maps.tyre.get(id)?.vehicle_reg ||
+        maps.calibration.get(id)?.vehicle_reg ||
         "Unknown",
       mot: maps.mot.get(id),
       pmi: maps.pmi.get(id),
@@ -336,14 +441,14 @@ export default function VehicleDashboard() {
     if (vehicleRegFilter !== "All Registrations") data = data.filter(r => r.vehicle_reg === vehicleRegFilter);
     if (statusFilter === "Expired") data = data.filter(r => r.mot?.mot_status.includes("Expired"));
     if (statusFilter === "Upcoming") data = data.filter(r => r.mot?.mot_status.includes("days left"));
-    if (statusFilter === "TBC") data = data.filter(r => r.mot?.next_mot_booked_date === "TBC");
+    if (statusFilter === "TBC") data = data.filter(r => shouldShowTBC(r.mot?.next_mot_booked_date, 'booking'));
 
     setFilteredData(data);
     setCurrentPage(1);
   }, [buildRows, activeFilter, searchQuery, vehicleRegFilter, statusFilter]);
 
   const handleDoubleClick = (vehicleId: number, fieldType: EditableField['type'], currentValue: string) => {
-    if (currentValue === "TBC" || currentValue === "NA" || currentValue === "null null") {
+    if (shouldShowTBC(currentValue, fieldType === 'mot_date' || fieldType === 'pmi_date' || fieldType === 'tacho_calib_date' || fieldType === 'loller_calib_date' ? 'booking' : undefined)) {
       setEditingField({ type: fieldType, vehicleId, originalValue: "" });
       setEditValue("");
     } else {
@@ -371,6 +476,12 @@ export default function VehicleDashboard() {
           break;
         case 'pmi_date':
           payload.next_pmi_book_date = editValue;
+          break;
+        case 'tacho_calib_date':
+          payload.next_tacho_calibration_book_date = editValue;
+          break;
+        case 'loller_calib_date':
+          payload.next_loller_test_date = editValue;
           break;
       }
 
@@ -411,6 +522,18 @@ export default function VehicleDashboard() {
               updatedData.data.pmi[pmiIndex].next_pmi_book_date = editValue;
               setFullApiData(updatedData);
             }
+          } else if (editingField.type === 'tacho_calib_date') {
+            const calibIndex = updatedData.data.calibrations.findIndex(c => c.vehicle === editingField.vehicleId);
+            if (calibIndex !== -1) {
+              updatedData.data.calibrations[calibIndex].next_tacho_calibration_book_date = editValue;
+              setFullApiData(updatedData);
+            }
+          } else if (editingField.type === 'loller_calib_date') {
+            const calibIndex = updatedData.data.calibrations.findIndex(c => c.vehicle === editingField.vehicleId);
+            if (calibIndex !== -1) {
+              updatedData.data.calibrations[calibIndex].next_loller_test_date = editValue;
+              setFullApiData(updatedData);
+            }
           }
         }
         setEditingField(null);
@@ -448,7 +571,10 @@ export default function VehicleDashboard() {
 
   const renderMOTBookedDate = (row: VehicleRow) => {
     const isEditing = editingField?.type === 'mot_date' && editingField?.vehicleId === row.vehicle;
-    const value = formatDate(row.mot?.next_mot_booked_date);
+    const value = row.mot?.next_mot_booked_date;
+    
+    // Show TBC for booking dates until user enters a date
+    const displayValue = shouldShowTBC(value, 'booking') ? "TBC" : formatDate(value, false);
 
     if (isEditing) {
       return (
@@ -473,21 +599,24 @@ export default function VehicleDashboard() {
     
     return (
       <DateDisplay
-        date={row.mot?.next_mot_booked_date?? null}
+        date={row.mot?.next_mot_booked_date || null}
         compareDate={row.mot?.book_next_mot_from}
         onClick={() => handleDoubleClick(row.vehicle, 'mot_date', row.mot?.next_mot_booked_date || "")}
         isEditable={true}
+        showTBC={true}
+        fieldType="booking"
       >
-        {value}
+        {displayValue}
       </DateDisplay>
     );
   };
 
   const renderMOTBookedTime = (row: VehicleRow) => {
     const isEditing = editingField?.type === 'mot_time' && editingField?.vehicleId === row.vehicle;
-    const value = row.mot?.next_mot_booked_time && row.mot.next_mot_booked_time !== "TBC"
-      ? row.mot.next_mot_booked_time
-      : "NA";
+    const value = row.mot?.next_mot_booked_time;
+    
+    // Show TBC for booking time until user enters a time
+    const displayValue = shouldShowTBC(value) ? "TBC" : (value || "NA");
 
     if (isEditing) {
       return (
@@ -516,15 +645,17 @@ export default function VehicleDashboard() {
         onDoubleClick={() => handleDoubleClick(row.vehicle, 'mot_time', row.mot?.next_mot_booked_time || "")}
         title="Double-click to edit"
       >
-        {value}
+        {displayValue}
       </div>
     );
   };
 
   const renderPMIBookedDate = (row: VehicleRow) => {
     const isEditing = editingField?.type === 'pmi_date' && editingField?.vehicleId === row.vehicle;
-    const shouldShowDate = row.pmi?.book_next_pmi_from === "booked" && row.pmi?.next_pmi_book_date;
-    const value = shouldShowDate && row.pmi ? formatDate(row.pmi.next_pmi_book_date) : "NA";
+    const value = row.pmi?.next_pmi_book_date;
+    
+    // Show TBC for booking dates until user enters a date
+    const displayValue = shouldShowTBC(value, 'booking') ? "TBC" : formatDate(value, false);
 
     if (isEditing) {
       return (
@@ -560,11 +691,13 @@ export default function VehicleDashboard() {
               title="Double-click to edit"
             >
               <DateDisplay
-                date={row.pmi?.next_pmi_book_date}
+                date={row.pmi?.next_pmi_book_date || null}
                 compareDate={row.pmi?.book_next_pmi_from}
                 className="!bg-transparent !text-rose-600 hover:!text-rose-800"
+                showTBC={true}
+                fieldType="booking"
               >
-                {formatDate(row.pmi?.next_pmi_book_date)}
+                {displayValue}
               </DateDisplay>
             </button>
           </PopoverTrigger>
@@ -587,12 +720,96 @@ export default function VehicleDashboard() {
     
     return (
       <DateDisplay
-        date={row.pmi?.next_pmi_book_date?? null}
+        date={row.pmi?.next_pmi_book_date || null}
         compareDate={row.pmi?.book_next_pmi_from}
         onClick={() => handleDoubleClick(row.vehicle, 'pmi_date', row.pmi?.next_pmi_book_date || "")}
         isEditable={true}
+        showTBC={true}
+        fieldType="booking"
       >
-        {value}
+        {displayValue}
+      </DateDisplay>
+    );
+  };
+
+  const renderTachoCalibrationDate = (row: VehicleRow) => {
+    const isEditing = editingField?.type === 'tacho_calib_date' && editingField?.vehicleId === row.vehicle;
+    const value = row.calibration?.next_tacho_calibration_book_date;
+    
+    // Show TBC for booking dates until user enters a date
+    const displayValue = shouldShowTBC(value, 'booking') ? "TBC" : formatDate(value, false);
+
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1 min-w-[120px]">
+          <Input
+            type="date"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="h-8 text-sm px-2 py-1"
+            autoFocus
+            disabled={isUpdating}
+          />
+          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+            <Check className="h-4 w-4 text-green-600" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+            <X className="h-4 w-4 text-red-600" />
+          </Button>
+        </div>
+      );
+    }
+    
+    return (
+      <DateDisplay
+        date={row.calibration?.next_tacho_calibration_book_date || null}
+        onClick={() => handleDoubleClick(row.vehicle, 'tacho_calib_date', row.calibration?.next_tacho_calibration_book_date || "")}
+        isEditable={true}
+        showTBC={true}
+        fieldType="booking"
+      >
+        {displayValue}
+      </DateDisplay>
+    );
+  };
+
+  const renderLollerCalibrationDate = (row: VehicleRow) => {
+    const isEditing = editingField?.type === 'loller_calib_date' && editingField?.vehicleId === row.vehicle;
+    const value = row.calibration?.next_loller_test_date;
+    
+    // Show TBC for booking dates until user enters a date
+    const displayValue = shouldShowTBC(value, 'booking') ? "TBC" : formatDate(value, false);
+
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1 min-w-[120px]">
+          <Input
+            type="date"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="h-8 text-sm px-2 py-1"
+            autoFocus
+            disabled={isUpdating}
+          />
+          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+            <Check className="h-4 w-4 text-green-600" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+            <X className="h-4 w-4 text-red-600" />
+          </Button>
+        </div>
+      );
+    }
+    
+    return (
+      <DateDisplay
+        date={row.calibration?.next_loller_test_date || null}
+        onClick={() => handleDoubleClick(row.vehicle, 'loller_calib_date', row.calibration?.next_loller_test_date || "")}
+        isEditable={true}
+        showTBC={true}
+        fieldType="booking"
+      >
+        {displayValue}
       </DateDisplay>
     );
   };
@@ -994,12 +1211,12 @@ export default function VehicleDashboard() {
                           <td className="px-3 py-4 border-l border-gray-200">{getStatusBadge(row.mot?.mot_status || "")}</td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                             <DateDisplay date={row.mot?.mot_expiry ?? null}>
-                              {formatDate(row.mot?.mot_expiry)}
+                              {formatDate(row.mot?.mot_expiry, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                             <DateDisplay date={row.mot?.book_next_mot_from ?? null}>
-                              {formatDate(row.mot?.book_next_mot_from)}
+                              {formatDate(row.mot?.book_next_mot_from, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
@@ -1019,7 +1236,7 @@ export default function VehicleDashboard() {
                               date={row.pmi?.pmi_expiry?? null} 
                               compareDate={row.pmi?.book_next_pmi_from}
                             >
-                              {formatDate(row.pmi?.pmi_expiry)}
+                              {formatDate(row.pmi?.pmi_expiry, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm border-l border-gray-200">
@@ -1029,7 +1246,7 @@ export default function VehicleDashboard() {
                               </span>
                             ) : (
                               <DateDisplay date={row.pmi?.book_next_pmi_from?? null}>
-                                {formatDate(row.pmi?.book_next_pmi_from)}
+                                {formatDate(row.pmi?.book_next_pmi_from, false)}
                               </DateDisplay>
                             )}
                           </td>
@@ -1050,14 +1267,10 @@ export default function VehicleDashboard() {
                       {visibleColumns.showTacho && (
                         <>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
-                            <DateDisplay date={row.tacho?.last_download?? null}>
-                              {formatDate(row.tacho?.last_download)}
-                            </DateDisplay>
+                            <NAField icon={<User className="w-3 h-3" />} />
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
-                            <DateDisplay date={row.tacho?.next_download ?? null}>
-                              {formatDate(row.tacho?.next_download)}
-                            </DateDisplay>
+                            <NAField icon={<Car className="w-3 h-3" />} />
                           </td>
                         </>
                       )}
@@ -1067,12 +1280,12 @@ export default function VehicleDashboard() {
                         <>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
                             <DateDisplay date={row.tyre?.last_check ?? null}>
-                              {formatDate(row.tyre?.last_check)}
+                              {formatDate(row.tyre?.last_check, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
                             <DateDisplay date={row.tyre?.next_check?? null}>
-                              {formatDate(row.tyre?.next_check)}
+                              {formatDate(row.tyre?.next_check, false)}
                             </DateDisplay>
                           </td>
                         </>
@@ -1083,12 +1296,12 @@ export default function VehicleDashboard() {
                         <>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
                             <DateDisplay date={row.insurance?.insurance_expiry?? null}>
-                              {formatDate(row.insurance?.insurance_expiry)}
+                              {formatDate(row.insurance?.insurance_expiry, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
                             <DateDisplay date={row.insurance?.tax_expiry?? null}>
-                              {formatDate(row.insurance?.tax_expiry)}
+                              {formatDate(row.insurance?.tax_expiry, false)}
                             </DateDisplay>
                           </td>
                         </>
@@ -1099,23 +1312,19 @@ export default function VehicleDashboard() {
                         <>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
                             <DateDisplay date={row.calibration?.tacho_calibration_expiry ?? null}>
-                              {formatDate(row.calibration?.tacho_calibration_expiry)}
+                              {formatDate(row.calibration?.tacho_calibration_expiry, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
-                            <DateDisplay date={row.calibration?.next_tacho_calibration_book_date?? null}>
-                              {formatDate(row.calibration?.next_tacho_calibration_book_date)}
-                            </DateDisplay>
+                            {renderTachoCalibrationDate(row)}
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
                             <DateDisplay date={row.calibration?.loller_test_expiry_date?? null}>
-                              {formatDate(row.calibration?.loller_test_expiry_date)}
+                              {formatDate(row.calibration?.loller_test_expiry_date, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
-                            <DateDisplay date={row.calibration?.next_loller_test_date?? null}>
-                              {formatDate(row.calibration?.next_loller_test_date)}
-                            </DateDisplay>
+                            {renderLollerCalibrationDate(row)}
                           </td>
                         </>
                       )}

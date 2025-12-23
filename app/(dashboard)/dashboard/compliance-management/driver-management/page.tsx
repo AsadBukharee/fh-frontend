@@ -57,6 +57,12 @@ interface Driver {
     first_anniversary: string | null;
     second_anniversary: string | null;
     third_anniversary: string | null;
+    
+    // Add booked date fields (if they exist in your API)
+    mot_booked_date?: string | null;
+    pmi_booked_date?: string | null;
+    next_tacho_calibration_date?: string | null;
+    next_loller_calibration_date?: string | null;
   };
 }
 
@@ -100,7 +106,15 @@ const FIELD_CONFIG = {
   LAST_TACHO_DOWNLOAD: 'last_driver_tacho_download',
   
   // Last Driver Check Code: Just date display
-  LAST_DRIVER_CHECK: 'last_driver_check_code_date'
+  LAST_DRIVER_CHECK: 'last_driver_check_code_date',
+  
+  // Fields that should show "TBC" if not booked yet
+  TBC_FIELDS: [
+    'mot_booked_date',
+    'pmi_booked_date',
+    'next_tacho_calibration_date',
+    'next_loller_calibration_date'
+  ]
 } as const;
 
 const DriverManagementPage = () => {
@@ -255,15 +269,56 @@ const DriverManagementPage = () => {
     }
   };
 
+  const formatDateForDisplay = (field: string, value: string | null) => {
+    // Check if it's a TBC field and value is null/empty
+    if (FIELD_CONFIG.TBC_FIELDS.includes(field as typeof FIELD_CONFIG.TBC_FIELDS[number])) {
+      if (!value) {
+        return 'TBC';
+      }
+    }
+    
+    // For regular date fields, show "NA" if empty
+    if (!value) {
+      return 'NA';
+    }
+    
+    try {
+      return format(parseISO(value), 'dd MMM yyyy');
+    } catch {
+      return 'Invalid Date';
+    }
+  };
+
   const renderDateCell = (field: string, value: string | null, driver: Driver) => {
+    const displayValue = formatDateForDisplay(field, value);
+    
+    // Special handling for TBC fields
+    if (FIELD_CONFIG.TBC_FIELDS.includes(field as typeof FIELD_CONFIG.TBC_FIELDS[number])) {
+      if (!value) {
+        return (
+          <TableCell className="bg-gray-50 text-gray-500 italic whitespace-nowrap">
+            {displayValue}
+          </TableCell>
+        );
+      }
+    }
+    
+    // If value is null/empty and not a TBC field, show "NA" with no special styling
+    if (!value) {
+      return (
+        <TableCell className="whitespace-nowrap text-gray-400">
+          {displayValue}
+        </TableCell>
+      );
+    }
+    
     const { colorClass, label } = getDateStatus(value, field);
-    const displayDate = value ? format(parseISO(value), 'dd MMM yyyy') : 'NA';
     
     // Special handling for Last Tacho Download (always show in green)
     if (field === FIELD_CONFIG.LAST_TACHO_DOWNLOAD || field === FIELD_CONFIG.LAST_DRIVER_CHECK) {
       return (
         <TableCell className="bg-green-50 text-green-700 whitespace-nowrap">
-          {displayDate}
+          {displayValue}
         </TableCell>
       );
     }
@@ -273,7 +328,7 @@ const DriverManagementPage = () => {
         <Popover>
           <PopoverTrigger asChild>
             <span className="cursor-pointer hover:underline">
-              {displayDate}
+              {displayValue}
               {label && <span className="ml-2 text-xs font-semibold">({label})</span>}
             </span>
           </PopoverTrigger>
@@ -502,6 +557,11 @@ const DriverManagementPage = () => {
                 <TableHead>Next Tacho DL</TableHead>
                 <TableHead>DBS Expiry</TableHead>
                 <TableHead>Night Worker Assessment</TableHead>
+                {/* Add TBC fields columns if they exist in your data */}
+                {/* <TableHead>MOT Booked</TableHead>
+                <TableHead>PMI Booked</TableHead>
+                <TableHead>Next Tacho Calibration</TableHead>
+                <TableHead>Next Loller Calibration</TableHead> */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -539,6 +599,12 @@ const DriverManagementPage = () => {
                     {renderDateCell('next_driver_tacho_download', driver.driver_compliance.next_driver_tacho_download, driver)}
                     {renderDateCell('dbs_expiry_date', driver.driver_compliance.dbs_expiry_date, driver)}
                     {renderDateCell('night_worker_assessment_expiry', driver.driver_compliance.night_worker_assessment_expiry, driver)}
+                    
+                    {/* Render TBC fields if they exist in your data */}
+                    {/* {renderDateCell('mot_booked_date', driver.driver_compliance.mot_booked_date, driver)}
+                    {renderDateCell('pmi_booked_date', driver.driver_compliance.pmi_booked_date, driver)}
+                    {renderDateCell('next_tacho_calibration_date', driver.driver_compliance.next_tacho_calibration_date, driver)}
+                    {renderDateCell('next_loller_calibration_date', driver.driver_compliance.next_loller_calibration_date, driver)} */}
                   </TableRow>
                 ))
               )}
