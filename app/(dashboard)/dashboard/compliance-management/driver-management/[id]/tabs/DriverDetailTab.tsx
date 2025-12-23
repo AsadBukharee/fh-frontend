@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal } from "react";
+import { useState, useEffect, Key, ReactElement, ReactNode, ReactPortal, JSXElementConstructor } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,7 +16,6 @@ import { useCookies } from "next-client-cookies";
 import ImageUploader from "@/components/Media/UploadImage";
 import { useToast } from "@/app/Context/ToastContext";
 import { Stepper, StepperContent, StepperNavigation, StepperTabs } from "./stepperUIUX";
-
 
 interface DriverDetailTabProps {
   driverData: any;
@@ -205,262 +204,271 @@ export default function DriverDetailTab({
     <div className="w-full bg-white shadow rounded-xl mx-auto p-6">
       <Stepper totalSteps={4} initialStep={0}>
         {/* Stepper Tabs */}
-        <StepperTabs   labels={stepLabels} className="  rounded-2xl " />
+        <StepperTabs labels={stepLabels} className="rounded-2xl" />
 
         {/* Stepper Content */}
         <StepperContent>
           {/* Step 1: Personal Information */}
-           <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto space-y-5">
-        {/* Header Card */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5 h-[100px]">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-start gap-4">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
-                  <img 
-                    src={isEditing ? editFormData.avatar : driverData.user.avatar} 
-                    alt={driverData.user.full_name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                {isEditing && (
-                 <div className="w-full">
-                    <ImageUploader onUploadSuccess={handleImageUploadSuccess} />
-                  </div>
-                )}
-              </div>
-              
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900 mb-2">{driverData.user.full_name}</h1>
-                <div className="flex items-center gap-3 text-xs">
-                  <div className="flex items-center gap-1.5 text-orange-600">
-                    <User className="h-3.5 w-3.5" />
-                    <span>{driverData.user.role}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-gray-600">
-                    <Mail className="h-3.5 w-3.5" />
-                    <span>{driverData.user.email}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="min-h-screen bg-gray-50 p-6">
+            <div className="max-w-6xl mx-auto space-y-5">
+              {/* Header Card */}
+              <div className="bg-white rounded-lg border border-gray-200 p-5 h-[100px]">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start gap-4">
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                        <img
+                          src={isEditing ? editFormData.avatar : driverData.user.avatar}
+                          alt={driverData.user.full_name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      {isEditing && (
+                        <div className="w-full mt-3">
+                          <ImageUploader onUploadSuccess={handleImageUploadSuccess} />
+                        </div>
+                      )}
+                    </div>
 
-            <div className="flex gap-2">
-              <span className="px-3 py-1 rounded-4xl text-xs font-medium bg-red-100 text-red-700">
-               {driverData.profile_status==="approved"?"Approved":"Rejected"}
-              </span>
-              <span className="px-3 py-1 rounded-4xl text-xs font-medium bg-gray-100 text-gray-700">
-                {driverData.user.is_active ? "Active" : "In Active"}
-              </span>
-            </div>
-          </div>
-
-         
-        </div>
-
-        {/* Three Column Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Warnings Card */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 bg-gray-100">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-gray-700" />
-                <h2 className="text-sm font-medium text-gray-900">Warnings</h2>
-                <span className="ml-auto bg-orange-500 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
-                  {driverData.warnings.length}
-                </span>
-              </div>
-            </div>
-            <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
-              {driverData.warnings.map((warning: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined, index: Key | null | undefined) => (
-                <div key={index} className="flex items-start gap-2">
-                  <span className="text-yellow-500 text-sm shrink-0">⚠</span>
-                  <p className="text-gray-700 text-[11px] leading-relaxed">{warning}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Account Settings Card */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 bg-gray-100">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-700" />
-                <h2 className="text-sm font-medium text-gray-900">Accounts Settings</h2>
-              </div>
-            </div>
-            <div className="p-4 space-y-4">
-              {isEditing ? (
-                <>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
-                      <User className="h-3 w-3" />
-                      Full Name
-                    </label>
-                    <input 
-                      type="text"
-                      value={editFormData.full_name}
-                      onChange={(e) => handleInputChange('full_name', e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
-                      <CircleCheck className="h-3 w-3" />
-                      Status
-                    </label>
-                    <select 
-                      value={editFormData.is_active ? 'active' : 'inactive'}
-                      onChange={(e) => handleInputChange('is_active', e.target.value === 'active')}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">In active</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
-                      <Mail className="h-3 w-3" />
-                      Email
-                    </label>
-                    <input 
-                      type="email"
-                      value={editFormData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    />
-                  </div>
-                  {/* <div className="space-y-1.5">
-                    <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
-                      <User className="h-3 w-3" />
-                      Display Name
-                    </label>
-                    <input 
-                      type="text"
-                      value={editFormData.display_name}
-                      onChange={(e) => handleInputChange('display_name', e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    />
-                  </div> */}
-                </>
-              ) : (
-                <>
-                  <div className="flex items-start gap-2">
-                    <User className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-500 mb-0.5">Full Name</p>
-                      <p className="text-xs text-gray-900 font-medium">{driverData.user.full_name}</p>
+                    <div>
+                      <h1 className="text-lg font-semibold text-gray-900 mb-2">{driverData.user.full_name}</h1>
+                      <div className="flex items-center gap-3 text-xs">
+                        <div className="flex items-center gap-1.5 text-orange-600">
+                          <User className="h-3.5 w-3.5" />
+                          <span>{driverData.user.role}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                          <Mail className="h-3.5 w-3.5" />
+                          <span>{driverData.user.email}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <CircleCheck className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-500 mb-0.5">Status</p>
-                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-orange-50 text-orange-700">
-                        {driverData.user.is_active ? "Active" : "In Active"}
+                  <div className="flex gap-2">
+                    <span className={`px-3 py-1 rounded-4xl text-xs font-medium ${driverData.profile_status === "approved" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {driverData.profile_status === "approved" ? "Approved" : "Rejected"}
+                    </span>
+                    <span className="px-3 py-1 rounded-4xl text-xs font-medium bg-gray-100 text-gray-700">
+                      {driverData.user.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Three Column Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* Warnings Card */}
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-200 bg-gray-100">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-gray-700" />
+                      <h2 className="text-sm font-medium text-gray-900">Warnings</h2>
+                      <span className="ml-auto bg-orange-500 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                        {driverData.warnings.length}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <Mail className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-500 mb-0.5">Email</p>
-                      <p className="text-xs text-gray-900 font-medium break-all">{driverData.user.email}</p>
+                  <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
+                    {driverData.warnings.map((warning: any, index: Key) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <span className="text-yellow-500 text-sm shrink-0">⚠</span>
+                        <p className="text-gray-700 text-[11px] leading-relaxed">{warning}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Account Settings Card */}
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-200 bg-gray-100">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-gray-700" />
+                      <h2 className="text-sm font-medium text-gray-900">Account Settings</h2>
                     </div>
                   </div>
-                  {/* <div className="flex items-start gap-2">
-                    <User className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-500 mb-0.5">Display Name</p>
-                      <p className="text-xs text-gray-900 font-medium">{driverData.user.display_name}</p>
-                    </div>
-                  </div> */}
-                </>
-              )}
-            </div>
-          </div>
+                  <div className="p-4 space-y-4">
+                    {isEditing ? (
+                      <>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
+                            <User className="h-3 w-3" />
+                            Full Name
+                          </label>
+                          <input
+                            type="text"
+                            value={editFormData.full_name}
+                            onChange={(e) => handleInputChange('full_name', e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
+                            <CircleCheck className="h-3 w-3" />
+                            Status
+                          </label>
+                          <select
+                            value={editFormData.is_active ? 'active' : 'inactive'}
+                            onChange={(e) => handleInputChange('is_active', e.target.value === 'active')}
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
+                            <Mail className="h-3 w-3" />
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            value={editFormData.email}
+                            onChange={(e) => handleInputChange('email', e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <User className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-gray-500 mb-0.5">Full Name</p>
+                            <p className="text-xs text-gray-900 font-medium">{driverData.user.full_name}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <CircleCheck className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-gray-500 mb-0.5">Status</p>
+                            <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-orange-50 text-orange-700">
+                              {driverData.user.is_active ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Mail className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-gray-500 mb-0.5">Email</p>
+                            <p className="text-xs text-gray-900 font-medium break-all">{driverData.user.email}</p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-          {/* Contact Information Card */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 bg-gray-100">
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-gray-700" />
-                <h2 className="text-sm font-medium text-gray-900">Contact Information</h2>
+                {/* Contact Information Card */}
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-200 bg-gray-100">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-700" />
+                      <h2 className="text-sm font-medium text-gray-900">Contact Information</h2>
+                    </div>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    {isEditing ? (
+                      <>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
+                            <Phone className="h-3 w-3" />
+                            Phone
+                          </label>
+                          <input
+                            type="tel"
+                            value={editFormData.phone}
+                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
+                            <Calendar className="h-3 w-3" />
+                            DOB
+                          </label>
+                          <input
+                            type="date"
+                            value={editFormData.date_of_birth}
+                            onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
+                            <MapPin className="h-3 w-3" />
+                            Address
+                          </label>
+                          <input
+                            type="text"
+                            value={editFormData.address}
+                            onChange={(e) => handleInputChange('address', e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <Phone className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-gray-500 mb-0.5">Phone</p>
+                            <p className="text-xs text-gray-900 font-medium">{driverData.phone}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Calendar className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-gray-500 mb-0.5">DOB</p>
+                            <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-orange-50 text-orange-700">
+                              {formatDate(driverData.date_of_birth)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-gray-500 mb-0.5">Address</p>
+                            <p className="text-xs text-gray-900 font-medium">{driverData.address}</p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* NEW: Driver-Specific Details Card */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-200 bg-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-gray-700" />
+                    <h2 className="text-sm font-medium text-gray-900">Driver Details</h2>
+                  </div>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[
+                    { label: "License Number", value: driverData.license_number || "Not provided" },
+                    { label: "License Issue Number", value: driverData.license_issue_number || "Not provided" },
+                    { label: "National Insurance No.", value: driverData.national_insurance_no || "Not provided" },
+                    { label: "Post Code", value: driverData.post_code || "Not provided" },
+                    { label: "Account Number", value: driverData.account_no || "Not provided" },
+                    { label: "Sort Code", value: driverData.sort_code || "Not provided" },
+                    { label: "Last License Check Code", value: driverData.last_license_check_code || "Not provided" },
+                    { label: "Next Driver Check Code", value: driverData.next_driver_check_code || "Not provided" },
+                    { label: "Last Tacho Download", value: driverData.last_tacho_download ? formatDate(driverData.last_tacho_download) : "Not provided" },
+                    { label: "Next Tacho Download", value: driverData.next_tacho_download ? formatDate(driverData.next_tacho_download) : "Not provided" },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-gray-500 mb-0.5">{item.label}</p>
+                        <p className="text-xs text-gray-900 font-medium break-all">{item.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="p-4 space-y-4">
-              {isEditing ? (
-                <>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
-                      <Phone className="h-3 w-3" />
-                      Phone
-                    </label>
-                    <input 
-                      type="tel"
-                      value={editFormData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
-                      <Calendar className="h-3 w-3" />
-                      DOB
-                    </label>
-                    <input 
-                      type="date"
-                      value={editFormData.date_of_birth}
-                      onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] text-gray-600 flex items-center gap-1.5">
-                      <MapPin className="h-3 w-3" />
-                      Address
-                    </label>
-                    <input 
-                      type="text"
-                      value={editFormData.address}
-                      onChange={(e) => handleInputChange('address', e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-start gap-2">
-                    <Phone className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-500 mb-0.5">Phone</p>
-                      <p className="text-xs text-gray-900 font-medium">{driverData.phone}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Calendar className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-500 mb-0.5">DOB</p>
-                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-orange-50 text-orange-700">
-                        {formatDate(driverData.date_of_birth)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-3.5 w-3.5 text-gray-700 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-500 mb-0.5">Address</p>
-                      <p className="text-xs text-gray-900 font-medium">{driverData.address}</p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
           </div>
-        </div>
-      </div>
-    </div>
 
           {/* Step 2: Next of Kin */}
           <div className="space-y-6">
@@ -483,7 +491,6 @@ export default function DriverDetailTab({
                 </Button>
               )}
             </div>
-
             <Card className="border border-gray-200 shadow-sm">
               <CardHeader className="bg-gray-50 border-b">
                 <CardTitle className="text-lg font-semibold text-gray-900">Next of Kin Information</CardTitle>
@@ -561,9 +568,7 @@ export default function DriverDetailTab({
                     </Button>
                   </div>
                 </div>
-
                 <Separator className="my-6" />
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
                     { label: "Contract Name", value: driverData.user.contract?.name || "Not assigned" },
@@ -664,9 +669,7 @@ export default function DriverDetailTab({
                     </Button>
                   </div>
                 </div>
-
                 <Separator className="my-6" />
-
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 mb-4">Currently Assigned Sites</h4>
                   {driverData.user.site?.length > 0 ? (

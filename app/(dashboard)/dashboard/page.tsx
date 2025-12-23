@@ -24,11 +24,10 @@ import {
 } from "@/components/ui/tooltip";
 
 // Types
-interface HoverDetails {
-  pmi?: string[];
-  mot?: string[];
-  audit?: number;
-}
+type HoverDetailItem = {
+  title?: string;
+  deadline?: string;
+} | string;
 
 interface Card {
   id: number;
@@ -38,7 +37,7 @@ interface Card {
   icon: string;
   iconBg: string;
   iconColor: string;
-  hoverDetails: HoverDetails | string[] | [];
+  hoverDetails: HoverDetailItem[];
 }
 
 interface MonthlyData {
@@ -64,6 +63,7 @@ interface FuelUsage {
   lastWeek: number;
   weeklyData: number[];
   impressionData: number[];
+  yearComparison: number;
 }
 
 interface SickLeaves {
@@ -106,10 +106,10 @@ interface DashboardData {
 
 // Tooltip Content Component
 const HoverDetailsContent: React.FC<{
-  details: HoverDetails | string[] | [];
+  details: HoverDetailItem[];
   title: string;
 }> = ({ details, title }) => {
-  if (!details || (Array.isArray(details) && details.length === 0)) {
+  if (!details || details.length === 0) {
     return (
       <div className="p-3">
         <div className="flex items-center gap-2 mb-2">
@@ -121,15 +121,44 @@ const HoverDetailsContent: React.FC<{
     );
   }
 
+  // Check if the first item is an object (has title/deadline) or a string
+  const hasObjectDetails = details.length > 0 && typeof details[0] === 'object' && 'title' in (details[0] as any);
+
   const renderContent = () => {
-    if (Array.isArray(details)) {
+    if (hasObjectDetails) {
+      // Render object details (for tasks, etc.)
       return (
         <div>
           <h4 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide border-b pb-1">
             Items ({details.length})
           </h4>
           <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-            {details.map((item, index) => (
+            {(details as Array<{title: string, deadline?: string}>).map((item, index) => (
+              <div key={index} className="flex flex-col gap-1 p-2 rounded hover:bg-gray-50 transition-colors group">
+                <div className="flex items-start gap-2">
+                  <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0 group-hover:bg-blue-500 transition-colors" />
+                  <span className="text-sm text-gray-700 truncate">{item.title}</span>
+                </div>
+                {item.deadline && (
+                  <div className="flex items-center gap-1 text-xs text-gray-500 ml-3">
+                    <Calendar className="w-3 h-3" />
+                    <span>Due: {new Date(item.deadline).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    } else {
+      // Render string details (for vehicles, etc.)
+      return (
+        <div>
+          <h4 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide border-b pb-1">
+            Items ({details.length})
+          </h4>
+          <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+            {(details as string[]).map((item, index) => (
               <div key={index} className="flex items-start gap-2 p-2 rounded hover:bg-gray-50 transition-colors group">
                 <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0 group-hover:bg-blue-500 transition-colors" />
                 <span className="text-sm text-gray-700 truncate">{item}</span>
@@ -139,74 +168,6 @@ const HoverDetailsContent: React.FC<{
         </div>
       );
     }
-
-    return (
-      <div className="space-y-4">
-        {details.pmi && details.pmi.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 bg-yellow-100 rounded flex items-center justify-center">
-                <Wrench className="w-3.5 h-3.5 text-yellow-600" />
-              </div>
-              <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                PMI ({details.pmi.length})
-              </h4>
-            </div>
-            <div className="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
-              {details.pmi.map((pmi, index) => (
-                <div key={index} className="flex items-start gap-2 p-1.5 rounded hover:bg-yellow-50 transition-colors group">
-                  <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-1.5 flex-shrink-0 group-hover:bg-yellow-600" />
-                  <span className="text-sm text-gray-700 truncate">{pmi}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {details.mot && details.mot.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
-                <FileText className="w-3.5 h-3.5 text-red-600" />
-              </div>
-              <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                MOT ({details.mot.length})
-              </h4>
-            </div>
-            <div className="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
-              {details.mot.map((mot, index) => (
-                <div key={index} className="flex items-start gap-2 p-1.5 rounded hover:bg-red-50 transition-colors group">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 flex-shrink-0 group-hover:bg-red-600" />
-                  <span className="text-sm text-gray-700 truncate">{mot}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {details.audit !== undefined && (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 bg-purple-100 rounded flex items-center justify-center">
-                <Shield className="w-3.5 h-3.5 text-purple-600" />
-              </div>
-              <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                Audit Checks
-              </h4>
-            </div>
-            <div className="p-3 bg-purple-50 rounded border border-purple-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total checks due:</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Valet, tyre, equipment, provider, OCRS</p>
-                </div>
-                <div className="text-2xl font-bold text-purple-600">{details.audit}</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -261,19 +222,10 @@ const StatCard: React.FC<{
   iconBg: string;
   iconColor: string;
   icon: string;
-  hoverDetails: HoverDetails | string[] | [];
+  hoverDetails: HoverDetailItem[];
   index: number;
 }> = ({ title, value, subtitle, iconBg, iconColor, icon, hoverDetails, index }) => {
-  const hasHoverDetails = () => {
-    if (Array.isArray(hoverDetails)) {
-      return hoverDetails.length > 0;
-    }
-    return (
-      (hoverDetails.pmi && hoverDetails.pmi.length > 0) ||
-      (hoverDetails.mot && hoverDetails.mot.length > 0) ||
-      hoverDetails.audit !== undefined
-    );
-  };
+  const hasHoverDetails = hoverDetails && hoverDetails.length > 0;
 
   const getTooltipDelay = () => {
     if (Array.isArray(hoverDetails) && hoverDetails.length > 10) return 100;
@@ -290,13 +242,13 @@ const StatCard: React.FC<{
               index === 0 
                 ? 'bg-white border-orange-300 shadow-orange-300 shadow hover:shadow-lg' 
                 : 'bg-white hover:shadow-md'
-            } ${hasHoverDetails() ? 'cursor-pointer hover:border-blue-300 active:scale-[0.98]' : ''}`}
+            } ${hasHoverDetails ? 'cursor-pointer hover:border-blue-300 active:scale-[0.98]' : ''}`}
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <p className={`text-[11px] text-gray-600 mb-1.5`}>{title}</p>
-                  {hasHoverDetails() && (
+                  {hasHoverDetails && (
                     <div className="relative group">
                       <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center">
                         <Info className="w-3 h-3 text-blue-500" />
@@ -319,12 +271,12 @@ const StatCard: React.FC<{
             </div>
 
             {/* Hover Indicator */}
-            {hasHoverDetails() && (
+            {hasHoverDetails && (
               <div className="absolute inset-0 border-2 border-transparent rounded-xl group-hover:border-blue-300 transition-colors pointer-events-none" />
             )}
           </div>
         </TooltipTrigger>
-        {hasHoverDetails() && (
+        {hasHoverDetails && (
           <TooltipContent 
             side="top" 
             align="center" 
@@ -479,7 +431,7 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const cookies=useCookies().get("access_token")
+  const cookies = useCookies().get("access_token");
 
   useEffect(() => {
     fetchDashboardData();
@@ -488,8 +440,8 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/dashboard-new/`,{
- headers: {
+      const response = await fetch(`${API_URL}/dashboard-new/`, {
+        headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies}`,
         },
