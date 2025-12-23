@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { format, differenceInDays, isPast, parseISO } from 'date-fns';
+import { format, differenceInDays, isPast, parseISO, isBefore, isAfter } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import ExportButton from '@/app/utils/ExportButton';
 import API_URL from '@/app/utils/ENV';
@@ -49,7 +49,6 @@ interface Driver {
     last_driver_tacho_download: string | null;
     next_driver_tacho_download: string | null;
     dbs_expiry_date: string | null;
-    right_to_work_check_date: string | null;
     night_worker_assessment_expiry: string | null;
     vehicle_familiarisation_walkaround_refresher_expiry: string | null;
     employment_start_date: string | null;
@@ -118,10 +117,9 @@ const FIELD_CONFIG = {
 } as const;
 
 const DriverManagementPage = () => {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
+  const [filteredDrivers, setFilteredDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [showFilters, setShowFilters] = useState<boolean>(false);
-  const [showMoreFilters, setShowMoreFilters] = useState<boolean>(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,32 +137,19 @@ const DriverManagementPage = () => {
   const [filters, setFilters] = useState({
     search: '',
     profile_status: 'all',
-    driver_licence_expiry: '',
-    cpc_card_expiry: '',
-    dbs_expiry_date: '',
-    tacho_expiry: '',
+    driver_licence_expiry_filter: '', // Filter by expiry status: 'expired', 'expiring_soon', 'valid'
+    cpc_card_expiry_filter: '',
+    dbs_expiry_date_filter: '',
+    tacho_expiry_filter: '',
   });
 
   const token = useCookies().get("access_token");
 
-  const fetchDrivers = async (page: number = 1, size: number = pageSize) => {
+  // Fetch all drivers once
+  const fetchDrivers = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        page_size: size.toString(),
-      });
-
-      if (filters.search) params.append('search', filters.search);
-      if (filters.profile_status && filters.profile_status !== 'all') {
-        params.append('profile_status', filters.profile_status);
-      }
-      if (filters.driver_licence_expiry) params.append('driver_licence_expiry', filters.driver_licence_expiry);
-      if (filters.cpc_card_expiry) params.append('cpc_card_expiry', filters.cpc_card_expiry);
-      if (filters.dbs_expiry_date) params.append('dbs_expiry_date', filters.dbs_expiry_date);
-      if (filters.tacho_expiry) params.append('tacho_expiry', filters.tacho_expiry);
-
-      const response = await fetch(`${API_URL}/api/profiles/driver/compliance/?${params}`, {
+      const response = await fetch(`${API_URL}/api/profiles/driver/compliance/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -175,9 +160,13 @@ const DriverManagementPage = () => {
       if (!response.ok) throw new Error('Failed to fetch drivers');
 
       const data: ApiResponse = await response.json();
-      setDrivers(data.data.results);
-      setPagination(data.data.pagination);
-      setCurrentPage(data.data.pagination.current_page);
+      setAllDrivers(data.data.results);
+      setFilteredDrivers(data.data.results);
+      setPagination(prev => ({
+        ...prev,
+        count: data.data.results.length,
+        total_pages: Math.ceil(data.data.results.length / pageSize),
+      }));
     } catch (error) {
       console.error('Error fetching drivers:', error);
     } finally {
@@ -186,18 +175,82 @@ const DriverManagementPage = () => {
   };
 
   useEffect(() => {
-    fetchDrivers(currentPage, pageSize);
-  }, [currentPage, pageSize]);
+    fetchDrivers();
+  }, []);
 
+  // Apply frontend filtering whenever filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
+    if (allDrivers.length === 0) return;
 
-  useEffect(() => {
-    if (currentPage === 1) {
-      fetchDrivers(1, pageSize);
+    let result = [...allDrivers];
+
+    // Apply search filter
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      result = result.filter(driver =>
+        driver.user.full_name.toLowerCase().includes(searchLower) ||
+        driver.user.email.toLowerCase().includes(searchLower) ||
+        (driver.user.license_number && driver.user.license_number.toLowerCase().includes(searchLower))
+      );
     }
-  }, [currentPage]);
+
+    // Apply profile status filter
+    if (filters.profile_status && filters.profile_status !== 'all') {
+      result = result.filter(driver => driver.profile_status === filters.profile_status);
+    }
+
+    // Apply date filters based on expiry status
+    const applyExpiryFilter = (dateField: keyof Driver['driver_compliance'], filterValue: string) => {
+      if (!filterValue) return;
+      
+      const today = new Date();
+      
+      result = result.filter(driver => {
+        const dateString = driver.driver_compliance[dateField];
+        if (!dateString) return false;
+        
+        const expiryDate = parseISO(dateString);
+        const daysUntilExpiry = differenceInDays(expiryDate, today);
+        
+        switch (filterValue) {
+          case 'expired':
+            return isPast(expiryDate);
+          case 'expiring_soon':
+            return !isPast(expiryDate) && daysUntilExpiry <= 90;
+          case 'valid':
+            return !isPast(expiryDate) && daysUntilExpiry > 90;
+          default:
+            return true;
+        }
+      });
+    };
+
+    applyExpiryFilter('driver_licence_expiry', filters.driver_licence_expiry_filter);
+    applyExpiryFilter('cpc_card_expiry', filters.cpc_card_expiry_filter);
+    applyExpiryFilter('dbs_expiry_date', filters.dbs_expiry_date_filter);
+    applyExpiryFilter('tacho_expiry', filters.tacho_expiry_filter);
+
+    // Update filtered drivers
+    setFilteredDrivers(result);
+    
+    // Update pagination
+    setPagination(prev => ({
+      ...prev,
+      count: result.length,
+      total_pages: Math.ceil(result.length / pageSize),
+      current_page: 1,
+    }));
+    
+    // Reset to first page when filters change
+    setCurrentPage(1);
+  }, [filters, allDrivers, pageSize]);
+
+  // Get paginated drivers
+  const paginatedDrivers = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredDrivers.slice(startIndex, endIndex);
+  }, [filteredDrivers, currentPage, pageSize]);
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
@@ -207,12 +260,11 @@ const DriverManagementPage = () => {
     setFilters({
       search: '',
       profile_status: 'all',
-      driver_licence_expiry: '',
-      cpc_card_expiry: '',
-      dbs_expiry_date: '',
-      tacho_expiry: '',
+      driver_licence_expiry_filter: '',
+      cpc_card_expiry_filter: '',
+      dbs_expiry_date_filter: '',
+      tacho_expiry_filter: '',
     });
-    setShowMoreFilters(false);
   };
 
   const getDateStatus = (dateString: string | null, field: string): { colorClass: string, label: string } => {
@@ -364,25 +416,23 @@ const DriverManagementPage = () => {
     );
   };
 
-  const renderDatePicker = (label: string, field: string) => (
+  const renderExpiryFilter = (label: string, field: string) => (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className="w-full justify-start text-left font-normal">
-            {filters[field as keyof typeof filters] ? format(new Date(filters[field as keyof typeof filters] as string), "dd MMM yyyy") : "Pick a date"}
-            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="p-0">
-          <Calendar
-            mode="single"
-            selected={filters[field as keyof typeof filters] ? new Date(filters[field as keyof typeof filters] as string) : undefined}
-            onSelect={(date) => handleFilterChange(field, date ? format(date, 'yyyy-MM-dd') : '')}
-            initialFocus
-          />
-        </PopoverContent>
-      </Popover>
+      <Select
+        value={filters[field as keyof typeof filters] as string}
+        onValueChange={(v) => handleFilterChange(field, v)}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Filter by expiry" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All</SelectItem>
+          <SelectItem value="expired">Expired</SelectItem>
+          <SelectItem value="expiring_soon">Expiring Soon (≤90 days)</SelectItem>
+          <SelectItem value="valid">Valid ({'>'}90 days)</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
 
@@ -420,7 +470,7 @@ const DriverManagementPage = () => {
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={!pagination.previous || loading}
+            disabled={currentPage === 1 || loading}
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
@@ -448,7 +498,7 @@ const DriverManagementPage = () => {
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(prev => Math.min(pagination.total_pages, prev + 1))}
-            disabled={!pagination.next || loading}
+            disabled={currentPage === pagination.total_pages || loading}
           >
             Next
             <ChevronRight className="h-4 w-4" />
@@ -474,70 +524,62 @@ const DriverManagementPage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Driver Compliance</h1>
         <div className="flex gap-3 items-center">
-          <Button
-            onClick={() => setShowFilters(!showFilters)}
-            className="bg-gradient-to-r from-orange-500 to-purple-600 text-white hover:opacity-90"
-          >
-            Filters
-          </Button>
-          <ExportButton data={drivers} fileName="driver_compliance_report" />
+          <ExportButton data={filteredDrivers} fileName="driver_compliance_report" />
         </div>
       </div>
 
-      {/* Filters Panel */}
-      {showFilters && (
-        <div className="p-6 mb-6 bg-gray-50 rounded-lg shadow-sm">
-          <div className="grid gap-6">
-            <section>
-              <h3 className="font-semibold mb-4">Search & Status</h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Search Driver (Name / Email)</Label>
-                  <Input
-                    placeholder="Enter name or email..."
-                    value={filters.search}
-                    onChange={(e) => handleFilterChange('search', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Profile Status</Label>
-                  <Select value={filters.profile_status} onValueChange={(v) => handleFilterChange('profile_status', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Drivers</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="review">Under Review</SelectItem>
-                      <SelectItem value="not_approved">Not Approved</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+      {/* Filters Panel - Always Visible */}
+      <div className="p-6 mb-6 bg-gray-50 rounded-lg shadow-sm">
+        <div className="grid gap-6">
+          <section>
+            <h3 className="font-semibold mb-4">Search & Status</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Search Driver (Name / Email / License)</Label>
+                <Input
+                  placeholder="Enter name, email, or license number..."
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                />
               </div>
-            </section>
-
-            {showMoreFilters && (
-              <>
-                <Separator />
-                <section>
-                  <h3 className="font-semibold mb-4">Filter by Expiry Date</h3>
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    {renderDatePicker("Driving Licence Expiry", "driver_licence_expiry")}
-                    {renderDatePicker("CPC Card Expiry", "cpc_card_expiry")}
-                    {renderDatePicker("DBS Expiry", "dbs_expiry_date")}
-                    {renderDatePicker("Tacho Card Expiry", "tacho_expiry")}
-                  </div>
-                </section>
-              </>
-            )}
-
-            <div className="flex justify-between items-center pt-4 border-t">
-              <Button variant="ghost" size="sm" onClick={() => setShowMoreFilters(!showMoreFilters)}>
-                {showMoreFilters ? "Hide" : "Show"} Advanced Filters
-              </Button>
-              <Button variant="outline" size="sm" onClick={clearFilters}>Clear All Filters</Button>
+              <div>
+                <Label>Profile Status</Label>
+                <Select value={filters.profile_status} onValueChange={(v) => handleFilterChange('profile_status', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Drivers</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="review">Under Review</SelectItem>
+                    <SelectItem value="not_approved">Not Approved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+          </section>
+
+          <Separator />
+          
+          <section>
+            <h3 className="font-semibold mb-4">Filter by Expiry Status</h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {renderExpiryFilter("Driving Licence", "driver_licence_expiry_filter")}
+              {renderExpiryFilter("CPC Card", "cpc_card_expiry_filter")}
+              {renderExpiryFilter("DBS", "dbs_expiry_date_filter")}
+              {renderExpiryFilter("Tacho Card", "tacho_expiry_filter")}
+            </div>
+          </section>
+
+          <div className="flex justify-end items-center pt-4 border-t">
+            <Button variant="outline" size="sm" onClick={clearFilters}>Clear All Filters</Button>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Results Summary */}
+      <div className="mb-4 text-sm text-gray-600">
+        Found {filteredDrivers.length} driver{filteredDrivers.length !== 1 ? 's' : ''}
+        {filteredDrivers.length !== allDrivers.length && ` (from ${allDrivers.length} total)`}
+      </div>
 
       {/* Table */}
       <div className="border rounded-lg overflow-hidden">
@@ -557,11 +599,6 @@ const DriverManagementPage = () => {
                 <TableHead>Next Tacho DL</TableHead>
                 <TableHead>DBS Expiry</TableHead>
                 <TableHead>Night Worker Assessment</TableHead>
-                {/* Add TBC fields columns if they exist in your data */}
-                {/* <TableHead>MOT Booked</TableHead>
-                <TableHead>PMI Booked</TableHead>
-                <TableHead>Next Tacho Calibration</TableHead>
-                <TableHead>Next Loller Calibration</TableHead> */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -571,14 +608,14 @@ const DriverManagementPage = () => {
                     <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                   </TableCell>
                 </TableRow>
-              ) : drivers.length === 0 ? (
+              ) : paginatedDrivers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={12} className="text-center py-12 text-gray-500">
                     No drivers found matching your filters.
                   </TableCell>
                 </TableRow>
               ) : (
-                drivers.map((driver) => (
+                paginatedDrivers.map((driver) => (
                   <TableRow key={driver.id}>
                     <TableCell className="font-medium">
                       <Link
@@ -599,12 +636,6 @@ const DriverManagementPage = () => {
                     {renderDateCell('next_driver_tacho_download', driver.driver_compliance.next_driver_tacho_download, driver)}
                     {renderDateCell('dbs_expiry_date', driver.driver_compliance.dbs_expiry_date, driver)}
                     {renderDateCell('night_worker_assessment_expiry', driver.driver_compliance.night_worker_assessment_expiry, driver)}
-                    
-                    {/* Render TBC fields if they exist in your data */}
-                    {/* {renderDateCell('mot_booked_date', driver.driver_compliance.mot_booked_date, driver)}
-                    {renderDateCell('pmi_booked_date', driver.driver_compliance.pmi_booked_date, driver)}
-                    {renderDateCell('next_tacho_calibration_date', driver.driver_compliance.next_tacho_calibration_date, driver)}
-                    {renderDateCell('next_loller_calibration_date', driver.driver_compliance.next_loller_calibration_date, driver)} */}
                   </TableRow>
                 ))
               )}

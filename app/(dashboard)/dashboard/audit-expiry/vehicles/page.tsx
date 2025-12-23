@@ -84,10 +84,10 @@ export default function Vehicles() {
         // === Compliance Dates ===
         setDates([
           {
-            id: "next_mot_book_from",
+            id: "next_mot_to_be_booked_from",
             title: "Next MOT to Be Booked From",
             subtitle: "Date to be shown before MOT Expiry",
-            ...toStatusAndDays(d.next_mot_book_from, -60),
+            ...toStatusAndDays(d.next_mot_to_be_booked_from, -60),
             status: "before"
           },
           {
@@ -236,7 +236,7 @@ setAlerts([
     setSaving(true)
     try {
       const datesPayload = {
-        next_mot_book_from: toApiValue(dates.find(i => i.id === "next_mot_book_from")!),
+        next_mot_to_be_booked_from: toApiValue(dates.find(i => i.id === "next_mot_to_be_booked_from")!),
         pmi_expiry_date: toApiValue(dates.find(i => i.id === "pmi_expiry_alert")!),
         book_next_pmi_from: toApiValue(dates.find(i => i.id === "book_next_pmi_from")!),
         next_tacho_download_date: toApiValue(dates.find(i => i.id === "next_tacho_download")!),

@@ -703,7 +703,7 @@ export default function VehicleDashboard() {
           </PopoverTrigger>
           <PopoverContent className="w-72">
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-gray-900">Booking Details</h4>
+              <h4 className="font-semibold text-sm text-gray-900">Planned PMI Dates</h4>
               <div className="text-xs space-y-1">
                 {Object.entries(row.pmi.hover).map(([k, v]) => (
                   <div key={k} className="flex justify-between py-1 border-b border-gray-100">
@@ -1084,7 +1084,7 @@ export default function VehicleDashboard() {
                     
                     {/* PMI Information Header */}
                     {visibleColumns.showPMI && (
-                      <th colSpan={activeFilter === "PMI Inspection" ? 3 + (Object.keys(paginated[0]?.pmi?.hover || {}).length) : 3} className="px-4 py-3 text-center text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200">
+                      <th colSpan={4} className="px-4 py-3 text-center text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200">
                         <div className="flex items-center justify-center gap-2">
                           <Wrench className="w-4 h-4" />
                           PMI Information
@@ -1148,16 +1148,10 @@ export default function VehicleDashboard() {
                     {/* PMI Sub-headers */}
                     {visibleColumns.showPMI && (
                       <>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Status</th>
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Last PMI Date</th>
                         <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">PMI Expiry Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Book Next PMI From</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Next PMI Booked Date</th>
-                        {activeFilter === "PMI Inspection" && paginated.length > 0 && paginated[0]?.pmi?.hover && 
-                          Object.keys(paginated[0].pmi.hover).map(key => (
-                            <th key={key} className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">
-                              {key.replace(/_/g, " ").split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                            </th>
-                          ))
-                        }
+                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-rose-50/30">Next PMI Booked Date</th>
                       </>
                     )}
 
@@ -1231,6 +1225,22 @@ export default function VehicleDashboard() {
                       {/* PMI Information Columns */}
                       {visibleColumns.showPMI && (
                         <>
+                          <td className="px-3 py-4 text-sm border-l border-gray-200">
+                            {row.pmi?.book_next_pmi_from === "booked" ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Booked
+                              </span>
+                            ) : (
+                              <DateDisplay date={row.pmi?.book_next_pmi_from ?? null}>
+                                {formatDate(row.pmi?.book_next_pmi_from, false)}
+                              </DateDisplay>
+                            )}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
+                            <DateDisplay date={row.pmi?.last_pmi_date ?? null}>
+                              {formatDate(row.pmi?.last_pmi_date, false)}
+                            </DateDisplay>
+                          </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                             <DateDisplay 
                               date={row.pmi?.pmi_expiry?? null} 
@@ -1239,27 +1249,9 @@ export default function VehicleDashboard() {
                               {formatDate(row.pmi?.pmi_expiry, false)}
                             </DateDisplay>
                           </td>
-                          <td className="px-3 py-4 text-sm border-l border-gray-200">
-                            {row.pmi?.book_next_pmi_from === "booked" ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Booked
-                              </span>
-                            ) : (
-                              <DateDisplay date={row.pmi?.book_next_pmi_from?? null}>
-                                {formatDate(row.pmi?.book_next_pmi_from, false)}
-                              </DateDisplay>
-                            )}
-                          </td>
-                          <td className="px-3 py-4 text-sm border-l border-gray-200">
+                          <td className="px-3 py-4 text-sm border-l border-x border-gray-200">
                             {renderPMIBookedDate(row)}
                           </td>
-                          {activeFilter === "PMI Inspection" && row.pmi?.hover && 
-                            Object.entries(row.pmi.hover).map(([key, value]) => (
-                              <td key={key} className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
-                                {value || "NA"}
-                              </td>
-                            ))
-                          }
                         </>
                       )}
 
@@ -1267,10 +1259,14 @@ export default function VehicleDashboard() {
                       {visibleColumns.showTacho && (
                         <>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
-                            <NAField icon={<User className="w-3 h-3" />} />
+                            <DateDisplay date={row.tacho?.last_download ?? null}>
+                              {formatDate(row.tacho?.last_download, false)}
+                            </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
-                            <NAField icon={<Car className="w-3 h-3" />} />
+                            <DateDisplay date={row.tacho?.next_download?? null}>
+                              {formatDate(row.tacho?.next_download, false)}
+                            </DateDisplay>
                           </td>
                         </>
                       )}

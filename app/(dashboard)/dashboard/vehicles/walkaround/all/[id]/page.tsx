@@ -117,8 +117,8 @@ const VehicleInspectionDashboard = () => {
 
   // Update selectedStatus and selectedManager when walkaroundData is loaded
   useEffect(() => {
-    if (walkaroundData) {
-      setSelectedStatus(walkaroundData.data.walkaround.status);
+    if (walkaroundData?.data?.walkaround) {
+      setSelectedStatus(walkaroundData.data.walkaround.status || '');
       setSelectedManager(walkaroundData.data.walkaround.walkaround_assignee?.id?.toString() || '');
     }
   }, [walkaroundData]);
@@ -142,6 +142,12 @@ const VehicleInspectionDashboard = () => {
       // Get walkaround ID from URL
       const walkaroundId = window.location.pathname.split('/').pop();
       
+      if (!walkaroundId) {
+        setError("Invalid walkaround ID");
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch(`${API_URL}/api/walk-around/${walkaroundId}/`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -155,10 +161,10 @@ const VehicleInspectionDashboard = () => {
 
       const data = await response.json();
       
-      if (data.success) {
+      if (data?.success) {
         setWalkaroundData(data);
       } else {
-        setError(data.message || 'Unknown error');
+        setError(data?.message || 'Unknown error');
       }
     } catch (err) {
       setError('Failed to load inspection data. Please try again.');
@@ -195,10 +201,10 @@ const VehicleInspectionDashboard = () => {
 
       const data = await response.json();
       
-      if (data.success) {
+      if (data?.success) {
         setManagers(data.data || []);
       } else {
-        console.error('Failed to fetch managers:', data.message);
+        console.error('Failed to fetch managers:', data?.message);
       }
     } catch (err) {
       console.error('Error fetching managers:', err);
@@ -235,7 +241,7 @@ const VehicleInspectionDashboard = () => {
       }
 
       // Update local state
-      if (walkaroundData) {
+      if (walkaroundData?.data?.answers) {
         const updatedAnswers = walkaroundData.data.answers.map(answer =>
           answer.id === answerId ? { ...answer, description: comments } : answer
         );
@@ -255,7 +261,7 @@ const VehicleInspectionDashboard = () => {
   };
 
   const handleUpdateStatus = async (newStatus: string): Promise<void> => {
-    if (!walkaroundData) return;
+    if (!walkaroundData?.data?.walkaround?.id) return;
 
     const accessToken = document.cookie
       .split('; ')
@@ -287,24 +293,26 @@ const VehicleInspectionDashboard = () => {
 
       const updatedData = await response.json();
       
-      if (updatedData.success) {
+      if (updatedData?.success) {
         fetchWalkaroundData();
         alert(`Status updated to ${getStatusDisplayName(newStatus)} successfully`);
       } else {
-        throw new Error(updatedData.message || 'Failed to update status');
+        throw new Error(updatedData?.message || 'Failed to update status');
       }
     } catch (error) {
       alert('Error updating status. Please try again.');
       console.error('Error updating status:', error);
       // Revert selectedStatus to current walkaround status if update fails
-      setSelectedStatus(walkaroundData.data.walkaround.status);
+      if (walkaroundData?.data?.walkaround?.status) {
+        setSelectedStatus(walkaroundData.data.walkaround.status);
+      }
     } finally {
       setIsUpdatingStatus(false);
     }
   };
 
   const handleUpdateManager = async (managerId: string): Promise<void> => {
-    if (!walkaroundData) return;
+    if (!walkaroundData?.data?.walkaround?.id) return;
 
     const accessToken = document.cookie
       .split('; ')
@@ -338,18 +346,22 @@ const VehicleInspectionDashboard = () => {
 
       const updatedData = await response.json();
       
-      if (updatedData.success) {
+      if (updatedData?.success) {
         fetchWalkaroundData();
         const managerName = managers.find(m => m.id.toString() === managerId)?.full_name || 'None';
         alert(`Manager updated to ${managerName} successfully`);
       } else {
-        throw new Error(updatedData.message || 'Failed to update manager');
+        throw new Error(updatedData?.message || 'Failed to update manager');
       }
     } catch (error) {
       alert('Error updating manager. Please try again.');
       console.error('Error updating manager:', error);
       // Revert selectedManager to current manager if update fails
-      setSelectedManager(walkaroundData.data.walkaround.walkaround_assignee?.id?.toString() || '');
+      if (walkaroundData?.data?.walkaround?.walkaround_assignee?.id) {
+        setSelectedManager(walkaroundData.data.walkaround.walkaround_assignee.id.toString());
+      } else {
+        setSelectedManager('');
+      }
     } finally {
       setIsUpdatingManager(false);
     }
@@ -370,18 +382,25 @@ const VehicleInspectionDashboard = () => {
   };
 
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
   const formatTime = (timeString: string): string => {
+    if (!timeString) return 'N/A';
     return timeString.split(':').slice(0, 2).join(':');
   };
 
   const getStatusDisplayName = (status: string): string => {
+    if (!status) return 'Unknown';
     const statusMap: Record<string, string> = {
       pending: 'Pending',
       completed: 'Completed',
@@ -394,6 +413,8 @@ const VehicleInspectionDashboard = () => {
   };
 
   const getStatusBadge = (status: string) => {
+    if (!status) return null;
+    
     const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
       pending: { variant: "default", className: "bg-orange-500 hover:bg-orange-600 text-white" },
       completed: { variant: "default", className: "bg-green-500 hover:bg-green-600 text-white" },
@@ -441,266 +462,291 @@ const VehicleInspectionDashboard = () => {
     );
   }
 
-  if (!walkaroundData) {
-    return null;
+  if (!walkaroundData?.data?.walkaround) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="max-w-md w-full mx-4">
+          <CardContent className="pt-6 text-center">
+            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">No Data Available</h2>
+            <p className="text-gray-600 mb-4">No walkaround data found. Please check if the inspection exists.</p>
+            <Button 
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={fetchWalkaroundData}
+            >
+              Refresh
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const { walkaround, answers } = walkaroundData.data;
 
   return (
     <div className="min-h-screen bg-white p-6">
-      <WalkAroundPDFPrint data={walkaroundData as any}/>
+      {/* Only render PDF print if data is available */}
+      {walkaroundData?.success && walkaroundData?.data && (
+        <WalkAroundPDFPrint data={walkaroundData as any}/>
+      )}
       <div className="max-w-5xl mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Walkaround Details <span className='text-orange-600'>{walkaround.id}</span>
+              Walkaround Details <span className='text-orange-600'>{walkaround?.id || 'N/A'}</span>
             </h1>
             <p className="text-sm text-gray-500">
-              Channel #{walkaround.id} / Latest Step 1 of 1
+              Channel #{walkaround?.id || 'N/A'} / Latest Step 1 of 1
             </p>
           </div>
           <div className="flex items-center gap-4">
             <p className="text-sm text-gray-500">
-              {formatDate(walkaround.created_at)} at {formatTime(walkaround.time)}
+              {formatDate(walkaround?.created_at || '')} at {formatTime(walkaround?.time || '')}
             </p>
           </div>
         </div>
 
         {/* Vehicle Details Card */}
-        <Card className="border-none bg-gray-50 shadow-sm">
-          <CardHeader className="">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className=" bg-orange-100 w-10 h-10 rounded-xl flex justify-center items-center">
-                <Car className="h-5 w-5 text-orange-500" />
+        {walkaround?.vehicle && (
+          <Card className="border-none bg-gray-50 shadow-sm">
+            <CardHeader className="">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className=" bg-orange-100 w-10 h-10 rounded-xl flex justify-center items-center">
+                  <Car className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <CardTitle className="text-base font-semibold text-orange-500">
+                    Vehicle Details
+                  </CardTitle>
                 </div>
-                <CardTitle className="text-base font-semibold text-orange-500">
-                  Vehicle Details
-                </CardTitle>
+                <div className="flex items-center gap-3">
+                  {getStatusBadge(walkaround?.status || '')}
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                {getStatusBadge(walkaround.status)}
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-4 gap-6">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Registration No.</p>
+                  <p className="font-semibold text-gray-900">
+                    {walkaround?.vehicle?.registration_number || 'N/A'}
+                  </p>
+                </div>
+                <div className="border-l pl-6">
+                  <p className="text-xs text-gray-500 mb-1">Vehicle Type</p>
+                  <p className="font-semibold text-gray-900">
+                    {walkaround?.vehicle?.vehicles_type_name || 'N/A'}
+                  </p>
+                </div>
+                <div className="border-l pl-6">
+                  <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                    Sites <Badge className="bg-green-500 text-white text-[10px] px-1.5">Active</Badge>
+                  </p>
+                  <p className="font-semibold text-gray-900">
+                    {walkaround?.vehicle?.site_allocated?.[0]?.name || 'N/A'}
+                  </p>
+                </div>
+                <div className="border-l pl-6">
+                  <p className="text-xs text-gray-500 mb-1">Current Mileage</p>
+                  <p className="font-semibold text-gray-900">
+                    {walkaround?.vehicle?.mileage_in_miles?.toFixed(2) || '0.00'} miles / {walkaround?.vehicle?.mileage_in_km?.toFixed(2) || '0.00'} km
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-4 gap-6">
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Registration No.</p>
-                <p className="font-semibold text-gray-900">
-                  {walkaround.vehicle.registration_number}
-                </p>
-              </div>
-              <div className="border-l pl-6">
-                <p className="text-xs text-gray-500 mb-1">Vehicle Type</p>
-                <p className="font-semibold text-gray-900">
-                  {walkaround.vehicle.vehicles_type_name}
-                </p>
-              </div>
-              <div className="border-l pl-6">
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                  Sites <Badge className="bg-green-500 text-white text-[10px] px-1.5">Active</Badge>
-                </p>
-                <p className="font-semibold text-gray-900">
-                  {walkaround.vehicle.site_allocated?.[0]?.name || 'N/A'}
-                </p>
-              </div>
-              <div className="border-l pl-6">
-                <p className="text-xs text-gray-500 mb-1">Current Mileage</p>
-                <p className="font-semibold text-gray-900">
-                  {walkaround.vehicle.mileage_in_miles.toFixed(2)} miles / {walkaround.vehicle.mileage_in_km.toFixed(2)} km
-                </p>
-              </div>
-            </div>
 
-            <Separator className="my-6" />
+              <Separator className="my-6" />
 
-            <div className="grid grid-cols-4 gap-6">
-              <div>
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                  Driver Name <Badge className="bg-green-500 text-white text-[10px] px-1.5">Passed</Badge>
-                </p>
-                <p className="font-semibold text-gray-900">
-                  {walkaround.conducted_by.full_name}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {formatDate(walkaround.date)} at {formatTime(walkaround.time)}
-                </p>
+              <div className="grid grid-cols-4 gap-6">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                    Driver Name <Badge className="bg-green-500 text-white text-[10px] px-1.5">Passed</Badge>
+                  </p>
+                  <p className="font-semibold text-gray-900">
+                    {walkaround?.conducted_by?.full_name || 'N/A'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formatDate(walkaround?.date || '')} at {formatTime(walkaround?.time || '')}
+                  </p>
+                </div>
+                <div className="border-l pl-6">
+                  <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                    Manager Name 
+                  </p>
+                  <p className="font-semibold text-gray-900">{walkaround?.walkaround_assignee?.full_name || "Not assigned"}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formatDate(walkaround?.date || '')} at {formatTime(walkaround?.time || '')}
+                  </p>
+                </div>
               </div>
-              <div className="border-l pl-6">
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                  Manager Name 
-                </p>
-                <p className="font-semibold text-gray-900">{walkaround.walkaround_assignee?.full_name || "Not assigned"}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {formatDate(walkaround.date)} at {formatTime(walkaround.time)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Status Update Card */}
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Update Walkaround Status</h3>
-                <p className="text-sm text-gray-600">Select a new status for this walkaround inspection</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-64">
-                  <Select
-                    value={selectedStatus}
-                    onValueChange={handleStatusChange}
-                    disabled={isUpdatingStatus}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select status...">
-                        {isUpdatingStatus ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Updating...</span>
-                          </div>
-                        ) : (
-                          getStatusDisplayName(selectedStatus)
-                        )}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                      <SelectItem value="custom">Custom</SelectItem>
-                    </SelectContent>
-                  </Select>
+        {walkaround?.id && (
+          <Card className="border-none shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Update Walkaround Status</h3>
+                  <p className="text-sm text-gray-600">Select a new status for this walkaround inspection</p>
                 </div>
-                {isUpdatingStatus && (
-                  <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
-                )}
+                <div className="flex items-center gap-3">
+                  <div className="w-64">
+                    <Select
+                      value={selectedStatus}
+                      onValueChange={handleStatusChange}
+                      disabled={isUpdatingStatus || !walkaround?.id}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select status...">
+                          {isUpdatingStatus ? (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Updating...</span>
+                            </div>
+                          ) : (
+                            getStatusDisplayName(selectedStatus)
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {isUpdatingStatus && (
+                    <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                <strong>Current Status:</strong> {getStatusDisplayName(walkaround.status)}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Status will update automatically when you select a new value from the dropdown.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  <strong>Current Status:</strong> {getStatusDisplayName(walkaround?.status || '')}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Status will update automatically when you select a new value from the dropdown.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Manager Update Card */}
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Assign Manager</h3>
-                <p className="text-sm text-gray-600">Select a manager for this walkaround inspection</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-64">
-                  <Select
-                    value={selectedManager}
-                    onValueChange={handleManagerChange}
-                    disabled={isUpdatingManager || isLoadingManagers}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select manager...">
-                        {isUpdatingManager ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Updating...</span>
-                          </div>
-                        ) : isLoadingManagers ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Loading managers...</span>
-                          </div>
-                        ) : (
-                          selectedManager ? 
-                            managers.find(m => m.id.toString() === selectedManager)?.full_name || 'Select manager' 
-                            : 'No manager assigned'
-                        )}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">No manager</SelectItem>
-                      {managers.map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id.toString()}>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            <span>{manager.full_name}</span>
-                            {manager.sites.length > 0 && (
-                              <Badge variant="outline" className="ml-2 text-xs">
-                                {manager.sites[0].name}
-                              </Badge>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+        {walkaround?.id && (
+          <Card className="border-none shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Assign Manager</h3>
+                  <p className="text-sm text-gray-600">Select a manager for this walkaround inspection</p>
                 </div>
-                {(isUpdatingManager || isLoadingManagers) && (
-                  <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
-                )}
+                <div className="flex items-center gap-3">
+                  <div className="w-64">
+                    <Select
+                      value={selectedManager}
+                      onValueChange={handleManagerChange}
+                      disabled={isUpdatingManager || isLoadingManagers || !walkaround?.id}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select manager...">
+                          {isUpdatingManager ? (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Updating...</span>
+                            </div>
+                          ) : isLoadingManagers ? (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Loading managers...</span>
+                            </div>
+                          ) : (
+                            selectedManager ? 
+                              managers.find(m => m.id.toString() === selectedManager)?.full_name || 'Select manager' 
+                              : 'No manager assigned'
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">No manager</SelectItem>
+                        {managers.map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id.toString()}>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              <span>{manager.full_name}</span>
+                              {manager.sites?.length > 0 && (
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  {manager.sites[0].name}
+                                </Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {(isUpdatingManager || isLoadingManagers) && (
+                    <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                <strong>Current Manager:</strong> {walkaround.walkaround_assignee?.full_name || 'Not assigned'}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Manager will update automatically when you select a new value from the dropdown.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  <strong>Current Manager:</strong> {walkaround?.walkaround_assignee?.full_name || 'Not assigned'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Manager will update automatically when you select a new value from the dropdown.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Daily Checks Card */}
-        <Card className="border-none shadow-sm">
-          <CardHeader 
-            className="cursor-pointer bg-gray-50 my-2 border-2 border-gray-200 hover:bg-gray-50 transition-colors"
-            onClick={() => toggleSection('dailyChecks')}
-          >
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-gray-900">
-                Daily checks
-              </CardTitle>
-              {expandedSections.dailyChecks ? 
-                <ChevronUp className="h-5 w-5 text-gray-400" /> : 
-                <ChevronDown className="h-5 w-5 text-gray-400" />
-              }
-            </div>
-          </CardHeader>
-          {expandedSections.dailyChecks && (
-            <CardContent className="pt-0 bg-gray-50 border-2 border-gray-200 py-2">
-              <ScrollArea className="h-[600px]">
-                <div className="grid grid-cols-2 gap-4 pr-4">
-                  {answers.map((answer, index) => (
-                    <InspectionItem
-                      key={answer.id}
-                      answer={answer}
-                      index={index}
-                      onSaveComments={handleSaveComments}
-                      isSaving={savingStates[answer.id] || false}
-                    />
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          )}
-        </Card>
+        {answers && answers.length > 0 && (
+          <Card className="border-none shadow-sm">
+            <CardHeader 
+              className="cursor-pointer bg-gray-50 my-2 border-2 border-gray-200 hover:bg-gray-50 transition-colors"
+              onClick={() => toggleSection('dailyChecks')}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-gray-900">
+                  Daily checks
+                </CardTitle>
+                {expandedSections.dailyChecks ? 
+                  <ChevronUp className="h-5 w-5 text-gray-400" /> : 
+                  <ChevronDown className="h-5 w-5 text-gray-400" />
+                }
+              </div>
+            </CardHeader>
+            {expandedSections.dailyChecks && (
+              <CardContent className="pt-0 bg-gray-50 border-2 border-gray-200 py-2">
+                <ScrollArea className="h-[600px]">
+                  <div className="grid grid-cols-2 gap-4 pr-4">
+                    {answers.map((answer, index) => (
+                      <InspectionItem
+                        key={answer.id || index}
+                        answer={answer}
+                        index={index}
+                        onSaveComments={handleSaveComments}
+                        isSaving={savingStates[answer.id] || false}
+                      />
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            )}
+          </Card>
+        )}
       </div>
     </div>
   );
 };
-
-// ... Keep the InspectionItem component the same as in your original code ...
 
 const InspectionItem = ({ 
   answer, 
@@ -727,8 +773,10 @@ const InspectionItem = ({
   };
 
   const handleSave = async (): Promise<void> => {
-    await onSaveComments(answer.id, localComments);
-    setHasChanges(false);
+    if (answer.id) {
+      await onSaveComments(answer.id, localComments);
+      setHasChanges(false);
+    }
   };
 
   return (
@@ -739,7 +787,7 @@ const InspectionItem = ({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 mb-2">
-            {index + 1}. {answer.question_text}
+            {index + 1}. {answer.question_text || 'No question text'}
           </p>
           <div className="flex items-center gap-2">
             <Badge 
