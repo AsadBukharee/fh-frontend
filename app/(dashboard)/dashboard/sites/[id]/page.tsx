@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -31,6 +31,9 @@ import {
   Save,
   Edit,
   X,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -48,6 +51,7 @@ import {
 
 import ImageUploader from "@/components/Media/UploadImage";
 import Image from "next/image";
+import { toast } from "sonner";
 
 // ---------------------- Types ----------------------
 interface OperationHour {
@@ -130,7 +134,6 @@ const formatTime = (time: string | null) => {
   }
 };
 
-
 const getStatusBadgeColors = (status: string) => {
   switch (status) {
     case "active":
@@ -146,16 +149,137 @@ const getDisplayStatus = (status: string) => {
   return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
-
-
-
-
-
 const getStaffBreakdown = (staff: Staff) => [
   { role: "Driver", count: staff.driver },
   { role: "Admin", count: staff.admin },
   { role: "Mechanic", count: staff.mechanic },
 ];
+
+// ---------------------- Postcode API Helper ----------------------
+interface NominatimResult {
+  place_id: number;
+  licence: string;
+  osm_type: string;
+  osm_id: number;
+  lat: string;
+  lon: string;
+  display_name: string;
+  address: {
+    house_number?: string;
+    road?: string;
+    suburb?: string;
+    city?: string;
+    state?: string;
+    postcode?: string;
+    country?: string;
+    country_code?: string;
+  };
+}
+
+interface GeocodeResult {
+  address: string;
+  latitude: number;
+  longitude: number;
+  success: boolean;
+  message?: string;
+}
+
+const fetchAddressFromPostcode = async (
+  postcode: string,
+  countryCode: string = "gb"
+): Promise<GeocodeResult> => {
+  try {
+    // Clean postcode - remove spaces
+    const cleanPostcode = postcode.trim().replace(/\s+/g, '');
+    
+    if (!cleanPostcode || cleanPostcode.length < 3) {
+      return {
+        address: "",
+        latitude: 0,
+        longitude: 0,
+        success: false,
+        message: "Postcode too short"
+      };
+    }
+
+    // Validate postcode format (basic validation)
+    const postcodeRegex = /^[A-Z0-9]{3,10}$/i;
+    if (!postcodeRegex.test(cleanPostcode)) {
+      return {
+        address: "",
+        latitude: 0,
+        longitude: 0,
+        success: false,
+        message: "Invalid postcode format"
+      };
+    }
+
+    // Use Nominatim API with proper headers and parameters
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?` +
+      new URLSearchParams({
+        postalcode: cleanPostcode,
+        countrycodes: countryCode,
+        format: 'json',
+        limit: '1',
+        addressdetails: '1',
+        "accept-language": 'en'
+      }),
+      {
+        headers: {
+          'Accept-Language': 'en',
+          'User-Agent': 'SiteManagementApp/1.0 (contact@example.com)',
+          'Referer': window.location.origin
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const data: NominatimResult[] = await response.json();
+    
+    if (!data || data.length === 0) {
+      return {
+        address: "",
+        latitude: 0,
+        longitude: 0,
+        success: false,
+        message: "No address found for this postcode"
+      };
+    }
+
+    const result = data[0];
+    
+    // Build address string from address components
+    const addressComponents = [];
+    if (result.address.road) addressComponents.push(result.address.road);
+    if (result.address.suburb) addressComponents.push(result.address.suburb);
+    if (result.address.city) addressComponents.push(result.address.city);
+    if (result.address.state) addressComponents.push(result.address.state);
+    if (result.address.country) addressComponents.push(result.address.country);
+    
+    const formattedAddress = addressComponents.join(', ') || result.display_name;
+
+    return {
+      address: formattedAddress,
+      latitude: parseFloat(result.lat),
+      longitude: parseFloat(result.lon),
+      success: true
+    };
+    
+  } catch (error) {
+    console.error('Error fetching address from postcode:', error);
+    return {
+      address: "",
+      latitude: 0,
+      longitude: 0,
+      success: false,
+      message: error instanceof Error ? error.message : "Network error"
+    };
+  }
+};
 
 // ---------------------- Component ----------------------
 export default function SiteDetails() {
@@ -172,6 +296,17 @@ export default function SiteDetails() {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState("");
+  const [geocodeStatus, setGeocodeStatus] = useState<{
+    loading: boolean;
+    success: boolean;
+    message?: string;
+  }>({
+    loading: false,
+    success: false
+  });
+  
+  const [lastProcessedPostcode, setLastProcessedPostcode] = useState<string>("");
+  const postcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchSite = async () => {
     setLoading(true);
@@ -202,6 +337,7 @@ export default function SiteDetails() {
 
       setSite(updatedData);
       setEditSite(updatedData);
+      setLastProcessedPostcode(data.postcode || "");
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : String(err));
@@ -213,6 +349,106 @@ export default function SiteDetails() {
   useEffect(() => {
     fetchSite();
   }, [siteId, token]);
+
+  // Real-time postcode processing with immediate visual feedback
+  const handlePostcodeChange = async (postcode: string) => {
+    // Update postcode field immediately
+    handleInputChange("postcode", postcode);
+    
+    // Clear existing timeout
+    if (postcodeTimeoutRef.current) {
+      clearTimeout(postcodeTimeoutRef.current);
+    }
+    
+    const cleanPostcode = postcode.trim().replace(/\s+/g, '');
+    
+    // Don't process if postcode is too short or hasn't changed
+    if (cleanPostcode.length < 3 || cleanPostcode === lastProcessedPostcode) {
+      setGeocodeStatus({ loading: false, success: false });
+      return;
+    }
+    
+    // Show loading state immediately
+    setGeocodeStatus({ loading: true, success: false });
+    
+    // Check if we should fetch immediately (user paused typing)
+    if (cleanPostcode.length >= 5) {
+      // Immediate fetch for longer postcodes (likely complete)
+      fetchAndUpdateAddress(cleanPostcode);
+    } else {
+      // Debounce for shorter inputs
+      postcodeTimeoutRef.current = setTimeout(() => {
+        fetchAndUpdateAddress(cleanPostcode);
+      }, 500); // Shorter debounce for better UX
+    }
+  };
+
+  const fetchAndUpdateAddress = async (cleanPostcode: string) => {
+    try {
+      const result = await fetchAddressFromPostcode(cleanPostcode);
+      
+      if (result.success) {
+        // Update all fields at once
+        setEditSite((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            address: result.address,
+            latitude: result.latitude,
+            longitude: result.longitude,
+            postcode: cleanPostcode
+          };
+        });
+        
+        setGeocodeStatus({ 
+          loading: false, 
+          success: true,
+          message: "Address updated successfully"
+        });
+        
+        setLastProcessedPostcode(cleanPostcode);
+        
+        // Show success toast
+        toast.success("Address updated", {
+          description: "Location information has been auto-filled"
+        });
+      } else {
+        setGeocodeStatus({ 
+          loading: false, 
+          success: false,
+          message: result.message || "Failed to fetch address"
+        });
+        
+        if (result.message) {
+          toast.warning("Address lookup failed", {
+            description: result.message
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch address:", error);
+      setGeocodeStatus({ 
+        loading: false, 
+        success: false,
+        message: "Network error occurred"
+      });
+      
+      toast.error("Network error", {
+        description: "Could not fetch address information"
+      });
+    }
+  };
+
+  // Manual trigger for address lookup
+  const triggerManualLookup = async () => {
+    if (!editSite?.postcode) return;
+    
+    const cleanPostcode = editSite.postcode.trim().replace(/\s+/g, '');
+    if (cleanPostcode.length < 3) return;
+    
+    setGeocodeStatus({ loading: true, success: false });
+    await fetchAndUpdateAddress(cleanPostcode);
+  };
 
   const handleInputChange = (field: keyof Site, value: any) => {
     setEditSite((prev) => (prev ? { ...prev, [field]: value } : prev));
@@ -228,8 +464,6 @@ export default function SiteDetails() {
     handleInputChange("status", pendingStatus);
     setStatusDialogOpen(false);
   };
-
- 
 
   const handleOperationHourChange = (
     index: number,
@@ -256,7 +490,7 @@ export default function SiteDetails() {
 
   const validateOperationHours = (hours: OperationHour[]) => {
     console.log(hours);
-const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
+    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
     for (const hour of hours) {
       if (hour.is_closed || hour.is_open_24_hours) continue;
       if (!hour.opens_at || !hour.closes_at) return false;
@@ -343,11 +577,13 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
 
       await fetchSite();
       setIsEditing(false);
-      window.alert("Saved successfully");
+      toast.success("Site updated successfully");
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : String(err));
-      window.alert("Failed to save changes: " + (err instanceof Error ? err.message : String(err)));
+      toast.error("Failed to save changes", {
+        description: err instanceof Error ? err.message : String(err)
+      });
     } finally {
       setLoading(false);
     }
@@ -355,14 +591,14 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
 
   const handleImageUploadSuccess = (url: string) => {
     setEditSite((prev) => (prev ? { ...prev, image: url } : prev));
+    toast.success("Image uploaded successfully");
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    e.currentTarget.src = "/logos/logo.png"; // Replace with your placeholder image path
+    e.currentTarget.src = "/logos/logo.png";
   };
 
   const staffBreakdown = site ? getStaffBreakdown(site.staff) : [];
-
 
   const buildFuelData = () => {
     return [
@@ -392,41 +628,41 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
           <p className="text-sm text-gray-500">See and edit site details</p>
         </div>
         <div className="fixed bottom-4 right-4 z-50">
-  {isEditing ? (
-    <div className="flex gap-2">
-      <button
-        onClick={handleSubmit}
-        className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-      >
-        <Save className="w-4 h-4" /> Save
-      </button>
-      <button
-        onClick={() => {
-          setIsEditing(false)
-          setEditSite(site)
-        }}
-        className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-      >
-        <X className="w-4 h-4" /> Cancel
-      </button>
-    </div>
-  ) : (
-    <button
-      onClick={() => setIsEditing(true)}
-      className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700"
-    >
-      <Edit className="w-4 h-4" /> Edit
-    </button>
-  )}
-</div>
-
+          {isEditing ? (
+            <div className="flex gap-2">
+              <button
+                onClick={handleSubmit}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+              >
+                <Save className="w-4 h-4" /> Save
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false)
+                  setEditSite(site)
+                  setGeocodeStatus({ loading: false, success: false })
+                }}
+                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+              >
+                <X className="w-4 h-4" /> Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700"
+            >
+              <Edit className="w-4 h-4" /> Edit
+            </button>
+          )}
+        </div>
       </div>
 
       <form onSubmit={(e) => handleSubmit(e)}>
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
           {/* Left Column */}
           <div className="space-y-6">
-          <Card className="p-4 rounded-lg bg-white border border-gray-200">
+            <Card className="p-4 rounded-lg bg-white border border-gray-200">
               <div className="flex items-center gap-2 text-gray-700 font-semibold mb-4">
                 <MapPin className="w-5 h-5 text-orange-600" />
                 <span>Site Information</span>
@@ -448,12 +684,21 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
                 <div>
                   <p className="font-medium text-gray-500">Site Address</p>
                   {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editSite.address}
-                      onChange={(e) => handleInputChange("address", e.target.value)}
-                      className="w-full border-gray-300"
-                    />
+                    <div className="space-y-1">
+                      <Input
+                        type="text"
+                        value={editSite.address}
+                        onChange={(e) => handleInputChange("address", e.target.value)}
+                        className="w-full border-gray-300"
+                        placeholder="Will auto-fill when postcode is entered"
+                      />
+                      {geocodeStatus.success && (
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Auto-filled from postcode
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <p className="font-semibold text-gray-800">{site.address}</p>
                   )}
@@ -461,18 +706,49 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
                 <div>
                   <p className="font-medium text-gray-500">Postcode</p>
                   {isEditing ? (
-                    <Input
-                      type="text"
-                      value={editSite.postcode}
-                      onChange={(e) => handleInputChange("postcode", e.target.value)}
-                      className="w-full border-gray-300"
-                    />
+                    <div className="space-y-1">
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          value={editSite.postcode}
+                          onChange={(e) => handlePostcodeChange(e.target.value)}
+                          placeholder="Enter postcode to auto-fill address"
+                          className="w-full border-gray-300 pr-20"
+                        />
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          {geocodeStatus.loading && (
+                            <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                          )}
+                          {geocodeStatus.success && !geocodeStatus.loading && (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          )}
+                          {!geocodeStatus.success && !geocodeStatus.loading && editSite.postcode.length >= 3 && (
+                            <button
+                              type="button"
+                              onClick={triggerManualLookup}
+                              className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded hover:bg-orange-200"
+                            >
+                              Lookup
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {geocodeStatus.message && !geocodeStatus.success && (
+                        <p className="text-xs text-red-600 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {geocodeStatus.message}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        Enter postcode to auto-fill address, latitude, and longitude
+                      </p>
+                    </div>
                   ) : (
                     <p className="font-semibold text-gray-800">{site.postcode}</p>
                   )}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-500">Radius</p>
+                  <p className="font-medium text-gray-500">Radius (meters)</p>
                   {isEditing ? (
                     <Input
                       type="number"
@@ -487,29 +763,43 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
                 <div>
                   <p className="font-medium text-gray-500">Longitude</p>
                   {isEditing ? (
-                    <Input
-                      type="number"
-                      step="0.0001"
-                      value={String(editSite.longitude)}
-                      onChange={(e) => handleInputChange("longitude", parseFloat(e.target.value || "0"))}
-                      className="w-full border-gray-300"
-                    />
+                    <div className="space-y-1">
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={String(editSite.longitude)}
+                        onChange={(e) => handleInputChange("longitude", parseFloat(e.target.value || "0"))}
+                        className="w-full border-gray-300"
+                      />
+                      {geocodeStatus.success && (
+                        <p className="text-xs text-gray-500">
+                          Auto-filled: {editSite.longitude.toFixed(6)}
+                        </p>
+                      )}
+                    </div>
                   ) : (
-                    <p className="font-semibold text-gray-800">{site.longitude?.toFixed(4)}</p>
+                    <p className="font-semibold text-gray-800">{site.longitude?.toFixed(6)}</p>
                   )}
                 </div>
                 <div>
                   <p className="font-medium text-gray-500">Latitude</p>
                   {isEditing ? (
-                    <Input
-                      type="number"
-                      step="0.0001"
-                      value={String(editSite.latitude)}
-                      onChange={(e) => handleInputChange("latitude", parseFloat(e.target.value || "0"))}
-                      className="w-full border-gray-300"
-                    />
+                    <div className="space-y-1">
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={String(editSite.latitude)}
+                        onChange={(e) => handleInputChange("latitude", parseFloat(e.target.value || "0"))}
+                        className="w-full border-gray-300"
+                      />
+                      {geocodeStatus.success && (
+                        <p className="text-xs text-gray-500">
+                          Auto-filled: {editSite.latitude.toFixed(6)}
+                        </p>
+                      )}
+                    </div>
                   ) : (
-                    <p className="font-semibold text-gray-800">{site.latitude?.toFixed(4)}</p>
+                    <p className="font-semibold text-gray-800">{site.latitude?.toFixed(6)}</p>
                   )}
                 </div>
                 <div>
@@ -565,12 +855,7 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
                   )}
                 </div>
               </div>
-         
             </Card>
-            {/* <div className="flex font-bold gap-2 text-gray-800">
-              <Truck className="text-orange-600" />
-              <h1>Vehicle Information</h1>
-            </div> */}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card className="p-4 rounded-lg bg-gray-50 flex flex-col justify-between">
@@ -624,8 +909,6 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
                     </div>
                   ))}
                 </div>
-             
-           
             </Card>
            
             <Card className="p-4 rounded-lg bg-white border border-gray-200 shadow">
@@ -633,35 +916,6 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
                 <MapPin className="w-5 h-5 text-orange-600" /> Operational Statistics
               </h3>
 
-              {/* Top Stats: Employees and Vehicles */}
-              {/* <div className="grid grid-cols-2 gap-6 mb-6 p-4 bg-orange-50/20 rounded-lg">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-500">Employees</p>
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-500">Total Today</span>
-                  </div>
-                  <p className="text-3xl font-bold text-gray-800">30</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-green-600">21</span>
-                    <span className="text-sm font-medium text-green-600">Operational</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-500">Vehicles</p>
-                  <div className="flex items-center gap-2">
-                    <Truck className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-500">Total Today</span>
-                  </div>
-                  <p className="text-3xl font-bold text-gray-800">30</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-green-600">18</span>
-                    <span className="text-sm font-medium text-green-600">Operational</span>
-                  </div>
-                </div>
-              </div> */}
-
-              {/* Fuel Usage Chart */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-lg font-semibold text-gray-800">Fuel Usage (L)</h4>
@@ -685,7 +939,6 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
                 </ResponsiveContainer>
               </div>
 
-              {/* Week and Month Totals */}
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500">This Week</p>

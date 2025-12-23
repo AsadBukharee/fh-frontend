@@ -122,8 +122,8 @@ const ClockInOut = () => {
   const token = useCookies().get("access_token") || "";
   const pageSize = 20;
 
-  // Get today's date
-  const today = "2025-10-20"; // Hard-coded as per provided date (October 20, 2025)
+  // Automatically get today's date in YYYY-MM-DD format (used in API call)
+  const today = format(new Date(), "yyyy-MM-dd"); // e.g., "2025-12-23"
 
   // Define badge colors for sites
   const siteBadgeColors: { [key: string]: string } = {
@@ -170,7 +170,7 @@ const ClockInOut = () => {
     }
   };
 
-  // Fetch logs from the API with cache headers
+  // Fetch logs from the API with today's date automatically
   const fetchLogs = async (page: number) => {
     setLoading(true);
     try {
@@ -232,7 +232,7 @@ const ClockInOut = () => {
   // Filter logs for today only using useMemo for performance
   const todaysLogs = useMemo(() => {
     return logs.filter((log) => log.date === today);
-  }, [logs]);
+  }, [logs, today]);
 
   // Apply client-side filters
   useEffect(() => {
@@ -263,7 +263,7 @@ const ClockInOut = () => {
 
   useEffect(() => {
     fetchLogs(currentPage);
-  }, [currentPage, driverFilter, token]);
+  }, [currentPage, driverFilter, token, today]); // Added 'today' to dependencies
 
   if (loading) {
     return <div className="p-4">Loading...</div>;
@@ -293,7 +293,7 @@ const ClockInOut = () => {
           <div className="flex gap-2">
             <ExportButton
               data={filteredLogs}
-              fileName="todays_clock_logs.csv"
+              fileName={`clock_logs_${today}.csv`}
             />
           </div>
         </div>
@@ -400,25 +400,28 @@ const ClockInOut = () => {
                   </span>
                 </TableCell>
                 <TableCell>
-                  {new Date(`1970-01-01T${log.clockIn}`).toLocaleTimeString(
-                    [],
-                    {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    }
-                  )}
+                  {log.clockIn
+                    ? new Date(`1970-01-01T${log.clockIn}`).toLocaleTimeString(
+                        [],
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
+                        }
+                      )
+                    : "-"}
                 </TableCell>
                 <TableCell>
-                  {" "}
-                  {new Date(`1970-01-01T${log.clockOut}`).toLocaleTimeString(
-                    [],
-                    {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    }
-                  )}
+                  {log.clockOut
+                    ? new Date(`1970-01-01T${log.clockOut}`).toLocaleTimeString(
+                        [],
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
+                        }
+                      )
+                    : "-"}
                 </TableCell>
                 <TableCell>
                   <span
@@ -433,8 +436,8 @@ const ClockInOut = () => {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={8} className="text-center">
-                No records found for today
+              <TableCell colSpan={6} className="text-center py-8">
+                No records found for today ({format(new Date(today), "dd/MM/yyyy")})
               </TableCell>
             </TableRow>
           )}
@@ -454,7 +457,7 @@ const ClockInOut = () => {
           Page {currentPage} of {totalPages}
         </span>
         <Button
-          disabled={currentPage === totalPages}
+          disabled={currentPage === totalPages || totalPages === 0}
           onClick={() => setCurrentPage((prev) => prev + 1)}
           variant="outline"
         >

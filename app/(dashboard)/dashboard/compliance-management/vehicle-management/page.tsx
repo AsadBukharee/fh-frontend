@@ -43,6 +43,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import Link from "next/link";
@@ -314,6 +324,17 @@ export default function VehicleDashboard() {
   const [editValue, setEditValue] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Time update dialog state
+  const [timeDialogOpen, setTimeDialogOpen] = useState(false);
+  const [pendingDateUpdate, setPendingDateUpdate] = useState<{
+    vehicleId: number;
+    newDate: string;
+    vehicleReg: string;
+    currentTime?: string;
+    isFirstTime: boolean;
+  } | null>(null);
+  const [newTimeValue, setNewTimeValue] = useState("09:00");
+
   // Sweep Audit dialog state
   const [sweepDialogOpen, setSweepDialogOpen] = useState(false);
   const [isSweeping, setIsSweeping] = useState(false);
@@ -448,12 +469,18 @@ export default function VehicleDashboard() {
   }, [buildRows, activeFilter, searchQuery, vehicleRegFilter, statusFilter]);
 
   const handleDoubleClick = (vehicleId: number, fieldType: EditableField['type'], currentValue: string) => {
-    if (shouldShowTBC(currentValue, fieldType === 'mot_date' || fieldType === 'pmi_date' || fieldType === 'tacho_calib_date' || fieldType === 'loller_calib_date' ? 'booking' : undefined)) {
-      setEditingField({ type: fieldType, vehicleId, originalValue: "" });
-      setEditValue("");
+    // For mot_time, check if there's a valid date first
+    if (fieldType === 'mot_time') {
+      const row = filteredData.find(r => r.vehicle === vehicleId);
+      if (row && shouldShowTBC(row.mot?.next_mot_booked_date, 'booking')) {
+        toast.error("Please set a date first before setting time");
+        return;
+      }
+      setEditingField({ type: fieldType, vehicleId, originalValue: currentValue });
+      setEditValue(currentValue || "");
     } else {
       setEditingField({ type: fieldType, vehicleId, originalValue: currentValue });
-      setEditValue(currentValue);
+      setEditValue(currentValue || "");
     }
   };
 
@@ -469,11 +496,41 @@ export default function VehicleDashboard() {
       
       switch (editingField.type) {
         case 'mot_date':
-          payload.mot_booked_date = editValue;
-          break;
+          // ALWAYS show time dialog when changing MOT date
+          const motItem = fullApiData?.data.mot.find(m => m.vehicle === editingField.vehicleId);
+          const hasExistingTime = motItem?.next_mot_booked_time && !shouldShowTBC(motItem.next_mot_booked_time);
+          
+          // Show dialog to update time
+          setPendingDateUpdate({
+            vehicleId: editingField.vehicleId,
+            newDate: editValue,
+            vehicleReg: motItem?.vehicle_reg || "Unknown",
+            currentTime: motItem?.next_mot_booked_time,
+            isFirstTime: !hasExistingTime
+          });
+          
+          // Set default time value
+          if (hasExistingTime) {
+            setNewTimeValue(motItem.next_mot_booked_time);
+          } else {
+            setNewTimeValue("09:00"); // Default morning time
+          }
+          
+          setTimeDialogOpen(true);
+          setIsUpdating(false);
+          return;
+          
         case 'mot_time':
+          // Before saving time, check if date is valid
+          const motItemForTime = fullApiData?.data.mot.find(m => m.vehicle === editingField.vehicleId);
+          if (shouldShowTBC(motItemForTime?.next_mot_booked_date, 'booking')) {
+            toast.error("Please set a date first before setting time");
+            setIsUpdating(false);
+            return;
+          }
           payload.mot_booked_time = editValue.includes(':') ? editValue : `${editValue}:00`;
           break;
+          
         case 'pmi_date':
           payload.next_pmi_book_date = editValue;
           break;
@@ -485,7 +542,60 @@ export default function VehicleDashboard() {
           break;
       }
 
-      const response = await fetch(`${API_URL}/api/vehicles/${editingField.vehicleId}/`, {
+      // For non-mot_date fields, save directly
+      if (
+        editingField.type === 'mot_time' ||
+        editingField.type === 'pmi_date' ||
+        editingField.type === 'tacho_calib_date' ||
+        editingField.type === 'loller_calib_date'
+      ) {
+        const response = await fetch(`${API_URL}/api/vehicles/${editingField.vehicleId}/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Update failed');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          toast.success(result.message || "Updated successfully");
+          updateLocalData(editingField.vehicleId, editingField.type, editValue);
+          setEditingField(null);
+        } else {
+          throw new Error(result.message || "Update failed");
+        }
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to update.");
+      setEditValue(editingField.originalValue);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const saveDateAndTime = async (vehicleId: number, date: string, time: string | null) => {
+    setIsUpdating(true);
+    try {
+      const payload: any = {
+        mot_booked_date: date
+      };
+      
+      if (time) {
+        payload.mot_booked_time = time.includes(':') ? time : `${time}:00`;
+      } else {
+        payload.mot_booked_time = null;
+      }
+
+      const response = await fetch(`${API_URL}/api/vehicles/${vehicleId}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -502,50 +612,97 @@ export default function VehicleDashboard() {
       const result = await response.json();
       
       if (result.success) {
-        toast.success(result.message || "Updated successfully");
+        const successMessage = time 
+          ? "Date and time updated successfully" 
+          : "Date updated successfully (time cleared)";
+        toast.success(successMessage);
+        
+        // Update local data
         if (fullApiData) {
           const updatedData = { ...fullApiData };
-          
-          if (editingField.type === 'mot_date' || editingField.type === 'mot_time') {
-            const motIndex = updatedData.data.mot.findIndex(m => m.vehicle === editingField.vehicleId);
-            if (motIndex !== -1) {
-              if (editingField.type === 'mot_date') {
-                updatedData.data.mot[motIndex].next_mot_booked_date = editValue;
-              } else {
-                updatedData.data.mot[motIndex].next_mot_booked_time = editValue;
-              }
-              setFullApiData(updatedData);
-            }
-          } else if (editingField.type === 'pmi_date') {
-            const pmiIndex = updatedData.data.pmi.findIndex(p => p.vehicle === editingField.vehicleId);
-            if (pmiIndex !== -1) {
-              updatedData.data.pmi[pmiIndex].next_pmi_book_date = editValue;
-              setFullApiData(updatedData);
-            }
-          } else if (editingField.type === 'tacho_calib_date') {
-            const calibIndex = updatedData.data.calibrations.findIndex(c => c.vehicle === editingField.vehicleId);
-            if (calibIndex !== -1) {
-              updatedData.data.calibrations[calibIndex].next_tacho_calibration_book_date = editValue;
-              setFullApiData(updatedData);
-            }
-          } else if (editingField.type === 'loller_calib_date') {
-            const calibIndex = updatedData.data.calibrations.findIndex(c => c.vehicle === editingField.vehicleId);
-            if (calibIndex !== -1) {
-              updatedData.data.calibrations[calibIndex].next_loller_test_date = editValue;
-              setFullApiData(updatedData);
-            }
+          const motIndex = updatedData.data.mot.findIndex(m => m.vehicle === vehicleId);
+          if (motIndex !== -1) {
+            updatedData.data.mot[motIndex].next_mot_booked_date = date;
+            updatedData.data.mot[motIndex].next_mot_booked_time = time || "";
+            setFullApiData(updatedData);
           }
         }
+        
         setEditingField(null);
+        setTimeDialogOpen(false);
+        setPendingDateUpdate(null);
       } else {
         throw new Error(result.message || "Update failed");
       }
     } catch (error) {
       console.error('Update error:', error);
       toast.error(error instanceof Error ? error.message : "Failed to update.");
-      setEditValue(editingField.originalValue);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleTimeDialogSave = () => {
+    if (pendingDateUpdate) {
+      saveDateAndTime(pendingDateUpdate.vehicleId, pendingDateUpdate.newDate, newTimeValue);
+    }
+  };
+
+  const handleTimeDialogSkip = () => {
+    if (pendingDateUpdate) {
+      // If it's first time setting date, we can't skip - they must set time
+      if (pendingDateUpdate.isFirstTime) {
+        toast.error("Please set a time for the booking");
+        return;
+      }
+      
+      // For existing bookings, allow skipping (clears time)
+      saveDateAndTime(pendingDateUpdate.vehicleId, pendingDateUpdate.newDate, null);
+    }
+  };
+
+  const handleTimeDialogCancel = () => {
+    setTimeDialogOpen(false);
+    setPendingDateUpdate(null);
+    setEditingField(null);
+    toast.info("Date change cancelled");
+  };
+
+  const updateLocalData = (vehicleId: number, fieldType: EditableField['type'], value: string) => {
+    if (!fullApiData) return;
+
+    const updatedData = { ...fullApiData };
+    
+    if (fieldType === 'mot_date') {
+      const motIndex = updatedData.data.mot.findIndex(m => m.vehicle === vehicleId);
+      if (motIndex !== -1) {
+        updatedData.data.mot[motIndex].next_mot_booked_date = value;
+        setFullApiData(updatedData);
+      }
+    } else if (fieldType === 'mot_time') {
+      const motIndex = updatedData.data.mot.findIndex(m => m.vehicle === vehicleId);
+      if (motIndex !== -1) {
+        updatedData.data.mot[motIndex].next_mot_booked_time = value;
+        setFullApiData(updatedData);
+      }
+    } else if (fieldType === 'pmi_date') {
+      const pmiIndex = updatedData.data.pmi.findIndex(p => p.vehicle === vehicleId);
+      if (pmiIndex !== -1) {
+        updatedData.data.pmi[pmiIndex].next_pmi_book_date = value;
+        setFullApiData(updatedData);
+      }
+    } else if (fieldType === 'tacho_calib_date') {
+      const calibIndex = updatedData.data.calibrations.findIndex(c => c.vehicle === vehicleId);
+      if (calibIndex !== -1) {
+        updatedData.data.calibrations[calibIndex].next_tacho_calibration_book_date = value;
+        setFullApiData(updatedData);
+      }
+    } else if (fieldType === 'loller_calib_date') {
+      const calibIndex = updatedData.data.calibrations.findIndex(c => c.vehicle === vehicleId);
+      if (calibIndex !== -1) {
+        updatedData.data.calibrations[calibIndex].next_loller_test_date = value;
+        setFullApiData(updatedData);
+      }
     }
   };
 
@@ -614,6 +771,19 @@ export default function VehicleDashboard() {
   const renderMOTBookedTime = (row: VehicleRow) => {
     const isEditing = editingField?.type === 'mot_time' && editingField?.vehicleId === row.vehicle;
     const value = row.mot?.next_mot_booked_time;
+    const hasValidDate = !shouldShowTBC(row.mot?.next_mot_booked_date, 'booking');
+    
+    // Show TBC if no valid date is set
+    if (!hasValidDate && !isEditing) {
+      return (
+        <div
+          className="px-3 py-4 text-sm text-gray-400 bg-gray-50 rounded min-h-[44px] flex items-center cursor-not-allowed"
+          title="Set date first to add time"
+        >
+          TBC
+        </div>
+      );
+    }
     
     // Show TBC for booking time until user enters a time
     const displayValue = shouldShowTBC(value) ? "TBC" : (value || "NA");
@@ -642,8 +812,12 @@ export default function VehicleDashboard() {
     return (
       <div
         className="px-3 py-4 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded min-h-[44px] flex items-center"
-        onDoubleClick={() => handleDoubleClick(row.vehicle, 'mot_time', row.mot?.next_mot_booked_time || "")}
-        title="Double-click to edit"
+        onDoubleClick={() => {
+          if (hasValidDate) {
+            handleDoubleClick(row.vehicle, 'mot_time', row.mot?.next_mot_booked_time || "");
+          }
+        }}
+        title={hasValidDate ? "Double-click to edit" : "Set date first to add time"}
       >
         {displayValue}
       </div>
@@ -894,6 +1068,108 @@ export default function VehicleDashboard() {
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-6">
+      {/* Time Update Dialog */}
+      <AlertDialog open={timeDialogOpen} onOpenChange={setTimeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingDateUpdate?.isFirstTime 
+                ? "Set Booking Time" 
+                : "Update Booking Time"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDateUpdate?.isFirstTime ? (
+                <>
+                  You&apos;re setting a new MOT date for{" "}
+                  <span className="font-semibold text-orange-600">
+                    {pendingDateUpdate?.vehicleReg}
+                  </span>
+                  . Please select a booking time for {pendingDateUpdate?.newDate}.
+                </>
+              ) : (
+                <>
+                  You&apos;ve changed the MOT date for{" "}
+                  <span className="font-semibold text-orange-600">
+                    {pendingDateUpdate?.vehicleReg}
+                  </span>
+                  . Please update the booking time for {pendingDateUpdate?.newDate}.
+                  {pendingDateUpdate?.currentTime && (
+                    <div className="mt-2 text-sm">
+                      Current time: <span className="font-medium">{pendingDateUpdate.currentTime}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="py-4">
+            <Label htmlFor="time-input" className="block mb-2">
+              {pendingDateUpdate?.isFirstTime ? "Booking Time" : "New Booking Time"}
+              <span className="text-red-500 ml-1">*</span>
+            </Label>
+            <Input
+              id="time-input"
+              type="time"
+              value={newTimeValue}
+              onChange={(e) => setNewTimeValue(e.target.value)}
+              className="w-full"
+              disabled={isUpdating}
+              required
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Select the time for the MOT appointment on {pendingDateUpdate?.newDate}
+            </p>
+          </div>
+          
+          <AlertDialogFooter>
+            {!pendingDateUpdate?.isFirstTime && (
+              <AlertDialogCancel onClick={handleTimeDialogCancel} disabled={isUpdating}>
+                Cancel
+              </AlertDialogCancel>
+            )}
+            {pendingDateUpdate?.isFirstTime ? (
+              <div className="flex gap-2 w-full">
+                <AlertDialogCancel onClick={handleTimeDialogCancel} disabled={isUpdating} className="flex-1">
+                  Cancel
+                </AlertDialogCancel>
+                <Button onClick={handleTimeDialogSave} disabled={isUpdating || !newTimeValue} className="flex-1">
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Date & Time'
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleTimeDialogSkip} 
+                  disabled={isUpdating}
+                  className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                >
+                  Clear Time
+                </Button>
+                <Button onClick={handleTimeDialogSave} disabled={isUpdating || !newTimeValue}>
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Time'
+                  )}
+                </Button>
+              </div>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -901,6 +1177,7 @@ export default function VehicleDashboard() {
             <h1 className="text-3xl font-bold text-gray-900">Vehicle Compliance</h1>
             <p className="text-sm text-gray-600 mt-1">Monitor and manage vehicle maintenance schedules</p>
             <p className="text-xs text-gray-500 mt-1">Double-click on MOT/PMI booked dates to edit</p>
+            <p className="text-xs text-orange-500 mt-1">⚠️ Time selection required when setting/updating MOT dates</p>
           </div>
 
           <div className="flex gap-3">
