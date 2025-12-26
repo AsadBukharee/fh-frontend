@@ -1,4 +1,4 @@
-// app/drivers/DocumentsStep.tsx (COMPLETE UPDATED VERSION)
+// app/drivers/DocumentsStep.tsx (UPDATED WITH ALL REQUIRED DOCUMENTS)
 
 "use client";
 
@@ -64,16 +64,76 @@ interface DocumentsStepProps {
   onOpenchange:(open: boolean) => void;
 }
 
+// UPDATED: Document types with all required fields
 const documentTypes = [
-  { id: "driving-license", label: "Driving License", document_type: "driving-license", has_expiry: true },
-  { id: "dd1-category", label: "D / D1 Category", document_type: "dd1-category", has_expiry: true },
-  { id: "cpc-card", label: "CPC Card", document_type: "cpc-card", has_expiry: true },
-  { id: "tacho-card", label: "Tacho Card", document_type: "tacho-card", has_expiry: false },
-  { id: "passport", label: "Passport", document_type: "passport", has_expiry: false },
-  { id: "proof-of-address", label: "Proof of Address", document_type: "proof-of-address", has_expiry: false },
+  { 
+    id: "driving-license", 
+    label: "Driving License", 
+    document_type: "driving-license", 
+    has_expiry: true,
+    description: "Full driving license document"
+  },
+  { 
+    id: "dd1-category", 
+    label: "D / D1 Category", 
+    document_type: "dd1-category", 
+    has_expiry: true,
+    description: "D/D1 category entitlement"
+  },
+  { 
+    id: "last-driver-check-code", 
+    label: "Last Driver Check Code", 
+    document_type: "last-driver-check-code", 
+    has_expiry: false,
+    description: "Last driver check code and date"
+  },
+  { 
+    id: "cpc-card", 
+    label: "CPC / DQC Card", 
+    document_type: "cpc-card", 
+    has_expiry: true,
+    description: "Driver CPC Qualification Card"
+  },
+  { 
+    id: "tacho-card", 
+    label: "Tacho Card", 
+    document_type: "tacho-card", 
+    has_expiry: false,
+    description: "Digital tachograph card"
+  },
+  { 
+    id: "last-tacho-download", 
+    label: "Last Tacho Download", 
+    document_type: "last-tacho-download", 
+    has_expiry: false,
+    description: "Last tachograph download date"
+  },
+  { 
+    id: "passport", 
+    label: "Passport", 
+    document_type: "passport", 
+    has_expiry: true,
+    description: "Valid passport document",
+    adminOnly: false // Added flag for admin-only handling
+  },
+  { 
+    id: "proof-of-address", 
+    label: "Proof of Address", 
+    document_type: "proof-of-address", 
+    has_expiry: true,
+    description: "Proof of current address"
+  },
+  { 
+    id: "dbs-check", 
+    label: "DBS Check", 
+    document_type: "dbs-check", 
+    has_expiry: true,
+    description: "Disclosure and Barring Service check",
+    adminOnly: false // Added flag for admin-only handling
+  },
 ] as const;
 
-export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,onOpenchange }: DocumentsStepProps) {
+export function DocumentsStep({ driverId, setDocumentsData, existingDocuments, onOpenchange }: DocumentsStepProps) {
   const { goToNextStep, goToPreviousStep, disableBack } = useStepper();
   const [isPending, startTransition] = useTransition();
   const [isSubmittingMainForm, setIsSubmittingMainForm] = useState(false);
@@ -86,11 +146,14 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
     const defaultCompetencies: Record<string, ProfessionalCompetency> = {};
     
     documentTypes.forEach(doc => {
+      // For admin-only documents, initialize with has_document as false but with special handling
+      const isAdminOnly = (doc as any).adminOnly === true;
+      
       defaultCompetencies[doc.id] = {
         id: undefined,
         document_name: doc.label,
         document_type: doc.document_type,
-        has_document: false,
+        has_document: isAdminOnly ? false : false, // Start as false for admin docs
         has_expiry: doc.has_expiry,
         has_description: false,
         request_status: "pending",
@@ -246,17 +309,49 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
       // Skip validation if document is marked as upload later
       if (comp.upload_later) return;
 
-      if (docType.id === "tacho-card" && !comp.has_document) {
-        if (!comp.description.trim()) {
-          errors[`${docType.id}_reason`] = "Reason is required if Tacho Card is not provided.";
-        }
-        return;
+      // Skip validation for admin-only documents on driver side
+      if ((docType.id === "passport" || docType.id === "dbs-check") && !comp.has_document) {
+        return; // Admin will handle these
       }
 
-      if (comp.has_document && !comp.urls[0]) {
+      // TACHO CARD LOGIC: If tacho card is available, last tacho download is required
+      if (docType.id === "tacho-card") {
+        if (comp.has_document) {
+          // If tacho card is uploaded, check last tacho download
+          const lastTachoComp = competencies["last-tacho-download"];
+          if (!lastTachoComp.expiry_date) {
+            errors["last-tacho-download_date"] = "Last tacho download date is required when Tacho Card is provided.";
+          }
+          
+          // Validate tacho card upload
+          if (comp.has_document && !comp.urls[0]) {
+            errors[`${docType.id}_front_image`] = `${docType.label} is required.`;
+          }
+        } else {
+          // If no tacho card, last tacho download is NOT required
+          // But reason is required for missing tacho card
+          if (!comp.description.trim()) {
+            errors[`${docType.id}_reason`] = "Reason is required if Tacho Card is not provided.";
+          }
+        }
+      }
+
+      // For last tacho download, only validate if tacho card exists
+      if (docType.id === "last-tacho-download") {
+        const tachoCardComp = competencies["tacho-card"];
+        if (tachoCardComp.has_document && !comp.expiry_date) {
+          errors[`${docType.id}_date`] = "Last tacho download date is required when Tacho Card is provided.";
+        }
+        // If no tacho card, no validation needed for last tacho download
+      }
+
+      // For other documents that require upload (excluding tacho-related)
+      if (docType.id !== "tacho-card" && docType.id !== "last-tacho-download" && 
+          comp.has_document && !comp.urls[0]) {
         errors[`${docType.id}_front_image`] = `${docType.label} is required.`;
       }
 
+      // Expiry date validation for documents that have expiry
       if (comp.has_expiry && !comp.expiry_date && comp.has_document) {
         errors[`${docType.id}_expiry_date`] = `Expiry date is required for ${docType.label}.`;
       }
@@ -357,6 +452,16 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
         modules: docId === "cpc-card" && !checked ? [] : prev[docId].modules,
       },
     }));
+
+    // Special handling for tacho card
+    if (docId === "tacho-card" && !checked) {
+      // If tacho card is unchecked, clear the last tacho download requirement
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors["last-tacho-download_date"];
+        return newErrors;
+      });
+    }
   }, []);
 
   const handleSubmit = useCallback(
@@ -381,13 +486,30 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
               return;
             }
 
+            // Skip admin-only documents if driver doesn't have them (admin will handle)
+            if ((docType.id === "passport" || docType.id === "dbs-check") && !comp.has_document) {
+              return;
+            }
+
             // Skip tacho card without document and no upload later
             if (docType.id === "tacho-card" && !comp.has_document && !comp.description) {
               return;
             }
 
+            // Skip last tacho download without date ONLY if tacho card exists
+            const tachoCardComp = competencies["tacho-card"];
+            if (docType.id === "last-tacho-download" && 
+                !comp.expiry_date && 
+                tachoCardComp.has_document) {
+              return; // Don't include if tacho card exists but no download date
+            }
+
             // Only include documents that have content
-            if (comp.has_document || (docType.id === "tacho-card" && comp.description)) {
+            if (comp.has_document || 
+                (docType.id === "tacho-card" && comp.description) ||
+                (docType.id === "last-tacho-download" && comp.expiry_date) ||
+                (docType.id === "last-tacho-download" && !tachoCardComp.has_document)) {
+              
               const competency: any = {
                 driver: driverId,
                 document_name: comp.document_name,
@@ -402,6 +524,12 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
                 has_description: !!comp.description,
                 next_five_modules: [],
               };
+
+              // For last tacho download, use expiry_date field for the download date
+              if (docType.id === "last-tacho-download" && comp.expiry_date) {
+                competency.expiry_date = comp.expiry_date;
+                competency.description = comp.description || `Last tacho download on ${comp.expiry_date}`;
+              }
 
               // Include modules only for CPC card
               if (docType.id === "cpc-card" && comp.modules.length > 0) {
@@ -445,7 +573,6 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
 
           alert(`Documents saved successfully.`);
 
-
           setDocumentsData(competencies);
           onOpenchange(false)
           // router.refresh();
@@ -469,6 +596,10 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
     const comp = competencies[docId];
     if (comp.upload_later) return "pending_upload";
     if (comp.has_document && comp.urls.length > 0) return "pending";
+    // For admin-only documents that driver doesn't handle
+    if ((docId === "passport" || docId === "dbs-check") && !comp.has_document) {
+      return "admin_only";
+    }
     return "not_uploaded";
   };
 
@@ -478,6 +609,8 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
         return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Pending</Badge>;
       case "pending_upload":
         return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Upload Later</Badge>;
+      case "admin_only":
+        return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Admin to Upload</Badge>;
       case "not_uploaded":
         return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Not Uploaded</Badge>;
       default:
@@ -522,7 +655,7 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
                 Step 4: Professional Documents
               </CardTitle>
               <CardDescription className="text-gray-600">
-                Upload required professional documents and certifications
+                Upload all required professional documents and certifications
               </CardDescription>
             </div>
           </div>
@@ -543,6 +676,8 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
                   const status = getDocumentStatus(doc.id);
                   const hasFront = comp.urls.length > 0 && comp.urls[0];
                   const hasBack = comp.urls.length > 1 && comp.urls[1];
+                  const isAdminOnly = (doc as any).adminOnly === true;
+                  const tachoCardExists = competencies["tacho-card"]?.has_document;
 
                   return (
                     <Card key={doc.id} className="border-2 border-orange-100 hover:border-orange-300 transition-all hover:shadow-lg">
@@ -566,29 +701,183 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
                       </CardHeader>
                       
                       <CardContent className="space-y-4">
-                        {/* Tacho Card Special Case */}
-                        {doc.id === "tacho-card" && (
-                          <div className="flex items-center space-x-2 mb-4">
-                            <Checkbox
-                              id={`${doc.id}-has-document`}
-                              checked={comp.has_document}
-                              onCheckedChange={(c) => handleCheckboxChange(doc.id, c as boolean)}
-                            />
-                            <Label htmlFor={`${doc.id}-has-document`} className="text-sm font-medium">
-                              Has Tacho Card
-                            </Label>
+                        {/* Admin-only documents notice */}
+                        {isAdminOnly && !comp.has_document && (
+                          <div className="p-3 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg">
+                            <div className="flex items-start gap-3">
+                              <Info className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <p className="font-semibold text-purple-900">Admin to Upload</p>
+                                <p className="text-sm text-purple-700 mt-1">
+                                  This document will be uploaded by the administrator. You don&apos;t need to provide it.
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
 
-                        {/* Document Upload Section */}
-                        {((doc.id !== "tacho-card") || comp.has_document) && !comp.upload_later && (
+                        {/* Tacho Card Special Case */}
+                        {doc.id === "tacho-card" && (
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`${doc.id}-has-document`}
+                                checked={comp.has_document}
+                                onCheckedChange={(c) => handleCheckboxChange(doc.id, c as boolean)}
+                              />
+                              <Label htmlFor={`${doc.id}-has-document`} className="text-sm font-medium">
+                                Has Tacho Card
+                              </Label>
+                            </div>
+                            
+                            {/* Note about dependency */}
+                            {comp.has_document && (
+                              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-sm text-blue-700 flex items-center gap-2">
+                                  <Info className="h-4 w-4" />
+                                  <span>
+                                    Since you have a Tacho Card, <strong>Last Tacho Download Date</strong> is also required.
+                                  </span>
+                                </p>
+                              </div>
+                            )}
+                            
+                            {/* Document upload if tacho card exists */}
+                            {comp.has_document && (
+                              <div className="space-y-3">
+                                <Label className="text-sm font-medium flex items-center gap-2">
+                                  <Upload className="h-3 w-3" />
+                                  Tacho Card Document
+                                  <span className="text-red-500">*</span>
+                                </Label>
+                                {hasFront ? (
+                                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                                    <div className="flex items-center gap-2 text-green-700">
+                                      <CheckCircle2 className="h-4 w-4" />
+                                      <span className="text-sm font-medium">Document uploaded</span>
+                                      <Badge variant="outline" className="ml-auto text-xs">
+                                        {comp.urls[0].split("/").pop()?.slice(0, 20)}...
+                                      </Badge>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0"
+                                        onClick={() => {
+                                          setCompetencies(prev => ({
+                                            ...prev,
+                                            [doc.id]: {
+                                              ...prev[doc.id],
+                                              urls: ["", prev[doc.id].urls[1]].filter(Boolean),
+                                            }
+                                          }));
+                                        }}
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 border-2 border-dashed border-orange-300 rounded-lg p-4 bg-orange-50/30 hover:border-orange-400 transition-colors">
+                                    <FileUploader
+                                      id={`${doc.id}_front`}
+                                      onUploadSuccess={handleUploadSuccess(doc.id, "front")}
+                                      accept="image/*,application/pdf"
+                                      maxSize={10 * 1024 * 1024}
+                                    />
+                                  </div>
+                                )}
+                                {formErrors[`${doc.id}_front_image`] && (
+                                  <p className="text-sm text-red-500 mt-1">{formErrors[`${doc.id}_front_image`]}</p>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Reason if no tacho card */}
+                            {!comp.has_document && (
+                              <div className="space-y-3">
+                                <Label className="text-sm font-medium text-gray-700">
+                                  Reason for not providing Tacho Card
+                                  <span className="text-red-500">*</span>
+                                </Label>
+                                <Textarea
+                                  placeholder="e.g., Not required for my role, Company provided, etc."
+                                  value={comp.description}
+                                  onChange={(e) => handleInputChange(doc.id, "description", e.target.value)}
+                                  className="border-gray-300 min-h-[80px]"
+                                />
+                                {formErrors[`${doc.id}_reason`] && (
+                                  <p className="text-sm text-red-500 mt-1">{formErrors[`${doc.id}_reason`]}</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Last Tacho Download Special Case */}
+                        {doc.id === "last-tacho-download" && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-medium flex items-center gap-2">
+                                <Calendar className="h-3 w-3" />
+                                Last Tacho Download Date
+                                {tachoCardExists && <span className="text-red-500">*</span>}
+                              </Label>
+                              {tachoCardExists && (
+                                <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                                  Required with Tacho Card
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {/* Note about dependency */}
+                            {!tachoCardExists && (
+                              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                <p className="text-sm text-gray-700 flex items-center gap-2">
+                                  <Info className="h-4 w-4" />
+                                  <span>
+                                    Last Tacho Download is <strong>not required</strong> since no Tacho Card is provided.
+                                  </span>
+                                </p>
+                              </div>
+                            )}
+                            
+                            <Input
+                              type="date"
+                              value={comp.expiry_date}
+                              onChange={(e) => handleInputChange(doc.id, "expiry_date", e.target.value)}
+                              className="border-orange-300 focus:ring-2 focus:ring-orange-500"
+                              disabled={!tachoCardExists}
+                            />
+                            {formErrors[`${doc.id}_date`] && (
+                              <p className="text-sm text-red-500 mt-1">{formErrors[`${doc.id}_date`]}</p>
+                            )}
+                            
+                            {/* Optional document upload */}
+                            <div className="mt-2">
+                              <Label className="text-sm font-medium">Document Upload (Optional)</Label>
+                              <div className="mt-2 border-2 border-dashed border-orange-300 rounded-lg p-4 bg-orange-50/30 hover:border-orange-400 transition-colors">
+                                <FileUploader
+                                  id={`${doc.id}_front`}
+                                  onUploadSuccess={handleUploadSuccess(doc.id, "front")}
+                                  accept="image/*,application/pdf"
+                                  maxSize={10 * 1024 * 1024}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Document Upload Section for other documents */}
+                        {doc.id !== "tacho-card" && doc.id !== "last-tacho-download" && 
+                          !comp.upload_later && !isAdminOnly && (
                           <>
                             <div className="space-y-3">
                               <div>
                                 <Label className="text-sm font-medium flex items-center gap-2">
                                   <Upload className="h-3 w-3" />
                                   Front Document
-                                  {doc.id !== "tacho-card" && <span className="text-red-500">*</span>}
+                                  <span className="text-red-500">*</span>
                                 </Label>
                                 {hasFront ? (
                                   <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
@@ -725,15 +1014,17 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
                             </div>
 
                             {/* Upload Later Button */}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
-                              onClick={() => setUploadLaterDialog({ open: true, docId: doc.id })}
-                            >
-                              <Clock className="mr-2 h-4 w-4" />
-                              Upload Later
-                            </Button>
+                            {!isAdminOnly && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                                onClick={() => setUploadLaterDialog({ open: true, docId: doc.id })}
+                              >
+                                <Clock className="mr-2 h-4 w-4" />
+                                Upload Later
+                              </Button>
+                            )}
                           </>
                         )}
 
@@ -757,25 +1048,6 @@ export function DocumentsStep({ driverId, setDocumentsData, existingDocuments,on
                                 </Button>
                               </div>
                             </div>
-                          </div>
-                        )}
-
-                        {/* Tacho Card without document */}
-                        {doc.id === "tacho-card" && !comp.has_document && !comp.upload_later && (
-                          <div className="space-y-3">
-                            <Label className="text-sm font-medium text-gray-700">
-                              Reason for not providing Tacho Card
-                              <span className="text-red-500">*</span>
-                            </Label>
-                            <Textarea
-                              placeholder="e.g., Not required for my role, Company provided, etc."
-                              value={comp.description}
-                              onChange={(e) => handleInputChange(doc.id, "description", e.target.value)}
-                              className="border-gray-300 min-h-[80px]"
-                            />
-                            {formErrors[`${doc.id}_reason`] && (
-                              <p className="text-sm text-red-500 mt-1">{formErrors[`${doc.id}_reason`]}</p>
-                            )}
                           </div>
                         )}
 

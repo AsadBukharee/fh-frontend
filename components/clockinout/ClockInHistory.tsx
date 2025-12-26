@@ -10,7 +10,18 @@ import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import { format } from 'date-fns';
 
-// Define the ClockLog interface to match the API response
+// Helper function to format decimal hours into "Xh Ym" (e.g., 8.5 → "8h 30m", 0.89 → "53m")
+const formatHours = (hours: number): string => {
+  if (hours <= 0) return '0m';
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  const parts: string[] = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0 || h === 0) parts.push(`${m}m`);
+  return parts.join(' ');
+};
+
 interface ClockLog {
   id: number;
   driverName: string;
@@ -100,7 +111,7 @@ const ClockInOutHistory = () => {
   const [driverFilter, setDriverFilter] = useState('all');
   const [siteFilter, setSiteFilter] = useState('all');
   const [startDate, setStartDate] = useState('2025-09-01');
-  const [endDate, setEndDate] = useState(''); // Initialize as empty for flexibility
+  const [endDate, setEndDate] = useState('');
   const [hoursFilter, setHoursFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -112,24 +123,20 @@ const ClockInOutHistory = () => {
   const token = useCookies().get('access_token') || '';
   const pageSize = 20;
 
-  // Get today's date for max attribute
   const today = new Date().toISOString().split('T')[0];
 
-  // Define badge colors for sites
   const siteBadgeColors: { [key: string]: string } = {
     'Bolton Central': 'bg-blue-100 text-blue-800',
     '35 Market Street': 'bg-purple-100 text-purple-800',
     'Any': 'bg-green-100 text-green-800',
   };
 
-  // Define badge colors for total hours
   const getHoursBadgeColor = (hours: number) => {
     if (hours === 8) return 'bg-green-100 text-green-800';
     if (hours < 8) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
   };
 
-  // Fetch users from the API
   const fetchUsers = async () => {
     try {
       const response = await fetch(`${API_URL}/users/`, {
@@ -138,16 +145,13 @@ const ClockInOutHistory = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
+      if (!response.ok) throw new Error('Failed to fetch users');
       const data: ApiResponseUsers = await response.json();
       const activeDrivers = data.data.results.filter(
         (user) => user.is_active && (user.role === 'Driver' || user.role === 'mechanic')
       );
       setUsers(activeDrivers);
 
-      // Extract unique site names from users
       const uniqueSites = new Set<string>();
       activeDrivers.forEach((user) => {
         user.site.forEach((s) => uniqueSites.add(s.name));
@@ -159,14 +163,13 @@ const ClockInOutHistory = () => {
     }
   };
 
-  // Fetch logs from the API
   const fetchLogs = async (page: number) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         user_id: driverFilter === 'all' ? '' : driverFilter,
         start_date: startDate,
-        end_date: endDate || today, // Fallback to today if endDate is empty
+        end_date: endDate || today,
         page: page.toString(),
         page_size: pageSize.toString(),
       });
@@ -176,12 +179,9 @@ const ClockInOutHistory = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      if (!response.ok) {
-        throw new Error('Failed to fetch clock logs');
-      }
+      if (!response.ok) throw new Error('Failed to fetch clock logs');
       const data: ApiResponseClock = await response.json();
 
-      // Map API response to ClockLog interface
       const mappedLogs: ClockLog[] = data.data.results.map((log) => ({
         id: log.id,
         driverName: log.user.full_name,
@@ -203,7 +203,6 @@ const ClockInOutHistory = () => {
       setTotalHours(data.data.summary.total_hours);
       setTotalEarnings(data.data.summary.total_earnings);
 
-      // Update sites with any new site names from clocking data
       const clockingSites = new Set<string>([
         ...sites,
         ...data.data.results.map((log) => log.site.name),
@@ -216,11 +215,9 @@ const ClockInOutHistory = () => {
     }
   };
 
-  // Validate date range
   const handleDateChange = (type: 'start' | 'end', value: string) => {
     if (type === 'start') {
       setStartDate(value);
-      // Ensure endDate is not before startDate
       if (endDate && new Date(value) > new Date(endDate)) {
         setEndDate('');
       }
@@ -234,21 +231,16 @@ const ClockInOutHistory = () => {
   }, []);
 
   useEffect(() => {
- 
-      fetchLogs(currentPage);
-    
+    fetchLogs(currentPage);
   }, [currentPage, startDate, endDate, driverFilter, users, token]);
 
-  // Apply client-side filters
   useEffect(() => {
     let filtered = logs;
 
-    // Filter by site
     if (siteFilter !== 'all') {
       filtered = filtered.filter((log) => log.siteName === siteFilter);
     }
 
-    // Filter by total hours
     if (hoursFilter !== 'all') {
       filtered = filtered.filter((log) => {
         const hours = log.totalHours;
@@ -262,13 +254,8 @@ const ClockInOutHistory = () => {
     setFilteredLogs(filtered);
   }, [siteFilter, hoursFilter, logs]);
 
-  if (loading) {
-    return <div className="p-4">Loading...</div>;
-  }
-
-  if (error) {
-    return <div className="p-4 text-red-500">Error: {error}</div>;
-  }
+  if (loading) return <div className="p-4">Loading...</div>;
+  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -280,7 +267,9 @@ const ClockInOutHistory = () => {
               Comprehensive overview of driver clock-in and clock-out times
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              {totalRecords} record{totalRecords !== 1 ? 's' : ''} found | Total Hours: {totalHours} | Total Earnings: £{totalEarnings.toFixed(2)}
+              {totalRecords} record{totalRecords !== 1 ? 's' : ''} found | 
+              Total Hours: {formatHours(totalHours)} | 
+              Total Earnings: £{totalEarnings.toFixed(2)}
             </p>
           </div>
           <div className="flex gap-2">
@@ -288,7 +277,6 @@ const ClockInOutHistory = () => {
           </div>
         </div>
 
-        {/* Filters on screen */}
         <div className="flex flex-wrap items-end gap-4 bg-gray-50 p-4 rounded-lg">
           <div className="flex-1 min-w-[200px]">
             <label className="text-sm font-medium block mb-1">Search by Driver</label>
@@ -313,7 +301,7 @@ const ClockInOutHistory = () => {
               type="date"
               value={startDate}
               onChange={(e) => handleDateChange('start', e.target.value)}
-              max={today} // Restrict to past dates only
+              max={today}
               className="w-full bg-white p-1.5 border border-gray-300 rounded-sm"
             />
           </div>
@@ -324,8 +312,8 @@ const ClockInOutHistory = () => {
               type="date"
               value={endDate}
               onChange={(e) => handleDateChange('end', e.target.value)}
-              min={startDate} // Prevent selecting endDate before startDate
-              max={today} // Restrict to past dates only
+              min={startDate}
+              max={today}
               className="w-full bg-white p-1.5 border border-gray-300 rounded-sm"
             />
           </div>
@@ -380,7 +368,6 @@ const ClockInOutHistory = () => {
         </div>
       </div>
 
-      {/* Table */}
       <Table>
         <TableHeader>
           <TableRow>
@@ -390,14 +377,13 @@ const ClockInOutHistory = () => {
             <TableHead>Clock In</TableHead>
             <TableHead>Clock Out</TableHead>
             <TableHead>Total Hours</TableHead>
-          
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredLogs.length > 0 ? (
             filteredLogs.map((log) => (
               <TableRow key={log.id}>
-                    <TableCell>{format(new Date(log.date), 'dd/MM/yyyy')}</TableCell>
+                <TableCell>{format(new Date(log.date), 'dd/MM/yyyy')}</TableCell>
                 <TableCell>{log.driverName}</TableCell>
                 <TableCell>
                   <span
@@ -408,42 +394,34 @@ const ClockInOutHistory = () => {
                     {log.siteName}
                   </span>
                 </TableCell>
-                 <TableCell>
-                               {new Date(`1970-01-01T${log.clockIn}`).toLocaleTimeString(
-                                 [],
-                                 {
-                                   hour: "2-digit",
-                                   minute: "2-digit",
-                                   hour12: false,
-                                 }
-                               )}
-                             </TableCell>
-                             <TableCell>
-                               {" "}
-                               {new Date(`1970-01-01T${log.clockOut}`).toLocaleTimeString(
-                                 [],
-                                 {
-                                   hour: "2-digit",
-                                   minute: "2-digit",
-                                   hour12: false,
-                                 }
-                               )}
-                             </TableCell>
+                <TableCell>
+                  {new Date(`1970-01-01T${log.clockIn}`).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  })}
+                </TableCell>
+                <TableCell>
+                  {new Date(`1970-01-01T${log.clockOut}`).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  })}
+                </TableCell>
                 <TableCell>
                   <span
                     className={`inline-block px-2 py-1 rounded text-xs font-medium ${getHoursBadgeColor(
                       log.totalHours
                     )}`}
                   >
-                    {log.totalHours}
+                    {formatHours(log.totalHours)}
                   </span>
                 </TableCell>
-             
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={8} className="text-center">
+              <TableCell colSpan={6} className="text-center">
                 No records found
               </TableCell>
             </TableRow>
@@ -451,7 +429,6 @@ const ClockInOutHistory = () => {
         </TableBody>
       </Table>
 
-      {/* Pagination Controls */}
       <div className="flex justify-between items-center mt-4">
         <Button
           disabled={currentPage === 1}
