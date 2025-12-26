@@ -33,6 +33,8 @@ import {
   TestTube,
   ChevronRight,
   Plus,
+  AlertCircle,
+  FileWarning,
 } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import ImageUploader from "@/components/Media/UploadImage";
@@ -323,6 +325,28 @@ export default function VehicleDetailPage() {
           setVehicle(updatedData.data);
           setEditVehicle(updatedData.data);
           toast.success("Document uploaded successfully");
+          
+          // If this document was in missing_attributes, refresh data to update the list
+          const missingDocMap = {
+            "Insurance documents": "insurance_docs",
+            "Tax documents": "tax_docs",
+            "MOT documents": "mot_check_docs",
+            "PMI documents": "pmi_inspection_docs",
+            "LOLER documents": "loller_docs",
+            "Tacho documents": "tacho_calibration_docs",
+            "Vehicle invoice": "vehicle_invoice_docs",
+            "Service records": "service_records_docs",
+            "New vehicle checklist": "new_vehicle_checklist_docs",
+            "Logbook": "logbook_docs",
+            "COIF technical": "COIF_technical_docs",
+          };
+          
+          const missingKeys = Object.entries(missingDocMap).find(([key, value]) => value === docType);
+          if (missingKeys) {
+            setTimeout(() => {
+              handleUpdateSuccess();
+            }, 500);
+          }
         }
       }
     } catch (err) {
@@ -500,6 +524,59 @@ export default function VehicleDetailPage() {
     }
   };
 
+  const getMissingDataIcon = (item: string) => {
+    switch (item.toLowerCase()) {
+      case "insurance documents":
+        return FileText;
+      case "tax documents":
+        return DollarSign;
+      case "mot documents":
+        return CheckCircle;
+      case "pmi documents":
+        return Wrench;
+      case "loler documents":
+        return TestTube;
+      case "tacho documents":
+        return Gauge;
+      default:
+        return FileWarning;
+    }
+  };
+
+  const navigateToDocument = (item: string) => {
+    // Map missing items to document fields
+    const missingDocMap: { [key: string]: { tab: string, field: string } } = {
+      "Insurance documents": { tab: "documents", field: "insurance_docs" },
+      "Tax documents": { tab: "documents", field: "tax_docs" },
+      "MOT documents": { tab: "documents", field: "mot_check_docs" },
+      "PMI documents": { tab: "documents", field: "pmi_inspection_docs" },
+      "LOLER documents": { tab: "documents", field: "loller_docs" },
+      "Tacho calibration documents": { tab: "documents", field: "tacho_calibration_docs" },
+      "Vehicle invoice": { tab: "documents", field: "vehicle_invoice_docs" },
+      "Service records": { tab: "documents", field: "service_records_docs" },
+      "New vehicle checklist": { tab: "documents", field: "new_vehicle_checklist_docs" },
+      "Logbook": { tab: "documents", field: "logbook_docs" },
+      "COIF technical": { tab: "documents", field: "COIF_technical_docs" },
+    };
+
+    const docInfo = missingDocMap[item];
+    if (docInfo) {
+      setActiveTab(docInfo.tab);
+      // Scroll to the specific document element after tab switch
+      setTimeout(() => {
+        const element = document.getElementById(`document-${docInfo.field}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add highlight effect
+          element.classList.add('bg-amber-50', 'border-amber-200', 'border-2');
+          setTimeout(() => {
+            element.classList.remove('bg-amber-50', 'border-amber-200', 'border-2');
+          }, 3000);
+        }
+      }, 300);
+    }
+  };
+
   const documentTypes = [
     { key: "vehicle_invoice_docs", label: "Vehicle Invoice", icon: FileText },
     { key: "mot_check_docs", label: "MOT Check", icon: CheckCircle },
@@ -657,6 +734,24 @@ export default function VehicleDetailPage() {
           </div>
         </div>
 
+        {/* Warnings Card - Show if there are warnings */}
+        {vehicle.warnings && vehicle.warnings.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="w-5 h-5 text-amber-600 mr-2" />
+              <h3 className="text-lg font-bold text-gray-900">Vehicle Warnings</h3>
+            </div>
+            <div className="space-y-2">
+              {vehicle.warnings.map((warning: string, index: number) => (
+                <div key={index} className="flex items-start gap-2 p-3 bg-white rounded-lg border border-amber-100">
+                  <div className={`w-2 h-2 rounded-full mt-1.5 ${warning.includes('🚨') ? 'bg-red-500' : 'bg-amber-500'}`}></div>
+                  <span className="text-sm text-gray-700">{warning}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -672,6 +767,67 @@ export default function VehicleDetailPage() {
 
           {/* Vehicle Details Tab */}
           <TabsContent value="details" className="space-y-5">
+            {/* Missing Data Card - Show if there are missing attributes */}
+            {vehicle.missing_attributes && vehicle.missing_attributes.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-center mb-5">
+                  <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <h3 className="ml-3 text-lg font-bold text-gray-900">Missing Information</h3>
+                </div>
+
+                <div className="mb-4">
+                  <p className="text-sm text-gray-700 mb-3">
+                    The following documents or information are missing for this vehicle:
+                  </p>
+                  
+                  <div className="space-y-3">
+                    {vehicle.missing_attributes.map((item: string, index: number) => {
+                      const Icon = getMissingDataIcon(item);
+                      return (
+                        <div 
+                          key={index} 
+                          className="flex items-center justify-between p-4 bg-white rounded-lg border border-red-100 hover:bg-red-50 transition-colors cursor-pointer"
+                          onClick={() => navigateToDocument(item)}
+                        >
+                          <div className="flex items-center gap-3 flex-1">
+                            <Icon className="w-5 h-5 text-red-500" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{item}</p>
+                              <p className="text-xs text-red-500 mt-0.5">
+                                Required document missing
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-red-100 text-red-700 border-0 rounded-full px-3 text-xs">
+                              Missing
+                            </Badge>
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-red-200">
+                  <p className="text-sm text-gray-600">
+                    Upload missing documents to complete vehicle profile
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab("documents")}
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    Go to Documents
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Status Management Card */}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center mb-5">
@@ -950,15 +1106,6 @@ export default function VehicleDetailPage() {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-2">Equipment</p>
-                  <div className="flex gap-2">
-                    <Badge className="bg-orange-100 text-orange-700 border-0 rounded-full px-4">
-                      Wheelchair Lift Fitted
-                    </Badge>
-                  </div>
-                </div>
-
                 <div className="border-t border-gray-100 pt-4">
                   <p className="text-sm text-gray-500 mb-2">Notes</p>
                   {isEditing ? (
@@ -1284,6 +1431,25 @@ export default function VehicleDetailPage() {
 
           {/* Documents Tab */}
           <TabsContent value="documents" className="space-y-5">
+            {/* Missing Documents Alert - If any missing attributes are document-related */}
+            {vehicle.missing_attributes && vehicle.missing_attributes.some((item: string) => 
+              item.toLowerCase().includes('documents') || 
+              item === 'Insurance documents' || 
+              item === 'Tax documents'
+            ) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="flex items-center">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 mr-2" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">Missing Documents Required</p>
+                    <p className="text-xs text-amber-700">
+                      Some documents are missing. Please upload them below.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center mb-5">
                 <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
@@ -1298,13 +1464,46 @@ export default function VehicleDetailPage() {
                   const docUrl = vehicle[doc.key as keyof typeof vehicle] as string;
                   const hasDoc = hasDocument(docUrl);
                   
+                  // Check if this document is in missing_attributes
+                  const isMissing = vehicle.missing_attributes?.some((item: string) => {
+                    const missingDocMap: { [key: string]: string } = {
+                      "Insurance documents": "insurance_docs",
+                      "Tax documents": "tax_docs",
+                      "MOT documents": "mot_check_docs",
+                      "PMI documents": "pmi_inspection_docs",
+                      "LOLER documents": "loller_docs",
+                      "Tacho calibration documents": "tacho_calibration_docs",
+                      "Vehicle invoice": "vehicle_invoice_docs",
+                      "Service records": "service_records_docs",
+                      "New vehicle checklist": "new_vehicle_checklist_docs",
+                      "Logbook": "logbook_docs",
+                      "COIF technical": "COIF_technical_docs",
+                    };
+                    return missingDocMap[item] === doc.key;
+                  });
+                  
                   return (
-                    <div key={doc.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div 
+                      key={doc.key} 
+                      id={`document-${doc.key}`}
+                      className={`flex items-center justify-between p-4 rounded-lg hover:bg-gray-100 transition-colors ${
+                        isMissing ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
+                      }`}
+                    >
                       <div className="flex items-center gap-3 flex-1">
-                        <Icon className="w-5 h-5 text-gray-400" />
+                        <Icon className={`w-5 h-5 ${isMissing ? 'text-red-500' : 'text-gray-400'}`} />
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{doc.label}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">
+                          <div className="flex items-center gap-2">
+                            <p className={`text-sm font-medium ${isMissing ? 'text-red-700' : 'text-gray-900'}`}>
+                              {doc.label}
+                            </p>
+                            {isMissing && (
+                              <Badge className="bg-red-100 text-red-700 border-0 rounded-full px-2 text-xs">
+                                Missing
+                              </Badge>
+                            )}
+                          </div>
+                          <p className={`text-xs ${isMissing ? 'text-red-500' : 'text-gray-500'} mt-0.5`}>
                             {hasDoc ? "Document uploaded" : "No document"}
                           </p>
                         </div>
@@ -1450,16 +1649,11 @@ export default function VehicleDetailPage() {
                         </div>
                       </div>
                       <FileUploader
-                        // onUploadStart={() => setIsUploadingDoc(true)}
                         onUploadSuccess={(url) => {
                           setUploadedDoc(url);
                           setIsUploadingDoc(false);
                           setDocumentError(null);
                         }}
-                        // onUploadError={(error) => {
-                        //   setIsUploadingDoc(false);
-                        //   setDocumentError(error);
-                        // }}
                         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.txt"
                         maxSize={10 * 1024 * 1024}
                         id={`date-${editDateField}-upload`}

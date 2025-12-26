@@ -39,10 +39,13 @@ import FileUploader from "@/components/Media/MediaUpload"
 const DEFAULT_DOCUMENTS = [
   { id: 1, document_name: "Driving License", document_type: "driving-license", has_expiry: true },
   { id: 2, document_name: "D / D1 Category", document_type: "d-d1-category", has_expiry: true },
-  { id: 3, document_name: "CPC Card", document_type: "cpc-card", has_expiry: true },
+  { id: 3, document_name: "CPC / DQC Card", document_type: "cpc-dqc-card", has_expiry: true },
   { id: 4, document_name: "Tacho Card", document_type: "tacho-card", has_expiry: false },
   { id: 5, document_name: "Passport", document_type: "passport", has_expiry: false },
   { id: 6, document_name: "Proof of Address", document_type: "proof-of-address", has_expiry: false },
+  { id: 7, document_name: "DBS Check", document_type: "dbs-check", has_expiry: true },
+  { id: 8, document_name: "Last Driver Check Code", document_type: "last-driver-check-code", has_expiry: true },
+  { id: 9, document_name: "Last Tacho Download", document_type: "last-tacho-download", has_expiry: false },
 ]
 
 // Status reasons configuration
@@ -111,9 +114,9 @@ export default function ProfessionalCompetencyTab({
     recurrence_interval: 1,
   })
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [showStatusDescription, setShowStatusDescription] = useState(false)
 
+  // Fixed: Get completed documents list with proper data merging
   const getCompletedDocumentsList = () => {
     const uploadedMap = new Map(competencyData.map((d) => [d.document_type, d]))
     return DEFAULT_DOCUMENTS.map(
@@ -126,9 +129,10 @@ export default function ProfessionalCompetencyTab({
           modules: [],
           next_five_modules: [],
           request_status: "pending",
+          status_description: "", // Added missing field
+          status_reason: "", // Added missing field
+          custom_reason: "", // Added missing field
           description: "",
-          status_description: "",
-          status_reason: "",
           expiry_date: null,
           has_back_side: false,
           has_description: false,
@@ -144,15 +148,21 @@ export default function ProfessionalCompetencyTab({
     
     // Ensure modules are properly set from API data
     const modules = competency.modules || []
+    
+    // For next_five_modules, the API returns empty array
+    // We'll initialize it with empty strings for editing
     const nextFiveModules = competency.next_five_modules || []
     
-    // If next_five_modules is an array of strings, use it directly
-    // If it's an array of objects (from API), extract module_name
-    const normalizedNextFiveModules = nextFiveModules.map((item: any) => 
-      typeof item === 'string' ? item : (item.module_name || "")
-    ).slice(0, 5)
+    // If it's an array of objects, extract module_name
+    // If empty, create array of 5 empty strings
+    let normalizedNextFiveModules: string[] = []
+    if (nextFiveModules.length > 0) {
+      normalizedNextFiveModules = nextFiveModules.map((item: any) => 
+        typeof item === 'string' ? item : (item.module_name || "")
+      )
+    }
     
-    // Fill remaining slots with empty strings if needed
+    // Fill remaining slots with empty strings
     while (normalizedNextFiveModules.length < 5) {
       normalizedNextFiveModules.push("")
     }
@@ -163,12 +173,13 @@ export default function ProfessionalCompetencyTab({
       next_five_modules: normalizedNextFiveModules,
       status_description: competency.status_description || "",
       status_reason: competency.status_reason || "",
+      custom_reason: competency.custom_reason || "",
     })
     setOriginalExpiryDate(competency.expiry_date)
     setUploadRequired(false)
     setFormErrors({})
     setCurrentImageIndex(0)
-    setShowStatusDescription(false)
+    setShowStatusDescription(competency.request_status === "not_approved" || competency.request_status === "pending")
     setIsModalOpen(true)
     setIsEditing(false)
   }
@@ -308,10 +319,13 @@ export default function ProfessionalCompetencyTab({
         expiry_date: m.expiry_date || null,
       }))
 
-      // Filter out empty next five modules
+      // Filter out empty next five modules and format as objects
       const filteredNextFiveModules = editData.next_five_modules
-        .filter((m: string) => m.trim() !== "")
-        .map((m: string) => ({ module_name: m }))
+        .filter((m: string) => m && m.trim() !== "")
+        .map((m: string, index: number) => ({ 
+          module_name: m,
+          module_number: index + 1
+        }))
 
       const payload = {
         driver: driverId,
@@ -321,6 +335,7 @@ export default function ProfessionalCompetencyTab({
         description: editData.description || "",
         status_description: editData.status_description || "",
         status_reason: editData.status_reason || "",
+        custom_reason: editData.custom_reason || "",
         expiry_date: editData.expiry_date || null,
         has_document: editData.has_document,
         has_back_side: editData.has_back_side,
@@ -337,6 +352,8 @@ export default function ProfessionalCompetencyTab({
 
       const method = editData.id ? "PUT" : "POST"
 
+      console.log("Saving payload:", payload)
+
       const response = await fetch(endpoint, {
         method,
         headers: {
@@ -346,13 +363,14 @@ export default function ProfessionalCompetencyTab({
         body: JSON.stringify(payload),
       })
 
+      const responseData = await response.json()
+      console.log("Save response:", responseData)
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || `Failed to save: ${response.statusText}`)
+        throw new Error(responseData.message || `Failed to save: ${response.statusText}`)
       }
 
-      const result = await response.json()
-      if (result.success || response.status === 200 || response.status === 201) {
+      if (responseData.success || response.status === 200 || response.status === 201) {
         showToast("Professional competency saved successfully", "success")
         setIsModalOpen(false)
         setIsEditing(false)
@@ -360,7 +378,7 @@ export default function ProfessionalCompetencyTab({
         setShowStatusDescription(false)
         fetchCompetencyData()
       } else {
-        throw new Error(result.message || "Failed to save")
+        throw new Error(responseData.message || "Failed to save")
       }
     } catch (error) {
       console.error("Error saving competency:", error)
@@ -386,10 +404,17 @@ export default function ProfessionalCompetencyTab({
     }
 
     // Validate status description for rejected or pending documents
-    if (isEditing && (editData.request_status === "not_approved" || editData.request_status === "pending") && !editData.status_description?.trim()) {
-      setFormErrors((prev) => ({ ...prev, status_description: "Please provide a reason for this status" }))
-      showToast("Please provide a status description", "error")
-      return
+    if (isEditing && (editData.request_status === "not_approved" || editData.request_status === "pending")) {
+      // Check if we have a status description from reason or custom field
+      const hasStatusDescription = 
+        editData.status_description?.trim() || 
+        (editData.status_reason === "other" && editData.custom_reason?.trim())
+      
+      if (!hasStatusDescription) {
+        setFormErrors((prev) => ({ ...prev, status_description: "Please provide a reason for this status" }))
+        showToast("Please provide a status description or reason", "error")
+        return
+      }
     }
 
     await saveChanges()
@@ -497,6 +522,9 @@ export default function ProfessionalCompetencyTab({
                 Manage and review all professional documents and certifications
               </CardDescription>
             </div>
+            <Badge variant="outline" className="px-4 py-2 text-orange-700 border-orange-300">
+              Total Documents: {allDocuments.length}
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="pt-6">
@@ -531,31 +559,16 @@ export default function ProfessionalCompetencyTab({
                             e.currentTarget.parentElement!.innerHTML = '<div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-indigo-100"><svg class="h-20 w-20 text-orange-600 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>'
                           }}
                         />
-                        {/* Navigation dots for multiple images */}
-                        {competency.urls.length > 1 && (
-                          <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 z-20">
-                            <div className="flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5">
-                              {competency.urls.map((_: any, index: number) => (
-                                <div
-                                  key={index}
-                                  className={`w-2 h-2 rounded-full transition-all ${
-                                    index === 0 ? 'bg-white' : 'bg-white/50'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </>
                     )}
                     <Badge
                       className={cn(
                         "absolute top-3 right-3 z-20 px-3 py-1.5 text-xs font-semibold border shadow-lg backdrop-blur-sm inline-flex items-center gap-1.5",
-                        getStatusColor(competency.request_status),
+                        getStatusColor(competency.request_status || "pending"),
                       )}
                     >
-                      {getStatusIcon(competency.request_status)}
-                      {competency.request_status.replace("_", " ").toUpperCase()}
+                      {getStatusIcon(competency.request_status || "pending")}
+                      {(competency.request_status || "pending").replace("_", " ").toUpperCase()}
                     </Badge>
                   </div>
                 )}
@@ -594,7 +607,7 @@ export default function ProfessionalCompetencyTab({
                         {competency.document_name}
                       </h3>
                       <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
-                        {competency.document_type.replace("-", " ")}
+                        {competency.document_type?.replace("-", " ")}
                       </p>
                     </div>
                   </div>
@@ -862,10 +875,10 @@ export default function ProfessionalCompetencyTab({
                     ) : (
                       <div className="space-y-2">
                         <Badge 
-                          className={cn("px-4 py-2 text-sm font-semibold border w-fit inline-flex items-center gap-2", getStatusColor(editData.request_status))}
+                          className={cn("px-4 py-2 text-sm font-semibold border w-fit inline-flex items-center gap-2", getStatusColor(editData.request_status || "pending"))}
                         >
-                          {getStatusIcon(editData.request_status)}
-                          {editData.request_status.replace("_", " ").toUpperCase()}
+                          {getStatusIcon(editData.request_status || "pending")}
+                          {(editData.request_status || "pending").replace("_", " ").toUpperCase()}
                         </Badge>
                         {editData.status_reason && (
                           <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
@@ -963,7 +976,7 @@ export default function ProfessionalCompetencyTab({
                             )}
                             <div>
                               <p className="text-gray-700 leading-relaxed">
-                                {editData.status_description}
+                                {editData.status_description || "No status description provided"}
                               </p>
                               {editData.status_reason && (
                                 <p className="text-xs text-gray-500 mt-2">
@@ -1255,7 +1268,7 @@ export default function ProfessionalCompetencyTab({
               )}
 
               {/* Modules Section - Enhanced */}
-              {(editData.document_type === "cpc-card" || editData.modules.length > 0) && (
+              {(editData.document_type === "cpc-dqc-card" || editData.modules.length > 0) && (
                 <Card className="border-2 border-orange-200 shadow-md hover:shadow-lg transition-shadow">
                   <CardHeader className="bg-gradient-to-r from-orange-600 to-indigo-600 text-white">
                     <CardTitle className="text-2xl flex items-center gap-3">
@@ -1382,7 +1395,7 @@ export default function ProfessionalCompetencyTab({
               )}
 
               {/* Next Five Modules (CPC Card) - Enhanced */}
-              {editData.document_type === "cpc-card" && (
+              {editData.document_type === "cpc-dqc-card" && (
                 <Card className="border-2 border-indigo-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
                   <CardHeader className="bg-gradient-to-r from-indigo-600 to-orange-600 text-white relative overflow-hidden">
                     <div className="absolute inset-0 bg-white/5 backdrop-blur-sm"></div>

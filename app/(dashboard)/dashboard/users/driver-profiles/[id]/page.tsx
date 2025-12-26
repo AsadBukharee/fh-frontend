@@ -961,7 +961,7 @@ export default function DriverDetailPage() {
             )}
             {driverData.profile_status !== "approved" && (
               <Button
-                onClick={() => handleResendActivation(id as unknown as number)}
+                onClick={() => handleResendActivation(driverData.user.id as unknown as number)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all w-48"
               >
                 <Mail className="h-5 w-5 mr-2" />
