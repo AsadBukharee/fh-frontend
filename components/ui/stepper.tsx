@@ -132,7 +132,7 @@ function StepperTabs({
           return (
             <div
               key={index}
-              onClick={() => goToStep(index)}
+              // onClick={() => goToStep(index)}
               className="z-10 flex flex-col items-center gap-3 focus:outline-none"
             >
               {/* Circle */}

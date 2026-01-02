@@ -6,7 +6,7 @@ import { useCookies } from 'next-client-cookies';
 import {
   Bus, Calendar, Clock, Users, ArrowRight, ArrowUpDown,
   AlertCircle, Filter, RotateCw, MapPin, Hash, MoreVertical,
-  Eye, Trash2, Loader2, Check, X,
+  Eye, Trash2, Loader2, Check, X, RefreshCw,
 } from 'lucide-react';
 
 import {
@@ -34,6 +34,7 @@ import {
   DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import API_URL from '@/app/utils/ENV';
+import ExportButton from '@/app/utils/ExportButton';
 
 // ──────────────────────────────────────────────────────────────
 // Types
@@ -90,6 +91,7 @@ export default function SURunList() {
   const [loadingStops, setLoadingStops] = useState(true);
   const [loadingFilters, setLoadingFilters] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // ────── Dialogs ──────
   const [viewOpen, setViewOpen] = useState(false);
@@ -163,6 +165,8 @@ export default function SURunList() {
       const json: ApiResponse<{
         results: Stop[];
         count: number;
+        page: number;
+        page_size: number;
         total_pages: number;
       }> = await res.json();
 
@@ -174,11 +178,18 @@ export default function SURunList() {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setLoadingStops(false);
+      setRefreshing(false);
     }
   }, [token, from, to, driver, runType, dateFrom, dateTo, page]);
 
   useEffect(() => { fetchStops(); }, [fetchStops]);
   useEffect(() => { setPage(1); }, [from, to, driver, runType, dateFrom, dateTo]);
+
+  // ────── Handle Refresh ──────
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchStops();
+  };
 
   // ────── Sorted Data ──────
   const sortedStops = useMemo(() => {
@@ -309,7 +320,23 @@ export default function SURunList() {
           <h1 className="text-3xl font-bold tracking-tight">SU Data Management</h1>
           <p className="text-muted-foreground">Filter and explore all service user runs</p>
         </div>
-        <Bus className="h-10 w-10 text-primary" />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loadingStops || refreshing}
+            className="gap-1"
+          >
+            {refreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Refresh
+          </Button>
+          <ExportButton data={sortedStops} fileName='SU_logs' />
+        </div>
       </div>
 
       {/* Filters */}
@@ -374,7 +401,7 @@ export default function SURunList() {
               <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
             </div>
 
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
               <Button variant="outline" onClick={resetFilters} className="w-full">
                 <RotateCw className="h-4 w-4 mr-1" /> Reset
               </Button>
@@ -390,16 +417,40 @@ export default function SURunList() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
-          <Button variant="outline" size="sm" className="mt-3" onClick={fetchStops}>
-            <RotateCw className="h-4 w-4 mr-1" /> Retry
-          </Button>
+          <div className="flex gap-2 mt-3">
+            <Button variant="outline" size="sm" onClick={fetchStops}>
+              <RotateCw className="h-4 w-4 mr-1" /> Retry
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+            </Button>
+          </div>
         </Alert>
       )}
 
       {/* Table */}
       {!loadingStops && !error && (
         <Card>
-          <CardHeader><CardTitle>Run Details</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Run Details</CardTitle>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Total: {stops.length} stops</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="h-8 w-8"
+                title="Refresh data"
+              >
+                {refreshing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
@@ -420,6 +471,19 @@ export default function SURunList() {
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         No stops match your filters.
+                        <Button
+                          variant="link"
+                          onClick={handleRefresh}
+                          className="ml-2"
+                          disabled={refreshing}
+                        >
+                          {refreshing ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4 mr-1" />
+                          )}
+                          Refresh
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ) : (
