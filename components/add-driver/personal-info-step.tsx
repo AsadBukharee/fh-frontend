@@ -121,6 +121,12 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
     return sortCodeRegex.test(sortCode) ? "" : "Sort code must be in the format XX-XX-XX";
   };
 
+  const validateLicenseNumber = (licenseNumber: string) => {
+    // Remove any spaces or special characters for validation
+    const cleaned = licenseNumber.replace(/\s+/g, '');
+    return cleaned.length === 16 ? "" : "License number must be exactly 16 characters";
+  };
+
   const validateLicenseIssueNumber = (licenseIssueNo: string) => {
     const cleaned = licenseIssueNo.replace(/\D/g, "");
     return cleaned.length === 2 ? "" : "License issue number must be exactly 2 digits";
@@ -136,6 +142,8 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
         return validateAccountNo(value);
       case "sort_code":
         return validateSortCode(value);
+      case "license_number":
+        return validateLicenseNumber(value);
       case "license_issue_number":
         return validateLicenseIssueNumber(value);
       default:
@@ -148,7 +156,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
     let formattedValue = value;
 
     if (name === "phone" || name === "account_no" || name === "license_issue_number") {
-      formattedValue = value.replace(/\D/g, "").slice(0, name === "phone" ? 11 : name === "account_no" ? 8: 9);
+      formattedValue = value.replace(/\D/g, "").slice(0, name === "phone" ? 11 : name === "account_no" ? 8 : 2);
     } else if (name === "sort_code") {
       // Remove all non-digit characters
       const digitsOnly = value.replace(/\D/g, "");
@@ -166,6 +174,12 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
       } else {
         formattedValue = `${limited.slice(0, 2)}-${limited.slice(2, 4)}-${limited.slice(4)}`;
       }
+    } else if (name === "license_number") {
+      // Allow only alphanumeric characters for license number
+      formattedValue = value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 16);
+    } else if (name === "national_insurance_no") {
+      // Format National Insurance Number (typically 2 letters, 6 digits, 1 letter)
+      formattedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9);
     }
 
     setFormData({ ...formData, [name]: formattedValue });
@@ -201,6 +215,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
     newErrors.phone = newErrors.phone || validatePhone(rawPersonalInfo.phone);
     newErrors.account_no = newErrors.account_no || validateAccountNo(rawPersonalInfo.account_no);
     newErrors.sort_code = newErrors.sort_code || validateSortCode(rawPersonalInfo.sort_code);
+    newErrors.license_number = newErrors.license_number || validateLicenseNumber(rawPersonalInfo.license_number);
     newErrors.license_issue_number = newErrors.license_issue_number || validateLicenseIssueNumber(rawPersonalInfo.license_issue_number);
 
     if (Object.values(newErrors).some((error) => error)) {
@@ -364,7 +379,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
             </div>
             <div className="space-y-2">
               <Label htmlFor="national_insurance_no" className="text-sm font-medium text-gray-700">
-                National Insurance No
+               NI Number
               </Label>
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -373,6 +388,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
                   name="national_insurance_no"
                   placeholder="National Insurance No."
                   value={formData.national_insurance_no}
+                  maxLength={9}
                   onChange={handleInputChange}
                   className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
                 />
@@ -434,7 +450,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
                   name="license_number"
                   placeholder="License No"
                   value={formData.license_number}
-                  maxLength={2}
+                  maxLength={16}
                   onChange={handleInputChange}
                   className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
                 />

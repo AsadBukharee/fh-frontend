@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { User, Settings, LogOut } from "lucide-react"
+import { User, Settings, LogOut, Globe } from "lucide-react"
 import { useCookies } from "next-client-cookies"
 import { useRouter } from "next/navigation"
 
@@ -37,6 +37,9 @@ export function UserProfileDropdown() {
     cookies.remove("refresh_token")
     router.push("/login")
   }
+  const handleGlobals=()=>{
+    router.push("/dashboard/globals")
+  }
 
   return (
     <DropdownMenu>
@@ -53,6 +56,10 @@ export function UserProfileDropdown() {
         <DropdownMenuItem className="hover:bg-gray-100">
           <Settings className="w-4 h-4 mr-2" />
           Settings
+        </DropdownMenuItem>
+         <DropdownMenuItem onClick={handleGlobals} className="hover:bg-gray-100">
+         <Globe className="w-4 h-4 mr-2" />
+          Globals
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handlesignout} className="hover:bg-gray-100">
           <LogOut className="w-4 h-4 mr-2" />

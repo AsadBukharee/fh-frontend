@@ -27,6 +27,7 @@ import ExportButton from '@/app/utils/ExportButton';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import Link from 'next/link';
+import { ExportChartButton } from '@/app/utils/ExportChartButton';
 
 interface Driver {
   id: number;
@@ -524,6 +525,7 @@ const DriverManagementPage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Driver Compliance</h1>
         <div className="flex gap-3 items-center">
+          <ExportChartButton  data={filteredDrivers} fileName="driver_compliance_report" />
           <ExportButton data={filteredDrivers} fileName="driver_compliance_report" />
         </div>
       </div>
