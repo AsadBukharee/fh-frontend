@@ -1025,7 +1025,12 @@ function AddVehicleStepperForm() {
       dispatch(clearValidationError(key))
     }
   }
-
+React.useEffect(() => {
+  console.log("Price updated:", formData.price)
+  console.log("VAT amount:", formData.vat_amount)
+  console.log("Has VAT:", formData.has_vat)
+  console.log("Total:", Number.parseFloat(formData.price || "0") + Number.parseFloat(formData.vat_amount || "0"))
+}, [formData.price, formData.vat_amount, formData.has_vat])
   const handleCreateTaskForDocument = (documentField: string) => {
     const docConfig = DOCUMENT_CONFIG[documentField]
     if (!docConfig) return
@@ -1120,34 +1125,44 @@ function AddVehicleStepperForm() {
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target
-    const isCheckbox = type === "checkbox"
-    const newValue: string | boolean = isCheckbox ? (e.target as HTMLInputElement).checked : value
+  const { name, value, type } = e.target
+  const isCheckbox = type === "checkbox"
+  const newValue: string | boolean = isCheckbox ? (e.target as HTMLInputElement).checked : value
 
-    const updated: any = { ...formData, [name]: newValue }
+  // Create a copy of formData to update
+  const updated: any = { ...formData }
+  
+  // Update the field that changed
+  updated[name] = newValue
 
-    // Handle VAT recalculation when price changes
-    if (name === "price" && formData.has_vat) {
-      const numericPrice = Number.parseFloat(String(newValue)) || 0
+  // Handle VAT recalculation when price changes OR when VAT switch is toggled
+  if (name === "price") {
+    // Update price (ensure it's a string for display)
+    updated.price = value
+    
+    // Recalculate VAT if has_vat is true
+    if (updated.has_vat) {
+      const numericPrice = Number.parseFloat(value) || 0
       updated.vat_amount = (numericPrice * 0.2).toFixed(2)
     }
+  }
 
-    // Handle VAT calculation when VAT switch toggles on
-    if (name === "has_vat") {
-      if (newValue === true) {
-        const numericPrice = Number.parseFloat(formData.price || "0") || 0
-        updated.vat_amount = (numericPrice * 0.2).toFixed(2)
-      } else {
-        updated.vat_amount = ""
-      }
-    }
-
-    dispatch(setFormData(updated))
-
-    if (validationErrors[name]) {
-      dispatch(clearValidationError(name))
+  // Handle VAT calculation when VAT switch toggles
+  if (name === "has_vat") {
+    if (newValue === true) {
+      const numericPrice = Number.parseFloat(formData.price || "0") || 0
+      updated.vat_amount = (numericPrice * 0.2).toFixed(2)
+    } else {
+      updated.vat_amount = ""
     }
   }
+
+  dispatch(setFormData(updated))
+
+  if (validationErrors[name]) {
+    dispatch(clearValidationError(name))
+  }
+}
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -1806,7 +1821,7 @@ function AddVehicleStepperForm() {
               {/* Status Toggles */}
               <div className="grid grid-cols-2 gap-6 pt-2">
                 {/* Roadworthy Status */}
-                <div className="space-y-3">
+                {/* <div className="space-y-3">
                   <Label className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
                     Roadworthy Status
                   </Label>
@@ -1824,10 +1839,10 @@ function AddVehicleStepperForm() {
                       onCheckedChange={(checked) => dispatch(setFormData({ is_roadworthy: checked }))}
                     />
                   </div>
-                </div>
+                </div> */}
 
                 {/* Active Status */}
-                <div className="space-y-3">
+                {/* <div className="space-y-3">
                   <Label className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
                     Vehicle Status
                   </Label>
@@ -1842,7 +1857,7 @@ function AddVehicleStepperForm() {
                       onCheckedChange={(checked) => dispatch(setFormData({ is_active: checked }))}
                     />
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>
@@ -1984,9 +1999,20 @@ function AddVehicleStepperForm() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="out_of_service">Out of Service</SelectItem>
+                    <SelectItem value="available">
+                      <span className="px-2 py-1 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">Available</span>
+                    </SelectItem>
+                    <SelectItem value="unavailable">
+                      <span className="px-2 py-1 rounded border bg-slate-100 text-slate-700 border-slate-200">Unavailable</span>
+                    </SelectItem>
+                    <SelectItem value="assigned">
+                      <span className="px-2 py-1 rounded border bg-orange-50 text-orange-700 border-orange-200">Assigned</span>
+                    </SelectItem>
+             
+                    <SelectItem value="disabled">
+                      <span className="px-2 py-1 rounded border bg-gray-100 text-gray-700 border-gray-200">Disabled</span>
+                    </SelectItem>
+               
                 </SelectContent>
               </Select>
             </div>
@@ -2007,9 +2033,13 @@ function AddVehicleStepperForm() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="no_defect">No Defect</SelectItem>
-                  <SelectItem value="defects_found">Defects Found</SelectItem>
-                  <SelectItem value="requires_inspection">Requires Inspection</SelectItem>
+                    <SelectContent>
+                    <SelectItem value="no_defect">No Defect</SelectItem>
+                    <SelectItem value="minor_defect_roadworthy">Minor Defect (Roadworthy)</SelectItem>
+                    <SelectItem value="minor_defect_not_roadworthy">Minor Defect (Not Roadworthy)</SelectItem>
+                    <SelectItem value="major_defect_not_roadworthy">Major Defect (Not Roadworthy)</SelectItem>
+                    
+                  </SelectContent>
                 </SelectContent>
               </Select>
             </div>
@@ -2092,24 +2122,22 @@ function AddVehicleStepperForm() {
               <Label htmlFor="price" className="text-sm font-medium">
                 Purchase Price
               </Label>
-              <Input
-                id="price"
-                name="price"
-                placeholder="0"
-                type="number"
-                value={formData.price}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (/^\d*$/.test(v)) {
-                    handleInputChange(e)
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (["e", "E", ".", ",", "-", "+"].includes(e.key)) {
-                    e.preventDefault()
-                  }
-                }}
-              />
+  <Input
+  id="price"
+  name="price"
+  placeholder="0"
+  type="number"
+  step="0.01"
+  value={formData.price}
+  onChange={handleInputChange}
+  onKeyDown={(e) => {
+    // Allow digits, decimal point, and backspace
+    if (!/[0-9.]/.test(e.key) && 
+        !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) {
+      e.preventDefault()
+    }
+  }}
+/>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-white">
@@ -2141,21 +2169,27 @@ function AddVehicleStepperForm() {
               </div>
             )}
 
-            <div>
-              <Label htmlFor="vat_amount" className="text-sm font-medium">
-                Total Price – (Purchased price plus VAT amount)
-              </Label>
-              <Input
-                id="total_price"
-                name="total_price"
-                value={(
-                  Number.parseFloat(formData.price || "0") + Number.parseFloat(formData.vat_amount || "0")
-                ).toFixed(2)}
-                readOnly
-                disabled
-                className="font-bold"
-              />
-            </div>
+{/* <div>
+  <Label htmlFor="total_price" className="text-sm font-medium">
+    Total Price – (Purchased price plus VAT amount)
+  </Label>
+  {(() => {
+    // Always use the latest values from formData at render time
+    const priceNum = parseFloat(formData.price || "0") || 0
+    const vatNum = parseFloat(formData.vat_amount || "0") || 0
+    const total = (priceNum + vatNum).toFixed(2)
+
+    return (
+      <Input
+        id="total_price"
+        value={`£${total}`}
+        readOnly
+        disabled
+        className="font-bold text-lg bg-green-50 border-green-300"
+      />
+    )
+  })()}
+</div> */}
           </div>
 
           {/* Document Upload for Purchase Invoice */}
@@ -2303,7 +2337,8 @@ function AddVehicleStepperForm() {
 
           <div className="grid grid-cols-1 gap-4">
             {/* Last PMI Date */}
-            <DateInputWithFileUpload
+           <div className=" bg-gray-50  border rounded-2xl py-3 px-2">
+             <DateInputWithFileUpload
               label="Last PMI Date"
               name="last_pmi_date"
               value={formData.last_pmi_date}
@@ -2333,6 +2368,7 @@ function AddVehicleStepperForm() {
                 }}
               />
             </div>
+           </div>
 
             {/* MOT Expiry Date */}
             <DateInputWithFileUpload
@@ -2381,7 +2417,7 @@ function AddVehicleStepperForm() {
 
             {/* Last Tyre Maintenance Check */}
             <DateInputWithFileUpload
-              label="E. Last Tyre Maintenance Check"
+              label=" Last Tyre Maintenance Check"
               name="last_tyre_maintenance_check_date"
               value={formData.last_tyre_maintenance_check_date}
               onChange={handleDateChange}
@@ -2396,7 +2432,7 @@ function AddVehicleStepperForm() {
 
             {/* Last Valet Check */}
             <DateInputWithFileUpload
-              label="F. Last Valet Check"
+              label=" Last Valet Check"
               name="last_valet_check_date"
               value={formData.last_valet_check_date}
               onChange={handleDateChange}
@@ -2411,7 +2447,7 @@ function AddVehicleStepperForm() {
 
             {/* Last Equipment Check */}
             <DateInputWithFileUpload
-              label="G. Last Equipment Check"
+              label=" Last Equipment Check"
               name="last_equipment_check_date"
               value={formData.last_equipment_check_date}
               onChange={handleDateChange}
