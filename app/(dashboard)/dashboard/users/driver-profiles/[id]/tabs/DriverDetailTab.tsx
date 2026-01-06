@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { User, Calendar, Phone, MapPin, Mail, Users, Briefcase, Building2, Edit, X, CircleCheck, Save, Upload, FileText, CreditCard, AlertCircle, Contact } from "lucide-react";
+import { User, Calendar, Phone, MapPin, Mail, Users, Briefcase, Building2, Edit, X, CircleCheck, Save, Upload, FileText, CreditCard, AlertCircle, Contact, Circle } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import ImageUploader from "@/components/Media/UploadImage";
@@ -195,6 +195,49 @@ export default function DriverDetailTab({
       setAssigningManager(false);
     }
   };
+const EditableInfoRow = ({
+  icon,
+  label,
+  value,
+  isEditing,
+  inputType = "text",
+  inputValue,
+  onChange,
+  maxLength,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: React.ReactNode
+  isEditing: boolean
+  inputType?: string
+  inputValue?: string
+  onChange?: (v: string) => void
+  maxLength?: number
+}) => (
+  <div className="flex items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
+    <div className="flex items-center gap-2 text-gray-500 shrink-0">
+      {icon}
+      <span className="text-sm">{label}</span>
+    </div>
+
+    <div className="min-w-[45%] text-right">
+      {isEditing ? (
+        <Input
+          type={inputType}
+          value={inputValue || ""}
+          onChange={(e) => onChange?.(e.target.value)}
+          maxLength={maxLength}
+          className="h-8 text-sm text-right"
+        />
+      ) : (
+        <span className="font-medium text-gray-800 break-words">
+          {value || "—"}
+        </span>
+      )}
+    </div>
+  </div>
+)
+
 
   const handleImageUploadSuccess = (url: string) => {
     handleInputChange("avatar", url);
@@ -288,585 +331,452 @@ export default function DriverDetailTab({
             </Card>
 
             {/* Driver Details Form */}
-            <Card className="border border-gray-200">
-              <CardHeader className="bg-gray-50 border-b">
-                <div className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-gray-700" />
-                  <CardTitle className="text-lg font-semibold text-gray-900">Personal Information</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Personal Details */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Personal Details
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <User className="h-3.5 w-3.5" />
-                          First Name
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.first_name || getFirstName()}
-                            onChange={(e) => handleInputChange("first_name", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {getFirstName() || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <User className="h-3.5 w-3.5" />
-                          Last Name
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.last_name || getLastName()}
-                            onChange={(e) => handleInputChange("last_name", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {getLastName() || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <Calendar className="h-3.5 w-3.5" />
-                          DOB
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="date"
-                            value={editFormData.date_of_birth || driverData?.date_of_birth || ""}
-                            onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.date_of_birth ? formatDate(driverData.date_of_birth) : "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <FileText className="h-3.5 w-3.5" />
-                          NI Number
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.national_insurance_no || driverData?.national_insurance_no || ""}
-                            onChange={(e) => handleInputChange("national_insurance_no", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.national_insurance_no || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+   <Card className="border-none shadow-none">
+  <CardContent className="p-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                  {/* License Details */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      License Details
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Driver License Number</Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.license_number || driverData?.license_number || ""}
-                            onChange={(e) => handleInputChange("license_number", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.license_number || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">License Issue Number</Label>
-                        {isEditing ? (
-                          <div>
-                            <Input
-                              type="text"
-                              value={editFormData.license_issue_number || driverData?.license_issue_number || ""}
-                              onChange={(e) => handleInputChange("license_issue_number", e.target.value)}
-                              className="h-9 text-sm"
-                              maxLength={2}
-                            />
-                            <p className="text-xs text-gray-400 mt-1">Only 2 characters</p>
-                          </div>
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.license_issue_number || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+      {/* PERSONAL INFO */}
+      <div className="rounded-xl border border-gray-300 bg-white shadow-sm">
+        <div className="rounded-t-xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-600">
+          Personal Info
+        </div>
 
-                  {/* Contact & Bank Details */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      Contact & Banking
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <MapPin className="h-3.5 w-3.5" />
-                          Address
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.address || driverData?.address || ""}
-                            onChange={(e) => handleInputChange("address", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded break-words">
-                            {driverData?.address || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <MapPin className="h-3.5 w-3.5" />
-                          Post Code
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.post_code || driverData?.post_code || ""}
-                            onChange={(e) => handleInputChange("post_code", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.post_code || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <Phone className="h-3.5 w-3.5" />
-                          Contact Number
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="tel"
-                            value={editFormData.phone || driverData?.phone || ""}
-                            onChange={(e) => handleInputChange("phone", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.phone || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <Mail className="h-3.5 w-3.5" />
-                          Email Address
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="email"
-                            value={editFormData.email || driverData?.user?.email || ""}
-                            onChange={(e) => handleInputChange("email", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded break-words">
-                            {driverData?.user?.email || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <CreditCard className="h-3.5 w-3.5" />
-                          Bank Account Number
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.account_no || driverData?.account_no || ""}
-                            onChange={(e) => handleInputChange("account_no", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.account_no || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
-                          <CreditCard className="h-3.5 w-3.5" />
-                          Bank Sort Code
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.sort_code || driverData?.sort_code || ""}
-                            onChange={(e) => handleInputChange("sort_code", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.sort_code || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="p-4 space-y-3 text-sm">
+          <EditableInfoRow
+            icon={<User size={16} />}
+            label="Full Name"
+            value={`${getFirstName()} ${getLastName()}`}
+            isEditing={isEditing}
+            inputValue={editFormData.first_name}
+            onChange={(v) => handleInputChange("first_name", v)}
+          />
+
+          <EditableInfoRow
+            icon={<Mail size={16} />}
+            label="Email"
+            value={driverData?.user?.email}
+            isEditing={isEditing}
+            inputType="email"
+            inputValue={editFormData.email}
+            onChange={(v) => handleInputChange("email", v)}
+          />
+
+          <EditableInfoRow
+            icon={<Phone size={16} />}
+            label="Phone"
+            value={driverData?.phone}
+            isEditing={isEditing}
+            inputValue={editFormData.phone}
+            onChange={(v) => handleInputChange("phone", v)}
+          />
+
+          <EditableInfoRow
+            icon={<Calendar size={16} />}
+            label="DOB"
+            value={driverData?.date_of_birth ? formatDate(driverData.date_of_birth) : ""}
+            isEditing={isEditing}
+            inputType="date"
+            inputValue={editFormData.date_of_birth}
+            onChange={(v) => handleInputChange("date_of_birth", v)}
+          />
+
+          <EditableInfoRow
+            icon={<MapPin size={16} />}
+            label="Address"
+            value={driverData?.address}
+            isEditing={isEditing}
+            inputValue={editFormData.address}
+            onChange={(v) => handleInputChange("address", v)}
+          />
+        </div>
+      </div>
+
+      {/* LICENSE DETAILS */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="rounded-t-xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-600">
+          License Details
+        </div>
+
+        <div className="p-4 space-y-3 text-sm">
+          <EditableInfoRow
+            icon={<CreditCard size={16} />}
+            label="Driver License No"
+            value={driverData?.license_number}
+            isEditing={isEditing}
+            inputValue={editFormData.license_number}
+            onChange={(v) => handleInputChange("license_number", v)}
+          />
+
+          <EditableInfoRow
+            icon={<Calendar size={16} />}
+            label="License Issue No"
+            value={
+              <span className="rounded-full bg-orange-100 px-3 py-1 text-xs text-orange-600">
+                {driverData?.license_issue_number}
+              </span>
+            }
+            isEditing={isEditing}
+            inputValue={editFormData.license_issue_number}
+            maxLength={2}
+            onChange={(v) => handleInputChange("license_issue_number", v)}
+          />
+        </div>
+      </div>
+
+      {/* CONTACT & BANK */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="rounded-t-xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-600">
+          Contact & Bank Details
+        </div>
+
+        <div className="p-4 space-y-3 text-sm">
+          <EditableInfoRow
+            icon={<MapPin size={16} />}
+            label="Post Code"
+            value={driverData?.post_code}
+            isEditing={isEditing}
+            inputValue={editFormData.post_code}
+            onChange={(v) => handleInputChange("post_code", v)}
+          />
+
+          <EditableInfoRow
+            icon={<CreditCard size={16} />}
+            label="Bank Acc No"
+            value={driverData?.account_no}
+            isEditing={isEditing}
+            inputValue={editFormData.account_no}
+            onChange={(v) => handleInputChange("account_no", v)}
+          />
+
+          <EditableInfoRow
+            icon={<User size={16} />}
+            label="Bank Sort Code"
+            value={driverData?.sort_code}
+            isEditing={isEditing}
+            inputValue={editFormData.sort_code}
+            onChange={(v) => handleInputChange("sort_code", v)}
+          />
+        </div>
+      </div>
+
+    </div>
+  </CardContent>
+</Card>
+
+
           </div>
 
           {/* Step 2: Next of Kin */}
           <div className="space-y-6">
-            <Card className="border border-gray-200">
-              <CardHeader className="bg-gray-50 border-b">
-                <div className="flex items-center gap-2">
-                  <Contact className="h-5 w-5 text-gray-700" />
-                  <CardTitle className="text-lg font-semibold text-gray-900">Next of Kin Details</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-gray-700">Emergency Contact</h3>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Emergency Contact Name</Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.next_of_kin_name || driverData?.next_of_kin_name || ""}
-                            onChange={(e) => handleInputChange("next_of_kin_name", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.next_of_kin_name || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Emergency Contact Number</Label>
-                        {isEditing ? (
-                          <Input
-                            type="tel"
-                            value={editFormData.next_of_kin_contact || driverData?.next_of_kin_contact || ""}
-                            onChange={(e) => handleInputChange("next_of_kin_contact", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.next_of_kin_contact || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Email Address</Label>
-                        {isEditing ? (
-                          <Input
-                            type="email"
-                            value={editFormData.next_of_kin_email || driverData?.next_of_kin_email || ""}
-                            onChange={(e) => handleInputChange("next_of_kin_email", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded break-words">
-                            {driverData?.next_of_kin_email || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+          <Card className="border-none shadow-none">
+  <CardContent className="p-6">
+    <div className="rounded-xl border border-gray-200 max-w-[500px] bg-white shadow-sm">
+      
+      {/* Header */}
+      <div className="rounded-t-xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-600 flex items-center gap-2">
+        <Contact size={16} />
+        Next of Kin Details
+      </div>
 
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-gray-700">Additional Information</h3>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Address</Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.next_of_kin_address || driverData?.next_of_kin_address || ""}
-                            onChange={(e) => handleInputChange("next_of_kin_address", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.next_of_kin_address || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Relationship</Label>
-                        {isEditing ? (
-                          <Input
-                            type="text"
-                            value={editFormData.next_of_kin_relationship || driverData?.next_of_kin_relationship || ""}
-                            onChange={(e) => handleInputChange("next_of_kin_relationship", e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData?.next_of_kin_relationship || "Not provided"}
-                          </p>
-                        )}
-                      </div>
-                      {driverData?.next_of_kin_note && (
-                        <div className="space-y-1">
-                          <Label className="text-xs text-gray-500">Additional Notes</Label>
-                          <p className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
-                            {driverData.next_of_kin_note}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      <div className="p-4 space-y-3 text-sm">
+
+        <EditableInfoRow
+          icon={<User size={16} />}
+          label="Emergency Contact Name"
+          value={driverData?.next_of_kin_name}
+          isEditing={isEditing}
+          inputValue={editFormData.next_of_kin_name}
+          onChange={(v) => handleInputChange("next_of_kin_name", v)}
+        />
+
+        <EditableInfoRow
+          icon={<Phone size={16} />}
+          label="Emergency Contact Number"
+          value={driverData?.next_of_kin_contact}
+          isEditing={isEditing}
+          inputType="tel"
+          inputValue={editFormData.next_of_kin_contact}
+          onChange={(v) => handleInputChange("next_of_kin_contact", v)}
+        />
+
+        <EditableInfoRow
+          icon={<Mail size={16} />}
+          label="Email Address"
+          value={driverData?.next_of_kin_email}
+          isEditing={isEditing}
+          inputType="email"
+          inputValue={editFormData.next_of_kin_email}
+          onChange={(v) => handleInputChange("next_of_kin_email", v)}
+        />
+
+        <EditableInfoRow
+          icon={<MapPin size={16} />}
+          label="Address"
+          value={driverData?.next_of_kin_address}
+          isEditing={isEditing}
+          inputValue={editFormData.next_of_kin_address}
+          onChange={(v) => handleInputChange("next_of_kin_address", v)}
+        />
+
+        <EditableInfoRow
+          icon={<Users size={16} />}
+          label="Relationship"
+          value={driverData?.next_of_kin_relationship}
+          isEditing={isEditing}
+          inputValue={editFormData.next_of_kin_relationship}
+          onChange={(v) => handleInputChange("next_of_kin_relationship", v)}
+        />
+
+        {/* Optional Notes (read-only, still image-consistent) */}
+        {driverData?.next_of_kin_note && (
+          <div className="rounded-lg bg-gray-50 px-3 py-2">
+            <div className="text-xs text-gray-500 mb-1">Additional Notes</div>
+            <div className="text-sm font-medium text-gray-800">
+              {driverData.next_of_kin_note}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  </CardContent>
+</Card>
+
           </div>
 
           {/* Step 3: Employment Details */}
           <div className="space-y-6">
-            <Card className="border border-gray-200">
-              <CardHeader className="bg-gray-50 border-b">
-                <div className="flex items-center gap-2">
-                  <Briefcase className="h-5 w-5 text-gray-700" />
-                  <CardTitle className="text-lg font-semibold text-gray-900">Employment Details</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                {/* Contract Information */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-700">Contract Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-500">Contract Signing Date</Label>
-                      {isEditing ? (
-                        <Input
-                          type="date"
-                          value={editFormData.contract_signing_date || driverData?.user?.contract_signing_date?.split('T')[0] || ""}
-                          onChange={(e) => handleInputChange("contract_signing_date", e.target.value)}
-                          className="h-9 text-sm"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                          {driverData?.user?.contract_signing_date ? formatDate(driverData.user.contract_signing_date) : "Not provided"}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-500">Rota Start Date</Label>
-                      {isEditing ? (
-                        <Input
-                          type="date"
-                          value={editFormData.rota_start_date || driverData?.user?.rota_start_date || ""}
-                          onChange={(e) => handleInputChange("rota_start_date", e.target.value)}
-                          className="h-9 text-sm"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                          {driverData?.user?.rota_start_date ? formatDate(driverData.user.rota_start_date) : "Not provided"}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-500">Paid Holidays</Label>
-                      {isEditing ? (
-                        <Input
-                          type="number"
-                          value={editFormData.paid_holidays || driverData?.user?.paid_holidays || 0}
-                          onChange={(e) => handleInputChange("paid_holidays", parseInt(e.target.value) || 0)}
-                          className="h-9 text-sm"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                          {driverData?.user?.paid_holidays || 0} days
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-500">Current Contract</Label>
-                      <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                        {driverData?.user?.contract?.name || "Not assigned"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+          <Card className="border-none shadow-none">
+  <CardContent className="p-6">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
 
-                {/* Contract Assignment Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-gray-700">Contract Assignment</h3>
-                    <span className="text-xs text-gray-500">Admin to assign contract</span>
-                  </div>
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 space-y-2">
-                      <Label>Select Contract</Label>
-                      <Select value={selectedContractId} onValueChange={setSelectedContractId} disabled={contractsLoading || assigningContract}>
-                        <SelectTrigger><SelectValue placeholder="Choose a contract" /></SelectTrigger>
-                        <SelectContent>
-                          {contracts.map((contract) => (
-                            <SelectItem key={contract.id} value={contract.id.toString()}>{contract.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-end">
-                      <Button onClick={handleAssignContract} disabled={assigningContract || !selectedContractId} className="bg-orange-600 hover:bg-orange-700 text-white h-9 px-6">
-                        {assigningContract ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <><Save className="h-4 w-4 mr-2" /> Assign Contract</>}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+      {/* Header */}
+      <div className="rounded-t-xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-600 flex items-center gap-2">
+        <Briefcase size={16} />
+        Employment Details
+      </div>
 
-                {/* Site Assignment */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-gray-700">Site Assignment</h3>
-                    <span className="text-xs text-gray-500">Admin to assign sites</span>
-                  </div>
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    <div className="flex-1 space-y-2">
-                      <Label className="mb-3 block">Select Sites</Label>
-                      <div className="border border-gray-300 rounded-lg max-h-80 overflow-y-auto bg-white">
-                        {sites.map((site) => (
-                          <label key={site.id} className="flex items-center gap-3 p-4 hover:bg-orange-50 border-b last:border-0 cursor-pointer transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={selectedSiteIds.includes(site.id.toString())}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedSiteIds([...selectedSiteIds, site.id.toString()]);
-                                } else {
-                                  setSelectedSiteIds(selectedSiteIds.filter((id) => id !== site.id.toString()));
-                                }
-                              }}
-                              disabled={sitesLoading || assigningSites}
-                              className="h-5 w-5 text-orange-600 focus:ring-orange-500 rounded border-gray-300"
-                            />
-                            <span className="text-sm font-medium text-gray-900">{site.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-start lg:items-end">
-                      <Button onClick={handleAssignSites} disabled={assigningSites || selectedSiteIds.length === 0} className="bg-orange-600 hover:bg-orange-700 text-white h-9 px-6 w-full lg:w-auto">
-                        {assigningSites ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <><Save className="h-4 w-4 mr-2" /> Assign Sites</>}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+      <div className="p-4 space-y-6 text-sm">
 
-                {/* Other Employment */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-700">Other Employment</h3>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label>Do you have any other Jobs?</Label>
-                      {isEditing ? (
-                        <Select 
-                          value={editFormData.have_other_jobs?.toString() || driverData?.have_other_jobs?.toString() || "false"} 
-                          onValueChange={(v) => handleInputChange("have_other_jobs", v === "true")}
-                        >
-                          <SelectTrigger><SelectValue placeholder="Select option" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="true">Yes</SelectItem>
-                            <SelectItem value="false">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <p className="text-sm font-medium text-gray-900 p-2 bg-gray-50 rounded">
-                          {driverData?.have_other_jobs ? "Yes" : "No"}
-                        </p>
-                      )}
-                    </div>
-                    {(isEditing ? editFormData.have_other_jobs : driverData?.have_other_jobs) && (
-                      <div className="space-y-2">
-                        <Label>Details (Mandatory if Yes)</Label>
-                        {isEditing ? (
-                          <Textarea
-                            value={editFormData.have_other_jobs_note || driverData?.have_other_jobs_note || ""}
-                            onChange={(e) => handleInputChange("have_other_jobs_note", e.target.value)}
-                            className="min-h-[100px] text-sm"
-                            placeholder="Provide details about other employment"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-900 p-3 bg-gray-50 rounded-lg">
-                            {driverData?.have_other_jobs_note || "No details provided"}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+        {/* ================= CONTRACT INFO ================= */}
+        <div className="space-y-3">
+          <div className="font-medium text-gray-700">Contract Information</div>
 
-                {/* Currently Assigned Sites */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-700">Currently Assigned Sites</h3>
-                  {driverData?.user?.site?.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {driverData.user.site.map((site: any) => (
-                        <div key={site.id} className="p-4 bg-gradient-to-br from-orange-50 to-white border border-orange-200 rounded-lg hover:shadow-md transition-shadow">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {site.image ? (
-                                <div className="w-10 h-10 rounded-lg overflow-hidden">
-                                  <img src={site.image} alt={site.name} className="w-full h-full object-cover" />
-                                </div>
-                              ) : (
-                                <div className="p-2 bg-orange-100 rounded-lg">
-                                  <Building2 className="h-4 w-4 text-orange-600" />
-                                </div>
-                              )}
-                              <div>
-                                <h5 className="font-semibold text-gray-900">{site.name}</h5>
-                                <p className="text-xs text-gray-500">{site.status}</p>
-                              </div>
-                            </div>
-                            <Badge className={site.status === "active" ? "bg-green-500" : "bg-gray-400"}>{site.status}</Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 bg-gray-50 rounded-lg">
-                      <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-gray-500">No sites assigned yet</p>
-                    </div>
-                  )}
+          <EditableInfoRow
+            icon={<Calendar size={16} />}
+            label="Contract Signing Date"
+            value={
+              driverData?.user?.contract_signing_date
+                ? formatDate(driverData.user.contract_signing_date)
+                : "—"
+            }
+            isEditing={isEditing}
+            inputType="date"
+            inputValue={
+              editFormData.contract_signing_date ||
+              driverData?.user?.contract_signing_date?.split("T")[0] ||
+              ""
+            }
+            onChange={(v) => handleInputChange("contract_signing_date", v)}
+          />
+
+          <EditableInfoRow
+            icon={<Calendar size={16} />}
+            label="Rota Start Date"
+            value={
+              driverData?.user?.rota_start_date
+                ? formatDate(driverData.user.rota_start_date)
+                : "—"
+            }
+            isEditing={isEditing}
+            inputType="date"
+            inputValue={
+              editFormData.rota_start_date ||
+              driverData?.user?.rota_start_date ||
+              ""
+            }
+            onChange={(v) => handleInputChange("rota_start_date", v)}
+          />
+
+          <EditableInfoRow
+            icon={<Calendar size={16} />}
+            label="Paid Holidays"
+            value={`${driverData?.user?.paid_holidays || 0} days`}
+            isEditing={isEditing}
+            inputType="number"
+            inputValue={
+              editFormData.paid_holidays?.toString() ??
+              driverData?.user?.paid_holidays?.toString() ??
+              "0"
+            }
+            onChange={(v) =>
+              handleInputChange("paid_holidays", Number(v) || 0)
+            }
+          />
+
+          <EditableInfoRow
+            icon={<Briefcase size={16} />}
+            label="Current Contract"
+            value={driverData?.user?.contract?.name || "Not assigned"}
+            isEditing={false}
+          />
+        </div>
+
+        {/* ================= CONTRACT ASSIGNMENT ================= */}
+        <div className="space-y-4">
+          <div className="flex justify-between">
+            <div className="font-medium text-gray-700">Contract Assignment</div>
+            <span className="text-xs text-gray-500">Admin only</span>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <Label>Select Contract</Label>
+              <Select
+                value={selectedContractId}
+                onValueChange={setSelectedContractId}
+                disabled={contractsLoading || assigningContract}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a contract" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contracts.map((c) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={handleAssignContract}
+              disabled={!selectedContractId || assigningContract}
+              className="bg-orange-600 hover:bg-orange-700 text-white h-9 px-6 self-end"
+            >
+              {assigningContract ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Assign Contract
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* ================= SITE ASSIGNMENT ================= */}
+        <div className="space-y-4">
+          <div className="flex justify-between">
+            <div className="font-medium text-gray-700">Site Assignment</div>
+            <span className="text-xs text-gray-500">Admin only</span>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1">
+              <Label>Select Sites</Label>
+              <div className="border rounded-lg max-h-80 overflow-y-auto">
+                {sites.map((site) => (
+                  <label
+                    key={site.id}
+                    className="flex items-center gap-3 p-3 border-b last:border-0 hover:bg-orange-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSiteIds.includes(site.id.toString())}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedSiteIds([...selectedSiteIds, site.id.toString()])
+                        } else {
+                          setSelectedSiteIds(
+                            selectedSiteIds.filter((id) => id !== site.id.toString())
+                          )
+                        }
+                      }}
+                      disabled={assigningSites || sitesLoading}
+                      className="h-4 w-4 text-orange-600"
+                    />
+                    <span className="text-sm font-medium">{site.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              onClick={handleAssignSites}
+              disabled={assigningSites || selectedSiteIds.length === 0}
+              className="bg-orange-600 hover:bg-orange-700 text-white h-9 px-6 self-end"
+            >
+              {assigningSites ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Assign Sites
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* ================= OTHER EMPLOYMENT ================= */}
+        <div className="space-y-3">
+          <div className="font-medium text-gray-700">Other Employment</div>
+
+          {isEditing ? (
+            <Select
+              value={
+                (editFormData.have_other_jobs ??
+                  driverData?.have_other_jobs ??
+                  false).toString()
+              }
+              onValueChange={(v) =>
+                handleInputChange("have_other_jobs", v === "true")
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Yes</SelectItem>
+                <SelectItem value="false">No</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="rounded-lg bg-gray-50 px-3 py-2">
+              {driverData?.have_other_jobs ? "Yes" : "No"}
+            </div>
+          )}
+
+          {(isEditing
+            ? editFormData.have_other_jobs
+            : driverData?.have_other_jobs) && (
+            <div className="space-y-2">
+              <Label>Details</Label>
+              {isEditing ? (
+                <Textarea
+                  value={editFormData.have_other_jobs_note || ""}
+                  onChange={(e) =>
+                    handleInputChange("have_other_jobs_note", e.target.value)
+                  }
+                  className="min-h-[100px]"
+                />
+              ) : (
+                <div className="rounded-lg bg-gray-50 p-3">
+                  {driverData?.have_other_jobs_note || "No details provided"}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  </CardContent>
+</Card>
+
           </div>
 
           {/* Step 4: BrightHR Assignment */}

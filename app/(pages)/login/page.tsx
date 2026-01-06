@@ -54,12 +54,14 @@ export default function Login() {
         body: JSON.stringify({ email, password }),
       });
 
+ if(response.redirected==true){
+   window.location.href = response.url;
+ }
       if (!response.ok) {
         throw new Error('Login failed. Please check your credentials.');
       }
 
       const {data} = await response.json();
-console.log(data)
       // Store tokens in cookies using next-cookies-client
       cookies.set('access_token', data.access);
       cookies.set('user_id', data?.user?.id);
