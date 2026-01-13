@@ -155,29 +155,35 @@ export default function DriverDetailPage() {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingHealth, setIsEditingHealth] = useState(false);
+  
+  // FIXED: Updated editFormData structure to match DriverDetailTab expectations
   const [editFormData, setEditFormData] = useState({
-    full_name: "",
-    display_name: "",
-    email: "",
-    role: "",
-    is_active: true,
-    paid_holidays: 0,
-    contractId: "",
-    siteIds: [] as string[],
-    phone: "",
-    address: "",
+    // Basic driver info
+    first_name: "",
+    last_name: "",
     date_of_birth: "",
-    next_of_kin_name: "",
-    next_of_kin_relationship: "",
+    address: "",
+    phone: "",
+    national_insurance_no: "",
+    post_code: "",
+    email: "",
+    avatar: "",
+    
+    // Next of kin
+    next_of_kin_first_name: "",
+    next_of_kin_last_name: "",
     next_of_kin_contact: "",
     next_of_kin_email: "",
     next_of_kin_address: "",
-    contract_signing_date: "",
-    rota_start_date: "",
+    next_of_kin_relationship: "",
+    
+    // Other fields
+    account_no: "",
+    sort_code: "",
     have_other_jobs: false,
     have_other_jobs_note: "",
-    avatar: "",
   });
+  
   const [editHealthData, setEditHealthData] = useState<HealthAnswer[]>([]);
   const [saving, setSaving] = useState(false);
   const [savingHealth, setSavingHealth] = useState(false);
@@ -190,8 +196,6 @@ export default function DriverDetailPage() {
   const [assigningSites, setAssigningSites] = useState(false);
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("driver-detail");
-  const [currentStep, setCurrentStep] = useState(0);
-  const [user_id,setUser_id]=useState(0);
   
   // Add state for disapproval dialog
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
@@ -204,14 +208,7 @@ export default function DriverDetailPage() {
     // You can replace this with your actual toast implementation
     alert(`${type.toUpperCase()}: ${message}`);
   };
-  const steps = ["Personal Information", "Next of Kin", "Job Detail", "Bright HR Signup"];
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
-  };
+  
   const formatDate = (dateString: string | null) => (dateString ? formatDmy(dateString) : "Not set");
 
   const fetchData = async () => {
@@ -229,29 +226,36 @@ export default function DriverDetailPage() {
       const result = await response.json();
       if (result.success) {
         setDriverData(result.data);
-        setUser_id(result.data.user.id)
+        
+        // FIXED: Initialize editFormData with proper structure
+        const fullNameParts = result.data.user.full_name?.split(" ") || [];
+        const nextOfKinParts = result.data.next_of_kin_name?.split(" ") || [];
+        
         setEditFormData({
-          full_name: result.data.user.full_name,
-          display_name: result.data.user.display_name,
-          email: result.data.user.email,
-          role: result.data.user.role,
-          is_active: result.data.user.is_active,
-          paid_holidays: result.data.user.paid_holidays,
-          contractId: result.data.user.contract?.id?.toString() || "",
-          siteIds: result.data.user.site.map((site: Site) => site.id.toString()),
-          phone: result.data.phone,
-          address: result.data.address,
-          date_of_birth: result.data.date_of_birth,
-          next_of_kin_name: result.data.next_of_kin_name,
-          next_of_kin_relationship: result.data.next_of_kin_relationship,
-          next_of_kin_contact: result.data.next_of_kin_contact,
-          next_of_kin_email: result.data.next_of_kin_email,
-          next_of_kin_address: result.data.next_of_kin_address,
-          contract_signing_date: result.data.user.contract_signing_date || "",
-          rota_start_date: result.data.user.rota_start_date || "",
+          // Basic driver info
+          first_name: fullNameParts[0] || "",
+          last_name: fullNameParts.slice(1).join(" ") || "",
+          date_of_birth: result.data.date_of_birth || "",
+          address: result.data.address || "",
+          phone: result.data.phone || "",
+          national_insurance_no: result.data.national_insurance_no || "",
+          post_code: result.data.post_code || "",
+          email: result.data.user.email || "",
+          avatar: result.data.user.avatar || "",
+          
+          // Next of kin
+          next_of_kin_first_name: nextOfKinParts[0] || "",
+          next_of_kin_last_name: nextOfKinParts.slice(1).join(" ") || "",
+          next_of_kin_contact: result.data.next_of_kin_contact || "",
+          next_of_kin_email: result.data.next_of_kin_email || "",
+          next_of_kin_address: result.data.next_of_kin_address || "",
+          next_of_kin_relationship: result.data.next_of_kin_relationship || "",
+          
+          // Other fields
+          account_no: result.data.account_no || "",
+          sort_code: result.data.sort_code || "",
           have_other_jobs: result.data.have_other_jobs || false,
           have_other_jobs_note: result.data.have_other_jobs_note || "",
-          avatar: result.data.user.avatar || "",
         });
       } else {
         throw new Error(result.message || "Failed to load driver data");
@@ -292,10 +296,11 @@ export default function DriverDetailPage() {
   };
 
   const fetchHealthData = async () => {
-    setHealthLoading(true);
+    if (!driverData?.user?.id) return;
     
+    setHealthLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${user_id}`, {
+      const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${driverData.user.id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -394,9 +399,14 @@ export default function DriverDetailPage() {
     if (id) {
       fetchData();
       fetchCompetencyData();
+    }
+  }, [id, cookies]);
+
+  useEffect(() => {
+    if (driverData?.user?.id) {
       fetchHealthData();
     }
-  }, [id, cookies, user_id]);
+  }, [driverData?.user?.id]);
 
   useEffect(() => {
     const fetchContracts = async () => {
@@ -423,8 +433,8 @@ export default function DriverDetailPage() {
         setContractsLoading(false);
       }
     };
+    
     const fetchSites = async () => {
-      if (sites.length > 0) return;
       setSitesLoading(true);
       try {
         const response = await fetch(`${API_URL}/api/sites/list-names/`, {
@@ -452,9 +462,10 @@ export default function DriverDetailPage() {
         setSitesLoading(false);
       }
     };
+    
     fetchContracts();
     fetchSites();
-  }, [cookies, sites.length]);
+  }, [cookies]);
 
   const handleAssignContract = async () => {
     if (!selectedContractId) {
@@ -546,30 +557,36 @@ export default function DriverDetailPage() {
   };
 
   const handleEditToggle = () => {
-    if (isEditing) {
-      setEditFormData({
-        full_name: driverData?.user.full_name || "",
-        display_name: driverData?.user.display_name || "",
-        email: driverData?.user.email || "",
-        role: driverData?.user.role || "",
-        is_active: driverData?.user.is_active || true,
-        paid_holidays: driverData?.user.paid_holidays || 0,
-        contractId: driverData?.user.contract?.id?.toString() || "",
-        siteIds: driverData?.user.site.map((site) => site.id.toString()) || [],
-        phone: driverData?.phone || "",
-        address: driverData?.address || "",
-        date_of_birth: driverData?.date_of_birth || "",
-        next_of_kin_name: driverData?.next_of_kin_name || "",
-        next_of_kin_relationship: driverData?.next_of_kin_relationship || "",
-        next_of_kin_contact: driverData?.next_of_kin_contact || "",
-        next_of_kin_email: driverData?.next_of_kin_email || "",
-        next_of_kin_address: driverData?.next_of_kin_address || "",
-        contract_signing_date: driverData?.user.contract_signing_date || "",
-        rota_start_date: driverData?.user.rota_start_date || "",
-        have_other_jobs: driverData?.have_other_jobs || false,
-        have_other_jobs_note: driverData?.have_other_jobs_note || "",
-        avatar: driverData?.user.avatar || "",
-      });
+    if (!isEditing) {
+      // Entering edit mode - populate form with current data
+      if (driverData) {
+        const fullNameParts = driverData.user.full_name?.split(" ") || [];
+        const nextOfKinParts = driverData.next_of_kin_name?.split(" ") || [];
+        
+        setEditFormData({
+          first_name: fullNameParts[0] || "",
+          last_name: fullNameParts.slice(1).join(" ") || "",
+          date_of_birth: driverData.date_of_birth || "",
+          address: driverData.address || "",
+          phone: driverData.phone || "",
+          national_insurance_no: driverData.national_insurance_no || "",
+          post_code: driverData.post_code || "",
+          email: driverData.user.email || "",
+          avatar: driverData.user.avatar || "",
+          
+          next_of_kin_first_name: nextOfKinParts[0] || "",
+          next_of_kin_last_name: nextOfKinParts.slice(1).join(" ") || "",
+          next_of_kin_contact: driverData.next_of_kin_contact || "",
+          next_of_kin_email: driverData.next_of_kin_email || "",
+          next_of_kin_address: driverData.next_of_kin_address || "",
+          next_of_kin_relationship: driverData.next_of_kin_relationship || "",
+          
+          account_no: driverData.account_no || "",
+          sort_code: driverData.sort_code || "",
+          have_other_jobs: driverData.have_other_jobs || false,
+          have_other_jobs_note: driverData.have_other_jobs_note || "",
+        });
+      }
     }
     setIsEditing(!isEditing);
   };
@@ -581,7 +598,9 @@ export default function DriverDetailPage() {
     setIsEditingHealth(!isEditingHealth);
   };
 
-  const handleInputChange = (field: string, value: string | number | string[] | boolean) => {
+  // FIXED: Updated handleInputChange to work with the new editFormData structure
+  const handleInputChange = (field: string, value: string | number | boolean) => {
+    console.log(`Input changed: ${field} = ${value}`); // Debug log
     setEditFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -594,23 +613,22 @@ export default function DriverDetailPage() {
     );
   };
 
+  // FIXED: Updated handleSaveProfile to use the new structure
   const handleSaveProfile = async () => {
-    if (!editFormData.email || !editFormData.full_name) {
-      showToast("Email and full name are required", "error");
+    if (!editFormData.email || !editFormData.first_name || !editFormData.last_name) {
+      showToast("Email, first name, and last name are required", "error");
       return;
     }
+    
     setSaving(true);
     try {
+      // Prepare user payload
       const userPayload = {
         email: editFormData.email,
-        full_name: editFormData.full_name,
-        role: editFormData.role,
-        is_active: editFormData.is_active,
-        paid_holidays: editFormData.paid_holidays,
-        contract_signing_date: editFormData.contract_signing_date || null,
-        rota_start_date: editFormData.rota_start_date || null,
+        full_name: `${editFormData.first_name} ${editFormData.last_name}`.trim(),
         avatar: editFormData.avatar || null,
       };
+      
       const userResponse = await fetch(`${API_URL}/users/${driverData?.user.id}/`, {
         method: "PATCH",
         headers: {
@@ -619,22 +637,29 @@ export default function DriverDetailPage() {
         },
         body: JSON.stringify(userPayload),
       });
+      
       if (!userResponse.ok) {
         throw new Error("Failed to update user profile");
       }
+      
+      // Prepare driver payload
       const driverPayload = {
-        user_id: driverData?.user.id,
         phone: editFormData.phone,
         address: editFormData.address,
         date_of_birth: editFormData.date_of_birth,
-        next_of_kin_name: editFormData.next_of_kin_name,
+        national_insurance_no: editFormData.national_insurance_no,
+        post_code: editFormData.post_code,
+        next_of_kin_name: `${editFormData.next_of_kin_first_name} ${editFormData.next_of_kin_last_name}`.trim(),
         next_of_kin_relationship: editFormData.next_of_kin_relationship,
         next_of_kin_contact: editFormData.next_of_kin_contact,
         next_of_kin_email: editFormData.next_of_kin_email,
         next_of_kin_address: editFormData.next_of_kin_address,
+        account_no: editFormData.account_no,
+        sort_code: editFormData.sort_code,
         have_other_jobs: editFormData.have_other_jobs,
         have_other_jobs_note: editFormData.have_other_jobs_note,
       };
+      
       const driverResponse = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
         method: "PUT",
         headers: {
@@ -643,11 +668,14 @@ export default function DriverDetailPage() {
         },
         body: JSON.stringify(driverPayload),
       });
+      
       if (!driverResponse.ok) {
         throw new Error("Failed to update driver profile");
       }
+      
       const userResult = await userResponse.json();
       const driverResult = await driverResponse.json();
+      
       if (userResult.success && driverResult.success) {
         setDriverData((prev) =>
           prev
@@ -656,29 +684,27 @@ export default function DriverDetailPage() {
                 user: {
                   ...prev.user,
                   email: editFormData.email,
-                  full_name: editFormData.full_name,
-                  role: editFormData.role,
-                  is_active: editFormData.is_active,
-                  paid_holidays: editFormData.paid_holidays,
-                  contract_signing_date: editFormData.contract_signing_date,
-                  rota_start_date: editFormData.rota_start_date,
-                  contract: contracts.find((c) => c.id.toString() === editFormData.contractId) || prev.user.contract,
-                  site: sites.filter((s) => editFormData.siteIds.includes(s.id.toString())),
+                  full_name: `${editFormData.first_name} ${editFormData.last_name}`.trim(),
                   avatar: editFormData.avatar || prev.user.avatar,
                 },
                 phone: editFormData.phone,
                 address: editFormData.address,
                 date_of_birth: editFormData.date_of_birth,
-                next_of_kin_name: editFormData.next_of_kin_name,
+                national_insurance_no: editFormData.national_insurance_no,
+                post_code: editFormData.post_code,
+                next_of_kin_name: `${editFormData.next_of_kin_first_name} ${editFormData.next_of_kin_last_name}`.trim(),
                 next_of_kin_relationship: editFormData.next_of_kin_relationship,
                 next_of_kin_contact: editFormData.next_of_kin_contact,
                 next_of_kin_email: editFormData.next_of_kin_email,
                 next_of_kin_address: editFormData.next_of_kin_address,
+                account_no: editFormData.account_no,
+                sort_code: editFormData.sort_code,
                 have_other_jobs: editFormData.have_other_jobs,
                 have_other_jobs_note: editFormData.have_other_jobs_note,
               }
             : null
         );
+        
         setIsEditing(false);
         showToast("Profile updated successfully", "success");
       } else {
@@ -686,7 +712,6 @@ export default function DriverDetailPage() {
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      setError(error instanceof Error ? error.message : "Failed to update profile");
       showToast(error instanceof Error ? error.message : "Failed to update profile", "error");
     } finally {
       setSaving(false);
@@ -852,44 +877,45 @@ export default function DriverDetailPage() {
         </TabsList>
 
         <TabsContent value="driver-detail">
-          <DriverDetailTab
-            driverData={driverData}
-            editFormData={editFormData}
-            contracts={contracts}
-            sites={sites}
-            selectedContractId={selectedContractId}
-            setSelectedContractId={setSelectedContractId}
-            selectedSiteIds={selectedSiteIds}
-            setSelectedSiteIds={setSelectedSiteIds}
-            //@ts-expect-error any
-            currentStep={currentStep}
-            setCurrentStep={setCurrentStep}
-            steps={steps}
-            getInitials={getInitials}
-            formatDate={formatDate}
-            isEditing={isEditing}
-            handleInputChange={handleInputChange}
-            handleAssignContract={handleAssignContract}
-            handleAssignSites={handleAssignSites}
-            contractsLoading={contractsLoading}
-            sitesLoading={sitesLoading}
-            assigningContract={assigningContract}
-            assigningSites={assigningSites}
-            handleEditToggle={handleEditToggle}
-            handleSaveProfile={handleSaveProfile}
-            saving={saving}
-          />
+   
+<TabsContent value="driver-detail">
+  <DriverDetailTab
+    driverData={driverData}
+    editFormData={editFormData}
+    contracts={contracts}
+    sites={sites}
+    selectedContractId={selectedContractId}
+    setSelectedContractId={setSelectedContractId}
+    selectedSiteIds={selectedSiteIds}
+    setSelectedSiteIds={setSelectedSiteIds}
+    formatDate={formatDate}
+    handleInputChange={handleInputChange}
+    handleAssignContract={handleAssignContract}
+    handleAssignSites={handleAssignSites}
+    contractsLoading={contractsLoading}
+    sitesLoading={sitesLoading}
+    assigningContract={assigningContract}
+    assigningSites={assigningSites}
+    handleEditToggle={handleEditToggle} // <-- Add this line
+    handleSaveProfile={handleSaveProfile}
+    saving={saving}
+  />
+</TabsContent>
         </TabsContent>
         <TabsContent value="professional-competency">
           <ProfessionalCompetencyTab
             competencyData={competencyData}
             formatDate={formatDate}
             driverId={driverData.id}
+            driverName={driverData.user.full_name}
+            licenseNumber={driverData.license_number}
+            licenseIssueNumber={driverData.license_issue_number}
             isPdfUrl={isPdfUrl}
             showToast={showToast}
             cookies={cookies}
             API_URL={API_URL}
             fetchCompetencyData={fetchCompetencyData}
+            fetchDriverData={fetchData}
           />
         </TabsContent>
         <TabsContent value="health-answer">
@@ -907,40 +933,11 @@ export default function DriverDetailPage() {
           <SignAgreementTab />
         </TabsContent>
       </Tabs>
+      
       <div className="fixed bottom-6 right-5 z-50 flex flex-col gap-2">
-        {isEditing ? (
-          <>
-            <Button
-              onClick={handleSaveProfile}
-              disabled={saving}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all w-48"
-            >
-              {saving ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-              ) : (
-                <Save className="h-5 w-5 mr-2" />
-              )}
-              Save Changes
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleEditToggle}
-              disabled={saving}
-              className="border-orange-600 text-orange-600 hover:bg-orange-100 rounded-lg transition-all w-48"
-            >
-              <X className="h-5 w-5 mr-2" />
-              Cancel
-            </Button>
-          </>
-        ) : (
+        {isEditing ? null : (
           <div className="flex flex-col gap-2">
-            <Button
-              onClick={handleEditToggle}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all w-48"
-            >
-              <Edit className="h-5 w-5 mr-2" />
-              Edit Profile
-            </Button>
+       
             {driverData.profile_status === "approved" && (
               <Button
                 onClick={() => setIsDisapproveDialogOpen(true)}
