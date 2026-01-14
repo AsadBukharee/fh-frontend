@@ -291,11 +291,11 @@ export default function DriverDetailTab({
             {/* Avatar + Status */}
             <div className="flex flex-col items-center sm:items-start gap-4">
               <div className="relative">
-                <div className="w-36 h-36 rounded-2xl overflow-hidden ring-1 ring-gray-200/80 shadow-md">
+                <div className="w-36 h-36 rounded-full overflow-hidden ring-1 ring-gray-200/80 shadow-md">
                   <img
                     src={getFieldValue("avatar", driverData?.user?.avatar || "/default-avatar.png", isEditingDriverDetails)}
                     alt="Driver"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full rounded-full object-cover"
                   />
                 </div>
 
