@@ -44,13 +44,16 @@ import {
   Shield,
   Car,
   AlertOctagon,
+  Link2,
+  Link2Off,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Progress } from "@/components/ui/progress"
 import dynamic from 'next/dynamic'
+import { Tabs } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Lazy load heavy components
 const FileUploaderLazy = dynamic(() => import("@/components/Media/MediaUpload"), {
@@ -306,13 +309,31 @@ const CombinedLicenseDialog = memo(({
   licenseIssueNumber: string;
   fetchDriverData: () => void;
 }) => {
-  const [activeTab, setActiveTab] = useState<"combined" | "driving-license" | "d-d1-category">("combined");
+  const [activeTab, setActiveTab] = useState<"overview" | "driving-license" | "d-d1-category">("overview");
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
   const [syncChanges, setSyncChanges] = useState(true);
   
-  const [formData, setFormData] = useState({
+  // Form data with validation tracking
+  type CombinedLicenseFormData = {
+    license_number: string;
+    license_issue_number: string;
+    dl_expiry_date: string;
+    dl_status: string;
+    dl_status_reason: string;
+    dl_status_description: string;
+    dl_description: string;
+    dl_has_document: boolean;
+    dd1_expiry_date: string;
+    dd1_status: string;
+    dd1_status_reason: string;
+    dd1_status_description: string;
+    dd1_description: string;
+    dd1_has_document: boolean;
+    [key: string]: any; // Add index signature for dynamic access
+  };
+
+  const [formData, setFormData] = useState<CombinedLicenseFormData>({
     license_number: licenseNumber || "",
     license_issue_number: licenseIssueNumber || "",
     
@@ -331,12 +352,30 @@ const CombinedLicenseDialog = memo(({
     dd1_has_document: dd1CategoryData?.has_document || false,
   });
   
+  // Original data for comparison
+  const [originalData, setOriginalData] = useState({
+    license_number: licenseNumber || "",
+    license_issue_number: licenseIssueNumber || "",
+    dl_expiry_date: driverLicenseData?.expiry_date || "",
+    dd1_expiry_date: dd1CategoryData?.expiry_date || "",
+  });
+  
   const [dlFiles, setDlFiles] = useState({
     front: driverLicenseData?.urls?.[0] || "",
     back: driverLicenseData?.urls?.[1] || "",
   });
   
   const [dd1Files, setDd1Files] = useState({
+    front: dd1CategoryData?.urls?.[0] || "",
+    back: dd1CategoryData?.urls?.[1] || "",
+  });
+  
+  const [originalDlFiles, setOriginalDlFiles] = useState({
+    front: driverLicenseData?.urls?.[0] || "",
+    back: driverLicenseData?.urls?.[1] || "",
+  });
+  
+  const [originalDd1Files, setOriginalDd1Files] = useState({
     front: dd1CategoryData?.urls?.[0] || "",
     back: dd1CategoryData?.urls?.[1] || "",
   });
@@ -348,10 +387,17 @@ const CombinedLicenseDialog = memo(({
   const [dd1ImageIndex, setDd1ImageIndex] = useState(0);
   
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [validationIssues, setValidationIssues] = useState<Array<{
+    type: 'warning' | 'error';
+    message: string;
+    action?: string;
+    field?: string;
+  }>>([]);
 
+  // Initialize data when dialog opens
   useEffect(() => {
     if (isOpen) {
-      setFormData({
+      const initialFormData = {
         license_number: licenseNumber || "",
         license_issue_number: licenseIssueNumber || "",
         
@@ -368,62 +414,176 @@ const CombinedLicenseDialog = memo(({
         dd1_status_description: dd1CategoryData?.status_description || "",
         dd1_description: dd1CategoryData?.description || "",
         dd1_has_document: dd1CategoryData?.has_document || false,
+      };
+      
+      setFormData(initialFormData);
+      setOriginalData({
+        license_number: licenseNumber || "",
+        license_issue_number: licenseIssueNumber || "",
+        dl_expiry_date: driverLicenseData?.expiry_date || "",
+        dd1_expiry_date: dd1CategoryData?.expiry_date || "",
       });
       
-      setDlFiles({
+      const dlFilesInitial = {
         front: driverLicenseData?.urls?.[0] || "",
         back: driverLicenseData?.urls?.[1] || "",
-      });
-      
-      setDd1Files({
+      };
+      const dd1FilesInitial = {
         front: dd1CategoryData?.urls?.[0] || "",
         back: dd1CategoryData?.urls?.[1] || "",
-      });
+      };
+      
+      setDlFiles(dlFilesInitial);
+      setDd1Files(dd1FilesInitial);
+      setOriginalDlFiles(dlFilesInitial);
+      setOriginalDd1Files(dd1FilesInitial);
       
       setUploadedDlFiles(false);
       setUploadedDd1Files(false);
-      setHasChanges(false);
       setSyncChanges(true);
+      setValidationIssues([]);
     }
   }, [isOpen, driverLicenseData, dd1CategoryData, licenseNumber, licenseIssueNumber]);
 
+  // Validation logic - Check for required updates
   useEffect(() => {
-    const hasFormChanges = 
-      formData.license_number !== licenseNumber ||
-      formData.license_issue_number !== licenseIssueNumber ||
-      formData.dl_expiry_date !== driverLicenseData?.expiry_date ||
+    const issues: Array<{
+      type: 'warning' | 'error';
+      message: string;
+      action?: string;
+      field?: string;
+    }> = [];
+
+    // Check if license number changed but no new document uploaded
+    if (formData.license_number !== originalData.license_number && !uploadedDlFiles) {
+      issues.push({
+        type: 'error',
+        message: 'License number changed. Please upload updated Driving License documents.',
+        action: 'Upload documents',
+        field: 'license_number'
+      });
+    }
+
+    // Check if issue number changed but no new document uploaded
+    if (formData.license_issue_number !== originalData.license_issue_number && !uploadedDlFiles) {
+      issues.push({
+        type: 'error',
+        message: 'Issue number changed. Please upload updated Driving License documents.',
+        action: 'Upload documents',
+        field: 'license_issue_number'
+      });
+    }
+
+    // Check if DL expiry changed but no new document uploaded
+    if (formData.dl_expiry_date !== originalData.dl_expiry_date && !uploadedDlFiles) {
+      issues.push({
+        type: 'error',
+        message: 'Driving License expiry date changed. Please upload updated documents.',
+        action: 'Upload documents',
+        field: 'dl_expiry_date'
+      });
+    }
+
+    // Check if DD1 expiry changed but no new document uploaded
+    if (formData.dd1_expiry_date !== originalData.dd1_expiry_date && !uploadedDd1Files) {
+      issues.push({
+        type: 'error',
+        message: 'D/D1 Category expiry date changed. Please upload updated documents.',
+        action: 'Upload documents',
+        field: 'dd1_expiry_date'
+      });
+    }
+
+    // Check if documents are missing when they should exist
+    if (formData.dl_has_document && (!dlFiles.front || dlFiles.front === originalDlFiles.front)) {
+      issues.push({
+        type: 'warning',
+        message: 'Driving License document may need to be updated with the changes.',
+        action: 'Review document',
+        field: 'dl_document'
+      });
+    }
+
+    if (formData.dd1_has_document && (!dd1Files.front || dd1Files.front === originalDd1Files.front)) {
+      issues.push({
+        type: 'warning',
+        message: 'D/D1 Category document may need to be updated with the changes.',
+        action: 'Review document',
+        field: 'dd1_document'
+      });
+    }
+
+    setValidationIssues(issues);
+  }, [formData, originalData, uploadedDlFiles, uploadedDd1Files, dlFiles, dd1Files, originalDlFiles, originalDd1Files]);
+
+  // Check if there are any changes
+  const hasChanges = useMemo(() => {
+    return (
+      formData.license_number !== originalData.license_number ||
+      formData.license_issue_number !== originalData.license_issue_number ||
+      formData.dl_expiry_date !== originalData.dl_expiry_date ||
+      formData.dd1_expiry_date !== originalData.dd1_expiry_date ||
       formData.dl_status !== driverLicenseData?.request_status ||
       formData.dl_status_reason !== driverLicenseData?.status_reason ||
       formData.dl_status_description !== driverLicenseData?.status_description ||
       formData.dl_description !== driverLicenseData?.description ||
-      formData.dd1_expiry_date !== dd1CategoryData?.expiry_date ||
       formData.dd1_status !== dd1CategoryData?.request_status ||
       formData.dd1_status_reason !== dd1CategoryData?.status_reason ||
       formData.dd1_status_description !== dd1CategoryData?.status_description ||
-      formData.dd1_description !== dd1CategoryData?.description;
+      formData.dd1_description !== dd1CategoryData?.description ||
+      uploadedDlFiles ||
+      uploadedDd1Files
+    );
+  }, [formData, originalData, driverLicenseData, dd1CategoryData, uploadedDlFiles, uploadedDd1Files]);
+
+  // Check if changes are valid (no blocking errors)
+  const isValidForSave = useMemo(() => {
+    const hasErrors = validationIssues.some(issue => issue.type === 'error');
+    const hasCriticalChanges = (
+      formData.license_number !== originalData.license_number ||
+      formData.license_issue_number !== originalData.license_issue_number ||
+      formData.dl_expiry_date !== originalData.dl_expiry_date ||
+      formData.dd1_expiry_date !== originalData.dd1_expiry_date
+    );
     
-    const hasFileChanges = uploadedDlFiles || uploadedDd1Files;
+    if (hasCriticalChanges) {
+      // For critical changes, both documents must be uploaded
+      const dlNeedsUpdate = formData.license_number !== originalData.license_number || 
+                           formData.license_issue_number !== originalData.license_issue_number ||
+                           formData.dl_expiry_date !== originalData.dl_expiry_date;
+      const dd1NeedsUpdate = formData.dd1_expiry_date !== originalData.dd1_expiry_date;
+      
+      if (dlNeedsUpdate && !uploadedDlFiles) return false;
+      if (dd1NeedsUpdate && !uploadedDd1Files) return false;
+    }
     
-    setHasChanges(hasFormChanges || hasFileChanges);
-  }, [formData, driverLicenseData, dd1CategoryData, licenseNumber, licenseIssueNumber, uploadedDlFiles, uploadedDd1Files]);
+    return !hasErrors;
+  }, [validationIssues, formData, originalData, uploadedDlFiles, uploadedDd1Files]);
 
   const handleFormChange = useCallback((field: string, value: any) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
       if (syncChanges) {
+        // Auto-sync expiry dates
         if (field === "dl_expiry_date") {
           newData.dd1_expiry_date = value;
         } else if (field === "dd1_expiry_date") {
           newData.dl_expiry_date = value;
         }
         
-        if (field === "dl_status") newData.dd1_status = value;
-        if (field === "dl_status_reason") newData.dd1_status_reason = value;
-        if (field === "dl_status_description") newData.dd1_status_description = value;
-        if (field === "dd1_status") newData.dl_status = value;
-        if (field === "dd1_status_reason") newData.dl_status_reason = value;
-        if (field === "dd1_status_description") newData.dl_status_description = value;
+        // Auto-sync status
+        if (field.startsWith("dl_")) {
+          const dd1Field = field.replace("dl_", "dd1_");
+          if (dd1Field in newData) {
+            newData[dd1Field] = value;
+          }
+        } else if (field.startsWith("dd1_")) {
+          const dlField = field.replace("dd1_", "dl_");
+          if (dlField in newData) {
+            newData[dlField] = value;
+          }
+        }
       }
       
       return newData;
@@ -448,6 +608,7 @@ const CombinedLicenseDialog = memo(({
     }
     
     if (syncChanges) {
+      // If syncing, update the other document too
       if (documentType === "dl") {
         setDd1Files(prev => ({ ...prev, [side]: url }));
         setUploadedDd1Files(true);
@@ -456,6 +617,16 @@ const CombinedLicenseDialog = memo(({
         setUploadedDlFiles(true);
       }
     }
+    
+    // Clear validation issues for this document
+    setValidationIssues(prev => 
+      prev.filter(issue => 
+        !(issue.field === `${documentType}_document` || 
+          (documentType === "dl" && issue.field?.includes("license")) ||
+          (documentType === "dl" && issue.field === "dl_expiry_date") ||
+          (documentType === "dd1" && issue.field === "dd1_expiry_date"))
+      )
+    );
     
     showToast(`Document uploaded successfully`, "success");
   }, [syncChanges, showToast]);
@@ -486,19 +657,23 @@ const CombinedLicenseDialog = memo(({
     }
   }, []);
 
+  // Calculate completion percentage
   const completionPercentage = useMemo(() => {
     let completed = 0;
     let total = 0;
     
+    // License info
     total += 2;
     if (formData.license_number.trim()) completed += 1;
     if (formData.license_issue_number.trim()) completed += 1;
     
+    // Driving License
     total += 3;
     if (formData.dl_expiry_date) completed += 1;
     if (dlFiles.front) completed += 1;
     if (formData.dl_status !== "pending") completed += 1;
     
+    // D/D1 Category
     total += 3;
     if (formData.dd1_expiry_date) completed += 1;
     if (dd1Files.front) completed += 1;
@@ -508,10 +683,16 @@ const CombinedLicenseDialog = memo(({
   }, [formData, dlFiles, dd1Files]);
 
   const handleSave = useCallback(async () => {
+    if (!isValidForSave) {
+      showToast("Please resolve all validation issues before saving", "error");
+      return;
+    }
+    
     setSaving(true);
     setFormErrors({});
     
     try {
+      // Update driver license information if changed
       if (formData.license_number !== licenseNumber || formData.license_issue_number !== licenseIssueNumber) {
         const driverPayload = {
           license_number: formData.license_number,
@@ -534,6 +715,7 @@ const CombinedLicenseDialog = memo(({
         fetchDriverData();
       }
       
+      // Save Driving License
       const dlPayload = {
         driver: driverId,
         document_name: "Driving License",
@@ -572,6 +754,7 @@ const CombinedLicenseDialog = memo(({
         throw new Error("Failed to save Driving License");
       }
       
+      // Save D/D1 Category
       const dd1Payload = {
         driver: driverId,
         document_name: "D / D1 Category",
@@ -621,16 +804,102 @@ const CombinedLicenseDialog = memo(({
       setSaving(false);
     }
   }, [
-    formData, dlFiles, dd1Files, driverLicenseData, dd1CategoryData,
+    isValidForSave, formData, dlFiles, dd1Files, driverLicenseData, dd1CategoryData,
     driverId, API_URL, cookies, showToast, fetchCompetencyData,
     fetchDriverData, onOpenChange, licenseNumber, licenseIssueNumber
   ]);
 
-  const renderCombinedView = () => (
+  // Render validation issues section
+  const renderValidationIssues = () => {
+    if (validationIssues.length === 0) return null;
+    
+    const errors = validationIssues.filter(issue => issue.type === 'error');
+    const warnings = validationIssues.filter(issue => issue.type === 'warning');
+    
+    return (
+      <Card className="border-2 border-red-200 bg-red-50/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg text-red-900 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            Validation Issues
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {errors.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-red-700">Required Actions</Label>
+              {errors.map((issue, index) => (
+                <div key={index} className="flex items-start gap-2 p-3 bg-red-100 border border-red-200 rounded-lg">
+                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-900">{issue.message}</p>
+                    {issue.action && (
+                      <div className="mt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-300 text-red-700 hover:bg-red-100 text-xs"
+                          onClick={() => {
+                            if (issue.field === 'license_number' || issue.field === 'license_issue_number' || issue.field === 'dl_expiry_date') {
+                              setActiveTab('driving-license');
+                            } else if (issue.field === 'dd1_expiry_date') {
+                              setActiveTab('d-d1-category');
+                            }
+                          }}
+                        >
+                          {issue.action}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {warnings.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-orange-700">Recommendations</Label>
+              {warnings.map((issue, index) => (
+                <div key={index} className="flex items-start gap-2 p-3 bg-orange-100 border border-orange-200 rounded-lg">
+                  <AlertTriangle className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-orange-900">{issue.message}</p>
+                    {issue.action && (
+                      <div className="mt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-orange-300 text-orange-700 hover:bg-orange-100 text-xs"
+                          onClick={() => {
+                            if (issue.field === 'dl_document') {
+                              setActiveTab('driving-license');
+                            } else if (issue.field === 'dd1_document') {
+                              setActiveTab('d-d1-category');
+                            }
+                          }}
+                        >
+                          {issue.action}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Render overview tab
+  const renderOverviewTab = () => (
     <div className="space-y-6">
+      {/* Status Summary */}
       <Card className="border-2 border-indigo-200">
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-indigo-100 to-orange-100 rounded-lg">
                 <CheckCircle className="h-5 w-5 text-indigo-600" />
@@ -640,32 +909,57 @@ const CombinedLicenseDialog = memo(({
                 <p className="text-sm text-gray-600">Both licenses synchronized</p>
               </div>
             </div>
-            <Badge className="bg-gradient-to-r from-indigo-600 to-orange-600 text-white">
-              {completionPercentage}% Complete
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge className={cn(
+                "px-3 py-1 text-xs",
+                validationIssues.length > 0 ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"
+              )}>
+                {validationIssues.length > 0 ? `${validationIssues.length} Issues` : "Ready to Save"}
+              </Badge>
+              <Badge className="bg-gradient-to-r from-indigo-600 to-orange-600 text-white">
+                {completionPercentage}% Complete
+              </Badge>
+            </div>
           </div>
           <Progress value={completionPercentage} className="h-2" />
         </CardContent>
       </Card>
 
+      {/* Validation Issues */}
+      {renderValidationIssues()}
+
+      {/* License Information */}
       <Card className="border-2 border-orange-200">
         <CardHeader className="bg-gradient-to-r from-orange-50 to-indigo-50 border-b border-orange-200">
           <CardTitle className="text-xl text-orange-900 flex items-center gap-3">
             <IdCard className="h-5 w-5" />
             Shared License Information
           </CardTitle>
+          <CardDescription>
+            Changes to license information require updated documents
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6">
           <div className="space-y-2">
-            <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <IdCard className="h-4 w-4" />
-              License Number
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <IdCard className="h-4 w-4" />
+                License Number
+              </Label>
+              {formData.license_number !== originalData.license_number && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  Changed
+                </Badge>
+              )}
+            </div>
             {isEditing ? (
               <Input
                 value={formData.license_number}
                 onChange={(e) => handleFormChange("license_number", e.target.value)}
-                className="border-orange-300 focus:ring-2 focus:ring-orange-500"
+                className={cn(
+                  "border-orange-300 focus:ring-2 focus:ring-orange-500",
+                  formData.license_number !== originalData.license_number && "border-blue-500"
+                )}
                 placeholder="Enter license number..."
               />
             ) : (
@@ -673,18 +967,34 @@ const CombinedLicenseDialog = memo(({
                 {formData.license_number || "Not provided"}
               </div>
             )}
+            {formData.license_number !== originalData.license_number && (
+              <p className="text-xs text-blue-600 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Document update required
+              </p>
+            )}
           </div>
           
           <div className="space-y-2">
-            <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <Key className="h-4 w-4" />
-              Issue Number
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                Issue Number
+              </Label>
+              {formData.license_issue_number !== originalData.license_issue_number && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  Changed
+                </Badge>
+              )}
+            </div>
             {isEditing ? (
               <Input
                 value={formData.license_issue_number}
                 onChange={(e) => handleFormChange("license_issue_number", e.target.value)}
-                className="border-blue-300 focus:ring-2 focus:ring-blue-500"
+                className={cn(
+                  "border-blue-300 focus:ring-2 focus:ring-blue-500",
+                  formData.license_issue_number !== originalData.license_issue_number && "border-blue-500"
+                )}
                 placeholder="Enter issue number..."
               />
             ) : (
@@ -692,68 +1002,93 @@ const CombinedLicenseDialog = memo(({
                 {formData.license_issue_number || "Not provided"}
               </div>
             )}
+            {formData.license_issue_number !== originalData.license_issue_number && (
+              <p className="text-xs text-blue-600 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Document update required
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
 
+      {/* Documents Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-2 border-blue-200 hover:border-blue-400 transition-all">
+        {/* Driving License Card */}
+        <Card className={cn(
+          "border-2 transition-all",
+          formData.dl_expiry_date !== originalData.dl_expiry_date ? "border-blue-500" : "border-blue-200"
+        )}>
           <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-blue-900 flex items-center gap-2">
-                <IdCard className="h-5 w-5" />
-                Driving License
-              </CardTitle>
-              <Badge className={cn("px-3 py-1 text-xs", getStatusColor(formData.dl_status))}>
-                {formData.dl_status.replace("_", " ").toUpperCase()}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg text-blue-900 flex items-center gap-2">
+                  <IdCard className="h-5 w-5" />
+                  Driving License
+                </CardTitle>
+                {formData.dl_expiry_date !== originalData.dl_expiry_date && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertCircle className="h-4 w-4 text-blue-600" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Expiry date changed - document update required</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className={cn("px-3 py-1 text-xs", getStatusColor(formData.dl_status))}>
+                  {formData.dl_status.replace("_", " ").toUpperCase()}
+                </Badge>
+                {uploadedDlFiles && (
+                  <Badge className="bg-green-50 text-green-700 border-green-200 text-xs">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Updated
+                  </Badge>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-gray-700">Expiry Date</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold text-gray-700">Expiry Date</Label>
+                {formData.dl_expiry_date !== originalData.dl_expiry_date && (
+                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                    Changed
+                  </Badge>
+                )}
+              </div>
               {isEditing ? (
                 <Input
                   type="date"
                   value={formData.dl_expiry_date || ""}
                   onChange={(e) => handleFormChange("dl_expiry_date", e.target.value)}
-                  className="border-blue-300 focus:ring-2 focus:ring-blue-500"
+                  className={cn(
+                    "border-blue-300 focus:ring-2 focus:ring-blue-500",
+                    formData.dl_expiry_date !== originalData.dl_expiry_date && "border-blue-500"
+                  )}
                 />
               ) : (
                 <div className="font-semibold text-lg text-blue-900 bg-blue-50 p-3 rounded-lg">
                   {formData.dl_expiry_date ? formatDate(formData.dl_expiry_date) : "No expiry date"}
                 </div>
               )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-gray-700">Status</Label>
-              {isEditing ? (
-                <Select
-                  value={formData.dl_status}
-                  onValueChange={(value) => handleFormChange("dl_status", value)}
-                >
-                  <SelectTrigger className="border-blue-300 focus:ring-2 focus:ring-blue-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="not_approved">Not Approved</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(formData.dl_status)}
-                  <span className="font-medium capitalize">{formData.dl_status.replace("_", " ")}</span>
-                </div>
+              {formData.dl_expiry_date !== originalData.dl_expiry_date && !uploadedDlFiles && (
+                <p className="text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Document update required
+                </p>
               )}
             </div>
             
-            {dlFiles.front && (
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">Document</Label>
-                <div className="relative h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg overflow-hidden">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-700">Document</Label>
+              {dlFiles.front ? (
+                <div className="relative h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg overflow-hidden border border-blue-200">
                   {isPdfUrl(dlFiles.front) ? (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <FileText className="h-12 w-12 text-blue-600 opacity-50" />
@@ -765,83 +1100,107 @@ const CombinedLicenseDialog = memo(({
                       className="w-full h-full object-contain p-2"
                     />
                   )}
+                  {dlFiles.front !== originalDlFiles.front && (
+                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
+                      Updated
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="h-32 border-2 border-dashed border-blue-300 rounded-lg flex items-center justify-center">
+                  <p className="text-gray-500">No document uploaded</p>
+                </div>
+              )}
+            </div>
             
             {isEditing && (
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">Upload Document</Label>
-                <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 hover:border-blue-500 transition-colors">
-                  <FileUploaderLazy
-                    onUploadSuccess={(url) => handleFileUpload("dl", "front", url)}
-                    accept="image/*,application/pdf"
-                    maxSize={5 * 1024 * 1024}
-                    id="file-upload-dl-front"
-                  />
-                </div>
-              </div>
+              <Button
+                variant="outline"
+                onClick={() => setActiveTab('driving-license')}
+                className="w-full border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Driving License Details
+              </Button>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-green-200 hover:border-green-400 transition-all">
+        {/* D/D1 Category Card */}
+        <Card className={cn(
+          "border-2 transition-all",
+          formData.dd1_expiry_date !== originalData.dd1_expiry_date ? "border-green-500" : "border-green-200"
+        )}>
           <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-green-900 flex items-center gap-2">
-                <Car className="h-5 w-5" />
-                D/D1 Category
-              </CardTitle>
-              <Badge className={cn("px-3 py-1 text-xs", getStatusColor(formData.dd1_status))}>
-                {formData.dd1_status.replace("_", " ").toUpperCase()}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg text-green-900 flex items-center gap-2">
+                  <Car className="h-5 w-5" />
+                  D/D1 Category
+                </CardTitle>
+                {formData.dd1_expiry_date !== originalData.dd1_expiry_date && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertCircle className="h-4 w-4 text-green-600" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Expiry date changed - document update required</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className={cn("px-3 py-1 text-xs", getStatusColor(formData.dd1_status))}>
+                  {formData.dd1_status.replace("_", " ").toUpperCase()}
+                </Badge>
+                {uploadedDd1Files && (
+                  <Badge className="bg-green-50 text-green-700 border-green-200 text-xs">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Updated
+                  </Badge>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-gray-700">Expiry Date</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold text-gray-700">Expiry Date</Label>
+                {formData.dd1_expiry_date !== originalData.dd1_expiry_date && (
+                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                    Changed
+                  </Badge>
+                )}
+              </div>
               {isEditing ? (
                 <Input
                   type="date"
                   value={formData.dd1_expiry_date || ""}
                   onChange={(e) => handleFormChange("dd1_expiry_date", e.target.value)}
-                  className="border-green-300 focus:ring-2 focus:ring-green-500"
+                  className={cn(
+                    "border-green-300 focus:ring-2 focus:ring-green-500",
+                    formData.dd1_expiry_date !== originalData.dd1_expiry_date && "border-green-500"
+                  )}
                 />
               ) : (
                 <div className="font-semibold text-lg text-green-900 bg-green-50 p-3 rounded-lg">
                   {formData.dd1_expiry_date ? formatDate(formData.dd1_expiry_date) : "No expiry date"}
                 </div>
               )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-gray-700">Status</Label>
-              {isEditing ? (
-                <Select
-                  value={formData.dd1_status}
-                  onValueChange={(value) => handleFormChange("dd1_status", value)}
-                >
-                  <SelectTrigger className="border-green-300 focus:ring-2 focus:ring-green-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="not_approved">Not Approved</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(formData.dd1_status)}
-                  <span className="font-medium capitalize">{formData.dd1_status.replace("_", " ")}</span>
-                </div>
+              {formData.dd1_expiry_date !== originalData.dd1_expiry_date && !uploadedDd1Files && (
+                <p className="text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Document update required
+                </p>
               )}
             </div>
             
-            {dd1Files.front && (
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">Document</Label>
-                <div className="relative h-32 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg overflow-hidden">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-700">Document</Label>
+              {dd1Files.front ? (
+                <div className="relative h-32 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg overflow-hidden border border-green-200">
                   {isPdfUrl(dd1Files.front) ? (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <FileText className="h-12 w-12 text-green-600 opacity-50" />
@@ -853,27 +1212,34 @@ const CombinedLicenseDialog = memo(({
                       className="w-full h-full object-contain p-2"
                     />
                   )}
+                  {dd1Files.front !== originalDd1Files.front && (
+                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
+                      Updated
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="h-32 border-2 border-dashed border-green-300 rounded-lg flex items-center justify-center">
+                  <p className="text-gray-500">No document uploaded</p>
+                </div>
+              )}
+            </div>
             
             {isEditing && (
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">Upload Document</Label>
-                <div className="border-2 border-dashed border-green-300 rounded-lg p-4 hover:border-green-500 transition-colors">
-                  <FileUploaderLazy
-                    onUploadSuccess={(url) => handleFileUpload("dd1", "front", url)}
-                    accept="image/*,application/pdf"
-                    maxSize={5 * 1024 * 1024}
-                    id="file-upload-dd1-front"
-                  />
-                </div>
-              </div>
+              <Button
+                variant="outline"
+                onClick={() => setActiveTab('d-d1-category')}
+                className="w-full border-green-300 text-green-700 hover:bg-green-50"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit D/D1 Category Details
+              </Button>
             )}
           </CardContent>
         </Card>
       </div>
 
+      {/* Sync Settings */}
       {isEditing && (
         <Card className="border-2 border-indigo-200">
           <CardContent className="pt-6">
@@ -881,9 +1247,9 @@ const CombinedLicenseDialog = memo(({
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-br from-indigo-100 to-orange-100 rounded-lg">
                   {syncChanges ? (
-                    <Link className="h-5 w-5 text-indigo-600" />
+                    <Link2 className="h-5 w-5 text-indigo-600" />
                   ) : (
-                    <Unlink className="h-5 w-5 text-gray-600" />
+                    <Link2Off className="h-5 w-5 text-gray-600" />
                   )}
                 </div>
                 <div>
@@ -909,111 +1275,168 @@ const CombinedLicenseDialog = memo(({
     </div>
   );
 
-  const renderDetailedView = () => {
-    const isDrivingLicense = activeTab === "driving-license";
-    const data = isDrivingLicense ? {
-      expiry_date: formData.dl_expiry_date,
-      status: formData.dl_status,
-      status_reason: formData.dl_status_reason,
-      status_description: formData.dl_status_description,
-      description: formData.dl_description,
-      has_document: formData.dl_has_document,
-    } : {
-      expiry_date: formData.dd1_expiry_date,
-      status: formData.dd1_status,
-      status_reason: formData.dd1_status_reason,
-      status_description: formData.dd1_status_description,
-      description: formData.dd1_description,
-      has_document: formData.dd1_has_document,
-    };
-    const files = isDrivingLicense ? dlFiles : dd1Files;
-    const imageIndex = isDrivingLicense ? dlImageIndex : dd1ImageIndex;
-    const setImageIndex = isDrivingLicense ? setDlImageIndex : setDd1ImageIndex;
-    
-    return (
-      <div className="space-y-6">
-        <Card className="border-2 border-orange-200">
-          <CardHeader className="bg-gradient-to-r from-orange-50 to-indigo-50 border-b border-orange-200">
-            <CardTitle className="text-xl text-orange-900 flex items-center gap-3">
-              {isDrivingLicense ? <IdCard className="h-5 w-5" /> : <Car className="h-5 w-5" />}
-              {isDrivingLicense ? "Driving License" : "D/D1 Category"} Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-6">
-            {isEditing && (
-              <div className="space-y-4">
-                <Label className="text-sm font-semibold text-gray-700">Upload Documents</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-gray-600">Front Side</Label>
-                    <div className="border-2 border-dashed border-orange-300 rounded-lg p-4 hover:border-orange-500 transition-colors">
-                      <FileUploaderLazy
-                        onUploadSuccess={(url) => handleFileUpload(isDrivingLicense ? "dl" : "dd1", "front", url)}
-                        accept="image/*,application/pdf"
-                        maxSize={5 * 1024 * 1024}
-                        id={`file-upload-${isDrivingLicense ? "dl" : "dd1"}-front`}
-                      />
-                    </div>
-                    {files.front && (
-                      <p className="text-xs text-green-600 flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Front document uploaded
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-sm text-gray-600">Back Side (Optional)</Label>
-                    <div className="border-2 border-dashed border-indigo-300 rounded-lg p-4 hover:border-indigo-500 transition-colors">
-                      <FileUploaderLazy
-                        onUploadSuccess={(url) => handleFileUpload(isDrivingLicense ? "dl" : "dd1", "back", url)}
-                        accept="image/*,application/pdf"
-                        maxSize={5 * 1024 * 1024}
-                        id={`file-upload-${isDrivingLicense ? "dl" : "dd1"}-back`}
-                      />
-                    </div>
-                    {files.back && (
-                      <p className="text-xs text-green-600 flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Back document uploaded
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {files.front && (
+  // Render detailed Driving License tab
+  const renderDrivingLicenseTab = () => (
+    <div className="space-y-6">
+      <Card className="border-2 border-blue-200">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
+          <CardTitle className="text-xl text-blue-900 flex items-center gap-3">
+            <IdCard className="h-5 w-5" />
+            Driving License Details
+          </CardTitle>
+          <CardDescription>
+            Update document, status, and other details
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6 space-y-6">
+          {/* Document Upload Section */}
+          <div className="space-y-4">
+            <Label className="text-sm font-semibold text-gray-700">Document Upload</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">Document Preview</Label>
-                <div className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden border-2 border-gray-200">
-                  {isPdfUrl(files.front) ? (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <FileText className="h-20 w-20 text-gray-400 opacity-50" />
-                    </div>
-                  ) : (
-                    <img
-                      src={files.front}
-                      alt={`${isDrivingLicense ? "Driving License" : "D/D1 Category"} Preview`}
-                      className="w-full h-full object-contain p-4"
-                    />
-                  )}
+                <Label className="text-sm text-gray-600">Front Side</Label>
+                <div className={cn(
+                  "border-2 border-dashed rounded-lg p-4 transition-colors",
+                  formData.license_number !== originalData.license_number || 
+                  formData.license_issue_number !== originalData.license_issue_number ||
+                  formData.dl_expiry_date !== originalData.dl_expiry_date
+                    ? "border-red-400 bg-red-50/50 hover:border-red-600"
+                    : "border-blue-300 bg-blue-50/50 hover:border-blue-500"
+                )}>
+                  <FileUploaderLazy
+                    onUploadSuccess={(url) => handleFileUpload("dl", "front", url)}
+                    accept="image/*,application/pdf"
+                    maxSize={5 * 1024 * 1024}
+                    id="file-upload-dl-front"
+                  />
                 </div>
+                {dlFiles.front && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" />
+                    Front document uploaded
+                    {dlFiles.front !== originalDlFiles.front && (
+                      <span className="ml-1 font-semibold">(Updated)</span>
+                    )}
+                  </p>
+                )}
+                {(formData.license_number !== originalData.license_number || 
+                  formData.license_issue_number !== originalData.license_issue_number ||
+                  formData.dl_expiry_date !== originalData.dl_expiry_date) && !uploadedDlFiles && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Required due to changes
+                  </p>
+                )}
               </div>
-            )}
+              
+              <div className="space-y-2">
+                <Label className="text-sm text-gray-600">Back Side (Optional)</Label>
+                <div className="border-2 border-dashed border-indigo-300 rounded-lg p-4 hover:border-indigo-500 transition-colors bg-indigo-50/50">
+                  <FileUploaderLazy
+                    onUploadSuccess={(url) => handleFileUpload("dl", "back", url)}
+                    accept="image/*,application/pdf"
+                    maxSize={5 * 1024 * 1024}
+                    id="file-upload-dl-back"
+                  />
+                </div>
+                {dlFiles.back && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" />
+                    Back document uploaded
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Document Preview */}
+          {dlFiles.front && (
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-700">Document Preview</Label>
+              <div className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden border-2 border-gray-200">
+                {isPdfUrl(dlFiles.front) ? (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <FileText className="h-20 w-20 text-gray-400 opacity-50" />
+                  </div>
+                ) : (
+                  <img
+                    src={dlFiles.front}
+                    alt="Driving License Preview"
+                    className="w-full h-full object-contain p-4"
+                  />
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Status and Details */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">Status</Label>
+                {isEditing ? (
+                  <Select
+                    value={formData.dl_status}
+                    onValueChange={(value) => handleFormChange("dl_status", value)}
+                  >
+                    <SelectTrigger className="border-blue-300 focus:ring-2 focus:ring-blue-500">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="not_approved">Not Approved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(formData.dl_status)}
+                    <span className="font-medium capitalize">{formData.dl_status.replace("_", " ")}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Expiry Date
+                </Label>
+                {isEditing ? (
+                  <Input
+                    type="date"
+                    value={formData.dl_expiry_date || ""}
+                    onChange={(e) => handleFormChange("dl_expiry_date", e.target.value)}
+                    className={cn(
+                      "border-blue-300 focus:ring-2 focus:ring-blue-500",
+                      formData.dl_expiry_date !== originalData.dl_expiry_date && "border-blue-500"
+                    )}
+                  />
+                ) : (
+                  <div className="font-semibold text-lg text-blue-900 bg-blue-50 p-3 rounded-lg">
+                    {formData.dl_expiry_date ? formatDate(formData.dl_expiry_date) : "No expiry date"}
+                  </div>
+                )}
+                {formData.dl_expiry_date !== originalData.dl_expiry_date && (
+                  <p className="text-xs text-blue-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Document update required
+                  </p>
+                )}
+              </div>
+            </div>
             
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-gray-700">Description</Label>
               {isEditing ? (
                 <Textarea
-                  value={data.description || ""}
-                  onChange={(e) => handleFormChange(isDrivingLicense ? "dl_description" : "dd1_description", e.target.value)}
-                  className="border-orange-300 focus:ring-2 focus:ring-orange-500 min-h-[100px]"
+                  value={formData.dl_description || ""}
+                  onChange={(e) => handleFormChange("dl_description", e.target.value)}
+                  className="border-blue-300 focus:ring-2 focus:ring-blue-500 min-h-[100px]"
                   placeholder="Enter document description..."
                 />
               ) : (
                 <div className="text-gray-700 bg-gray-50 p-4 rounded-lg">
-                  {data.description || "No description provided"}
+                  {formData.dl_description || "No description provided"}
                 </div>
               )}
             </div>
@@ -1022,22 +1445,205 @@ const CombinedLicenseDialog = memo(({
               <Label className="text-sm font-semibold text-gray-700">Status Details</Label>
               {isEditing ? (
                 <Textarea
-                  value={data.status_description || ""}
-                  onChange={(e) => handleFormChange(isDrivingLicense ? "dl_status_description" : "dd1_status_description", e.target.value)}
-                  className="border-orange-300 focus:ring-2 focus:ring-orange-500 min-h-[80px]"
+                  value={formData.dl_status_description || ""}
+                  onChange={(e) => handleFormChange("dl_status_description", e.target.value)}
+                  className="border-blue-300 focus:ring-2 focus:ring-blue-500 min-h-[80px]"
                   placeholder="Enter status details..."
                 />
               ) : (
                 <div className="text-gray-700 bg-gray-50 p-4 rounded-lg">
-                  {data.status_description || "No status details"}
+                  {formData.dl_status_description || "No status details"}
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  };
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Render detailed D/D1 Category tab
+  const renderDD1CategoryTab = () => (
+    <div className="space-y-6">
+      <Card className="border-2 border-green-200">
+        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+          <CardTitle className="text-xl text-green-900 flex items-center gap-3">
+            <Car className="h-5 w-5" />
+            D/D1 Category Details
+          </CardTitle>
+          <CardDescription>
+            Update document, status, and other details
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6 space-y-6">
+          {/* Document Upload Section */}
+          <div className="space-y-4">
+            <Label className="text-sm font-semibold text-gray-700">Document Upload</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm text-gray-600">Front Side</Label>
+                <div className={cn(
+                  "border-2 border-dashed rounded-lg p-4 transition-colors",
+                  formData.dd1_expiry_date !== originalData.dd1_expiry_date
+                    ? "border-red-400 bg-red-50/50 hover:border-red-600"
+                    : "border-green-300 bg-green-50/50 hover:border-green-500"
+                )}>
+                  <FileUploaderLazy
+                    onUploadSuccess={(url) => handleFileUpload("dd1", "front", url)}
+                    accept="image/*,application/pdf"
+                    maxSize={5 * 1024 * 1024}
+                    id="file-upload-dd1-front"
+                  />
+                </div>
+                {dd1Files.front && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" />
+                    Front document uploaded
+                    {dd1Files.front !== originalDd1Files.front && (
+                      <span className="ml-1 font-semibold">(Updated)</span>
+                    )}
+                  </p>
+                )}
+                {formData.dd1_expiry_date !== originalData.dd1_expiry_date && !uploadedDd1Files && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Required due to expiry date change
+                  </p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-sm text-gray-600">Back Side (Optional)</Label>
+                <div className="border-2 border-dashed border-emerald-300 rounded-lg p-4 hover:border-emerald-500 transition-colors bg-emerald-50/50">
+                  <FileUploaderLazy
+                    onUploadSuccess={(url) => handleFileUpload("dd1", "back", url)}
+                    accept="image/*,application/pdf"
+                    maxSize={5 * 1024 * 1024}
+                    id="file-upload-dd1-back"
+                  />
+                </div>
+                {dd1Files.back && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" />
+                    Back document uploaded
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Document Preview */}
+          {dd1Files.front && (
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-700">Document Preview</Label>
+              <div className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden border-2 border-gray-200">
+                {isPdfUrl(dd1Files.front) ? (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <FileText className="h-20 w-20 text-gray-400 opacity-50" />
+                  </div>
+                ) : (
+                  <img
+                    src={dd1Files.front}
+                    alt="D/D1 Category Preview"
+                    className="w-full h-full object-contain p-4"
+                  />
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Status and Details */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">Status</Label>
+                {isEditing ? (
+                  <Select
+                    value={formData.dd1_status}
+                    onValueChange={(value) => handleFormChange("dd1_status", value)}
+                  >
+                    <SelectTrigger className="border-green-300 focus:ring-2 focus:ring-green-500">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="not_approved">Not Approved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(formData.dd1_status)}
+                    <span className="font-medium capitalize">{formData.dd1_status.replace("_", " ")}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Expiry Date
+                </Label>
+                {isEditing ? (
+                  <Input
+                    type="date"
+                    value={formData.dd1_expiry_date || ""}
+                    onChange={(e) => handleFormChange("dd1_expiry_date", e.target.value)}
+                    className={cn(
+                      "border-green-300 focus:ring-2 focus:ring-green-500",
+                      formData.dd1_expiry_date !== originalData.dd1_expiry_date && "border-green-500"
+                    )}
+                  />
+                ) : (
+                  <div className="font-semibold text-lg text-green-900 bg-green-50 p-3 rounded-lg">
+                    {formData.dd1_expiry_date ? formatDate(formData.dd1_expiry_date) : "No expiry date"}
+                  </div>
+                )}
+                {formData.dd1_expiry_date !== originalData.dd1_expiry_date && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Document update required
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-700">Description</Label>
+              {isEditing ? (
+                <Textarea
+                  value={formData.dd1_description || ""}
+                  onChange={(e) => handleFormChange("dd1_description", e.target.value)}
+                  className="border-green-300 focus:ring-2 focus:ring-green-500 min-h-[100px]"
+                  placeholder="Enter document description..."
+                />
+              ) : (
+                <div className="text-gray-700 bg-gray-50 p-4 rounded-lg">
+                  {formData.dd1_description || "No description provided"}
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-700">Status Details</Label>
+              {isEditing ? (
+                <Textarea
+                  value={formData.dd1_status_description || ""}
+                  onChange={(e) => handleFormChange("dd1_status_description", e.target.value)}
+                  className="border-green-300 focus:ring-2 focus:ring-green-500 min-h-[80px]"
+                  placeholder="Enter status details..."
+                />
+              ) : (
+                <div className="text-gray-700 bg-gray-50 p-4 rounded-lg">
+                  {formData.dd1_status_description || "No status details"}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -1062,8 +1668,11 @@ const CombinedLicenseDialog = memo(({
                 <>
                   <Button
                     onClick={handleSave}
-                    disabled={saving || !hasChanges}
-                    className="bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-700 hover:to-indigo-700 text-white shadow-lg"
+                    disabled={saving || !hasChanges || !isValidForSave}
+                    className={cn(
+                      "bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-700 hover:to-indigo-700 text-white shadow-lg",
+                      (!hasChanges || !isValidForSave) && "opacity-50 cursor-not-allowed"
+                    )}
                   >
                     {saving ? (
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
@@ -1105,52 +1714,67 @@ const CombinedLicenseDialog = memo(({
           </div>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)}>
-          <TabsList className="grid grid-cols-3 mb-6">
-            <TabsTrigger value="combined" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-indigo-600">
-              <Link className="h-4 w-4 mr-2" />
-              Combined View
-            </TabsTrigger>
-            <TabsTrigger value="driving-license" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600">
-              <IdCard className="h-4 w-4 mr-2" />
-              Driving License
-            </TabsTrigger>
-            <TabsTrigger value="d-d1-category" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600">
-              <Car className="h-4 w-4 mr-2" />
-              D/D1 Category
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="combined">
-            {renderCombinedView()}
-          </TabsContent>
-          
-          <TabsContent value="driving-license">
-            {renderDetailedView()}
-          </TabsContent>
-          
-          <TabsContent value="d-d1-category">
-            {renderDetailedView()}
-          </TabsContent>
-        </Tabs>
         
-        {hasChanges && !isEditing && (
+     
+            {renderOverviewTab()}
+    
+            {renderDrivingLicenseTab()}
+        
+            {renderDD1CategoryTab()}
+       
+        
+        {/* Save Status Footer */}
+        {hasChanges && (
           <div className="sticky bottom-0 bg-gradient-to-r from-orange-50 to-indigo-50 border-t border-orange-200 p-4 -mx-6 -mb-6 mt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                <div>
-                  <p className="font-semibold text-orange-900">Unsaved Changes</p>
-                  <p className="text-sm text-orange-700">You have unsaved changes in your licenses</p>
-                </div>
+                {isValidForSave ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="font-semibold text-green-900">Ready to Save</p>
+                      <p className="text-sm text-green-700">All changes are valid</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-5 w-5 text-orange-600" />
+                    <div>
+                      <p className="font-semibold text-orange-900">Validation Required</p>
+                      <p className="text-sm text-orange-700">
+                        {validationIssues.filter(i => i.type === 'error').length} issue(s) need attention
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
-              <Button
-                onClick={() => setIsEditing(true)}
-                className="bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-700 hover:to-indigo-700"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit to Save
-              </Button>
+              <div className="flex gap-2">
+                {!isEditing ? (
+                  <Button
+                    onClick={() => setIsEditing(true)}
+                    className="bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-700 hover:to-indigo-700"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit to Save
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving || !isValidForSave}
+                    className={cn(
+                      "bg-gradient-to-r from-green-600 to-indigo-600 hover:from-green-700 hover:to-indigo-700",
+                      !isValidForSave && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    {saving ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    ) : (
+                      <Save className="h-5 w-5 mr-2" />
+                    )}
+                    Save Changes
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1515,6 +2139,13 @@ export default function ProfessionalCompetencyTab({
   
   // Combined dialog state
   const [isCombinedDialogOpen, setIsCombinedDialogOpen] = useState(false);
+  const [combinedLicenseData, setCombinedLicenseData] = useState<{
+    driverLicenseData: any;
+    dd1CategoryData: any;
+  }>({
+    driverLicenseData: null,
+    dd1CategoryData: null,
+  });
   
   // Existing states
   const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null)
@@ -1556,16 +2187,23 @@ export default function ProfessionalCompetencyTab({
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
   const [syncAction, setSyncAction] = useState<"update" | "skip">("skip");
   
-  // Extract license data for combined dialog
-  const driverLicenseData = useMemo(() => 
-    competencyData.find((d: any) => d.document_type === "driving-license"),
-    [competencyData]
-  );
-  
-  const dd1CategoryData = useMemo(() => 
-    competencyData.find((d: any) => d.document_type === "d-d1-category"),
-    [competencyData]
-  );
+  // Function to open combined dialog
+  const handleOpenCombinedDialog = useCallback((competency: any) => {
+    // Find both documents from competencyData
+    const driverLicenseData = competencyData.find(
+      (d: any) => d.document_type === "driving-license"
+    );
+    const dd1CategoryData = competencyData.find(
+      (d: any) => d.document_type === "d-d1-category"
+    );
+    
+    setCombinedLicenseData({
+      driverLicenseData: driverLicenseData || null,
+      dd1CategoryData: dd1CategoryData || null,
+    });
+    
+    setIsCombinedDialogOpen(true);
+  }, [competencyData]);
   
   // Existing functions
   const getCompletedDocumentsList = useCallback(() => {
@@ -1612,27 +2250,39 @@ export default function ProfessionalCompetencyTab({
     })
   }, [licenseNumber, licenseIssueNumber])
   
+  // Modified handleCardClick to handle combined dialog
   const handleCardClick = useCallback((competency: any) => {
-    const modules = competency.modules || []
-  
-    let normalizedNextFiveModules: string[] = []
-  
+    // Check if this is one of the license documents
+    const isLicenseDocument = 
+      competency.document_type === "driving-license" || 
+      competency.document_type === "d-d1-category";
+    
+    // If it's a license document and we're not in edit mode, open combined dialog
+    if (isLicenseDocument && !modalState.isEditing) {
+      handleOpenCombinedDialog(competency);
+      return;
+    }
+    
+    // Original logic for other documents or when editing
+    const modules = competency.modules || [];
+    let normalizedNextFiveModules: string[] = [];
+    
     if (competency.next_five_modules && competency.next_five_modules.length > 0) {
       normalizedNextFiveModules = competency.next_five_modules.map((item: any) =>
         typeof item === 'string' ? item : (item.module_name || "")
-      )
+      );
     } else {
       if (competency.document_type === "cpc-card") {
-        normalizedNextFiveModules = ["", "", "", "", ""]
+        normalizedNextFiveModules = ["", "", "", "", ""];
       }
     }
-  
+    
     while (normalizedNextFiveModules.length < 5) {
-      normalizedNextFiveModules.push("")
+      normalizedNextFiveModules.push("");
     }
-  
-    normalizedNextFiveModules = normalizedNextFiveModules.slice(0, 5)
-   
+    
+    normalizedNextFiveModules = normalizedNextFiveModules.slice(0, 5);
+    
     const editData = {
       ...competency,
       modules: modules,
@@ -1640,49 +2290,31 @@ export default function ProfessionalCompetencyTab({
       status_description: competency.status_description || "",
       status_reason: competency.status_reason || "",
       custom_reason: competency.custom_reason || "",
-    }
-    setOriginalExpiryDate(competency.expiry_date)
-    setOriginalDocumentUrls(competency.urls || [])
-    setHasUploadedNewDocument(false)
-    setUploadRequired(false)
+    };
+    
+    setOriginalExpiryDate(competency.expiry_date);
+    setOriginalDocumentUrls(competency.urls || []);
+    setHasUploadedNewDocument(false);
+    setUploadRequired(false);
     setDocumentDependencies({
       drivingLicenseChanged: false,
       dd1CategoryChanged: false,
       pendingSync: false,
       otherDocument: null,
     });
-    dispatchModal({
-      type: 'SET_SELECTED_COMPETENCY',
-      payload: competency
+    
+    dispatchModal({ type: 'SET_SELECTED_COMPETENCY', payload: competency });
+    dispatchModal({ type: 'SET_EDIT_DATA', payload: editData });
+    dispatchModal({ type: 'SET_MODAL_OPEN', payload: true });
+    dispatchModal({ type: 'SET_EDITING', payload: false });
+    dispatchModal({ type: 'CLEAR_FORM_ERRORS' });
+    dispatchModal({ type: 'SET_CURRENT_IMAGE_INDEX', payload: 0 });
+    dispatchModal({ 
+      type: 'SET_SHOW_STATUS_DESCRIPTION', 
+      payload: competency.request_status === "not_approved" || competency.request_status === "pending" 
     });
-    dispatchModal({
-      type: 'SET_EDIT_DATA',
-      payload: editData
-    });
-    dispatchModal({
-      type: 'SET_MODAL_OPEN',
-      payload: true
-    });
-    dispatchModal({
-      type: 'SET_EDITING',
-      payload: false
-    });
-    dispatchModal({
-      type: 'CLEAR_FORM_ERRORS'
-    });
-    dispatchModal({
-      type: 'SET_CURRENT_IMAGE_INDEX',
-      payload: 0
-    });
-    dispatchModal({
-      type: 'SET_SHOW_STATUS_DESCRIPTION',
-      payload: competency.request_status === "not_approved" || competency.request_status === "pending"
-    });
-    dispatchModal({
-      type: 'SET_DIRECT_STATUS_EDITING',
-      payload: false
-    });
-  }, [])
+    dispatchModal({ type: 'SET_DIRECT_STATUS_EDITING', payload: false });
+  }, [handleOpenCombinedDialog, modalState.isEditing]);
   
   // Existing functions remain the same...
   const checkOtherDocument = useCallback(async () => {
@@ -2220,15 +2852,15 @@ export default function ProfessionalCompetencyTab({
   // Memoize competency cards with combined dialog integration
   const competencyCards = useMemo(() =>
     allDocuments.map((competency: any) => {
-      const cardImageIndex = cardImageIndexes[competency.id || 0] || 0
-    
+      const cardImageIndex = cardImageIndexes[competency.id || 0] || 0;
+      
       return (
         <EnhancedCompetencyCard
           key={competency.id || competency.document_type}
           competency={competency}
           cardImageIndex={cardImageIndex}
           setCardImageIndexes={setCardImageIndexes}
-          handleCardClick={handleCardClick}
+          handleCardClick={handleCardClick} // This now handles both single and combined clicks
           isPdfUrl={isPdfUrl}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
@@ -2236,46 +2868,28 @@ export default function ProfessionalCompetencyTab({
           license_number={licenseNumber}
           license_issue_number={licenseIssueNumber}
           onOpenCombinedDialog={
-            (competency.document_type === "driving-license" || competency.document_type === "d-d1-category")
-              ? () => setIsCombinedDialogOpen(true)
+            (competency.document_type === "driving-license" || 
+             competency.document_type === "d-d1-category") 
+              ? () => handleOpenCombinedDialog(competency)
               : undefined
           }
         />
-      )
-    })
-  , [allDocuments, cardImageIndexes, handleCardClick, isPdfUrl, formatDate, getStatusColor, getStatusIcon, licenseNumber, licenseIssueNumber]);
+      );
+    }),
+    [allDocuments, cardImageIndexes, handleCardClick, handleOpenCombinedDialog, 
+     isPdfUrl, formatDate, getStatusColor, getStatusIcon, licenseNumber, licenseIssueNumber]
+  );
+
+  // Check if we have license data to show the combined button
+  const hasLicenseData = useMemo(() => {
+    return competencyData.some((d: any) => 
+      d.document_type === "driving-license" || d.document_type === "d-d1-category"
+    );
+  }, [competencyData]);
 
   return (
     <div className="space-y-6">
-      {/* Combined License Button */}
-      {(driverLicenseData || dd1CategoryData) && (
-        <Card className="shadow-lg bg-gradient-to-br from-blue-50/50 via-indigo-50/30 to-orange-50/30 border-blue-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg">
-                  <Link className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-blue-900">
-                    Combined License Management
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    View and update Driving License and D/D1 Category together
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={() => setIsCombinedDialogOpen(true)}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
-              >
-                <Link className="h-5 w-5 mr-2" />
-                Open Combined View
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+   
 
       {/* Professional Competency Documents Card */}
       <Card className="shadow-lg bg-gradient-to-br from-white via-orange-50/30 to-indigo-50/30 border-orange-100">
@@ -2308,8 +2922,8 @@ export default function ProfessionalCompetencyTab({
       <CombinedLicenseDialog
         isOpen={isCombinedDialogOpen}
         onOpenChange={setIsCombinedDialogOpen}
-        driverLicenseData={driverLicenseData}
-        dd1CategoryData={dd1CategoryData}
+        driverLicenseData={combinedLicenseData.driverLicenseData}
+        dd1CategoryData={combinedLicenseData.dd1CategoryData}
         driverId={driverId}
         showToast={showToast}
         cookies={cookies}
