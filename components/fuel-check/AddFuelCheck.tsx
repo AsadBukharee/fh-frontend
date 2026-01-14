@@ -28,6 +28,7 @@ interface Card {
 }
 
 interface FuelLog {
+  vehicle_data: { id: number; registration_number: string; vehicles_type_name: string; last_mileage: string; purchase_mileage: string | null; mileage_unit: string; mileage_in_km: number | null; mileage_in_miles: number | null; site_allocated: { id: number; name: string; status: string; image: string; }[]; };
   id: number;
   vehicle: {
     id: number;
@@ -87,7 +88,10 @@ export default function AddFuelLogDialog({
   useEffect(() => {
     if (initialData) {
       setFormData({
-        vehicle_id: initialData.vehicle?.id.toString() || "",
+        vehicle_id:
+          initialData.vehicle && typeof initialData.vehicle.id !== "undefined"
+            ? initialData.vehicle.id.toString()
+            : "",
         date: initialData.date.split("T")[0],
         time: initialData.time.slice(0, 5),
         amount: initialData.amount.toString(),

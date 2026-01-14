@@ -23,7 +23,37 @@ import { useCookies } from 'next-client-cookies';
 import API_URL from '@/app/utils/ENV';
 import WalkaroundQuestions from './WalkaroundQuestions';
 import { useRouter } from 'next/navigation';
+interface Walkaround {
+  id: number;
+  driver: {
+    id: number;
+    full_name: string;
+    email: string;
+  };
+  vehicle: {
+    id: number;
+    vehicles_type_name: string;
+    registration_number: string;
+  };
+  conducted_by: string | null;
+  walkaround_assignee: string | null;
+  status:
+    | "pending"
+    | "completed"
+    | "failed"
+    | "minor_roadworthy_defect"
+    | "minor_unroadworthy_defect"
+    | "major_unroadworthy_defect"
+    | "in_progress"
+    | "further_work_required";
 
+  date: string;
+  time: string;
+  mileage: number;
+  defects?: string;
+  notes?: string;
+  walkaround_step?: number;
+}
 interface Profile {
   id: number;
   full_name: string;
@@ -101,7 +131,16 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
   const [managers, setManagers] = useState<Profile[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [showQuestion, setShowQuestion] = useState(false);
-  
+    const STATUS_CHOICES: { value: Walkaround["status"]; label: string }[] = [
+    { value: "pending", label: "Pending" },
+    // { value: "completed", label: "Completed" },
+    // { value: "failed", label: "Failed" },
+    { value: "minor_roadworthy_defect", label: "Minor Roadworthy Defect" },
+    { value: "minor_unroadworthy_defect", label: "Minor Unroadworthy Defect" },
+    { value: "major_unroadworthy_defect", label: "Major Unroadworthy Defect" },
+    // { value: "in_progress", label: "In Progress" },
+    // { value: "further_work_required", label: "Further Work Required" },
+  ];
   // Add state to store walkaround response data
   const [walkaroundId, setWalkaroundId] = useState<number | null>(null);
   const [vehicleId, setVehicleId] = useState<number | null>(null);
@@ -473,10 +512,11 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
+               {STATUS_CHOICES.map(({ value, label }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {errors.status && <div className="text-red-500 text-sm">{errors.status}</div>}

@@ -414,7 +414,7 @@ const WalkaroundPage = () => {
         walkaround={selectedWalkaround as any}
         open={openDetailsDialog}
         onOpenChange={setOpenDetailsDialog}
-        oncomplete={fetchWalkarounds}
+        onComplete={fetchWalkarounds}
       />
     </div>
   );

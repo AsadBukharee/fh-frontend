@@ -133,13 +133,13 @@ const PlusWalkaround = ({
   const { toast } = useToast();
   const STATUS_CHOICES: { value: Walkaround["status"]; label: string }[] = [
     { value: "pending", label: "Pending" },
-    { value: "completed", label: "Completed" },
-    { value: "failed", label: "Failed" },
+    // { value: "completed", label: "Completed" },
+    // { value: "failed", label: "Failed" },
     { value: "minor_roadworthy_defect", label: "Minor Roadworthy Defect" },
     { value: "minor_unroadworthy_defect", label: "Minor Unroadworthy Defect" },
     { value: "major_unroadworthy_defect", label: "Major Unroadworthy Defect" },
-    { value: "in_progress", label: "In Progress" },
-    { value: "further_work_required", label: "Further Work Required" },
+    // { value: "in_progress", label: "In Progress" },
+    // { value: "further_work_required", label: "Further Work Required" },
   ];
 
   // Fetch drivers, managers, and vehicles
