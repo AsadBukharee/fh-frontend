@@ -101,47 +101,37 @@ const WalkaroundPage = () => {
   const cookies = useCookies();
   const router = useRouter();
 
-  // Function to navigate to details with search params
+  // Function to navigate to details with search params in the format: ?step_1=1&step_2=32&step_3=456
   const navigateToDetailsWithParams = (walkaround: Walkaround) => {
     // Get all walkarounds in the same chain
     const chainWalkarounds = walkarounds.filter(
       (w) => w.chain_id === walkaround.chain_id
     );
     
-    // Find parent and children
-    const parent = chainWalkarounds.find(w => w.id === walkaround.parent);
-    const children = chainWalkarounds.filter(w => w.parent === walkaround.id);
+    // Sort by walkaround_step to get proper order
+    const sortedChainWalkarounds = [...chainWalkarounds].sort(
+      (a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0)
+    );
     
     // Create search params
     const searchParams = new URLSearchParams();
     
-    // Add current walkaround ID
-    searchParams.append('current', walkaround.id.toString());
+    // Add each step with its ID
+    sortedChainWalkarounds.forEach((walk, index) => {
+      const stepNumber = index + 1;
+      searchParams.append(`step_${stepNumber}`, walk.id.toString());
+    });
     
-    // Add parent ID if exists
-    if (parent) {
-      searchParams.append('parent', parent.id.toString());
-    }
+    // Also add which step is currently being viewed
+    const currentStepIndex = sortedChainWalkarounds.findIndex(w => w.id === walkaround.id);
+    searchParams.append('current_step', (currentStepIndex + 1).toString());
     
-    // Add children IDs if exist
-    if (children.length > 0) {
-      const childrenIds = children.map(child => child.id.toString()).join(',');
-      searchParams.append('children', childrenIds);
-    }
+    // Add total steps
+    searchParams.append('total_steps', sortedChainWalkarounds.length.toString());
     
     // Add chain ID
     if (walkaround.chain_id) {
       searchParams.append('chain_id', walkaround.chain_id.toString());
-    }
-    
-    // Add step information
-    searchParams.append('step', (walkaround.walkaround_step || 1).toString());
-    searchParams.append('total_steps', (walkaround.total_steps || 1).toString());
-    
-    // Add vehicle information
-    if (walkaround.vehicle) {
-      searchParams.append('vehicle_id', walkaround.vehicle.id.toString());
-      searchParams.append('vehicle_reg', walkaround.vehicle.registration_number);
     }
     
     // Navigate to details page with search params
@@ -423,13 +413,16 @@ const WalkaroundPage = () => {
               <div key={chainId} className="p-4 border border-gray-200 rounded-lg bg-white">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
                   Vehicle: {vehicleInfo?.registration_number} ({vehicleInfo?.vehicles_type_name})
+                  <Badge className="ml-2 bg-blue-100 text-blue-800">
+                    {chainWalkarounds.length} of {MAX_WALKAROUNDS_PER_CHAIN} steps
+                  </Badge>
                 </h2>
 
                 <div className="flex flex-col sm:flex-row bg-white overflow-x-auto items-start sm:items-center gap-4">
-                  {/* Root */}
+                  {/* Root (Step 1) */}
                   {root && (
                     <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
-                      <h3 className="text-sm font-semibold">Step <span className="text-gray-500">{root.walkaround_step}</span></h3>
+                      <h3 className="text-sm font-semibold">Step <span className="text-gray-500">1</span></h3>
                       <p className="text-sm font-semibold">Driver: <span className="text-gray-500">{root.conducted_by || "N/A"}</span></p>
                       <p className="text-sm font-semibold">
                         Status: <Badge className={getStatusClasses(root.status)}>
@@ -455,13 +448,13 @@ const WalkaroundPage = () => {
 
                   {children.length > 0 && <MoveRight className="text-gray-400 hidden sm:block" />}
 
-                  {/* Children */}
+                  {/* Children (Step 2, Step 3, etc.) */}
                   {children
                     .sort((a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0))
                     .map((child, idx) => (
                       <div key={child.id} className="flex items-center gap-4">
                         <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
-                          <h3 className="text-sm font-semibold">Step <span className="text-gray-500">{child.walkaround_step}</span></h3>
+                          <h3 className="text-sm font-semibold">Step <span className="text-gray-500">{child.walkaround_step || idx + 2}</span></h3>
                           <p className="text-sm font-semibold">Driver: <span className="text-gray-500">{child.conducted_by || "N/A"}</span></p>
                           <p className="text-sm font-semibold">
                             Status: <Badge className={getStatusClasses(child.status)}>
@@ -517,7 +510,7 @@ const WalkaroundPage = () => {
                         className="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-bold"
                         title="Maximum 3 walkarounds reached"
                       >
-                        3
+                        MAX
                       </div>
                     </div>
                   )}
@@ -542,7 +535,7 @@ const WalkaroundPage = () => {
       <WalkaroundDetailsDialog
         walkaround={selectedWalkaround}
         open={openDetailsDialog}
-        oncomplete={fetchWalkarounds}
+        onComplete={fetchWalkarounds}
         onOpenChange={setOpenDetailsDialog}
       />
     </div>

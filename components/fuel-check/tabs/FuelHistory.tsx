@@ -817,7 +817,11 @@ export default function FuelChecksManagement() {
               setEditLog(null)
             }}
             onAdd={editLog ? handleEditFuelLog : handleAddFuelLog}
-            initialData={editLog}
+            initialData={
+              editLog
+                ? { ...editLog, vehicle_data: (editLog as any).vehicle_data ?? null }
+                : null
+            }
             vehicles={vehicles}
             drivers={drivers}
             cards={cards}
