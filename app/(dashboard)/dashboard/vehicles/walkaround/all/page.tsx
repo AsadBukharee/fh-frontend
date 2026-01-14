@@ -75,12 +75,8 @@ interface ApiResponse {
 
 const getStatusClasses = (status: Walkaround["status"]) => {
   switch (status.toLowerCase()) {
-    case "completed":
-      return "bg-green-200 text-green-800";
     case "pending":
       return "bg-yellow-200 text-yellow-800";
-    case "failed":
-      return "bg-red-200 text-red-800";
     default:
       return "bg-gray-200 text-gray-800";
   }
@@ -104,6 +100,53 @@ const WalkaroundPage = () => {
 
   const cookies = useCookies();
   const router = useRouter();
+
+  // Function to navigate to details with search params
+  const navigateToDetailsWithParams = (walkaround: Walkaround) => {
+    // Get all walkarounds in the same chain
+    const chainWalkarounds = walkarounds.filter(
+      (w) => w.chain_id === walkaround.chain_id
+    );
+    
+    // Find parent and children
+    const parent = chainWalkarounds.find(w => w.id === walkaround.parent);
+    const children = chainWalkarounds.filter(w => w.parent === walkaround.id);
+    
+    // Create search params
+    const searchParams = new URLSearchParams();
+    
+    // Add current walkaround ID
+    searchParams.append('current', walkaround.id.toString());
+    
+    // Add parent ID if exists
+    if (parent) {
+      searchParams.append('parent', parent.id.toString());
+    }
+    
+    // Add children IDs if exist
+    if (children.length > 0) {
+      const childrenIds = children.map(child => child.id.toString()).join(',');
+      searchParams.append('children', childrenIds);
+    }
+    
+    // Add chain ID
+    if (walkaround.chain_id) {
+      searchParams.append('chain_id', walkaround.chain_id.toString());
+    }
+    
+    // Add step information
+    searchParams.append('step', (walkaround.walkaround_step || 1).toString());
+    searchParams.append('total_steps', (walkaround.total_steps || 1).toString());
+    
+    // Add vehicle information
+    if (walkaround.vehicle) {
+      searchParams.append('vehicle_id', walkaround.vehicle.id.toString());
+      searchParams.append('vehicle_reg', walkaround.vehicle.registration_number);
+    }
+    
+    // Navigate to details page with search params
+    router.push(`/dashboard/vehicles/walkaround/all/${walkaround.id}?${searchParams.toString()}`);
+  };
 
   const fetchWalkarounds = async () => {
     setLoading(true);
@@ -396,7 +439,11 @@ const WalkaroundPage = () => {
                       <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span></p>
                       <p className="text-sm font-semibold">Time: <span className="text-gray-500">{root.time}</span></p>
                       <div className="flex gap-2 mt-2">
-                        <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${root.id}`)}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => navigateToDetailsWithParams(root)}
+                        >
                           <Eye className="h-4 w-4 mr-1" /> Details
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => handleViewDetails(root)}>
@@ -424,7 +471,11 @@ const WalkaroundPage = () => {
                           <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span></p>
                           <p className="text-sm font-semibold">Time: <span className="text-gray-500">{child.time}</span></p>
                           <div className="flex gap-2 mt-2">
-                            <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/vehicles/walkaround/all/${child.id}`)}>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => navigateToDetailsWithParams(child)}
+                            >
                               <Eye className="h-4 w-4 mr-1" /> Details
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => handleViewDetails(child)}>

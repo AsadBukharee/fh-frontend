@@ -35,6 +35,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
@@ -64,6 +66,11 @@ import {
   MoreVertical,
   Filter,
   ChevronDown,
+  Settings,
+  CheckCircle,
+  AlertTriangle,
+  EllipsisVertical,
+  Menu,
 } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -308,8 +315,6 @@ const AddUserModal = React.memo(
             </div>
           </div>
 
-       
-
           {/* Footer Buttons */}
           <div className="px-6 pb-6 pt-2 space-y-3">
             <Button
@@ -347,12 +352,192 @@ const AddUserModal = React.memo(
 );
 AddUserModal.displayName = "AddUserModal";
 
+/* ──────────────────────── Disapprove Dialog Component ──────────────────────── */
+interface DisapproveDriverDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  driverName: string;
+  remarks: string;
+  onRemarksChange: (remarks: string) => void;
+  onDisapprove: () => Promise<void>;
+  isDisapproving: boolean;
+}
+
+const DisapproveDriverDialog = React.memo(({
+  isOpen,
+  onOpenChange,
+  driverName,
+  remarks,
+  onRemarksChange,
+  onDisapprove,
+  isDisapproving
+}: DisapproveDriverDialogProps) => (
+  <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <DialogContent className="sm:max-md">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-rose-600" />
+          Disapprove Driver
+        </DialogTitle>
+        <DialogDescription>
+          You are about to disapprove <span className="font-semibold">{driverName}</span>. Please provide remarks for disapproval.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-4 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="disapprove-remarks">Remarks <span className="text-red-500">*</span></Label>
+          <textarea
+            id="disapprove-remarks"
+            className="flex min-h-[100px] w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="Enter reason for disapproval..."
+            value={remarks}
+            onChange={(e) => onRemarksChange(e.target.value)}
+            required
+          />
+          <p className="text-xs text-gray-500">
+            Minimum 10 characters required.
+          </p>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={isDisapproving}
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={onDisapprove}
+          disabled={isDisapproving || remarks.trim().length < 10}
+          className="bg-rose-600 hover:bg-rose-700"
+        >
+          {isDisapproving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Disapproving...
+            </>
+          ) : (
+            "Disapprove Driver"
+          )}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+));
+DisapproveDriverDialog.displayName = "DisapproveDriverDialog";
+
+/* ──────────────────────── Action Menu Component ──────────────────────── */
+interface DriverActionMenuProps {
+  driver: Driver;
+  onViewProfile: () => void;
+  onEdit: () => void;
+  onApprove: () => void;
+  onDisapprove: () => void;
+  onResendActivation: () => void;
+  onDelete: () => void;
+}
+
+const DriverActionMenu = React.memo(({ 
+  driver, 
+  onViewProfile, 
+  onEdit,
+  onApprove, 
+  onDisapprove,
+  onResendActivation, 
+  onDelete 
+}: DriverActionMenuProps) => {
+  const isApproved = driver.profile_status?.toLowerCase() === "approved";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"           // ← better than manual size
+          className="h-8 w-8 hover:bg-gray-100 data-[state=open]:bg-gray-200"
+        >
+          <EllipsisVertical className="h-4 w-4 text-gray-600" />
+          <span className="sr-only">Open actions menu</span>
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent 
+        align="end"
+        className="w-56 z-50"   // ← important: good z-index
+        sideOffset={5}
+      >
+        <DropdownMenuLabel className="font-medium text-gray-900">
+          {driver.user.full_name}
+        </DropdownMenuLabel>
+        
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={onViewProfile} className="gap-2">
+          <Eye className="h-4 w-4" />
+          View Profile
+        </DropdownMenuItem>
+
+        <DropdownMenuItem onClick={onEdit} className="gap-2">
+          <Edit className="h-4 w-4 text-blue-600" />
+          Edit Details
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        {!isApproved ? (
+          <DropdownMenuItem 
+            onClick={onApprove}
+            className="text-green-600 focus:text-green-600 focus:bg-green-50 gap-2"
+          >
+            <CheckCircle className="h-4 w-4" />
+            Approve Driver
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem 
+            onClick={onDisapprove}
+            className="text-rose-600 focus:text-rose-600 focus:bg-rose-50 gap-2"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Disapprove Driver
+          </DropdownMenuItem>
+        )}
+
+        {!isApproved && (
+          <DropdownMenuItem 
+            onClick={onResendActivation}
+            className="text-blue-600 focus:text-blue-600 focus:bg-blue-50 gap-2"
+          >
+            <Mail className="h-4 w-4" />
+            Resend Activation
+          </DropdownMenuItem>
+        )}
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem 
+          onClick={onDelete}
+          className="text-red-600 focus:text-red-600 focus:bg-red-50 gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Driver
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+});
+DriverActionMenu.displayName = "DriverActionMenu";
+
 /* ──────────────────────── MAIN PAGE ──────────────────────── */
 export default function DriversPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
   const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
+  const [disapproveRemarks, setDisapproveRemarks] = useState("");
+  const [isDisapproving, setIsDisapproving] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
 
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -710,7 +895,11 @@ export default function DriversPage() {
         return;
       }
       
-      showToast("Activation email resent successfully", "success");
+      if (response.ok && data.success) {
+        showToast("Activation email resent successfully", "success");
+      } else {
+        showToast(data.message || "Failed to resend activation email", "error");
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred while resending activation email";
       showToast(errorMessage, "error");
@@ -738,6 +927,54 @@ export default function DriversPage() {
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to approve driver", "error");
     }
+  };
+
+  const handleDisapproveDriver = async (driver: Driver) => {
+    if (!disapproveRemarks.trim()) {
+      showToast("Please provide remarks for disapproval", "error");
+      return;
+    }
+
+    setIsDisapproving(true);
+    try {
+      const response = await fetch(`${API_URL}/api/profiles/driver/disapprove/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({
+          driver_id: driver.id,
+          remarks: disapproveRemarks,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        showToast("Driver disapproved successfully", "success");
+        // Reset dialog state
+        setDisapproveRemarks("");
+        setIsDisapproveDialogOpen(false);
+        setSelectedDriver(null);
+        // Refresh driver data
+        await fetchDrivers();
+      } else {
+        showToast(data.message || "Failed to disapprove driver", "error");
+      }
+    } catch (error) {
+      console.error("Error disapproving driver:", error);
+      showToast(error instanceof Error ? error.message : "Failed to disapprove driver", "error");
+    } finally {
+      setIsDisapproving(false);
+    }
+  };
+
+  const handleEditDriver = (driver: Driver) => {
+    // Implement edit functionality here
+    showToast("Edit functionality coming soon", "info");
+    // You can navigate to an edit page or open an edit modal
+    // Example: router.push(`/dashboard/drivers/edit/${driver.id}`);
   };
 
   return (
@@ -832,285 +1069,143 @@ export default function DriversPage() {
       </header>
 
       {/* Table */}
-      <div className="px-6 py-6">
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin mr-2" />
-              Loading drivers...
-            </div>
-          ) : error ? (
-            <div className="flex items-center justify-center py-12 text-red-600">
-              <AlertCircle className="w-5 h-5 mr-2" />
-              {error}
-            </div>
-          ) : currentDrivers.length === 0 ? (
-            <div className="flex items-center justify-center py-12 text-gray-600">
-              <AlertCircle className="w-5 h-5 mr-2" />
-              No drivers match the current filters.
-            </div>
-          ) : (
-            <>
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+  {/* Table Section */}
+      <div className="p-4 sm:p-6">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="overflow-x-auto">
+            <div className="min-w-[1100px]">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Index
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Driver Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      License No
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contract Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Phone No
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    {/* NEW COLUMN */}
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Shift Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Active Warnings
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 w-16">Index</th>
+                    <th className="px-4 py-3 min-w-[180px]">Driver Name</th>
+                    <th className="px-4 py-3 min-w-[160px]">License No</th>
+                    <th className="px-4 py-3 min-w-[160px]">Contract Type</th>
+                    <th className="px-4 py-3 min-w-[140px]">Phone No</th>
+                    <th className="px-4 py-3 min-w-[110px]">Status</th>
+                    <th className="px-4 py-3 min-w-[140px]">Shift Status</th>
+                    <th className="px-4 py-3 min-w-[100px] text-center">Warnings</th>
+                    <th className="px-4 py-3 w-20 text-right sticky right-0 bg-gray-50 z-10">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentDrivers.map((driver, index) => (
-                    <tr key={driver.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {(currentPage - 1) * perPage + index + 1}
+                <tbody className="divide-y divide-gray-100">
+                  {currentDrivers.map((driver, idx) => (
+                    <tr key={driver.id} className="hover:bg-gray-50/70">
+                      <td className="px-4 py-4 font-medium">
+                        {(currentPage - 1) * perPage + idx + 1}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          <Link 
-                            href={`/dashboard/users/driver-profiles/${driver.id}?name=${driver.user.full_name}&user_id=${driver.user.id}`}
-                            className="hover:text-orange-600 transition-colors"
-                          >
-                            {driver.user.full_name}
-                          </Link>
+                      <td className="px-4 py-4">
+                        <Link
+                          href={`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`}
+                          className="text-orange-600 hover:underline font-medium"
+                        >
+                          {driver.user.full_name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-4 text-gray-700">
+                        {driver.license_number || "—"}
+                      </td>
+                      <td className="px-4 py-4">
+                        {/* Your contract badge component */}
+                        <Badge variant="outline" className=" border-0 p-2 bg-green-100">{driver.user.contract?.name || "No Contract"}</Badge>
+                      </td>
+                      <td className="px-4 py-4 text-gray-700">
+                        {driver.phone || "—"}
+                      </td>
+                      <td className="px-4 py-4">
+                        {/* Your status badge */}
+                        <Badge
+                          variant={
+                            driver.profile_status?.toLowerCase() === "approved"
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {driver.profile_status === 'approved' ? "Approved" : "Not Approved"}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-4">
+                        {/* Shift status badge */}
+                        {driver.user.shifts_count > 0 ? (
+                          <Badge className="bg-emerald-100 text-emerald-800">
+                            Active ({driver.user.shifts_count})
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Idle</Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        {driver.warnings?.length > 0 ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Badge variant="outline" className="bg-orange-50 text-orange-700">
+                                  {driver.warnings.length}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Active Warnings: {driver.warnings.join(", ")}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 sticky right-0 bg-white z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                        <div className="flex justify-end">
+                         <DriverActionMenu
+      driver={driver}
+      onViewProfile={() => window.open(`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`, "_blank")}
+      onEdit={() => handleEditDriver(driver)}
+      onApprove={() => handleApproveDriverClick(driver.id)}
+      onDisapprove={() => {
+        setSelectedDriver(driver);
+        setIsDisapproveDialogOpen(true);
+      }}
+      onResendActivation={() => handleResendActivation(driver.user.id)}
+      onDelete={() => {
+        setDriverToDelete(driver);
+        setIsDeleteDialogOpen(true);
+      }}
+    />
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {driver.license_number || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getContractBadge(driver.user.contract)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {driver.phone || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(driver.profile_status)}
-                      </td>
-                      {/* NEW SHIFT STATUS CELL */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getShiftStatusBadge(driver.user.shifts_count)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center justify-center">
-                          {driver.warnings.length > 0 ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge 
-                                    className="bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100 min-w-[2rem] justify-center cursor-help"
-                                  >
-                                    {driver.warnings.length}
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent side="left" className="max-w-sm">
-                                  <div className="space-y-2">
-                                    <p className="font-semibold text-xs">Active Warnings:</p>
-                                    <div className="space-y-1 max-h-48 overflow-auto">
-                                      {driver.warnings.map((warning, idx) => (
-                                        <div key={idx} className="flex items-start gap-2 text-xs">
-                                          <span className="text-orange-500 mt-0.5">•</span>
-                                          <span className="flex-1">{warning}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            <Badge className="bg-gray-50 text-gray-600 border-gray-200 min-w-[2rem] justify-center">
-                              0
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuItem asChild>
-                              <Link 
-                                href={`/dashboard/users/driver-profiles/${driver.id}?name=${driver.user.full_name}&user_id=${driver.user.id}`}
-                                className="flex items-center gap-2 cursor-pointer"
-                              >
-                                <Eye className="w-4 h-4" />
-                                View Profile
-                              </Link>
-                            </DropdownMenuItem>
-                            
-                            {driver.profile_status.toLowerCase() !== "approved" && (
-                              <DropdownMenuItem 
-                                onClick={() => handleApproveDriverClick(driver.id)}
-                                className="flex items-center gap-2 text-green-600 focus:text-green-600"
-                              >
-                                <Check className="w-4 h-4" />
-                                Approve Driver
-                              </DropdownMenuItem>
-                            )}
-                            
-                            <DropdownMenuItem 
-                              onClick={() => handleResendActivation(driver.user.id)}
-                              className="flex items-center gap-2"
-                            >
-                              <Mail className="w-4 h-4" />
-                              Resend Activation
-                            </DropdownMenuItem>
-                            
-                            <DropdownMenuItem 
-                              onClick={() => {
-                                setDriverToDelete(driver);
-                                setIsDeleteDialogOpen(true);
-                              }}
-                              className="flex items-center gap-2 text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Delete Driver
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
 
-              {/* Pagination */}
-              <div className="bg-white border-t border-gray-200 px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <span>Row Page</span>
-                    <Select value={perPage.toString()} disabled>
-                      <SelectTrigger className="w-16 h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="20">20</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="h-8"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" />
-                      Previous
-                    </Button>
-
-                    <div className="flex items-center gap-1">
-                      {currentPage > 2 && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setCurrentPage(1)}
-                            className="h-8 w-8 p-0"
-                          >
-                            1
-                          </Button>
-                          {currentPage > 3 && (
-                            <span className="text-gray-400 px-1">...</span>
-                          )}
-                        </>
-                      )}
-                      
-                      {currentPage > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setCurrentPage(currentPage - 1)}
-                          className="h-8 w-8 p-0"
-                        >
-                          {currentPage - 1}
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 bg-orange-500 text-white hover:bg-orange-600 hover:text-white"
-                      >
-                        {currentPage}
-                      </Button>
-
-                      {currentPage < totalPages && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setCurrentPage(currentPage + 1)}
-                          className="h-8 w-8 p-0"
-                        >
-                          {currentPage + 1}
-                        </Button>
-                      )}
-
-                      {currentPage < totalPages - 2 && (
-                        <>
-                          {currentPage < totalPages - 2 && (
-                            <span className="text-gray-400 px-1">...</span>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setCurrentPage(totalPages)}
-                            className="h-8 w-8 p-0"
-                          >
-                            {totalPages}
-                          </Button>
-                        </>
-                      )}
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="h-8"
-                    >
-                      Next
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t">
+              <div className="text-sm text-gray-600">
+                Showing {(currentPage - 1) * perPage + 1}–
+                {Math.min(currentPage * perPage, filteredDrivers.length)} of {filteredDrivers.length}
               </div>
-            </>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -1155,6 +1250,20 @@ export default function DriversPage() {
         </Dialog>
       )}
 
+      {/* Disapprove Dialog */}
+      {selectedDriver && (
+        <DisapproveDriverDialog
+          isOpen={isDisapproveDialogOpen}
+          onOpenChange={setIsDisapproveDialogOpen}
+          driverName={selectedDriver.user.full_name}
+          remarks={disapproveRemarks}
+          onRemarksChange={setDisapproveRemarks}
+          onDisapprove={() => handleDisapproveDriver(selectedDriver)}
+          isDisapproving={isDisapproving}
+        />
+      )}
+
+      {/* Delete Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

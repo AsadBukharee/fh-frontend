@@ -52,13 +52,11 @@ interface WalkaroundDetailsDialogProps {
 
 const STATUS_CHOICES: Walkaround["status"][] = [
   "pending",
-  "completed",
-  "failed",
+ 
   "minor_roadworthy_defect",
   "minor_unroadworthy_defect",
   "major_unroadworthy_defect",
-  "in_progress",
-  "further_work_required",
+
 ]
 
 const getStatusClasses = (status: Walkaround["status"]) => {

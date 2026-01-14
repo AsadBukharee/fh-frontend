@@ -36,6 +36,11 @@ import {
   Activity,
   Settings,
   ShipWheelIcon,
+  Car,
+  CreditCard,
+  Home,
+  User,
+  MapPin,
 } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import ImageUploader from "@/components/Media/UploadImage";
@@ -59,6 +64,19 @@ import MOTDialog from "@/components/Vehicles/expiry/MOTexpiry/MOTdialog";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { AssignDriverDialog } from "@/components/AssignDriverDialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export default function VehicleDetailPage() {
   const { id } = useParams();
@@ -81,10 +99,15 @@ export default function VehicleDetailPage() {
   const [pmiDialogOpen, setPmiDialogOpen] = useState(false);
   const [motDialogOpen, setMotDialogOpen] = useState(false);
   const [showAllCompliance, setShowAllCompliance] = useState(false);
+  const [sites, setSites] = useState<any[]>([]);
+  const [selectedSites, setSelectedSites] = useState<number[]>([]);
+  const [sitesOpen, setSitesOpen] = useState(false);
+  const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch vehicle data
         const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
           headers: {
             "Content-Type": "application/json",
@@ -92,6 +115,25 @@ export default function VehicleDetailPage() {
           },
         });
         const vehicleData = await vehicleRes.json();
+        
+        // Fetch sites list
+        const sitesRes = await fetch(`${API_URL}/api/sites/list-names/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const sitesData = await sitesRes.json();
+        
+        // Fetch vehicle types
+        const typesRes = await fetch(`${API_URL}/api/vehicle-types/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const typesData = await typesRes.json();
+        
         if (vehicleData.success) {
           setVehicle(vehicleData.data);
           const formattedData = {
@@ -99,11 +141,30 @@ export default function VehicleDetailPage() {
             is_wheelchair_lift_fitted: vehicleData.data.is_wheelchair_lift_fitted === "Yes",
           };
           setEditVehicle(formattedData);
+          
+          // Set selected sites from vehicle data
+          if (vehicleData.data.site_allocated) {
+            const siteIds = vehicleData.data.site_allocated.map((site: any) => site.id);
+            setSelectedSites(siteIds);
+          }
         } else {
           setError("Failed to fetch vehicle data");
         }
+        
+        if (sitesData.success) {
+          setSites(sitesData.data || []);
+        } else {
+          console.error("Failed to fetch sites:", sitesData.message);
+        }
+        
+        if (typesData.success) {
+          setVehicleTypes(typesData.data || []);
+        } else {
+          console.error("Failed to fetch vehicle types:", typesData.message);
+        }
       } catch (err) {
         setError("Error fetching data");
+        console.error("Error:", err);
       } finally {
         setLoading(false);
       }
@@ -117,6 +178,11 @@ export default function VehicleDetailPage() {
         ...vehicle,
         is_wheelchair_lift_fitted: vehicle.is_wheelchair_lift_fitted === "Yes",
       });
+      // Reset selected sites to current vehicle sites
+      if (vehicle?.site_allocated) {
+        const siteIds = vehicle.site_allocated.map((site: any) => site.id);
+        setSelectedSites(siteIds);
+      }
     }
     setIsEditing(!isEditing);
   };
@@ -184,6 +250,8 @@ export default function VehicleDetailPage() {
         vehicle_roadworthy_status: editVehicle.vehicle_roadworthy_status,
         is_roadworthy: editVehicle.is_roadworthy,
         is_active: editVehicle.is_active,
+        site_allocated: selectedSites,
+        vehicles_type: editVehicle.vehicles_type, // Add vehicle type to payload
       };
 
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
@@ -371,6 +439,36 @@ export default function VehicleDetailPage() {
     return `${day} ${month} ${year}`;
   };
 
+  const Field = ({
+    label,
+    value,
+    isEditing,
+    onChange,
+    type = "text",
+  }: {
+    label: string
+    value?: string
+    isEditing?: boolean
+    onChange?: (v: string) => void
+    type?: string
+  }) => (
+    <div className="space-y-1">
+      <p className="text-xs text-slate-500">{label}</p>
+      {isEditing ? (
+        <Input
+          value={value || ""}
+          type={type}
+          onChange={(e) => onChange?.(e.target.value)}
+          className="h-9 text-sm"
+        />
+      ) : (
+        <p className="text-sm font-medium text-slate-900">
+          {value || "-"}
+        </p>
+      )}
+    </div>
+  );
+
   const getExpiryStatus = (expiryDate: string) => {
     if (!expiryDate) return { color: "bg-slate-100 text-slate-600", text: "Not set", icon: AlertCircle };
 
@@ -418,6 +516,55 @@ export default function VehicleDetailPage() {
       default: return status;
     }
   };
+function StaticRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-slate-600">{label}</span>
+      <span className="font-semibold text-slate-900">{value}</span>
+    </div>
+  );
+}
+type TyreRowProps = {
+  label: string;
+  unit: string;
+  valueKey: string;
+  type?: string;
+  highlight?: boolean;
+};
+
+function TyreRow({ label, unit, valueKey, type = "text", highlight }: TyreRowProps) {
+  const value = isEditing ? editVehicle[valueKey] : vehicle[valueKey];
+
+  return (
+    <div className="flex justify-between items-center">
+      <span className="text-slate-600">{label}</span>
+
+      {isEditing ? (
+        <Input
+          type={type}
+          value={value ?? ""}
+          onChange={(e) =>
+            handleInputChange(
+              valueKey,
+              type === "number" ? Number(e.target.value) : e.target.value
+            )
+          }
+          className="w-20 h-7 text-xs"
+        />
+      ) : (
+        <span
+          className={`font-semibold ${
+            highlight
+              ? "text-green-600 bg-green-100 px-2 rounded-md"
+              : "text-slate-900"
+          }`}
+        >
+          {value ?? "N/A"} {unit}
+        </span>
+      )}
+    </div>
+  );
+}
 
   const getRoadworthyDisplayText = (status: string) => {
     switch (status) {
@@ -446,6 +593,37 @@ export default function VehicleDetailPage() {
     { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText },
     { key: "others_docs", label: "Other Documents", icon: FileText },
   ];
+function TyreCard({ title, pos }: { title: string; pos: string }) {
+  return (
+    <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm">
+      <p className="font-medium text-slate-900 mb-3">{title}</p>
+
+      <div className="space-y-2 text-sm">
+        <TyreRow
+          label="Pressure"
+          unit="PSI"
+          valueKey={`tyre_pressure_${pos}`}
+          type="number"
+        />
+
+        <TyreRow
+          label="Depth"
+          unit="mm"
+          valueKey={`tyre_depth_${pos}`}
+          highlight
+        />
+
+        <TyreRow
+          label="Torque"
+          unit="NM"
+          valueKey={`tyre_torque_${pos}`}
+          type="number" highlight={undefined}        />
+
+        <StaticRow label="Tyre Age" value="" />
+      </div>
+    </div>
+  );
+}
 
   const shouldShowComplianceItem = (item: typeof complianceItems[0]) => {
     if (showAllCompliance) return true;
@@ -459,6 +637,39 @@ export default function VehicleDetailPage() {
         : vehicle?.is_wheelchair_lift_fitted === "Yes";
     }
     return true;
+  };
+
+  // Calculate total price
+  const calculateTotalPrice = () => {
+    const price = parseFloat(vehicle?.price || "0");
+    const vat = parseFloat(vehicle?.vat_amount || "0");
+    return price + vat;
+  };
+
+  // Get current mileage display
+  const getCurrentMileage = () => {
+    const mileage = vehicle?.last_mileage;
+    const unit = vehicle?.mileage_unit === "miles" ? "mi" : "km";
+    return mileage ? `${parseFloat(mileage).toLocaleString()} ${unit}` : "-";
+  };
+
+  // Handle site selection
+  const handleSiteToggle = (siteId: number) => {
+    setSelectedSites(prev => {
+      if (prev.includes(siteId)) {
+        return prev.filter(id => id !== siteId);
+      } else {
+        return [...prev, siteId];
+      }
+    });
+  };
+
+  // Get selected site names
+  const getSelectedSiteNames = () => {
+    return selectedSites
+      .map(id => sites.find(site => site.id === id)?.name)
+      .filter(Boolean)
+      .join(", ");
   };
 
   if (loading) {
@@ -493,101 +704,49 @@ export default function VehicleDetailPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-slate-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <Activity className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-white">Vehicle Management</h1>
-                  <p className="text-orange-100 text-sm">Complete vehicle profile & compliance</p>
-                </div>
-              </div>
-              <div className="fixed bottom-6 right-6 z-50">
-                {isEditing ? (
-                  <div className="flex gap-2 rounded-xl bg-white backdrop-blur-md p-3 shadow-lg">
-                    <Button variant="outline" onClick={handleEditToggle} disabled={saving}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSave} disabled={saving}>
-                      {saving ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </div>
-                ) : (
-              <div className=" flex gap-4 flex-col">
-                                <AssignDriverDialog vehicleId={vehicleId}/>
-                               <Button variant="outline" onClick={handleEditToggle}>
-                                 <Edit className="w-6 h-6 mr-2" />
-                                 Edit Details
-                               </Button>
-                          </div>
-                )}
-              </div>
-            </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              {vehicle.registration_number} - {vehicle.make} {vehicle.model}
+            </h1>
+            <p className="text-slate-600">{vehicle.vehicles_type?.name}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge className={`${getStatusBadgeColor(vehicle.vehicle_status)} px-3 py-1`}>
+              {getStatusDisplayText(vehicle.vehicle_status)}
+            </Badge>
+            <Badge className={`${getRoadworthyBadgeColor(vehicle.vehicle_roadworthy_status)} px-3 py-1`}>
+              {getRoadworthyDisplayText(vehicle.vehicle_roadworthy_status)}
+            </Badge>
+          </div>
+        </div>
 
-            <div className="bg-white rounded-xl p-5 shadow-lg">
-              <div className="flex items-center gap-6">
-                {/* Vehicle Photo Upload */}
-                <div className="relative group">
-                  <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center overflow-hidden border-2 border-white shadow-md">
-                    {vehicle.vehicle_picture ? (
-                      <img src={vehicle.vehicle_picture} alt="Vehicle" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="text-4xl font-bold text-slate-400">V</div>
-                    )}
-                  </div>
-
-                  {(isEditing || !vehicle.vehicle_picture) && (
-                    <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ImageUploader
-                        onUploadSuccess={handleImageUpload}
-                        // accept="image/*"
-                        // maxSize={5 * 1024 * 1024}
-                        // id="vehicle-photo-upload"
-                     />
+        {/* Driver Assignment Banner */}
+        {/* {vehicle.assignee_driver && (
+          <div className="bg-gradient-to-r from-orange-50 to-orange-100/50 border border-orange-200 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-white">
+                  {vehicle.assignee_driver.avatar ? (
+                    <img src={vehicle.assignee_driver.avatar} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-orange-100">
+                      <User className="w-6 h-6 text-orange-600" />
                     </div>
                   )}
-
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center shadow-md">
-                    <Camera className="w-4 h-4 text-white" />
-                  </div>
                 </div>
-
-                {/* Vehicle Info */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    {isEditing && activeTab === "overview" ? (
-                      <Input
-                        value={editVehicle.registration_number}
-                        onChange={(e) => handleInputChange("registration_number", e.target.value)}
-                        className="text-2xl font-bold h-auto py-1 max-w-xs"
-                      />
-                    ) : (
-                      <h2 className="text-2xl font-bold text-slate-900">{vehicle.registration_number}</h2>
-                    )}
-                 
-                  </div>
-                  <div className="flex items-center gap-6 text-sm text-slate-600">
-                    <div className="flex items-center gap-2">
-                      <Info className="w-4 h-4" />
-                      <span>VIN: {vehicle.vin}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Gauge className="w-4 h-4" />
-                      <span>{vehicle.last_mileage ? `${vehicle.last_mileage} ${vehicle.mileage_unit}` : "No mileage data"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      <span>{vehicle.number_of_seats} seats</span>
-                    </div>
-                  </div>
+                <div>
+                  <p className="font-semibold">Assigned to Driver</p>
+                  <p className="text-orange-700">{vehicle.assignee_driver.full_name}</p>
                 </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-slate-600">Site</p>
+                <p className="font-semibold">{vehicle.assignee_driver.site?.[0]?.name || "No site"}</p>
               </div>
             </div>
           </div>
-        </div>
+        )} */}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -602,102 +761,259 @@ export default function VehicleDetailPage() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Activity className="w-5 h-5 text-blue-600" />
+            {/* ================= VEHICLE DETAILS ================= */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <Car className="w-4 h-4 text-orange-600" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Vehicle Status</h3>
+                <h3 className="font-semibold text-slate-900">Vehicle Details</h3>
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <Label className="mr-2">Vehicle Status</Label>
-                  {isEditing ? (
-                    <Select value={editVehicle.vehicle_status} onValueChange={(v) => handleStatusChange("vehicle_status", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="available">Available</SelectItem>
-                        <SelectItem value="unavailable">Unavailable</SelectItem>
-                        <SelectItem value="assigned">Assigned</SelectItem>
-                        <SelectItem value="disabled">Disabled</SelectItem>
-                      </SelectContent>
-                    </Select>
+
+              <div className="flex gap-6">
+                {/* Image */}
+                <div className="relative w-32 h-24 rounded-xl overflow-hidden bg-slate-100 shrink-0 group">
+                  {vehicle.vehicle_picture ? (
+                    <>
+                      <img
+                        src={vehicle.vehicle_picture}
+                        className="w-full h-full object-cover"
+                        alt={`${vehicle.make} ${vehicle.model}`}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <ImageUploader onUploadSuccess={handleImageUpload} />
+                      </div>
+                    </>
                   ) : (
-                    <Badge className={`${getStatusBadgeColor(vehicle.vehicle_status)} text-sm border text-base`}>
-                      {getStatusDisplayText(vehicle.vehicle_status)}
-                    </Badge>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                      <Camera className="w-6 h-6 mb-2" />
+                      <p className="text-xs">No Image</p>
+                      <ImageUploader onUploadSuccess={handleImageUpload} />
+                    </div>
                   )}
                 </div>
-                <div>
-                  <Label className="mr-2">Roadworthy Status</Label>
-                  {isEditing ? (
-                    <Select value={editVehicle.vehicle_roadworthy_status} onValueChange={(v) => handleStatusChange("vehicle_roadworthy_status", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no_defect">No Defect</SelectItem>
-                        <SelectItem value="minor_defect_roadworthy">Minor Defect - Roadworthy</SelectItem>
-                        <SelectItem value="minor_defect_not_roadworthy">Minor Defect - Not Roadworthy</SelectItem>
-                        <SelectItem value="major_defect_not_roadworthy">Major Defect - Not Roadworthy</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge className={`${getRoadworthyBadgeColor(vehicle.vehicle_roadworthy_status)} border text-base`}>
-                      {getRoadworthyDisplayText(vehicle.vehicle_roadworthy_status)}
-                    </Badge>
-                  )}
+
+                {/* Grid */}
+                <div className="grid grid-cols-4 gap-x-10 gap-y-6 flex-1">
+                  <Field
+                    label="Make"
+                    value={isEditing ? editVehicle.make : vehicle.make}
+                    isEditing={isEditing}
+                    onChange={(v) => handleInputChange("make", v)}
+                  />
+
+                  <Field
+                    label="Model"
+                    value={isEditing ? editVehicle.model : vehicle.model}
+                    isEditing={isEditing}
+                    onChange={(v) => handleInputChange("model", v)}
+                  />
+
+                  <Field
+                    label="Registration"
+                    value={isEditing ? editVehicle.registration_number : vehicle.registration_number}
+                    isEditing={isEditing}
+                    onChange={(v) => handleInputChange("registration_number", v)}
+                  />
+
+                  <Field label="VIN Number" value={vehicle.vin} />
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500">Latest Mileage</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {getCurrentMileage()}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500">No of Seats</p>
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        value={editVehicle.number_of_seats || ""}
+                        onChange={(e) => handleInputChange("number_of_seats", Number(e.target.value))}
+                        className="h-9 text-sm"
+                      />
+                    ) : (
+                      <Badge className="bg-red-100 text-red-600">
+                        {vehicle.number_of_seats} seats
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500">Vehicle Type</p>
+                    {isEditing ? (
+                      <Select
+                        value={editVehicle.vehicles_type?.toString() || ""}
+                        onValueChange={(value) => handleInputChange("vehicles_type", Number(value))}
+                      >
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select vehicle type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vehicleTypes.map((type) => (
+                            <SelectItem key={type.id} value={type.id.toString()}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge className="bg-orange-100 text-orange-600">
+                        {vehicle?.vehicles_type?.name || "No type assigned"}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500">Allocated Sites</p>
+                    {isEditing ? (
+                      <Popover open={sitesOpen} onOpenChange={setSitesOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={sitesOpen}
+                            className="w-full justify-between h-9 text-sm"
+                          >
+                            {selectedSites.length > 0
+                              ? `${selectedSites.length} site${selectedSites.length > 1 ? 's' : ''} selected`
+                              : "Select sites..."}
+                            <MapPin className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Search sites..." />
+                            <CommandList>
+                              <CommandEmpty>No sites found.</CommandEmpty>
+                              <CommandGroup>
+                                {sites.map((site) => (
+                                  <CommandItem
+                                    key={site.id}
+                                    value={site.name}
+                                    onSelect={() => {
+                                      handleSiteToggle(site.id);
+                                    }}
+                                  >
+                                    <Checkbox
+                                      checked={selectedSites.includes(site.id)}
+                                      onCheckedChange={() => handleSiteToggle(site.id)}
+                                      className="mr-2"
+                                    />
+                                    {site.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {vehicle.site_allocated?.map((site: any) => (
+                          <Badge key={site.id} className="bg-blue-100 text-blue-700">
+                            {site.name}
+                          </Badge>
+                        ))}
+                        {(!vehicle.site_allocated || vehicle.site_allocated.length === 0) && (
+                          <span className="text-sm text-slate-500">No sites allocated</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-                  <Info className="w-5 h-5 text-orange-600" />
+            {/* ================= PURCHASE INFO ================= */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <CreditCard className="w-4 h-4 text-orange-600" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Basic Information</h3>
+                <h3 className="font-semibold text-slate-900">Purchase Info</h3>
               </div>
-              <div className="grid grid-cols-3 gap-6">
-                <div>
-                  <Label>Make</Label>
-                  {isEditing ? <Input value={editVehicle.make} onChange={(e) => handleInputChange("make", e.target.value)} /> : <p className="font-semibold">{vehicle.make || "Not specified"}</p>}
+
+              <div className="grid grid-cols-4 gap-x-10 gap-y-6">
+                <Field
+                  label="Purchase Date"
+                  type="date"
+                  value={isEditing ? editVehicle.date_of_purchase : formatDate(vehicle.date_of_purchase)}
+                  isEditing={isEditing}
+                  onChange={(v) => handleInputChange("date_of_purchase", v)}
+                />
+
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500">Purchased From</p>
+                  {isEditing ? (
+                    <Input
+                      value={editVehicle.purchased_from || ""}
+                      onChange={(e) => handleInputChange("purchased_from", e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  ) : (
+                    <Badge className="bg-red-100 text-red-600">
+                      {vehicle.purchased_from}
+                    </Badge>
+                  )}
                 </div>
-                <div>
-                  <Label>Model</Label>
-                  {isEditing ? <Input value={editVehicle.model} onChange={(e) => handleInputChange("model", e.target.value)} /> : <p className="font-semibold">{vehicle.model || "Not specified"}</p>}
+
+                <Field
+                  label="Purchase Mileage"
+                  value={`${vehicle.purchase_mileage || "-"} km`}
+                />
+
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500">Purchased By</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {vehicle.purchased_by || "-"}
+                  </p>
                 </div>
-                <div>
-                  <Label>Purchase Date</Label>
-                  {isEditing ? <Input type="date" value={editVehicle.date_of_purchase || ""} onChange={(e) => handleInputChange("date_of_purchase", e.target.value)} /> : <p className="font-semibold">{vehicle.date_of_purchase ? formatDate(vehicle.date_of_purchase) : "Not specified"}</p>}
+
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500">Purchase Price</p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={editVehicle.price || ""}
+                      onChange={(e) => handleInputChange("price", e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  ) : (
+                    <Badge className="bg-red-100 text-red-600">
+                      £{Number(vehicle.price).toLocaleString()}
+                    </Badge>
+                  )}
                 </div>
-              </div>
-              <div className="mt-6 pt-6 border-t border-slate-100">
-                <Label>Notes</Label>
-                {isEditing ? <Textarea value={editVehicle.notes} onChange={(e) => handleInputChange("notes", e.target.value)} rows={3} /> : <p className="text-sm">{vehicle.notes || "No notes"}</p>}
+
+                <div className="flex items-center gap-4">
+                  <div className="space-y-1 flex-1">
+                    <p className="text-xs text-slate-500">VAT Amount</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      £{Number(vehicle.vat_amount || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  {isEditing ? (
+                    <Switch
+                      checked={editVehicle.has_vat}
+                      onCheckedChange={(c) => handleInputChange("has_vat", c)}
+                    />
+                  ) : (
+                    <Switch checked={vehicle.has_vat} disabled />
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500">Total Price</p>
+                  <Badge className="bg-emerald-100 text-emerald-700">
+                    £{calculateTotalPrice().toLocaleString()}
+                  </Badge>
+                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-green-600" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">Purchase Information</h3>
-              </div>
-              <div className="grid grid-cols-3 gap-6">
-                <div>
-                  <Label>Purchased From</Label>
-                  {isEditing ? <Input value={editVehicle.purchased_from || ""} onChange={(e) => handleInputChange("purchased_from", e.target.value)} /> : <p className="font-semibold">{vehicle.purchased_from || "Not specified"}</p>}
-                </div>
-                <div>
-                  <Label>Purchase Price</Label>
-                  {isEditing ? <Input type="number" value={editVehicle.price || ""} onChange={(e) => handleInputChange("price", e.target.value)} /> : <p className="font-semibold">{vehicle.price ? `£${parseFloat(vehicle.price).toLocaleString()}` : "Not specified"}</p>}
-                </div>
-                <div>
-                  <Label>Purchase Mileage</Label>
-                  {isEditing ? <Input type="number" value={editVehicle.purchase_mileage || ""} onChange={(e) => handleInputChange("purchase_mileage", e.target.value)} /> : <p className="font-semibold">{vehicle.purchase_mileage ? `${vehicle.purchase_mileage} ${vehicle.mileage_unit}` : "Not specified"}</p>}
-                </div>
-              </div>
-            </div>
           </TabsContent>
 
           {/* Documents Tab */}
@@ -752,84 +1068,58 @@ export default function VehicleDetailPage() {
               </div>
             </div>
           </TabsContent>
+<TabsContent value="maintenance" className="mt-6">
+  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
 
-          {/* Maintenance Tab */}
-          <TabsContent value="maintenance" className="space-y-6 mt-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-                  <Gauge className="w-5 h-5 text-orange-600" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">Tyre Management</h3>
-              </div>
+    {/* Header */}
+    <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+          <Gauge className="w-5 h-5 text-orange-600" />
+        </div>
+        <h3 className="text-lg font-semibold text-slate-900">
+          Tyre Management
+        </h3>
+      </div>
 
-              <div className="mb-8">
-                <h4 className="font-semibold mb-4">Front Axle</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {["front_driver", "front_passenger"].map((pos) => (
-                    <div key={pos} className="bg-slate-50 rounded-xl p-4 border">
-                      <p className="font-medium capitalize mb-3">{pos.replace("_", " ")}</p>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Pressure</span>
-                          {isEditing ? (
-                            <Input type="number" value={editVehicle[`tyre_pressure_${pos}`] || ""} onChange={(e) => handleInputChange(`tyre_pressure_${pos}`, e.target.value ? Number(e.target.value) : null)} className="w-20 h-8" />
-                          ) : (
-                            <span className="font-semibold">{vehicle[`tyre_pressure_${pos}`] || "N/A"} PSI</span>
-                          )}
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Depth</span>
-                          {isEditing ? (
-                            <Input value={editVehicle[`tyre_depth_${pos}`] || ""} onChange={(e) => handleInputChange(`tyre_depth_${pos}`, e.target.value)} className="w-20 h-8" />
-                          ) : (
-                            <span className="font-semibold">{vehicle[`tyre_depth_${pos}`] || "N/A"} mm</span>
-                          )}
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Torque</span>
-                          {isEditing ? (
-                            <Input type="number" value={editVehicle[`tyre_torque_${pos}`] || ""} onChange={(e) => handleInputChange(`tyre_torque_${pos}`, e.target.value ? Number(e.target.value) : null)} className="w-20 h-8" />
-                          ) : (
-                            <span className="font-semibold">{vehicle[`tyre_torque_${pos}`] || "N/A"} NM</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+    
+    </div>
 
-              <div>
-                <h4 className="font-semibold mb-4">Rear Axle</h4>
-                <div className="grid grid-cols-4 gap-4">
-                  {["rear_outer_driver", "rear_outer_passenger", "rear_inner_driver", "rear_inner_passenger"].map((pos) => (
-                    <div key={pos} className="bg-slate-50 rounded-xl p-4 border">
-                      <p className="text-xs font-medium capitalize mb-2">{pos.replace(/_/g, " ")}</p>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Pressure</span>
-                          {isEditing ? (
-                            <Input type="number" value={editVehicle[`tyre_pressure_${pos}`] || ""} onChange={(e) => handleInputChange(`tyre_pressure_${pos}`, e.target.value ? Number(e.target.value) : null)} className="w-16 h-7 text-xs" />
-                          ) : (
-                            <span className="font-semibold text-xs">{vehicle[`tyre_pressure_${pos}`] || "N/A"} PSI</span>
-                          )}
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Depth</span>
-                          {isEditing ? (
-                            <Input value={editVehicle[`tyre_depth_${pos}`] || ""} onChange={(e) => handleInputChange(`tyre_depth_${pos}`, e.target.value)} className="w-16 h-7 text-xs" />
-                          ) : (
-                            <span className="font-semibold text-xs">{vehicle[`tyre_depth_${pos}`] || "N/A"} mm</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </TabsContent>
+    {/* Main Layout */}
+    <div className="grid grid-cols-[1fr_260px_1fr] gap-8 items-center">
+
+      {/* LEFT */}
+      <div className="space-y-4">
+        <TyreCard title="Front Passenger" pos="front_passenger" />
+        <TyreCard title="Rear Outer Passenger" pos="rear_outer_passenger" />
+        <TyreCard title="Rear Inner Passenger" pos="rear_inner_passenger" />
+      </div>
+
+      {/* CENTER VEHICLE */}
+      <div className="relative flex justify-center">
+        <img
+          src="/vehicle-top.png"
+          alt="Vehicle"
+          className="w-44 z-10"
+        />
+
+        {/* Highlight rear tyres */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-[90%] w-10 h-14 bg-red-500 rounded-md opacity-90" />
+        <div className="absolute bottom-10 left-1/2 translate-x-[10%] w-10 h-14 bg-blue-500 rounded-md opacity-90" />
+      </div>
+
+      {/* RIGHT */}
+      <div className="space-y-4">
+        <TyreCard title="Front Driver" pos="front_driver" />
+        <TyreCard title="Rear Outer Driver" pos="rear_outer_driver" />
+        <TyreCard title="Rear Inner Driver" pos="rear_inner_driver" />
+      </div>
+
+    </div>
+  </div>
+</TabsContent>
+
+
 
           {/* Compliance Tab */}
           <TabsContent value="compliance" className="space-y-6 mt-6">
@@ -885,17 +1175,6 @@ export default function VehicleDetailPage() {
                 </div>
               </div>
             </div>
-
-            {/* <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-              <div className="flex items-center gap-3">
-                <Info className="w-5 h-5 text-slate-500" />
-                <div>
-                  <p className="text-sm font-medium">Show All Compliance Items</p>
-                  <p className="text-xs text-slate-600">Toggle to show/hide equipment-specific items</p>
-                </div>
-              </div>
-              <Switch checked={showAllCompliance} onCheckedChange={setShowAllCompliance} />
-            </div> */}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {complianceItems.map((item) => {
@@ -989,6 +1268,28 @@ export default function VehicleDetailPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Fixed Action Buttons */}
+        <div className="fixed bottom-6 right-6 z-50">
+          {isEditing ? (
+            <div className="flex gap-2 rounded-xl bg-white backdrop-blur-md p-3 shadow-lg">
+              <Button variant="outline" onClick={handleEditToggle} disabled={saving}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-4 flex-col">
+              <AssignDriverDialog vehicleId={vehicleId} />
+              <Button variant="outline" onClick={handleEditToggle}>
+                <Edit className="w-6 h-6 mr-2" />
+                Edit Details
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Date Edit Dialog */}
         <Dialog open={!!editDateField} onOpenChange={() => {

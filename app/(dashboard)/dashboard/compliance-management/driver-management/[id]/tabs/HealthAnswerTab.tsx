@@ -28,11 +28,10 @@ export default function HealthAnswerTab({
   handleSaveHealth,
 }: HealthAnswerTabProps) {
   return (
-    <Card className="shadow-lg bg-gradient-to-br from-white to-orange-50 hover:shadow-xl transition-all rounded-xl">
+    <Card className=" bg-gray-50/10 transition-all rounded-xl">
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle className="flex items-center gap-3 text-2xl text-orange-800">
-            <Heart className="h-6 w-6" />
+          <CardTitle className="flex items-center gap-3 text-2xl text-black">
             Health Information
           </CardTitle>
           <div className="flex gap-3">
@@ -41,7 +40,7 @@ export default function HealthAnswerTab({
                 <Button
                   onClick={handleSaveHealth}
                   disabled={savingHealth}
-                  className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
+                  className="bg-black hover:bg-black text-white px-6 py-2 rounded-lg transition-all"
                 >
                   {savingHealth ? (
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
@@ -54,7 +53,7 @@ export default function HealthAnswerTab({
                   variant="outline"
                   onClick={handleHealthEditToggle}
                   disabled={savingHealth}
-                  className="border-orange-600 text-orange-600 hover:bg-orange-100 rounded-lg transition-all"
+                  className="border-black-600 text-black-600 hover:bg-black-100 rounded-lg transition-all"
                 >
                   <X className="h-5 w-5 mr-2" />
                   Cancel
@@ -63,7 +62,7 @@ export default function HealthAnswerTab({
             ) : (
               <Button
                 onClick={handleHealthEditToggle}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all"
+                className="bg-black hover:bg-black text-white px-6 py-2 rounded-lg transition-all"
               >
                 <Edit className="h-5 w-5 mr-2" />
                 Edit Health Answers
@@ -73,65 +72,102 @@ export default function HealthAnswerTab({
         </div>
         <CardDescription className="text-gray-600">Health-related questions and answers</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-8">
-        {healthData.length === 0 ? (
-          <p className="text-gray-600 text-center py-6">No health answers found.</p>
-        ) : (
-          (isEditingHealth ? editHealthData : healthData).map((health: any) => (
-            <div key={health.id} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label className="text-sm font-semibold text-gray-600">Question</Label>
-                  <p className="font-medium text-orange-800">{health.question_text}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-600">Answer</Label>
-                  {isEditingHealth ? (
-                    <Select
-                      value={health.answer.toString()}
-                      onValueChange={(value) =>
-                        handleHealthInputChange(health.id, "answer", value === "true")
-                      }
-                    >
-                      <SelectTrigger className="border-orange-200 focus:ring-2 focus:ring-orange-600 rounded-lg">
-                        <SelectValue placeholder="Select answer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="true">Yes</SelectItem>
-                        <SelectItem value="false">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="font-medium text-orange-800">{health.answer ? "Yes" : "No"}</p>
-                  )}
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-sm font-semibold text-gray-600">Note</Label>
-                  {isEditingHealth ? (
-                    <Input
-                      value={health.note}
-                      onChange={(e) =>
-                        handleHealthInputChange(health.id, "note", e.target.value)
-                      }
-                      placeholder="Enter note"
-                      className="border-orange-200 focus:ring-2 focus:ring-orange-600 rounded-lg"
-                    />
-                  ) : (
-                    <p className="font-medium text-orange-800">{health.note || "No note provided"}</p>
-                  )}
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-sm font-semibold text-gray-600">Admin Remarks</Label>
-                  <p className="font-medium text-orange-800">
-                    {health.admin_remarks || "No remarks provided"}
-                  </p>
-                </div>
-              </div>
-              <Separator className="bg-orange-200" />
-            </div>
-          ))
-        )}
-      </CardContent>
+    <CardContent className="space-y-6">
+  {healthData.length === 0 ? (
+    <p className="text-gray-600 text-center py-6">
+      No health answers found.
+    </p>
+  ) : (
+    (isEditingHealth ? editHealthData : healthData).map((health: any) => (
+      <div
+        key={health.id}
+        className="bg-gray-50/70 rounded-xl p-6"
+      >
+        {/* Row 1: Question | Answer */}
+        <div className="flex items-start justify-between">
+          <div className="w-1/2 pr-6">
+            <p className="text-sm font-medium text-gray-500">Question</p>
+            <p className="text-gray-900">
+              {health.question_text}
+            </p>
+          </div>
+
+          <div className="w-px bg-gray-200 self-stretch" />
+
+          <div className="w-1/2 pl-6">
+            <p className="text-sm font-medium text-gray-500">Answer</p>
+
+            {isEditingHealth ? (
+              <Select
+                value={health.answer.toString()}
+                onValueChange={(value) =>
+                  handleHealthInputChange(
+                    health.id,
+                    "answer",
+                    value === "true"
+                  )
+                }
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Yes</SelectItem>
+                  <SelectItem value="false">No</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="text-gray-900">
+                {health.answer ? "Yes" : "No"}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="my-6 " />
+
+        {/* Row 2: Note | Admin Remarks */}
+        <div className="flex items-start justify-between">
+          <div className="w-1/2 pr-6">
+            <p className="text-sm font-medium text-gray-500">Note</p>
+
+            {isEditingHealth ? (
+              <Input
+                value={health.note}
+                onChange={(e) =>
+                  handleHealthInputChange(
+                    health.id,
+                    "note",
+                    e.target.value
+                  )
+                }
+                placeholder="Enter note"
+                className="mt-1"
+              />
+            ) : (
+              <p className="text-gray-900">
+                {health.note || "No additional notes"}
+              </p>
+            )}
+          </div>
+
+          <div className="w-px bg-gray-200 self-stretch" />
+
+          <div className="w-1/2 pl-6">
+            <p className="text-sm font-medium text-gray-500">
+              Admin Remarks
+            </p>
+            <p className="text-gray-900">
+              {health.admin_remarks || "No Remarks Provided"}
+            </p>
+          </div>
+        </div>
+      </div>
+    ))
+  )}
+</CardContent>
+
     </Card>
   );
 }
