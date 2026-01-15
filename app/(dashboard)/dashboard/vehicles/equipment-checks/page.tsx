@@ -9,13 +9,45 @@ import {
   MoreHorizontal,
   Eye,
   ChevronDown,
+  Car,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Clock,
+  FileText,
+  Edit,
+  Trash2,
+  Printer,
+  Share2,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 
 interface Check {
   id: number;
@@ -27,211 +59,398 @@ interface Check {
   status: 'Passed' | 'Failed' | 'Advisory';
 }
 
-const mockData: Check[] = [
+// Mock data for different tabs
+const todayChecks: Check[] = [
   { id: 1, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'John Smith', driver: 'Jenny Wilson', checkType: 'Daily', status: 'Passed' },
   { id: 2, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'David Joe', driver: 'Jenny Wilson', checkType: 'Daily', status: 'Advisory' },
-  { id: 3, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'Parker will', driver: 'Jenny Wilson', checkType: 'Daily', status: 'Passed' },
-  { id: 4, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'Max Will', driver: 'Jenny Wilson', checkType: 'Weekly', status: 'Failed' },
-  { id: 5, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'Eleven', driver: 'Jenny Wilson', checkType: 'Daily', status: 'Failed' },
-  { id: 6, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'Will', driver: 'Jenny Wilson', checkType: 'Daily', status: 'Passed' },
-  { id: 7, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'John', driver: 'Jenny Wilson', checkType: 'Daily', status: 'Passed' },
-  { id: 8, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'Jenefir', driver: 'Jenny Wilson', checkType: 'Weekly', status: 'Passed' },
-  { id: 9, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'Harry', driver: 'Jenny Wilson', checkType: 'Weekly', status: 'Failed' },
+  { id: 3, date: '18 Dec 2025', vehicleReg: 'AB21-XYZ', auditor: 'Parker Will', driver: 'Jenny Wilson', checkType: 'Daily', status: 'Passed' },
+];
+
+const submittedChecks: Check[] = [
+  { id: 4, date: '17 Dec 2025', vehicleReg: 'CD22-ABC', auditor: 'Max Will', driver: 'Robert Brown', checkType: 'Weekly', status: 'Passed' },
+  { id: 5, date: '17 Dec 2025', vehicleReg: 'EF23-DEF', auditor: 'Sarah Johnson', driver: 'Michael Davis', checkType: 'Daily', status: 'Failed' },
+];
+
+const rejectedChecks: Check[] = [
+  { id: 6, date: '16 Dec 2025', vehicleReg: 'GH24-GHI', auditor: 'Tom Wilson', driver: 'Emma Wilson', checkType: 'Weekly', status: 'Failed' },
+  { id: 7, date: '16 Dec 2025', vehicleReg: 'IJ25-JKL', auditor: 'Lisa Anderson', driver: 'James Miller', checkType: 'Daily', status: 'Failed' },
+  { id: 8, date: '15 Dec 2025', vehicleReg: 'KL26-MNO', auditor: 'David Lee', driver: 'Patricia Taylor', checkType: 'Weekly', status: 'Failed' },
+];
+
+const remedialChecks: Check[] = [
+  { id: 9, date: '14 Dec 2025', vehicleReg: 'MN27-PQR', auditor: 'Paul Walker', driver: 'Jennifer White', checkType: 'Daily', status: 'Advisory' },
+  { id: 10, date: '14 Dec 2025', vehicleReg: 'OP28-STU', auditor: 'Emma Thompson', driver: 'Richard Harris', checkType: 'Weekly', status: 'Advisory' },
+];
+
+const allChecks: Check[] = [
+  ...todayChecks,
+  ...submittedChecks,
+  ...rejectedChecks,
+  ...remedialChecks,
+  { id: 11, date: '13 Dec 2025', vehicleReg: 'QR29-VWX', auditor: 'Chris Evans', driver: 'Susan Clark', checkType: 'Daily', status: 'Passed' },
+  { id: 12, date: '12 Dec 2025', vehicleReg: 'ST30-YZA', auditor: 'Mark Roberts', driver: 'Daniel Lewis', checkType: 'Weekly', status: 'Passed' },
 ];
 
 export default function VehicleChecklist() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [search, setSearch] = useState('');
 
-  const filteredData = mockData.filter((item) =>
-    Object.values(item).some((value) =>
-      value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-    )
+  const renderTable = (data: Check[]) => (
+    <Table>
+      <TableHeader className="bg-muted/50">
+        <TableRow>
+          <TableHead>Check Date</TableHead>
+          <TableHead>Vehicle Reg</TableHead>
+          <TableHead>Auditor</TableHead>
+          <TableHead>Driver</TableHead>
+          <TableHead>Check Type</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+
+      <TableBody>
+        {data.map((row) => (
+          <TableRow key={row.id} className="hover:bg-muted/40">
+            <TableCell>{row.date}</TableCell>
+            <TableCell>{row.vehicleReg}</TableCell>
+            <TableCell>{row.auditor}</TableCell>
+            <TableCell>{row.driver}</TableCell>
+
+            <TableCell>
+              <Badge className="rounded-full bg-orange-100 text-orange-700">
+                {row.checkType}
+              </Badge>
+            </TableCell>
+
+            <TableCell>
+              {row.status === 'Passed' && (
+                <Badge className="rounded-full bg-green-100 text-green-700">Passed</Badge>
+              )}
+              {row.status === 'Failed' && (
+                <Badge className="rounded-full bg-red-100 text-red-700">Failed</Badge>
+              )}
+              {row.status === 'Advisory' && (
+                <Badge className="rounded-full bg-yellow-100 text-yellow-700">Advisory</Badge>
+              )}
+            </TableCell>
+
+            <TableCell className="text-right">
+              <ActionDropdown row={row} />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-[#fafafa] p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header + Stats Card */}
-        <Card className="overflow-hidden">
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Vehicle Equipment Checklist</h1>
-                <p className="text-sm text-gray-500 mt-1">Fleet safety inspection management</p>
-              </div>
-              <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-                <Download className="w-4 h-4 mr-2" />
-                Download PSD
-              </Button>
-            </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-              <div className="bg-pink-50 rounded-lg p-4 flex items-center gap-4">
-                <div className="bg-pink-200 p-3 rounded-full">
-                  <div className="w-8 h-8 bg-pink-500 rounded" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total Checks</p>
-                  <p className="text-2xl font-bold text-gray-900">33</p>
-                </div>
-              </div>
-
-              <div className="bg-green-50 rounded-lg p-4 flex items-center gap-4">
-                <div className="bg-green-200 p-3 rounded-full">
-                  <div className="w-8 h-8 bg-green-500 rounded" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Passed</p>
-                  <p className="text-2xl font-bold text-gray-900">22</p>
-                </div>
-              </div>
-
-              <div className="bg-red-50 rounded-lg p-4 flex items-center gap-4">
-                <div className="bg-red-200 p-3 rounded-full">
-                  <div className="w-8 h-8 bg-red-500 rounded" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Failed</p>
-                  <p className="text-2xl font-bold text-gray-900">3</p>
-                </div>
-              </div>
-
-              <div className="bg-yellow-50 rounded-lg p-4 flex items-center gap-4">
-                <div className="bg-yellow-200 p-3 rounded-full">
-                  <div className="w-8 h-8 bg-yellow-500 rounded" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Advisory</p>
-                  <p className="text-2xl font-bold text-gray-900">5</p>
-                </div>
-              </div>
-
-              <div className="bg-orange-50 rounded-lg p-4 flex items-center gap-4">
-                <div className="bg-orange-200 p-3 rounded-full">
-                  <div className="w-8 h-8 bg-orange-500 rounded" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-gray-900">5</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Tabs - Custom styled to match screenshot */}
-            <div className="flex flex-wrap gap-3">
-              <Button variant="default" className="bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg">
-                Today checks (3)
-              </Button>
-              <Button variant="ghost" className="text-gray-600 hover:text-gray-900">Submitted (2)</Button>
-              <Button variant="ghost" className="text-gray-600 hover:text-gray-900">Rejected (3)</Button>
-              <Button variant="ghost" className="text-gray-600 hover:text-gray-900">Remedial Required (2)</Button>
-              <Button variant="ghost" className="text-gray-600 hover:text-gray-900">All History (6)</Button>
-            </div>
-          </div>
-        </Card>
-
-        {/* Table Card */}
-        <Card className="overflow-hidden">
-          {/* Search + Filters */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <Input
-                  placeholder="Search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-
-              <div className="flex gap-2 flex-wrap">
-                <Button variant="outline" size="sm" className="text-sm">
-                  Check Type <ChevronDown className="w-4 h-4 ml-1" />
-                </Button>
-                <Button variant="outline" size="sm" className="text-sm">
-                  Date & Time <ChevronDown className="w-4 h-4 ml-1" />
-                </Button>
-                <Button variant="outline" size="sm" className="text-sm">
-                  Driver <ChevronDown className="w-4 h-4 ml-1" />
-                </Button>
-                <Button variant="outline" size="sm" className="text-sm">
-                  Vehicle <ChevronDown className="w-4 h-4 ml-1" />
-                </Button>
-                <Button variant="outline" size="sm" className="text-sm">
-                  Status <ChevronDown className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-gray-50">
-                <TableRow>
-                  <TableHead className="text-gray-500 text-xs uppercase">Check Date</TableHead>
-                  <TableHead className="text-gray-500 text-xs uppercase">Vehicle Reg</TableHead>
-                  <TableHead className="text-gray-500 text-xs uppercase">Auditor</TableHead>
-                  <TableHead className="text-gray-500 text-xs uppercase">Driver</TableHead>
-                  <TableHead className="text-gray-500 text-xs uppercase">Check Type</TableHead>
-                  <TableHead className="text-gray-500 text-xs uppercase">Status</TableHead>
-                  <TableHead className="text-gray-500 text-xs uppercase">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredData.map((row) => (
-                  <TableRow key={row.id} className="hover:bg-gray-50">
-                    <TableCell className="text-sm">{row.date}</TableCell>
-                    <TableCell className="text-sm">{row.vehicleReg}</TableCell>
-                    <TableCell className="text-sm">{row.auditor}</TableCell>
-                    <TableCell className="text-sm">{row.driver}</TableCell>
-                    <TableCell>
-                      <Badge variant={row.checkType === 'Daily' ? 'default' : 'secondary'} className={row.checkType === 'Daily' ? 'bg-orange-100 text-orange-800 hover:bg-orange-100' : ''}>
-                        {row.checkType}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {row.status === 'Passed' && <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Passed</Badge>}
-                      {row.status === 'Failed' && <Badge variant="destructive">Failed</Badge>}
-                      {row.status === 'Advisory' && <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Advisory</Badge>}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon">
-                        {row.status === 'Advisory' ? <Eye className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-            <p className="text-sm text-gray-600">
-              Row Page <span className="font-medium">01</span>
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">
+              Vehicle Equipment Checklist
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Fleet safety inspection management
             </p>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" disabled>
-                <ChevronLeft className="w-5 h-5" />
-              </Button>
-
-              <Button variant="default" size="sm" className="bg-orange-500 hover:bg-orange-600">1</Button>
-              <Button variant="ghost" size="sm">2</Button>
-              <Button variant="ghost" size="sm">3</Button>
-              <span className="text-gray-500 px-2">...</span>
-              <Button variant="ghost" size="sm">67</Button>
-              <Button variant="ghost" size="sm">68</Button>
-
-              <Button variant="outline" size="icon">
-                <ChevronRight className="w-5 h-5" />
-              </Button>
-            </div>
           </div>
-        </Card>
+
+          <Button className="bg-orange-500 hover:bg-orange-600 text-white gap-2">
+            <Download className="w-4 h-4" />
+            Download PSD
+          </Button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <Stat title="Total Checks" value="12" icon={Car} color="bg-pink-100 text-pink-600" />
+          <Stat title="Passed" value="5" icon={CheckCircle} color="bg-green-100 text-green-600" />
+          <Stat title="Failed" value="4" icon={XCircle} color="bg-red-100 text-red-600" />
+          <Stat title="Advisory" value="3" icon={AlertTriangle} color="bg-yellow-100 text-yellow-600" />
+          <Stat title="Pending" value="5" icon={Clock} color="bg-orange-100 text-orange-600" />
+        </div>
+
+        {/* Tabs using shadcn */}
+        <Tabs defaultValue="today" className="w-full">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
+            <TabsTrigger value="today">
+              Today checks ({todayChecks.length})
+            </TabsTrigger>
+            <TabsTrigger value="submitted">
+              Submitted ({submittedChecks.length})
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              Rejected ({rejectedChecks.length})
+            </TabsTrigger>
+            <TabsTrigger value="remedial">
+              Remedial Required ({remedialChecks.length})
+            </TabsTrigger>
+            <TabsTrigger value="all">
+              All History ({allChecks.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Tab Contents */}
+          <div className="mt-6">
+            <TabsContent value="today">
+              <Card className="border-0 overflow-hidden">
+                {/* Filters */}
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b">
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 z-10 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search"
+                      className="pl-9 h-9"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    {['Check Type', 'Date & Time', 'Driver', 'Vehicle', 'Status'].map((f) => (
+                      <Button key={f} variant="outline" size="sm" className="gap-1">
+                        {f}
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Table */}
+                {renderTable(todayChecks)}
+
+                {/* Pagination */}
+                <Pagination />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="submitted">
+              <Card className="border-0 overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b">
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 z-10 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search"
+                      className="pl-9 h-9"
+                    />
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {['Check Type', 'Date & Time', 'Driver', 'Vehicle', 'Status'].map((f) => (
+                      <Button key={f} variant="outline" size="sm" className="gap-1">
+                        {f}
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                {renderTable(submittedChecks)}
+                <Pagination />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="rejected">
+              <Card className="border-0 overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b">
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 z-10 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search"
+                      className="pl-9 h-9"
+                    />
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {['Check Type', 'Date & Time', 'Driver', 'Vehicle', 'Status'].map((f) => (
+                      <Button key={f} variant="outline" size="sm" className="gap-1">
+                        {f}
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                {renderTable(rejectedChecks)}
+                <Pagination />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="remedial">
+              <Card className="border-0 overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b">
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 z-10 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search"
+                      className="pl-9 h-9"
+                    />
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {['Check Type', 'Date & Time', 'Driver', 'Vehicle', 'Status'].map((f) => (
+                      <Button key={f} variant="outline" size="sm" className="gap-1">
+                        {f}
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                {renderTable(remedialChecks)}
+                <Pagination />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="all">
+              <Card className="border-0 overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b">
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 z-10 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search"
+                      className="pl-9 h-9"
+                    />
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {['Check Type', 'Date & Time', 'Driver', 'Vehicle', 'Status'].map((f) => (
+                      <Button key={f} variant="outline" size="sm" className="gap-1">
+                        {f}
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                {renderTable(allChecks)}
+                <Pagination />
+              </Card>
+            </TabsContent>
+          </div>
+        </Tabs>
       </div>
     </div>
+  );
+}
+
+// Action Dropdown Component
+function ActionDropdown({ row }: { row: Check }) {
+  const handleAction = (action: string) => {
+    console.log(`${action} clicked for row ${row.id}`);
+    switch (action) {
+      case 'view':
+        // Handle view action
+        break;
+      case 'report':
+        // Handle report action
+        break;
+      case 'edit':
+        // Handle edit action
+        break;
+      case 'print':
+        // Handle print action
+        break;
+      case 'share':
+        // Handle share action
+        break;
+      case 'delete':
+        if (confirm('Are you sure you want to delete this check?')) {
+          console.log('Deleting check:', row.id);
+        }
+        break;
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => handleAction('view')}>
+            <Eye className="mr-2 h-4 w-4" />
+            <span>View Details</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleAction('report')}>
+            <FileText className="mr-2 h-4 w-4" />
+            <span>View Report</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleAction('edit')}>
+            <Edit className="mr-2 h-4 w-4" />
+            <span>Edit Check</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => handleAction('print')}>
+            <Printer className="mr-2 h-4 w-4" />
+            <span>Print Report</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleAction('share')}>
+            <Share2 className="mr-2 h-4 w-4" />
+            <span>Share</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => handleAction('delete')}
+          className="text-red-600 focus:text-red-600"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          <span>Delete Check</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// Pagination Component
+function Pagination() {
+  return (
+    <div className="flex items-center justify-between p-4 border-t text-sm">
+      <span className="text-muted-foreground">
+        Row Page <strong>01</strong>
+      </span>
+
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon">
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <Button size="sm" className="bg-orange-500 text-white">1</Button>
+        <Button size="sm" variant="ghost">2</Button>
+        <Button size="sm" variant="ghost">3</Button>
+        <span className="px-2">...</span>
+        <Button size="sm" variant="ghost">67</Button>
+        <Button size="sm" variant="ghost">68</Button>
+        <Button variant="ghost" size="icon">
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Small UI helpers ---------- */
+
+function Stat({ title, value, icon: Icon, color }: any) {
+  return (
+    <Card className="p-4 flex items-center gap-4">
+      <div className={`p-3 rounded-full ${color}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <p className="text-sm text-muted-foreground">{title}</p>
+        <p className="text-xl font-semibold">{value}</p>
+      </div>
+    </Card>
   );
 }

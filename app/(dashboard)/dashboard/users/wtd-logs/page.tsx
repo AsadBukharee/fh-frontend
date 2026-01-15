@@ -141,7 +141,7 @@ export default function WTDLogsTable() {
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-84 bg-gray-50 z-10">Max Hrs</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-56 bg-gray-50 z-10">Worked Hrs</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-28 bg-gray-50 z-10">WTD Hrs</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-0 bg-gray-50 z-10">Avg Hrs/W Remaining</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-0 bg-gray-50 z-10">Avg Hrs Remaining Per Week</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,7 +166,7 @@ export default function WTDLogsTable() {
                             <span>{row.weeks[`w${i + 1}`].value} hrs</span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Average Hours: {row.weeks[`w${i + 1}`].hover}</p>
+                            <p>Average Hours Worked So Far: {row.weeks[`w${i + 1}`].hover}</p>
                           </TooltipContent>
                         </Tooltip>
                       </td>
