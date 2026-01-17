@@ -174,10 +174,10 @@ export default function WTDLogsTable() {
                       {week.toUpperCase()}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-84 bg-gray-50 z-10">Max Hrs</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-56 bg-gray-50 z-10">Worked Hrs</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-28 bg-gray-50 z-10">WTD Hrs</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-32 sticky right-0 bg-gray-50 z-10">Avg Hrs Remaining</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-84 bg-gray-50 z-10">WTD Hours</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-56 bg-gray-50 z-10">Hours Worked</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-28 bg-gray-50 z-10">WTD Hours Remaining</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-32 sticky right-0 bg-gray-50 z-10">Avg Hours P/W Remaining</th>
                 </tr>
               </thead>
               <tbody>
