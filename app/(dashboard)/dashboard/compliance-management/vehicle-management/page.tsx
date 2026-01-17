@@ -1343,9 +1343,9 @@ export default function VehicleDashboard() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
-                <thead>
+                <thead className="sticky top-0 z-30">
                   <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
-                    <th rowSpan={2} className="p-4 text-left font-semibold text-gray-900 sticky left-0 bg-gray-100 z-20 border-r-2 border-gray-300 min-w-[140px]">
+                    <th rowSpan={2} className="p-4 text-left font-semibold text-gray-900 sticky left-0 bg-gray-100 z-40 border-r-2 border-gray-300 min-w-[140px]">
                       Vehicle Reg
                     </th>
 
@@ -1410,7 +1410,7 @@ export default function VehicleDashboard() {
                     )}
                   </tr>
 
-                  <tr className="bg-white border-y-2 border-gray-300">
+                  <tr className="bg-white border-y-2 border-gray-300 sticky top-[61px] z-20">
                     {/* MOT Sub-headers */}
                     {visibleColumns.showMOT && (
                       <>

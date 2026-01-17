@@ -38,6 +38,7 @@ import { Badge } from "@/components/ui/badge"
 import ExportButton from "@/app/utils/ExportButton"
 
 interface FuelLog {
+  driver_data: any
   id: number
   vehicle: {
     id: number
@@ -335,7 +336,12 @@ export default function FuelChecksManagement() {
   }
 
   const handleEditFuelLog = (updatedLog: FuelLog) => {
-    setFuelLogs((prev) => prev.map((log) => (log.id === updatedLog.id ? updatedLog : log)))
+    // Ensure driver_data is present in updatedLog
+    const completeLog: FuelLog = {
+      ...updatedLog,
+      driver_data: updatedLog.driver_data ?? (drivers.find((d) => d.id === updatedLog.driver) || {}),
+    }
+    setFuelLogs((prev) => prev.map((log) => (log.id === completeLog.id ? completeLog : log)))
     setIsAddDialogOpen(false)
     setEditLog(null)
   }
@@ -668,7 +674,7 @@ export default function FuelChecksManagement() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="font-semibold py-4">Log ID</TableHead>
+                  <TableHead className="font-semibold py-4">Driver</TableHead>
                   <TableHead className="font-semibold">Vehicle</TableHead>
                   <TableHead className="font-semibold">Date</TableHead>
                   <TableHead className="font-semibold">Time</TableHead>
@@ -682,7 +688,7 @@ export default function FuelChecksManagement() {
               <TableBody>
                 {filteredData.map((log) => (
                   <TableRow key={log.id} className="hover:bg-muted/20">
-                    <TableCell className="font-medium">{log.id}</TableCell>
+                    <TableCell className="font-medium">{log.driver_data.full_name}</TableCell>
                     <TableCell>{log.vehicle?.registration_number || "N/A"}</TableCell>
                     <TableCell>{formatDmy(log.date)}</TableCell>
                     <TableCell>{log.time}</TableCell>
@@ -816,7 +822,21 @@ export default function FuelChecksManagement() {
               setIsAddDialogOpen(false)
               setEditLog(null)
             }}
-            onAdd={editLog ? handleEditFuelLog : handleAddFuelLog}
+            onAdd={(log) => {
+              // Ensure driver_data is present for both add and edit
+              const driverData =
+                log.driver_data ??
+                (drivers.find((d) => d.id === log.driver) || {});
+              const completeLog: FuelLog = {
+                ...log,
+                driver_data: driverData,
+              };
+              if (editLog) {
+                handleEditFuelLog(completeLog);
+              } else {
+                handleAddFuelLog(completeLog);
+              }
+            }}
             initialData={
               editLog
                 ? { ...editLog, vehicle_data: (editLog as any).vehicle_data ?? null }

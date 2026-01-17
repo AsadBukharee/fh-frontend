@@ -1,285 +1,572 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Search, ChevronLeft, ChevronRight, X } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, Download, Eye, ChevronLeft, ChevronRight } from "lucide-react"
-import Link from "next/link"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 
-// Replace with your actual host or use environment variable
-const API_HOST = API_URL
+/* ---------------------------------- Types --------------------------------- */
 
-interface EmployeeLog {
+interface DriverLogStats {
   user_id: number
   full_name: string
-  allocated_shifts: number
-  rest_days: number
-  enter_logs: number
-  missing_logs: number
-  completed_logs: number
-  completion_percentage: number
-  status: string
-  week_number: number
-  working_hours_this_week: number
-  carry_over_hours_next_week: number
+  current_total: number
+  current_complete: number
+  current_incomplete: number
+  awaiting_approval: number
+  historical_incomplete: number
+  historical_complete: number
 }
 
-type Status = "Complete" | "Waiting" | "Incomplete"
+/* ------------------------------ Pill Component ---------------------------- */
 
-const getStatusColor = (status: Status) => ({
-  Complete: "bg-green-100 text-green-800 hover:bg-green-200",
-  Waiting: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
-  Incomplete: "bg-red-100 text-red-800 hover:bg-red-200",
-}[status] || "bg-gray-100 text-gray-800 hover:bg-gray-200")
+const CountPill = ({
+  value,
+  color = "orange",
+  onClick,
+  disabled = false,
+}: {
+  value: number
+  color?: "orange" | "red" | "yellow" | "green" | "blue"
+  onClick?: () => void
+  disabled?: boolean
+}) => {
+  if (value === 0) return <span className="text-sm text-muted-foreground">0</span>
 
-export default function DailyLogsManagement() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [filterStatus, setFilterStatus] = useState("All Status")
+  const colors = {
+    orange: "bg-orange-100 text-orange-800 hover:bg-orange-200",
+    red: "bg-red-100 text-red-800 hover:bg-red-200",
+    yellow: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
+    green: "bg-green-100 text-green-800 hover:bg-green-200",
+    blue: "bg-blue-100 text-blue-800 hover:bg-blue-200",
+  }
 
-  const [data, setData] = useState<EmployeeLog[]>([])
+  return (
+    <span
+      className={`inline-flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-full text-xs font-semibold transition-colors ${colors[color]} ${
+        disabled ? "opacity-50 cursor-not-allowed" : ""
+      }`}
+      onClick={!disabled && onClick ? onClick : undefined}
+    >
+      {value}
+    </span>
+  )
+}
+
+/* -------------------------------- Filters Types --------------------------- */
+
+type FilterStatus =
+  | "all"
+  | "has-incomplete-current"
+  | "has-awaiting"
+  | "has-incomplete-historical"
+  | "good-compliance"
+
+interface Filters {
+  status: FilterStatus
+  minIncompleteCurrent: number
+  minAwaiting: number
+  sortBy:
+    | "name"
+    | "current-incomplete"
+    | "awaiting"
+    | "historical-incomplete"
+}
+
+/* ------------------------------ Main Component ---------------------------- */
+
+export default function DriverLogsOverview() {
+  const router = useRouter()
+  const token = useCookies().get("access_token")
+
+  const [drivers, setDrivers] = useState<DriverLogStats[]>([])
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+  const [rowsPerPage] = useState(10)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const token=useCookies().get("access_token")
 
-  // Fetch data from API
+  const [filters, setFilters] = useState<Filters>({
+    status: "all",
+    minIncompleteCurrent: 0,
+    minAwaiting: 0,
+    sortBy: "name",
+  })
+
+  // Reset page when filters or search change
   useEffect(() => {
-    const fetchLogs = async () => {
+    setPage(1)
+  }, [search, filters])
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!token) return
+      setLoading(true)
+
       try {
-        setLoading(true)
-        const response = await fetch(`${API_HOST}/activity/duty-logs/fetch-all-logs`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            // Add authorization header if needed, e.g.:
-            "Authorization": `Bearer ${token}`,
-          },
+        const res = await fetch(`${API_URL}/activity/duty-logs/dutylog-stats/`, {
+          headers: { Authorization: `Bearer ${token}` },
         })
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+        const json = await res.json()
+
+        if (!json.success || !Array.isArray(json.data)) {
+          setDrivers([])
+          return
         }
 
-        const result = await response.json()
+        const mapped = json.data
+          .filter((item: any) => item.user.role === "Driver")
+          .map((item: any) => {
+            const currentTotal = item.current?.total ?? 0
+            const currentComplete = item.current?.complete ?? 0
+            const currentIncompleteFromApi = item.current_incomplete ?? 0
 
-        if (result.success && Array.isArray(result.data)) {
-          setData(result.data)
-        } else {
-          throw new Error(result.message || "Invalid response format")
-        }
-      } catch (err: any) {
-        setError(err.message || "Failed to fetch logs")
-        console.error("Fetch error:", err)
+            return {
+              user_id: item.user.id,
+              full_name: item.user.full_name,
+              current_total: currentTotal,
+              current_complete: currentComplete,
+              current_incomplete:
+                currentIncompleteFromApi > 0
+                  ? currentIncompleteFromApi
+                  : Math.max(0, currentTotal - currentComplete),
+              awaiting_approval: item.historical_awaiting?.length ?? 0,
+              historical_incomplete: item.historical_incomplete?.length ?? 0,
+              historical_complete: item.historical_complete?.length ?? 0,
+            }
+          })
+
+        setDrivers(mapped)
+      } catch (err) {
+        console.error("Failed to load logs stats:", err)
+        setDrivers([])
       } finally {
         setLoading(false)
       }
     }
 
-    fetchLogs()
-  }, [])
+    fetchStats()
+  }, [token])
 
-  const filteredData = useMemo(() => {
-    let filtered = data
+  const filteredAndSortedDrivers = useMemo(() => {
+    let result = [...drivers]
 
-    // Search by name
-    if (searchTerm) {
-      filtered = filtered.filter((emp) =>
-        emp.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+    // Search
+    if (search.trim()) {
+      const term = search.toLowerCase()
+      result = result.filter((d) => d.full_name.toLowerCase().includes(term))
+    }
+
+    // Status filter
+    if (filters.status !== "all") {
+      result = result.filter((driver) => {
+        switch (filters.status) {
+          case "has-incomplete-current":
+            return driver.current_incomplete > 0
+          case "has-awaiting":
+            return driver.awaiting_approval > 0
+          case "has-incomplete-historical":
+            return driver.historical_incomplete > 0
+          case "good-compliance":
+            return (
+              driver.current_incomplete === 0 &&
+              driver.awaiting_approval === 0 &&
+              driver.historical_incomplete === 0
+            )
+          default:
+            return true
+        }
+      })
+    }
+
+    // Minimum count filters
+    if (filters.minIncompleteCurrent > 0) {
+      result = result.filter(
+        (d) => d.current_incomplete >= filters.minIncompleteCurrent
+      )
+    }
+    if (filters.minAwaiting > 0) {
+      result = result.filter(
+        (d) => d.awaiting_approval >= filters.minAwaiting
       )
     }
 
-    // Filter by status
-    if (filterStatus !== "All Status") {
-      filtered = filtered.filter((emp) => emp.status === filterStatus)
-    }
+    // Sorting
+    result.sort((a, b) => {
+      switch (filters.sortBy) {
+        case "name":
+          return a.full_name.localeCompare(b.full_name)
+        case "current-incomplete":
+          return b.current_incomplete - a.current_incomplete
+        case "awaiting":
+          return b.awaiting_approval - a.awaiting_approval
+        case "historical-incomplete":
+          return b.historical_incomplete - a.historical_incomplete
+        default:
+          return 0
+      }
+    })
 
-    return filtered
-  }, [data, searchTerm, filterStatus])
+    return result
+  }, [drivers, search, filters])
 
-  const totalPages = Math.ceil(filteredData.length / rowsPerPage)
-  const paginatedData = filteredData.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
+  const paginated = filteredAndSortedDrivers.slice(
+    (page - 1) * rowsPerPage,
+    page * rowsPerPage
   )
+  const totalPages = Math.ceil(filteredAndSortedDrivers.length / rowsPerPage)
+
+  const navigateToDetail = (driverId: number, category: string) => {
+    router.push(`/dashboard/users/daily-duty-logs/${driverId}?tab=${category}`)
+  }
+
+  const resetFilters = () => {
+    setFilters({
+      status: "all",
+      minIncompleteCurrent: 0,
+      minAwaiting: 0,
+      sortBy: "name",
+    })
+    setSearch("")
+  }
+
+  const hasActiveFilters =
+    filters.status !== "all" ||
+    filters.minIncompleteCurrent > 0 ||
+    filters.minAwaiting > 0 ||
+    search.trim() !== ""
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
-        <p className="text-lg text-muted-foreground">Loading daily logs...</p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-red-600">Error: {error}</p>
-          <Button onClick={() => window.location.reload()}>Retry</Button>
-        </div>
+      <div className="p-8 text-center text-muted-foreground">
+        Loading driver logs statistics...
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground">Daily Logs Management</h1>
-          <p className="text-muted-foreground">
-            Fleet management system for tracking driver daily logs and compliance
-          </p>
-        </div>
+    <div className="p-5 md:p-6 space-y-6 bg-white">
+      <div>
+        <h1 className="text-2xl font-bold">Driver Logs Management</h1>
+        <p className="text-muted-foreground mt-1">
+          Track current week and historical duty log compliance
+        </p>
+      </div>
 
-        <Card className="p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      {/* Filters & Search */}
+      <Card className="p-4">
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search className="absolute left-3 top-1/2 z-10 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search employee"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search driver..."
                 className="pl-10"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="flex gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <Filter className="h-4 w-4" />
-                    {filterStatus}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {["All Status", "Complete", "Incomplete"].map((status) => (
-                    <DropdownMenuItem key={status} onClick={() => setFilterStatus(status)}>
-                      {status}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
-            </div>
-          </div>
-        </Card>
 
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="text-center font-semibold">Index</TableHead>
-                <TableHead className="text-center font-semibold">Name</TableHead>
-                <TableHead className="text-center font-semibold">Current Week</TableHead>
-                <TableHead className="text-center font-semibold">Allocated Shifts</TableHead>
-                <TableHead className="text-center font-semibold">Rest Days</TableHead>
-                <TableHead className="text-center font-semibold">Missing Logs</TableHead>
-                <TableHead className="text-center font-semibold">Working Hours (Week)</TableHead>
-                <TableHead className="text-center font-semibold">Completion %</TableHead>
-                <TableHead className="text-center font-semibold">Action</TableHead>
+            <Select
+              value={filters.status}
+              onValueChange={(v: FilterStatus) =>
+                setFilters((prev) => ({ ...prev, status: v }))
+              }
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Drivers</SelectItem>
+                <SelectItem value="has-incomplete-current">
+                  Has Current Incomplete
+                </SelectItem>
+                <SelectItem value="has-awaiting">Awaiting Approval</SelectItem>
+                <SelectItem value="has-incomplete-historical">
+                  Historical Incomplete
+                </SelectItem>
+                <SelectItem value="good-compliance">Good Compliance ✓</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.sortBy}
+              onValueChange={(v) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  sortBy: v as Filters["sortBy"],
+                }))
+              }
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Sort by..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name (A-Z)</SelectItem>
+                <SelectItem value="current-incomplete">
+                  Most Incomplete (Current)
+                </SelectItem>
+                <SelectItem value="awaiting">Most Awaiting Approval</SelectItem>
+                <SelectItem value="historical-incomplete">
+                  Most Historical Incomplete
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetFilters}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear all
+              </Button>
+            )}
+          </div>
+
+          {/* Optional numeric filters */}
+          {filters.status === "all" && (
+            <div className="flex flex-wrap gap-6 text-sm items-center pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground whitespace-nowrap">
+                  Min current incomplete:
+                </span>
+                <Select
+                  value={String(filters.minIncompleteCurrent)}
+                  onValueChange={(v) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      minIncompleteCurrent: Number(v),
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-20 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Any</SelectItem>
+                    {[1, 2, 3, 5, 10].map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n}+
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground whitespace-nowrap">
+                  Min awaiting approval:
+                </span>
+                <Select
+                  value={String(filters.minAwaiting)}
+                  onValueChange={(v) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      minAwaiting: Number(v),
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-20 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Any</SelectItem>
+                    {[1, 2, 3, 5].map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n}+
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Main Table */}
+      <Card className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-14 text-center font-medium">#</TableHead>
+              <TableHead className="font-medium min-w-[180px]">Driver Name</TableHead>
+
+              <TableHead
+                colSpan={3}
+                className="text-center font-semibold bg-amber-50/60 border-b border-amber-200"
+              >
+                Current Week Logs
+              </TableHead>
+
+              <TableHead
+                colSpan={3}
+                className="text-center font-semibold bg-slate-50 border-b border-slate-200"
+              >
+                Historical Logs Data
+              </TableHead>
+            </TableRow>
+
+            <TableRow className="bg-muted/30">
+              <TableHead className="w-14"></TableHead>
+              <TableHead></TableHead>
+              <TableHead className="text-center text-xs font-medium">Total</TableHead>
+              <TableHead className="text-center text-xs font-medium">Incomplete</TableHead>
+              <TableHead className="text-center text-xs font-medium">Complete</TableHead>
+              <TableHead className="text-center text-xs font-medium">Awaiting Approval</TableHead>
+              <TableHead className="text-center text-xs font-medium">Incomplete</TableHead>
+              <TableHead className="text-center text-xs font-medium">Complete</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {paginated.map((driver, idx) => (
+              <TableRow key={driver.user_id} className="hover:bg-muted/50">
+                <TableCell className="text-center text-muted-foreground">
+                  {(page - 1) * rowsPerPage + idx + 1}
+                </TableCell>
+                <TableCell className="font-medium">{driver.full_name}</TableCell>
+
+                <TableCell className="text-center">
+                  <CountPill
+                    value={driver.current_total}
+                    onClick={() => navigateToDetail(driver.user_id, "current")}
+                  />
+                </TableCell>
+
+                <TableCell className="text-center">
+                  <CountPill
+                    value={driver.current_incomplete}
+                    color="red"
+                    onClick={() =>
+                      driver.current_incomplete > 0 &&
+                      navigateToDetail(driver.user_id, "current-incomplete")
+                    }
+                    disabled={true}
+                  />
+                </TableCell>
+
+                <TableCell className="text-center">
+                  <CountPill
+                    value={driver.current_complete}
+                    color="green"
+                    onClick={() =>
+                      driver.current_complete > 0 &&
+                      navigateToDetail(driver.user_id, "current-complete")
+                    }
+                    disabled={true}
+                  />
+                </TableCell>
+
+                <TableCell className="text-center">
+                  <CountPill
+                    value={driver.awaiting_approval}
+                    color="yellow"
+                    onClick={() =>
+                      driver.awaiting_approval > 0 &&
+                      navigateToDetail(driver.user_id, "awaiting-approval")
+                    }
+                    disabled={driver.awaiting_approval === 0}
+                  />
+                </TableCell>
+
+                <TableCell className="text-center">
+                  <CountPill
+                    value={driver.historical_incomplete}
+                    color="red"
+                    onClick={() =>
+                      driver.historical_incomplete > 0 &&
+                      navigateToDetail(driver.user_id, "historical-incomplete")
+                    }
+                    disabled={driver.historical_incomplete === 0}
+                  />
+                </TableCell>
+
+                <TableCell className="text-center">
+                  <CountPill
+                    value={driver.historical_complete}
+                    color="green"
+                    onClick={() =>
+                      driver.historical_complete > 0 &&
+                      navigateToDetail(driver.user_id, "historical-complete")
+                    }
+                    disabled={driver.historical_complete === 0}
+                  />
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    No records found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedData.map((emp, index) => (
-                  <TableRow key={emp.user_id} className="hover:bg-muted/30">
-                    <TableCell className="text-center">
-                      {(currentPage - 1) * rowsPerPage + index + 1}
-                    </TableCell>
-                    <TableCell>{emp.full_name}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getStatusColor(emp.status as Status)}>
-                        {emp.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">{emp.allocated_shifts}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">{emp.rest_days}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="destructive">{emp.missing_logs}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {emp.working_hours_this_week.toFixed(1)} hrs
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {emp.completion_percentage.toFixed(1)}%
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Link
-                        href={`/dashboard/users/daily-duty-logs/${emp.user_id}`}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+            ))}
 
-        <Card className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Rows per page</span>
-              <select
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value))
-                  setCurrentPage(1)
-                }}
-                className="border rounded px-2 py-1 bg-background"
-              >
-                <option>10</option>
-                <option>25</option>
-                <option>50</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages || 1}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages || totalPages === 0}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            {paginated.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
+                  No drivers found {search ? `matching "${search}"` : ""}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+
+      {/* Pagination */}
+      {filteredAndSortedDrivers.length > 0 && (
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2">
+          <div className="text-sm text-muted-foreground">
+            Showing {(page - 1) * rowsPerPage + 1} to{" "}
+            {Math.min(page * rowsPerPage, filteredAndSortedDrivers.length)} of{" "}
+            {filteredAndSortedDrivers.length} drivers
           </div>
-        </Card>
-      </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <span className="text-sm text-muted-foreground min-w-[90px] text-center">
+              Page {page} / {totalPages}
+            </span>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
