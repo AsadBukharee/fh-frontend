@@ -28,6 +28,7 @@ interface Card {
 }
 
 interface FuelLog {
+  driver_data: object;
   vehicle_data: { id: number; registration_number: string; vehicles_type_name: string; last_mileage: string; purchase_mileage: string | null; mileage_unit: string; mileage_in_km: number | null; mileage_in_miles: number | null; site_allocated: { id: number; name: string; status: string; image: string; }[]; };
   id: number;
   vehicle: {

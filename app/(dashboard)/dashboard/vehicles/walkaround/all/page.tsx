@@ -423,7 +423,7 @@ const WalkaroundPage = () => {
                   {root && (
                     <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
                       <h3 className="text-sm font-semibold">Step <span className="text-gray-500">1</span></h3>
-                      <p className="text-sm font-semibold">Driver: <span className="text-gray-500">{root.conducted_by || "N/A"}</span></p>
+                      <p className="text-sm font-semibold">Checker:  <span className="text-gray-500">{root.conducted_by || "N/A"}</span></p>
                       <p className="text-sm font-semibold">
                         Status: <Badge className={getStatusClasses(root.status)}>
                           {root.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
@@ -455,7 +455,7 @@ const WalkaroundPage = () => {
                       <div key={child.id} className="flex items-center gap-4">
                         <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
                           <h3 className="text-sm font-semibold">Step <span className="text-gray-500">{child.walkaround_step || idx + 2}</span></h3>
-                          <p className="text-sm font-semibold">Driver: <span className="text-gray-500">{child.conducted_by || "N/A"}</span></p>
+                          <p className="text-sm font-semibold">Checker:  <span className="text-gray-500">{child.conducted_by || "N/A"}</span></p>
                           <p className="text-sm font-semibold">
                             Status: <Badge className={getStatusClasses(child.status)}>
                               {child.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}

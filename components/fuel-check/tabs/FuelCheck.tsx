@@ -45,6 +45,7 @@ import { Badge } from "@/components/ui/badge"
 import ExportButton from "@/app/utils/ExportButton"
 
 interface FuelLog {
+  driver_data: any
   id: number
   vehicle: number
   vehicle_data: {
@@ -863,7 +864,7 @@ export default function FuelChecksManagement() {
           page_size: pageSize.toString(),
         })
 
-        const response = await fetch(`${API_URL}/activity/fuel-log/?${queryParams}`, {
+        const response = await fetch(`${API_URL}/activity/fuel-log/?${queryParams}&history=false`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
@@ -1352,7 +1353,7 @@ export default function FuelChecksManagement() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="font-semibold py-4">Log ID</TableHead>
+                  <TableHead className="font-semibold py-4">Driver </TableHead>
                   <TableHead className="font-semibold">Vehicle</TableHead>
                   <TableHead className="font-semibold">Date</TableHead>
                   <TableHead className="font-semibold">Time</TableHead>
@@ -1371,7 +1372,7 @@ export default function FuelChecksManagement() {
                   
                   return (
                     <TableRow key={log.id} className="hover:bg-muted/20">
-                      <TableCell className="font-medium">{log.id}</TableCell>
+                      <TableCell className="font-medium">{log.driver_data.full_name}</TableCell>
                       <TableCell>
                         {log.vehicle_data?.registration_number || "N/A"}
                         <br />
@@ -1591,13 +1592,15 @@ export default function FuelChecksManagement() {
                     ? log.vehicle.id
                     : log.vehicle ?? editLog.vehicle,
                   vehicle_data: log.vehicle_data ?? editLog.vehicle_data,
+                  driver_data: undefined
                 })
               } else {
                 handleAddFuelLog({
                   ...log,
                   vehicle: typeof log.vehicle === "object" && log.vehicle !== null
                     ? log.vehicle.id
-                    : log.vehicle ?? 0, // fallback to 0 if null
+                    : log.vehicle ?? 0,
+                  driver_data: undefined
                 })
               }
             }}
