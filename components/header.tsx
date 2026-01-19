@@ -37,6 +37,7 @@ import { useCookies } from "next-client-cookies";
 import { format, parseISO } from "date-fns";
 import API_URL from "@/app/utils/ENV";
 import Link from "next/link";
+import AssignSite from "./header/AssignSite";
 
 /* -------------------------------------------------
    Types
@@ -369,6 +370,7 @@ export function Header() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-4">
           <SearchBar />
+          <AssignSite/>
         </div>
 
         <div className="flex items-center space-x-2 h-[60px] overflow-x-auto pb-1">
