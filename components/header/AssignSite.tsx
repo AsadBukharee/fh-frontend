@@ -13,9 +13,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Loader2, Check, ChevronDown, Building2, SwitchCamera, Globe, MapPin } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
+// import { toast } from "@/components/ui/use-toast"
 import API_URL from '@/app/utils/ENV'
 import { useCookies } from 'next-client-cookies'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 // Define types based on your API response
 interface Site {
@@ -41,6 +43,7 @@ const AssignSite = () => {
   const [assigning, setAssigning] = useState<number | null>(null)
   const [selectedValue, setSelectedValue] = useState<string>("")
   const token = useCookies().get('access_token')
+  const router=useRouter()
 
   // Fetch sites data
   useEffect(() => {
@@ -69,19 +72,12 @@ const AssignSite = () => {
         // Set selected value to active site
         setSelectedValue(data.data.active_site_id.toString())
       } else {
-        toast({
-          title: "Error",
-          description: data.message || "Failed to fetch sites",
-          variant: "destructive",
-        })
+        toast(data.message || "Failed to fetch sites",
+         )
       }
     } catch (error) {
       console.error('Error fetching sites:', error)
-      toast({
-        title: "Error",
-        description: "Failed to load sites. Please try again.",
-        variant: "destructive",
-      })
+      toast( "Failed to load sites. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -105,24 +101,16 @@ const AssignSite = () => {
       if (data.success) {
         setActiveSiteId(siteId)
         setSelectedValue(siteId.toString())
-        toast({
-          title: "Success",
-          description: `Site switched successfully`,
-        })
+        window.location.reload();
+
+        toast(
+          `Site switched successfully`)
       } else {
-        toast({
-          title: "Error",
-          description: data.message || "Failed to switch site",
-          variant: "destructive",
-        })
+        toast( data.message || "Failed to switch site")
       }
     } catch (error) {
       console.error('Error assigning site:', error)
-      toast({
-        title: "Error",
-        description: "Failed to switch site. Please try again.",
-        variant: "destructive",
-      })
+      toast("Failed to switch site. Please try again.")
     } finally {
       setAssigning(null)
     }
@@ -144,7 +132,7 @@ const AssignSite = () => {
   }
 
   return (
-    <div className="container mx-auto  max-w-4xl">
+    <div className="container mx-auto   max-w-4xl">
     
 
       {/* Main Card */}
