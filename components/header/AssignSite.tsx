@@ -139,17 +139,17 @@ const AssignSite = () => {
       <Card className="max-w-md mx-auto">
     
         
-        <CardContent className="space-y-6">
+        <CardContent className="">
      
 
           {/* Site Switcher Dropdown */}
-          <div className="space-y-3">
+          <div className="space-y-1">
             <label className="text-sm font-medium">
               Switch to Site
             </label>
             
             {/* Option 1: Clean Select Dropdown */}
-            <div className="space-y-2">
+            <div className="space-y-0">
               <Select
                 value={selectedValue}
                 onValueChange={(value) => {

@@ -38,6 +38,7 @@ import { format, parseISO } from "date-fns";
 import API_URL from "@/app/utils/ENV";
 import Link from "next/link";
 import AssignSite from "./header/AssignSite";
+import TimeZone from "./header/TimeZone";
 
 /* -------------------------------------------------
    Types
@@ -368,9 +369,10 @@ export function Header() {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 justify-evenly">
           <SearchBar />
           <AssignSite/>
+          <TimeZone/>
         </div>
 
         <div className="flex items-center space-x-2 h-[60px] overflow-x-auto pb-1">
