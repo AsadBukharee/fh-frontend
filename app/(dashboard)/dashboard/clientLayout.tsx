@@ -32,7 +32,7 @@ export default function ClientLayout({
       <Sidebar isCollapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header  />
-        <TodayRemindersDialog/>
+        {/* <TodayRemindersDialog/> */}
         <main className="flex-1 overflow-y-auto">
           
           {children}</main>

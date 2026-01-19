@@ -252,61 +252,93 @@ const Page = () => {
 };
 
   const fetchTasks = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        search: encodeURIComponent(searchTerm),
-        ...(priorityFilter !== "all" && { priority: priorityFilter }),
-        ...(statusFilter !== "all" && { status: statusFilter }),
-        ...(taskTypeFilter.length > 0 && {
-          task_type: taskTypeFilter.join(","),
-        }),
-        ...(assignedToFilter.length > 0 && {
-          assigned_to: assignedToFilter.join(","),
-        }),
-        ...(assignedByFilter.length > 0 && {
-          assigned_by: assignedByFilter.join(","),
-        }),
-        ...(dateAssignedRange.from &&
-          isValid(dateAssignedRange.from) && {
-            date_assigned_start: format(dateAssignedRange.from, "yyyy-MM-dd"),
-          }),
-        ...(dateAssignedRange.to &&
-          isValid(dateAssignedRange.to) && {
-            date_assigned_end: format(dateAssignedRange.to, "yyyy-MM-dd"),
-          }),
-        ...(deadlineRange.from &&
-          isValid(deadlineRange.from) && {
-            deadline_start: format(deadlineRange.from, "yyyy-MM-dd"),
-          }),
-        ...(deadlineRange.to &&
-          isValid(deadlineRange.to) && {
-            deadline_end: format(deadlineRange.to, "yyyy-MM-dd"),
-          }),
-      });
+  setLoading(true);
 
-      const res = await fetch(`${API_HOST}/api/tasks/?${params}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  try {
+    const params = new URLSearchParams();
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: ApiResponse = await res.json();
+    // ---- Pagination & Search ----
+    params.set("page", currentPage.toString());
 
-      setTasks(data.results);
-      setTotalTasks(data.count);
-      setNextPage(data.next);
-      setPrevPage(data.previous);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to load tasks");
-    } finally {
-      setLoading(false);
+    if (searchTerm.trim()) {
+      params.set("search", searchTerm); // NO encodeURIComponent
     }
-  };
+
+    // ---- Single-value filters ----
+    if (priorityFilter !== "all") {
+      params.set("priority", priorityFilter);
+    }
+
+    if (statusFilter !== "all") {
+      params.set("status", statusFilter);
+    }
+
+    // ---- Multi-ID filters (comma separated) ----
+    if (taskTypeFilter.length > 0) {
+      params.set("task_type", taskTypeFilter.join(","));
+    }
+
+    if (assignedToFilter.length > 0) {
+      params.set("assigned_to", assignedToFilter.join(","));
+    }
+
+    if (assignedByFilter.length > 0) {
+      params.set("assigned_by", assignedByFilter.join(","));
+    }
+
+    // ---- Date assigned range ----
+    if (dateAssignedRange.from && isValid(dateAssignedRange.from)) {
+      params.set(
+        "date_assigned_start",
+        format(dateAssignedRange.from, "yyyy-MM-dd")
+      );
+    }
+
+    if (dateAssignedRange.to && isValid(dateAssignedRange.to)) {
+      params.set(
+        "date_assigned_end",
+        format(dateAssignedRange.to, "yyyy-MM-dd")
+      );
+    }
+
+    // ---- Deadline range ----
+    if (deadlineRange.from && isValid(deadlineRange.from)) {
+      params.set(
+        "deadline_start",
+        format(deadlineRange.from, "yyyy-MM-dd")
+      );
+    }
+
+    if (deadlineRange.to && isValid(deadlineRange.to)) {
+      params.set(
+        "deadline_end",
+        format(deadlineRange.to, "yyyy-MM-dd")
+      );
+    }
+
+    const res = await fetch(`${API_HOST}/api/tasks/?${params.toString()}`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data: ApiResponse = await res.json();
+
+    setTasks(data.results);
+    setTotalTasks(data.count);
+    setNextPage(data.next);
+    setPrevPage(data.previous);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load tasks");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // ------------------- EFFECTS -------------------
   useEffect(() => {
