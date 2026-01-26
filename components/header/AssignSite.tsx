@@ -132,101 +132,73 @@ const AssignSite = () => {
   }
 
   return (
-    <div className="container mx-auto   max-w-4xl">
-    
-
-      {/* Main Card */}
-      <Card className="max-w-md mx-auto">
-    
-        
-        <CardContent className="">
-     
-
-          {/* Site Switcher Dropdown */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium">
-              Switch to Site
-            </label>
-            
-            {/* Option 1: Clean Select Dropdown */}
-            <div className="space-y-0">
-              <Select
-                value={selectedValue}
-                onValueChange={(value) => {
-                  if (value !== selectedValue) {
-                    handleAssignSite(parseInt(value))
-                  }
-                }}
-                disabled={assigning !== null || sites.length <= 1}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a site">
-                    {selectedValue ? (
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
-                          <AvatarImage 
-                            src={getSiteById(parseInt(selectedValue))?.image}
-                            alt={getSiteById(parseInt(selectedValue))?.name}
-                          />
-                          <AvatarFallback>
-                            <Building2 className="h-3 w-3" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <span>{getSiteById(parseInt(selectedValue))?.name}</span>
-                      </div>
-                    ) : (
-                      "Select a site"
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {sites.map((site) => (
-                    <SelectItem 
-                      key={site.id} 
-                      value={site.id.toString()}
-                      className="cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
-                          <AvatarImage src={site.image} alt={site.name} />
-                          <AvatarFallback>
-                            <Building2 className="h-3 w-3" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col flex-1">
-                          <span>{site.name?.slice(0,20)}..</span>
-                          <span className="text-xs text-muted-foreground">
-                            ID: {site.id}
-                          </span>
-                        </div>
-                        {activeSiteId === site.id && (
-                          <Check className="h-4 w-4 text-green-600" />
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              {assigning !== null && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Switching site...
-                </div>
-              )}
-            </div>
-
-         
-          </div>
-
+<div className="max-w-sm mx-auto">
+  <div className="flex flex-col justify-start items-center gap-2">
    
 
-      
-        </CardContent>
-      </Card>
+    <Select
+      value={selectedValue}
+      onValueChange={(value) => {
+        if (value !== selectedValue) {
+          handleAssignSite(Number(value))
+        }
+      }}
+      disabled={assigning !== null || sites.length <= 1}
+    >
+      <SelectTrigger className="h-9 px-2 text-sm">
+        <SelectValue placeholder="Select site">
+          {selectedValue && (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-4 w-4">
+                <AvatarImage
+                  src={getSiteById(Number(selectedValue))?.image}
+                />
+                <AvatarFallback>
+                  <Building2 className="h-3 w-3" />
+                </AvatarFallback>
+              </Avatar>
+              <span className="truncate max-w-[140px]">
+                {getSiteById(Number(selectedValue))?.name}
+              </span>
+            </div>
+          )}
+        </SelectValue>
+      </SelectTrigger>
 
-     
-    </div>
+      <SelectContent className="text-sm">
+        {sites.map((site) => (
+          <SelectItem
+            key={site.id}
+            value={site.id.toString()}
+            className="py-1.5"
+          >
+            <div className="flex items-center gap-2">
+              <Avatar className="h-4 w-4">
+                <AvatarImage src={site.image} />
+                <AvatarFallback>
+                  <Building2 className="h-3 w-3" />
+                </AvatarFallback>
+              </Avatar>
+
+              <span className="truncate max-w-[160px]">
+                {site.name}
+              </span>
+
+              {activeSiteId === site.id && (
+                <Check className="h-3.5 w-3.5 text-green-600 ml-auto" />
+              )}
+            </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+    {assigning && (
+      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+    )}
+  </div>
+</div>
+
   )
 }
 

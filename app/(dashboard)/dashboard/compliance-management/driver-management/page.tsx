@@ -118,8 +118,7 @@ const FIELD_CONFIG = {
 } as const;
 
 const DriverManagementPage = () => {
-  const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
-  const [filteredDrivers, setFilteredDrivers] = useState<Driver[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Pagination
@@ -138,7 +137,7 @@ const DriverManagementPage = () => {
   const [filters, setFilters] = useState({
     search: '',
     profile_status: 'all',
-    driver_licence_expiry_filter: '', // Filter by expiry status: 'expired', 'expiring_soon', 'valid'
+    driver_licence_expiry_filter: '',
     cpc_card_expiry_filter: '',
     dbs_expiry_date_filter: '',
     tacho_expiry_filter: '',
@@ -146,11 +145,39 @@ const DriverManagementPage = () => {
 
   const token = useCookies().get("access_token");
 
-  // Fetch all drivers once
+  // Build query parameters
+  const buildQueryParams = () => {
+    const params = new URLSearchParams();
+    
+    // Pagination params
+    params.append('page', currentPage.toString());
+    params.append('page_size', pageSize.toString());
+    
+    // Search filter
+    if (filters.search) {
+      params.append('search', filters.search);
+    }
+    
+    // Profile status filter
+    if (filters.profile_status && filters.profile_status !== 'all') {
+      params.append('profile_status', filters.profile_status);
+    }
+    
+    // Date filters - you'll need to adjust these based on your backend API capabilities
+    // If your backend doesn't support these filters, you'll need to handle them client-side
+    // or implement backend filtering
+    
+    return params.toString();
+  };
+
+  // Fetch drivers with pagination and filters
   const fetchDrivers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/profiles/driver/compliance/`, {
+      const queryParams = buildQueryParams();
+      const url = `${API_URL}/api/profiles/driver/compliance/?${queryParams}`;
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -161,13 +188,8 @@ const DriverManagementPage = () => {
       if (!response.ok) throw new Error('Failed to fetch drivers');
 
       const data: ApiResponse = await response.json();
-      setAllDrivers(data.data.results);
-      setFilteredDrivers(data.data.results);
-      setPagination(prev => ({
-        ...prev,
-        count: data.data.results.length,
-        total_pages: Math.ceil(data.data.results.length / pageSize),
-      }));
+      setDrivers(data.data.results);
+      setPagination(data.data.pagination);
     } catch (error) {
       console.error('Error fetching drivers:', error);
     } finally {
@@ -175,86 +197,16 @@ const DriverManagementPage = () => {
     }
   };
 
+  // Fetch drivers when dependencies change
   useEffect(() => {
     fetchDrivers();
-  }, []);
+  }, [currentPage, pageSize, filters]);
 
-  // Apply frontend filtering whenever filters change
-  useEffect(() => {
-    if (allDrivers.length === 0) return;
-
-    let result = [...allDrivers];
-
-    // Apply search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      result = result.filter(driver =>
-        driver.user.full_name.toLowerCase().includes(searchLower) ||
-        driver.user.email.toLowerCase().includes(searchLower) ||
-        (driver.user.license_number && driver.user.license_number.toLowerCase().includes(searchLower))
-      );
-    }
-
-    // Apply profile status filter
-    if (filters.profile_status && filters.profile_status !== 'all') {
-      result = result.filter(driver => driver.profile_status === filters.profile_status);
-    }
-
-    // Apply date filters based on expiry status
-    const applyExpiryFilter = (dateField: keyof Driver['driver_compliance'], filterValue: string) => {
-      if (!filterValue) return;
-      
-      const today = new Date();
-      
-      result = result.filter(driver => {
-        const dateString = driver.driver_compliance[dateField];
-        if (!dateString) return false;
-        
-        const expiryDate = parseISO(dateString);
-        const daysUntilExpiry = differenceInDays(expiryDate, today);
-        
-        switch (filterValue) {
-          case 'expired':
-            return isPast(expiryDate);
-          case 'expiring_soon':
-            return !isPast(expiryDate) && daysUntilExpiry <= 90;
-          case 'valid':
-            return !isPast(expiryDate) && daysUntilExpiry > 90;
-          default:
-            return true;
-        }
-      });
-    };
-
-    applyExpiryFilter('driver_licence_expiry', filters.driver_licence_expiry_filter);
-    applyExpiryFilter('cpc_card_expiry', filters.cpc_card_expiry_filter);
-    applyExpiryFilter('dbs_expiry_date', filters.dbs_expiry_date_filter);
-    applyExpiryFilter('tacho_expiry', filters.tacho_expiry_filter);
-
-    // Update filtered drivers
-    setFilteredDrivers(result);
-    
-    // Update pagination
-    setPagination(prev => ({
-      ...prev,
-      count: result.length,
-      total_pages: Math.ceil(result.length / pageSize),
-      current_page: 1,
-    }));
-    
-    // Reset to first page when filters change
-    setCurrentPage(1);
-  }, [filters, allDrivers, pageSize]);
-
-  // Get paginated drivers
-  const paginatedDrivers = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return filteredDrivers.slice(startIndex, endIndex);
-  }, [filteredDrivers, currentPage, pageSize]);
-
+  // Handle filter changes
   const handleFilterChange = (field: string, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
+    // Reset to first page when filters change
+    setCurrentPage(1);
   };
 
   const clearFilters = () => {
@@ -266,6 +218,7 @@ const DriverManagementPage = () => {
       dbs_expiry_date_filter: '',
       tacho_expiry_filter: '',
     });
+    setCurrentPage(1);
   };
 
   const getDateStatus = (dateString: string | null, field: string): { colorClass: string, label: string } => {
@@ -506,7 +459,10 @@ const DriverManagementPage = () => {
           </Button>
         </div>
 
-        <Select value={pageSize.toString()} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
+        <Select value={pageSize.toString()} onValueChange={(v) => { 
+          setPageSize(Number(v)); 
+          setCurrentPage(1);
+        }}>
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>
@@ -525,8 +481,8 @@ const DriverManagementPage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Driver Compliance</h1>
         <div className="flex gap-3 items-center">
-          <ExportChartButton  data={filteredDrivers} fileName="driver_compliance_report" />
-          <ExportButton data={filteredDrivers} fileName="driver_compliance_report" />
+          <ExportChartButton data={drivers} fileName="driver_compliance_report" />
+          <ExportButton data={drivers} fileName="driver_compliance_report" />
         </div>
       </div>
 
@@ -579,8 +535,7 @@ const DriverManagementPage = () => {
 
       {/* Results Summary */}
       <div className="mb-4 text-sm text-gray-600">
-        Found {filteredDrivers.length} driver{filteredDrivers.length !== 1 ? 's' : ''}
-        {filteredDrivers.length !== allDrivers.length && ` (from ${allDrivers.length} total)`}
+        Found {pagination.count} driver{pagination.count !== 1 ? 's' : ''}
       </div>
 
       {/* Table */}
@@ -610,14 +565,14 @@ const DriverManagementPage = () => {
                     <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                   </TableCell>
                 </TableRow>
-              ) : paginatedDrivers.length === 0 ? (
+              ) : drivers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={12} className="text-center py-12 text-gray-500">
                     No drivers found matching your filters.
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedDrivers.map((driver) => (
+                drivers.map((driver) => (
                   <TableRow key={driver.id}>
                     <TableCell className="font-medium">
                       <Link

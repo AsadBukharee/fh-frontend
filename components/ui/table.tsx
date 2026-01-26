@@ -18,7 +18,7 @@ const TableHeader = React.forwardRef<HTMLTableSectionElement, React.HTMLAttribut
   ({ className, ...props }, ref) => (
     <thead
       ref={ref}
-      className={cn("[&_tr]:border-b border-gray-300", className)}
+      className={cn("[&_tr]:border-b border-gray-300 sticky top-0 z-10", className)}
       {...props}
     />
   ),
@@ -71,6 +71,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
       className={cn(
         "h-12 px-4 text-center align-middle font-medium text-muted-foreground border border-gray-300",
         "odd:bg-[#FFF4F4]/40 even:bg-white",
+        "sticky top-0", // Make each header cell sticky
         className,
       )}
       {...props}

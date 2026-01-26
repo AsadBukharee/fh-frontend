@@ -172,7 +172,7 @@ const generateMonths = () => {
     const date = new Date(
       currentDate.getFullYear(),
       currentDate.getMonth() + i,
-      1
+      1,
     );
     months.push({
       value: `${date.getFullYear()}-${date.getMonth() + 1}`,
@@ -201,9 +201,9 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("all");
-  
+
   const [selectedMonth, setSelectedMonth] = useState<string>(
-    `${year}-${month}`
+    `${year}-${month}`,
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -214,16 +214,16 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     salaryData: Record<string, Record<string, number>>;
   } | null>(null);
   const cookies = useCookies();
-  const role=cookies.get("role");
+  const role = cookies.get("role");
   const months = generateMonths();
 
   const currentMonthData =
     months.find((m) => m.value === selectedMonth) || months[6];
   const startDate = startOfDay(
-    new Date(currentMonthData.year, currentMonthData.month - 1, 1)
+    new Date(currentMonthData.year, currentMonthData.month - 1, 1),
   );
   const endDate = startOfDay(
-    new Date(currentMonthData.year, currentMonthData.month, 0)
+    new Date(currentMonthData.year, currentMonthData.month, 0),
   );
 
   const fetchData = async (retryCount = 0) => {
@@ -248,13 +248,15 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
 
       if (!shiftsResponse.ok) {
         if (shiftsResponse.status === 401 && retryCount < 3) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** retryCount));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * 2 ** retryCount),
+          );
           return fetchData(retryCount + 1);
         }
         throw new Error(
           shiftsResponse.status === 401
             ? "Authentication failed. Please log in again."
-            : `Failed to fetch shifts: ${shiftsResponse.statusText}`
+            : `Failed to fetch shifts: ${shiftsResponse.statusText}`,
         );
       }
 
@@ -262,7 +264,8 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
 
       const usersFromChildRota = shiftsData.rota_by_user.map((entry) => ({
         ...entry.user,
-        display_name: entry.user.display_name || entry.user.full_name || "Unknown",
+        display_name:
+          entry.user.display_name || entry.user.full_name || "Unknown",
         is_active: entry.user.is_active ?? true,
         role: entry.user.role || "No Role",
         contract: entry.user.contract || null,
@@ -275,9 +278,12 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
         entry.rota.map((shift: Shift) => {
           const hours = parseFloat(shift.shift_detail.total_hours) || 0;
           const calculatedSalary = hours * shift.shift_detail.rate_per_hours;
-          if (shift.daily_salary !== 0 && shift.daily_salary !== calculatedSalary) {
+          if (
+            shift.daily_salary !== 0 &&
+            shift.daily_salary !== calculatedSalary
+          ) {
             console.warn(
-              `Salary mismatch for shift ${shift.id}: API=${shift.daily_salary}, Calculated=${calculatedSalary}`
+              `Salary mismatch for shift ${shift.id}: API=${shift.daily_salary}, Calculated=${calculatedSalary}`,
             );
           }
           return {
@@ -285,7 +291,8 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
             date: normalizeDate(shift.date),
             user: {
               ...entry.user,
-              display_name: entry.user.display_name || entry.user.full_name || "Unknown",
+              display_name:
+                entry.user.display_name || entry.user.full_name || "Unknown",
               is_active: entry.user.is_active ?? true,
               role: entry.user.role || "No Role",
               contract: entry.user.contract || null,
@@ -295,7 +302,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
             daily_hours: shift.daily_hours || hours,
             daily_salary: shift.daily_salary || calculatedSalary,
           };
-        })
+        }),
       );
       setShifts(allShifts);
       setStats({
@@ -309,7 +316,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
       });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "An unexpected error occurred."
+        err instanceof Error ? err.message : "An unexpected error occurred.",
       );
       console.error(err);
     } finally {
@@ -341,11 +348,11 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
   const summaryStats = {
     totalHours: filteredShifts.reduce(
       (sum, shift) => sum + shift.daily_hours,
-      0
+      0,
     ),
     totalSalary: filteredShifts.reduce(
       (sum, shift) => sum + shift.daily_salary,
-      0
+      0,
     ),
     activeUsers: new Set(filteredShifts.map((shift) => shift.user?.id)).size,
     averageHoursPerDay:
@@ -358,7 +365,12 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
   const prepareChartData = () => {
     const dailyData: Record<
       string,
-      { date: string; hours: number; salary: number; users: Set<number | undefined> }
+      {
+        date: string;
+        hours: number;
+        salary: number;
+        users: Set<number | undefined>;
+      }
     > = {};
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -382,7 +394,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     const userPerformance = childRotaUsers
       .map((user) => {
         const userShifts = filteredShifts.filter(
-          (shift) => shift.user?.id === user.id
+          (shift) => shift.user?.id === user.id,
         );
         return {
           name: (user.display_name || user.full_name)?.split(" ")[0],
@@ -390,7 +402,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
           hours: userShifts.reduce((sum, shift) => sum + shift.daily_hours, 0),
           salary: userShifts.reduce(
             (sum, shift) => sum + shift.daily_salary,
-            0
+            0,
           ),
           shifts: userShifts.length,
           avatar: user.avatar,
@@ -398,30 +410,39 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
       })
       .filter((user) => user.shifts > 0);
 
-    const shiftTypeData = filteredShifts.reduce((acc, shift) => {
-      const type = shift.shift_detail.name;
-      if (!acc[type]) {
-        acc[type] = {
-          name: type,
-          count: 0,
-          hours: 0,
-          color: shift.shift_detail.colors || DEFAULT_SHIFT_COLOR,
-        };
-      }
-      acc[type].count += 1;
-      acc[type].hours += shift.daily_hours;
-      return acc;
-    }, {} as Record<string, { name: string; count: number; hours: number; color: string }>);
+    const shiftTypeData = filteredShifts.reduce(
+      (acc, shift) => {
+        const type = shift.shift_detail.name;
+        if (!acc[type]) {
+          acc[type] = {
+            name: type,
+            count: 0,
+            hours: 0,
+            color: shift.shift_detail.colors || DEFAULT_SHIFT_COLOR,
+          };
+        }
+        acc[type].count += 1;
+        acc[type].hours += shift.daily_hours;
+        return acc;
+      },
+      {} as Record<
+        string,
+        { name: string; count: number; hours: number; color: string }
+      >,
+    );
     const shiftTypePieData = Object.values(shiftTypeData);
 
-    const roleData = childRotaUsers.reduce((acc, user) => {
-      const role = user.role || "No Role";
-      if (!acc[role]) {
-        acc[role] = { name: role, count: 0 };
-      }
-      acc[role].count += 1;
-      return acc;
-    }, {} as Record<string, { name: string; count: number }>);
+    const roleData = childRotaUsers.reduce(
+      (acc, user) => {
+        const role = user.role || "No Role";
+        if (!acc[role]) {
+          acc[role] = { name: role, count: 0 };
+        }
+        acc[role].count += 1;
+        return acc;
+      },
+      {} as Record<string, { name: string; count: number }>,
+    );
     const rolePieData = Object.values(roleData);
 
     return {
@@ -451,18 +472,21 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     let currentWeekNumber = 0;
     days.forEach((day, index) => {
       const dayShifts = filteredShifts.filter(
-        (shift) => shift.date === format(day, "yyyy-MM-dd")
+        (shift) => shift.date === format(day, "yyyy-MM-dd"),
       );
       const weekNumber =
-        dayShifts.length > 0 ? dayShifts[0].week_number : getISOWeek(day) % 4 || 4;
+        dayShifts.length > 0
+          ? dayShifts[0].week_number
+          : getISOWeek(day) % 4 || 4;
       if (index === 0 || weekNumber !== currentWeekNumber) {
         if (currentWeek.length > 0) {
           weeks.push({
             days: currentWeek,
             weekLabel: `Week ${currentWeekNumber}`,
             weekColor:
-              WEEK_COLORS[`Week ${currentWeekNumber}` as keyof typeof WEEK_COLORS] ||
-              "#3b82f6",
+              WEEK_COLORS[
+                `Week ${currentWeekNumber}` as keyof typeof WEEK_COLORS
+              ] || "#3b82f6",
           });
         }
         currentWeek = [];
@@ -474,8 +498,9 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
           days: currentWeek,
           weekLabel: `Week ${currentWeekNumber}`,
           weekColor:
-            WEEK_COLORS[`Week ${currentWeekNumber}` as keyof typeof WEEK_COLORS] ||
-            "#3b82f6",
+            WEEK_COLORS[
+              `Week ${currentWeekNumber}` as keyof typeof WEEK_COLORS
+            ] || "#3b82f6",
         });
       }
     });
@@ -504,15 +529,19 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
 
   const getWeekColor = (date: Date) => {
     const dayShifts = filteredShifts.filter(
-      (shift) => shift.date === format(date, "yyyy-MM-dd")
+      (shift) => shift.date === format(date, "yyyy-MM-dd"),
     );
     const weekNumber =
-      dayShifts.length > 0 ? dayShifts[0].week_number : getISOWeek(date) % 4 || 4;
-    return WEEK_COLORS[`Week ${weekNumber}` as keyof typeof WEEK_COLORS] || "#3b82f6";
+      dayShifts.length > 0
+        ? dayShifts[0].week_number
+        : getISOWeek(date) % 4 || 4;
+    return (
+      WEEK_COLORS[`Week ${weekNumber}` as keyof typeof WEEK_COLORS] || "#3b82f6"
+    );
   };
 
   const uniqueRoles = Array.from(
-    new Set(childRotaUsers.map((user) => user.role).filter(Boolean))
+    new Set(childRotaUsers.map((user) => user.role).filter(Boolean)),
   );
 
   if (loading) {
@@ -564,7 +593,10 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData.dailyChartData.slice(-7)}>
                   <RechartsTooltip
-                    contentStyle={{ backgroundColor: "#fff", borderRadius: "8px" }}
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      borderRadius: "8px",
+                    }}
                     formatter={(value: number, name: string) => [
                       `${value.toFixed(1)} ${name}`,
                       name,
@@ -584,41 +616,48 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
           </CardContent>
         </Card>
 
-       {role==="superadmin" ? ( <Card className="relative overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Salary</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              £{summaryStats.totalSalary.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              For {currentMonthData.label}
-            </p>
-            <div className="h-16">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData.dailyChartData.slice(-7)}>
-                  <RechartsTooltip
-                    contentStyle={{ backgroundColor: "#fff", borderRadius: "8px" }}
-                    formatter={(value: number, name: string) => [
-                      `£${value.toFixed(2)}`,
-                      name,
-                    ]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="salary"
-                    stroke={CHART_COLORS.secondary}
-                    fill={CHART_COLORS.secondary}
-                    fillOpacity={0.2}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>):null}
+        {role === "superadmin" ? (
+          <Card className="relative overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Salary
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                £{summaryStats.totalSalary.toFixed(2)}
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                For {currentMonthData.label}
+              </p>
+              <div className="h-16">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData.dailyChartData.slice(-7)}>
+                    <RechartsTooltip
+                      contentStyle={{
+                        backgroundColor: "#fff",
+                        borderRadius: "8px",
+                      }}
+                      formatter={(value: number, name: string) => [
+                        `£${value.toFixed(2)}`,
+                        name,
+                      ]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="salary"
+                      stroke={CHART_COLORS.secondary}
+                      fill={CHART_COLORS.secondary}
+                      fillOpacity={0.2}
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -685,7 +724,9 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
                     {chartData.shiftTypePieData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={entry.color || PIE_COLORS[index % PIE_COLORS.length]}
+                        fill={
+                          entry.color || PIE_COLORS[index % PIE_COLORS.length]
+                        }
                       />
                     ))}
                   </Pie>
@@ -794,184 +835,134 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
         </CardContent>
       </Card>
 
-      {/* Shift Schedule */}
-      <Card>
-        <CardHeader className="flex justify-between flex-row w-full items-center">
-          <div>
-            <CardTitle className="text-lg">Shift Schedule</CardTitle>
-            <CardDescription>
-              {selectedUser
-                ? `Showing shifts for ${
-                    childRotaUsers.find((u) => u.id === selectedUser)?.full_name
-                  } - ${currentMonthData.label}`
-                : `Showing all shifts for ${currentMonthData.label}`}
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <TooltipProvider>
-            <div className="overflow-x-auto rounded-lg border">
-              <Table className="bg-white">
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead
-                      className="sticky left-0 z-10 text-center text-xs font-medium uppercase tracking-wider bg-gray-50"
-                      style={{ minWidth: "120px" }}
-                    >
-                      Day
-                    </TableHead>
-                    {(selectedUser
-                      ? childRotaUsers.filter((u) => u.id === selectedUser)
-                      : filteredUsers
-                    ).map((user) => (
-                      <TableHead
-                        key={user.id}
-                        className="text-center text-xs font-medium uppercase tracking-wider pl-4"
-                        style={{ minWidth: "200px",maxWidth: "200px" }}
-                      >
-                        <div className="flex items-center gap-2 justify-center">
-                          
-                          <div>
-                            <div className="font-medium">{user.full_name}</div>
-                           
-                          </div>
-                        </div>
-                      </TableHead>
-                    ))}
-                   
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {weeks.map((week, weekIndex) => (
-                    <React.Fragment key={weekIndex}>
-                      <TableRow className="bg-gray-100">
-                        <TableCell
-                          colSpan={(selectedUser ? 1 : filteredUsers.length) + 4}
-                          className="text-sm font-semibold"
-                          style={{ backgroundColor: week.weekColor, color: "#fff" }}
-                        >
-                          {week.weekLabel}
-                        </TableCell>
-                      </TableRow>
-                      {week.days.map((dayData, dayIndex) => {
-                        const dayStr = format(dayData, "yyyy-MM-dd");
-                        const totalDailySalary = filteredShifts
-                          .filter((shift) => shift.date === dayStr)
-                          .reduce((sum, shift) => sum + shift.daily_salary, 0);
-                        const dailyStats = stats?.dailyStats.find(
-                          (stat) => stat.date === dayStr
-                        ) || {
-                          users_working: 0,
-                          total_staff: 0,
-                          total_drivers: 0,
-                          total_holidays: 0,
-                          total_salary: 0,
-                        };
+     <Card>
+  <CardHeader className="flex justify-between flex-row w-full items-center">
+    <div>
+      <CardTitle className="text-lg">Shift Schedule</CardTitle>
+      <CardDescription>
+        {selectedUser
+          ? `Showing shifts for ${
+              childRotaUsers.find((u) => u.id === selectedUser)?.full_name
+            } - ${currentMonthData.label}`
+          : `Showing all shifts for ${currentMonthData.label}`}
+      </CardDescription>
+    </div>
+  </CardHeader>
 
-                        return (
-                          <TableRow
-                            key={dayStr}
-                            className={dayIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                          >
-                            <TableCell
-                              className="sticky left-0 z-10 bg-white whitespace-nowrap text-sm font-medium"
-                              style={{ color: getWeekColor(dayData), minWidth: "120px" }}
-                            >
-                              <Tooltip >
-                                <TooltipTrigger asChild>
-                                  <div className="bg-[#FFF4F4]/40">
-                                    <div className="font-semibold flex items-center gap-2">
-                                      {getDayName(dayData)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {format(dayData, "dd/MM/yyyy")}
-                                    </div>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-white p-4 rounded-md shadow-md border">
-                                  <div className="text-sm">
-                                    <p>
-                                      <strong>Date:</strong> {format(dayData, "dd/MM/yyyy")}
-                                    </p>
-                                    <p>
-                                      {role === "superadmin" ? (
-                                        <strong>
-                                          Total Salary: {'\u00A3'}
-                                          {totalDailySalary.toFixed(2)}
-                                        </strong>
-                                      ) : null}
-                                    </p>
-                                    <p>
-                                      <strong>Total Staff:</strong> {dailyStats.total_staff}
-                                    </p>
-                                    <p>
-                                      <strong>Total Drivers:</strong> {dailyStats.total_drivers}
-                                    </p>
-                                    <p>
-                                      <strong>Total Holidays:</strong> {dailyStats.total_holidays}
-                                    </p>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TableCell>
-                            {(selectedUser
-                              ? childRotaUsers.filter((u) => u.id === selectedUser)
-                              : filteredUsers
-                            ).map((user) => {
-                              const userShift = filteredShifts.find(
-                                (shift) =>
-                                  shift.date === dayStr && shift.user?.id === user.id
-                              );
-                              return (
-                                <TableCell
-                                  key={user.id}
-                                  className="p-2 align-top text-center"
-                                  style={{ minWidth: "200px"}}
-                                >
-                                  {userShift ? (
-                                    <ShiftCard
-                                      shiftType={userShift.shift_detail.name}
-                                      shift_cell_id={userShift.id}
-                                      onShiftUpdate={fetchData}
-                                      shift_id={userShift.shift_detail.id}
-                                      shift_list={userShift?.user?.shifts ?? []}
-                                      shift_daily_salary={userShift.daily_salary}
-                                      color={
-                                        userShift.shift_detail.colors ||
-                                        DEFAULT_SHIFT_COLOR
-                                      }
-                                      rate={userShift.shift_detail.rate_per_hours}
-                                      total_hours={userShift.daily_hours}
-                                    />
-                                  ) : (
-                                    <div className="h-16 w-[200px] rounded-md bg-gray-100/50 border-2 border-dashed border-gray-200 flex items-center justify-center">
-                                      <span className="text-xs text-gray-400">
-                                        No shift
-                                      </span>
-                                    </div>
-                                  )}
-                                </TableCell>
-                              );
-                            })}
-                         
-                          </TableRow>
-                        );
-                      })}
-                      {weekIndex < weeks.length - 1 && (
-                        <TableRow className="h-2 bg-gray-200">
-                          <TableCell
-                            colSpan={(selectedUser ? 1 : filteredUsers.length) + 4}
-                          ></TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </TooltipProvider>
-        </CardContent>
-      </Card>
+<CardContent className="p-0">
+  <div className="relative max-h-[70vh] overflow-auto rounded-lg border">
+    <table className="w-full border-collapse text-sm text-center">
+      <thead className="[&_tr]:border-b border-gray-300">
+        <tr>
+          {/* Day column - sticky top-left */}
+          <th
+            className="sticky top-0 left-0 z-30 py-3 bg-gray-50 border border-gray-300"
+            style={{ minWidth: "120px" }}
+          >
+            Day
+          </th>
+
+          {/* User columns - sticky top */}
+          {(selectedUser ? childRotaUsers.filter(u => u.id === selectedUser) : filteredUsers).map(user => (
+            <th
+              key={user.id}
+              className="sticky top-0 z-20 bg-gray-50 border border-gray-300"
+              style={{ minWidth: "200px", maxWidth: "200px" }}
+            >
+              {user.full_name}
+            </th>
+          ))}
+        </tr>
+      </thead>
+
+      <tbody className="[&_tr:last-child]:border-0">
+        {weeks.map((week, weekIndex) => (
+          <React.Fragment key={weekIndex}>
+            {/* Week label row */}
+            <tr className="bg-gray-100 ">
+              <td
+                colSpan={(selectedUser ? 1 : filteredUsers.length) + 1}
+                className="font-semibold p-2 text-left"
+                style={{ backgroundColor: week.weekColor, color: "#fff" }}
+              >
+                {week.weekLabel}
+              </td>
+            </tr>
+
+            {/* Daily rows */}
+            {week.days.map((dayData, dayIndex) => {
+              const dayStr = format(dayData, "yyyy-MM-dd");
+              return (
+                <tr
+                  key={dayStr}
+                  className={dayIndex % 2 === 0 ? "bg-white" : "bg-[#FFF4F4]/40"}
+                >
+                  {/* Day cell - sticky left */}
+                  <td
+                    className="sticky left-0 z-10 m-2 font-medium whitespace-nowrap border border-gray-300"
+                    style={{ minWidth: "120px", color: getWeekColor(dayData), backgroundColor: "#fff" }}
+                  >
+                    <div>
+                      <div className="font-semibold">{getDayName(dayData)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(dayData, "dd/MM/yyyy")}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* User shift cells */}
+                  {(selectedUser ? childRotaUsers.filter(u => u.id === selectedUser) : filteredUsers).map(user => {
+                    const userShift = filteredShifts.find(
+                      shift => shift.date === dayStr && shift.user?.id === user.id
+                    );
+
+                    return (
+                      <td key={user.id} className="p-2" style={{ minWidth: "200px", border: "1px solid #D1D5DB" }}>
+                        {userShift ? (
+                          <ShiftCard
+                            shiftType={userShift.shift_detail.name}
+                            shift_cell_id={userShift.id}
+                            onShiftUpdate={fetchData}
+                            shift_id={userShift.shift_detail.id}
+                            shift_list={userShift?.user?.shifts ?? []}
+                            shift_daily_salary={userShift.daily_salary}
+                            color={userShift.shift_detail.colors || DEFAULT_SHIFT_COLOR}
+                            rate={userShift.shift_detail.rate_per_hours}
+                            total_hours={userShift.daily_hours}
+                            staffName={user.full_name}
+                            date={userShift.date}
+                            showHourlyRate={role === "superadmin" || role === "admin"}
+                          />
+                        ) : (
+                          <div className="h-16 w-full rounded-md bg-gray-100/50 border-dashed border border-gray-300 flex items-center justify-center text-xs text-gray-400">
+                            No shift
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+
+            {/* Spacer row */}
+            {weekIndex < weeks.length - 1 && (
+              <tr className="h-2 bg-gray-200">
+                <td colSpan={(selectedUser ? 1 : filteredUsers.length) + 1} />
+              </tr>
+            )}
+          </React.Fragment>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</CardContent>
+
+
+
+
+</Card>
+
     </div>
   );
 }
