@@ -4,8 +4,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Car, Users, Wrench, Calendar, AlertCircle, CheckCircle, 
+import {
+  Car, Users, Wrench, Calendar, AlertCircle, CheckCircle,
   Bell, TrendingUp, TrendingDown, Loader2, X, AlertTriangle,
   FileText, Shield, Truck, CheckSquare, XCircle, ArrowUpRight,
   ArrowDownLeft, UserCheck, UserX, Info, ChevronRight,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 // Import ShadCN Tooltip Components
 import {
@@ -133,7 +134,7 @@ const HoverDetailsContent: React.FC<{
             Items ({details.length})
           </h4>
           <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-            {(details as Array<{title: string, deadline?: string}>).map((item, index) => (
+            {(details as Array<{ title: string, deadline?: string }>).map((item, index) => (
               <div key={index} className="flex flex-col gap-1 p-2 rounded hover:bg-gray-50 transition-colors group">
                 <div className="flex items-start gap-2">
                   <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0 group-hover:bg-blue-500 transition-colors" />
@@ -142,7 +143,7 @@ const HoverDetailsContent: React.FC<{
                 {item.deadline && (
                   <div className="flex items-center gap-1 text-xs text-gray-500 ml-3">
                     <Calendar className="w-3 h-3" />
-                    <span>Due: {new Date(item.deadline).toLocaleDateString()}</span>
+                    <span>Due: {formatToDDMMYYYY(item.deadline)}</span>
                   </div>
                 )}
               </div>
@@ -237,12 +238,11 @@ const StatCard: React.FC<{
     <TooltipProvider>
       <Tooltip delayDuration={getTooltipDelay()}>
         <TooltipTrigger asChild>
-          <div 
-            className={`relative w-[300px] rounded-xl p-4 border border-gray-200 transition-all duration-200 ${
-              index === 0 
-                ? 'bg-white border-orange-300 shadow-orange-300 shadow hover:shadow-lg' 
+          <div
+            className={`relative w-[300px] rounded-xl p-4 border border-gray-200 transition-all duration-200 ${index === 0
+                ? 'bg-white border-orange-300 shadow-orange-300 shadow hover:shadow-lg'
                 : 'bg-white hover:shadow-md'
-            } ${hasHoverDetails ? 'cursor-pointer hover:border-blue-300 active:scale-[0.98]' : ''}`}
+              } ${hasHoverDetails ? 'cursor-pointer hover:border-blue-300 active:scale-[0.98]' : ''}`}
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -260,7 +260,7 @@ const StatCard: React.FC<{
                     </div>
                   )}
                 </div>
-                <p className={`text-3xl font-bold text-gray-900 mb-1 ${index===0?"text-red-600":""}`}>
+                <p className={`text-3xl font-bold text-gray-900 mb-1 ${index === 0 ? "text-red-600" : ""}`}>
                   {value}
                 </p>
                 <p className="text-[10px] text-gray-400">{subtitle}</p>
@@ -277,15 +277,15 @@ const StatCard: React.FC<{
           </div>
         </TooltipTrigger>
         {hasHoverDetails && (
-          <TooltipContent 
-            side="top" 
-            align="center" 
+          <TooltipContent
+            side="top"
+            align="center"
             sideOffset={5}
             className="p-0 bg-white border border-gray-200 shadow-xl rounded-lg max-w-xs"
           >
-            <HoverDetailsContent 
-              details={hoverDetails} 
-              title={title} 
+            <HoverDetailsContent
+              details={hoverDetails}
+              title={title}
             />
           </TooltipContent>
         )}
@@ -331,13 +331,13 @@ const customStyles = `
 
 const BarChart: React.FC<{ data: MonthlyData[] }> = ({ data }) => {
   const maxValue = Math.max(...data.map(d => d.value));
-  
+
   return (
     <div className="flex items-end justify-between h-48 gap-1.5 px-2">
       {data.map((item, idx) => (
         <div key={idx} className="flex flex-col items-center flex-1">
           <div className="w-full flex items-end justify-center" style={{ height: '160px' }}>
-            <div 
+            <div
               className={`w-full rounded-t transition-all ${item.month === 'Jun' ? 'bg-orange-500' : 'bg-gray-200'}`}
               style={{ height: `${(item.value / maxValue) * 100}%`, maxWidth: '20px' }}
             />
@@ -353,14 +353,14 @@ const DonutChart: React.FC<{ onsite: number; offsite: number; onRoad: number }> 
   return (
     <div className="relative w-44 h-44 mx-auto">
       <svg viewBox="0 0 100 100" className="transform -rotate-90">
-        <circle cx="50" cy="50" r="35" fill="none" stroke="#EF4444" strokeWidth="16" 
-          strokeDasharray={`${onRoad * 2.2} 220`} 
+        <circle cx="50" cy="50" r="35" fill="none" stroke="#EF4444" strokeWidth="16"
+          strokeDasharray={`${onRoad * 2.2} 220`}
           strokeDashoffset="0" />
-        <circle cx="50" cy="50" r="35" fill="none" stroke="#F59E0B" strokeWidth="16" 
-          strokeDasharray={`${offsite * 2.2} 220`} 
+        <circle cx="50" cy="50" r="35" fill="none" stroke="#F59E0B" strokeWidth="16"
+          strokeDasharray={`${offsite * 2.2} 220`}
           strokeDashoffset={`-${onRoad * 2.2}`} />
-        <circle cx="50" cy="50" r="35" fill="none" stroke="#10B981" strokeWidth="16" 
-          strokeDasharray={`${onsite * 2.2} 220`} 
+        <circle cx="50" cy="50" r="35" fill="none" stroke="#10B981" strokeWidth="16"
+          strokeDasharray={`${onsite * 2.2} 220`}
           strokeDashoffset={`-${(onRoad + offsite) * 2.2}`} />
       </svg>
     </div>
@@ -370,7 +370,7 @@ const DonutChart: React.FC<{ onsite: number; offsite: number; onRoad: number }> 
 const LineChart: React.FC<{ data: number[]; color?: string }> = ({ data, color = "#F59E0B" }) => {
   const maxValue = Math.max(...data);
   const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  
+
   return (
     <div className="relative">
       <div className="h-28">
@@ -413,11 +413,11 @@ const LineChart: React.FC<{ data: number[]; color?: string }> = ({ data, color =
 
 const MiniBarChart: React.FC<{ data: number[] }> = ({ data }) => {
   const maxValue = Math.max(...data);
-  
+
   return (
     <div className="flex items-end justify-between h-16 gap-1.5">
       {data.map((value, idx) => (
-        <div 
+        <div
           key={idx}
           className={`flex-1 rounded-t ${idx === 0 ? 'bg-orange-500' : 'bg-orange-200'}`}
           style={{ height: `${(value / maxValue) * 100}%` }}
@@ -560,7 +560,7 @@ export default function Dashboard() {
                   {/* Onsite/Offsite Vehicles */}
                   <div className="bg-white rounded-xl p-5 border border-gray-200">
                     <h3 className="text-sm font-semibold text-gray-800 mb-4">Onsite/Offsite Vehicles</h3>
-                    <DonutChart 
+                    <DonutChart
                       onsite={dashboardData.vehicleDistribution.onsite}
                       offsite={dashboardData.vehicleDistribution.offsite}
                       onRoad={dashboardData.vehicleDistribution.onRoad}
@@ -706,11 +706,10 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     {dashboardData.taskActivity.map((task) => (
                       <div key={task.id} className="flex gap-3">
-                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                          task.color === 'orange' ? 'bg-orange-500' : 
-                          task.color === 'yellow' ? 'bg-yellow-400' : 
-                          'bg-gray-800'
-                        }`} />
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${task.color === 'orange' ? 'bg-orange-500' :
+                            task.color === 'yellow' ? 'bg-yellow-400' :
+                              'bg-gray-800'
+                          }`} />
                         <div>
                           <p className="text-[10px] text-gray-400 mb-1">{task.time}</p>
                           <p className="text-sm font-semibold text-gray-900 mb-0.5">{task.title}</p>

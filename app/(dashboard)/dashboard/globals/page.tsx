@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Calendar, Clock, Database, Car, RefreshCw, Check, X } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 interface GlobalSettings {
   id: number;
@@ -121,13 +122,7 @@ export default function GlobalsPage() {
     setSuccess(null);
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
-  };
+
 
   if (loading) {
     return (
@@ -229,7 +224,7 @@ export default function GlobalsPage() {
           <CardDescription>
             System-wide settings • Last updated:{' '}
             <Badge variant="secondary">
-              {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+              {formatToDDMMYYYY(new Date())}
             </Badge>
           </CardDescription>
         </CardHeader>
@@ -322,7 +317,7 @@ export default function GlobalsPage() {
                   <div className="flex-1">
                     <p className="text-sm font-medium text-muted-foreground">Financial Year</p>
                     <p className="text-xl font-semibold">
-                      {formatDate(settings.year_start_date)} → {formatDate(settings.year_end_date)}
+                      {formatToDDMMYYYY(settings.year_start_date)} → {formatToDDMMYYYY(settings.year_end_date)}
                     </p>
                   </div>
                 </div>
@@ -344,7 +339,7 @@ export default function GlobalsPage() {
                   <div className="flex-1">
                     <p className="text-sm font-medium text-muted-foreground">Vehicle Recall After</p>
                     <p className="text-xl font-semibold">
-                      {formatDate(settings.vehicle_recall_after_the_date)}
+                      {formatToDDMMYYYY(settings.vehicle_recall_after_the_date)}
                     </p>
                   </div>
                 </div>
@@ -356,7 +351,7 @@ export default function GlobalsPage() {
                   <div className="flex-1">
                     <p className="text-sm font-medium text-muted-foreground">Holiday Reset After</p>
                     <p className="text-xl font-semibold">
-                      {formatDate(settings.holiday_reset_after_the_date)}
+                      {formatToDDMMYYYY(settings.holiday_reset_after_the_date)}
                     </p>
                   </div>
                 </div>

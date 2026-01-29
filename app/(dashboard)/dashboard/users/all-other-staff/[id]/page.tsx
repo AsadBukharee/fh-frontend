@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, Calendar, Shield, FileText, Building2, Mail, CheckCircle, XCircle, Edit, Save, X } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
-import { formatDmy } from "@/lib/utils";
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 import { toast } from "sonner";
 
 interface DriverData {
@@ -122,30 +122,30 @@ export default function DriverDetailPage() {
   useEffect(() => {
     if (id) fetchData();
   }, [id, cookies]);
- const fetchContracts = async () => {
-      setContractsLoading(true);
-      try {
-        const response = await fetch(`${API_URL}/api/staff/contracts/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cookies.get("access_token")}`,
-          },
-        });
-        if (response.status === 401) {
-          showToast("Session expired. Please log in again.", "error");
-          return;
-        }
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-        const data = await response.json();
-        setContracts(data);
-      } catch {
-        showToast("Failed to fetch contracts", "error");
-      } finally {
-        setContractsLoading(false);
+  const fetchContracts = async () => {
+    setContractsLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/staff/contracts/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      });
+      if (response.status === 401) {
+        showToast("Session expired. Please log in again.", "error");
+        return;
       }
-    };
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+      const data = await response.json();
+      setContracts(data);
+    } catch {
+      showToast("Failed to fetch contracts", "error");
+    } finally {
+      setContractsLoading(false);
+    }
+  };
   useEffect(() => {
-   
+
 
     const fetchSites = async () => {
       if (sites.length > 0) return;
@@ -274,11 +274,11 @@ export default function DriverDetailPage() {
         setDriverData((prev) =>
           prev
             ? {
-                ...prev,
-                ...editFormData,
-                contract: contracts.find((c) => c.id.toString() === editFormData.contractId) || prev.contract,
-                site: sites.filter((s) => editFormData.siteIds.includes(s.id.toString())),
-              }
+              ...prev,
+              ...editFormData,
+              contract: contracts.find((c) => c.id.toString() === editFormData.contractId) || prev.contract,
+              site: sites.filter((s) => editFormData.siteIds.includes(s.id.toString())),
+            }
             : null
         );
         setIsEditing(false);
@@ -325,7 +325,7 @@ export default function DriverDetailPage() {
       .toUpperCase();
   };
 
-  const formatDate = (dateString: string) => formatDmy(dateString);
+  const formatDate = (dateString: string) => formatToDDMMYYYY(dateString);
 
   const getPermissionStats = () => {
     const role = driverData?.aggregated_permissions.roles[0];
@@ -390,7 +390,7 @@ export default function DriverDetailPage() {
             Sites
             <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 data-[state=active]:block hidden transition-all"></span>
           </TabsTrigger>
-        
+
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -737,7 +737,7 @@ export default function DriverDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {driverData.site.map((site) => (
                   <Card key={site.id} className="overflow-hidden border-orange-200">
-                   
+
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold text-orange-800">{site.name}</h3>
@@ -757,7 +757,7 @@ export default function DriverDetailPage() {
           </Card>
         </TabsContent>
 
-        
+
       </Tabs>
 
       <div className="fixed bottom-6 right-5 z-50 flex flex-col gap-2">
@@ -794,7 +794,7 @@ export default function DriverDetailPage() {
               <Edit className="h-5 w-5 mr-2" />
               Edit Profile
             </Button>
-           
+
           </div>
         )}
       </div>

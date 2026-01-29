@@ -1,5 +1,5 @@
 import { useCookies } from 'next-client-cookies';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   Card,
@@ -57,6 +57,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import API_URL from '@/app/utils/ENV';
 import ExportButton from '@/app/utils/ExportButton';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 interface UserWeek {
   id: number;
@@ -119,7 +120,22 @@ const Waiting = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState('all');
+  const router = useRouter()
 
+  const handleLogClick = (log: Log) => {
+    // Navigate to detail page with log data as query parameters
+    // router.push(`/detail-page?data=${encodeURIComponent(JSON.stringify(log))}`);
+
+    // OR if you want to use dynamic routing with a route parameter:
+    // router.push(`/duty-logs/${log.id}?day=${log.day}&date=${log.date}`);
+
+    // OR if you want to pass state (recommended for larger objects):
+    if (log.on_duty) {
+      router.push(
+        `/dashboard/users/daily-duty-logs/${id}/${log.day}?logData=${encodeURIComponent(JSON.stringify(log))}`
+      );
+    }
+  };
   useEffect(() => {
     fetchWaitingdWeeks();
   }, [id, token]);
@@ -158,31 +174,31 @@ const Waiting = () => {
     const approvedWeeks = weeks.filter(w => w.userweek.is_approved).length;
     const pendingWeeks = totalWeeks - approvedWeeks;
     const totalHours = weeks.reduce((sum, w) => sum + w.userweek.total_hours_worked, 0);
-    const avgUtilization = totalWeeks > 0 
+    const avgUtilization = totalWeeks > 0
       ? weeks.reduce((sum, w) => sum + (w.userweek.total_hours_worked / w.userweek.allowed_hours) * 100, 0) / totalWeeks
       : 0;
-    
+
     return { totalWeeks, approvedWeeks, pendingWeeks, totalHours, avgUtilization };
   }, [weeks]);
 
   // Filter weeks based on search and tab
   const filteredWeeks = useMemo(() => {
     let filtered = weeks;
-    
+
     if (selectedTab === 'approved') {
       filtered = filtered.filter(w => w.userweek.is_approved);
     } else if (selectedTab === 'pending') {
       filtered = filtered.filter(w => !w.userweek.is_approved);
     }
-    
+
     if (searchQuery) {
-      filtered = filtered.filter(w => 
+      filtered = filtered.filter(w =>
         w.userweek.week_number.toString().includes(searchQuery) ||
         w.userweek.reference_period.toString().includes(searchQuery) ||
         w.userweek.week_start_date?.includes(searchQuery)
       );
     }
-    
+
     return filtered;
   }, [weeks, selectedTab, searchQuery]);
 
@@ -193,11 +209,7 @@ const Waiting = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    return formatToDDMMYYYY(dateString);
   };
 
   const formatDateRange = (start: string | null, end: string | null) => {
@@ -245,7 +257,7 @@ const Waiting = () => {
             <Skeleton className="h-10 w-80" />
             <Skeleton className="h-5 w-96" />
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
               <Card key={i} className="border-0 shadow-sm">
@@ -283,8 +295,8 @@ const Waiting = () => {
               {error}
             </AlertDescription>
           </Alert>
-          <Button 
-            onClick={fetchWaitingdWeeks} 
+          <Button
+            onClick={fetchWaitingdWeeks}
             size="lg"
             className="mt-6 shadow-sm"
           >
@@ -334,7 +346,7 @@ const Waiting = () => {
             </p>
           </div>
           <div className="flex gap-2">
-                 <ExportButton data={filteredWeeks} fileName='waiting-duty-logs'/>
+            <ExportButton data={filteredWeeks} fileName='waiting-duty-logs' />
 
             <Button onClick={fetchWaitingdWeeks} variant="outline" size="lg" className="shadow-sm">
               <RefreshCw className="h-4 w-4" />
@@ -342,70 +354,7 @@ const Waiting = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-[#E63946] to-[#d62839]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-white/90">Total Weeks</p>
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <Calendar className="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-white">{stats.totalWeeks}</p>
-                <p className="text-sm text-white/80">weeks</p>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-[#F77F00] to-[#e67300]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-white/90">Approved</p>
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <CheckCircle2 className="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-white">{stats.approvedWeeks}</p>
-                <p className="text-sm text-white/90 font-medium">
-                  {stats.totalWeeks > 0 ? Math.round((stats.approvedWeeks / stats.totalWeeks) * 100) : 0}%
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-[#FCBF49] to-[#f4b436]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-slate-800">Total Hours</p>
-                <div className="p-2 bg-white/40 rounded-lg">
-                  <Clock className="h-4 w-4 text-slate-800" />
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-slate-900">{stats.totalHours}</p>
-                <p className="text-sm text-slate-700">hours</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-[#E63946] to-[#d62839]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-white/90">Avg Utilization</p>
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <TrendingUp className="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-white">{stats.avgUtilization.toFixed(1)}%</p>
-                <Progress value={stats.avgUtilization} className="h-1.5 flex-1 bg-white/20" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Search and Filters */}
         <Card className="border-0 shadow-sm">
@@ -462,14 +411,14 @@ const Waiting = () => {
                   const totalOtherHours = calculateTotalOtherHours(logs);
 
                   return (
-                    <AccordionItem 
-                      key={userweek.id} 
+                    <AccordionItem
+                      key={userweek.id}
                       value={`week-${userweek.id}`}
                       className="border-0 shadow-sm rounded-xl overflow-hidden bg-white"
                     >
                       <AccordionTrigger className="hover:no-underline px-6 py-5 hover:bg-slate-50 transition-colors">
                         <div className="flex items-center justify-between w-full pr-4">
-                                                      <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex items-center gap-4 flex-wrap">
                             <div className="flex items-center gap-2">
                               <div className="p-2 bg-[#E63946]/10 rounded-lg border border-[#E63946]/20">
                                 <Calendar className="h-4 w-4 text-[#E63946]" />
@@ -479,11 +428,11 @@ const Waiting = () => {
                                 <p className="text-xs text-slate-500">{formatDateRange(userweek.week_start_date, userweek.week_end_date)}</p>
                               </div>
                             </div>
-                            
-                            <Badge 
+
+                            <Badge
                               variant={userweek.is_approved ? "default" : "secondary"}
-                              className={userweek.is_approved 
-                                ? "bg-[#F77F00] text-white hover:bg-[#F77F00] border-[#F77F00]" 
+                              className={userweek.is_approved
+                                ? "bg-[#F77F00] text-white hover:bg-[#F77F00] border-[#F77F00]"
                                 : "bg-[#FCBF49] text-slate-800 hover:bg-[#FCBF49] border-[#FCBF49]"
                               }
                             >
@@ -499,13 +448,13 @@ const Waiting = () => {
                                 </>
                               )}
                             </Badge>
-                            
+
                             <Badge variant="outline" className="border-slate-300">
                               <BarChart3 className="h-3 w-3 mr-1" />
                               RP {userweek.reference_period}
                             </Badge>
                           </div>
-                          
+
                           <div className="hidden lg:flex items-center gap-6">
                             <div className="text-right">
                               <p className="text-2xl font-bold text-slate-900">{userweek.total_hours_worked}h</p>
@@ -520,11 +469,11 @@ const Waiting = () => {
                           </div>
                         </div>
                       </AccordionTrigger>
-                      
+
                       <AccordionContent>
                         <div className="px-6 pb-6 space-y-6">
                           {/* Stats Grid */}
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                          {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
                             <Card className="border border-slate-200 shadow-none">
                               <CardContent className="p-4">
                                 <div className="flex items-center gap-2 mb-2">
@@ -572,7 +521,7 @@ const Waiting = () => {
                                 <p className="text-2xl font-bold text-slate-900">{userweek.average_hours.toFixed(1)}h</p>
                               </CardContent>
                             </Card>
-                          </div>
+                          </div> */}
 
                           {/* Daily Logs Table */}
                           <div>
@@ -596,7 +545,7 @@ const Waiting = () => {
                                 </TableHeader>
                                 <TableBody>
                                   {logs.map((log) => (
-                                    <TableRow key={log.id} className="hover:bg-slate-50">
+                                    <TableRow key={log.id} onClick={() => handleLogClick(log)} className="hover:bg-slate-50">
                                       <TableCell className="font-medium">
                                         {formatDate(log.date)}
                                       </TableCell>

@@ -31,7 +31,7 @@ import { Switch } from "@/components/ui/switch";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import { toast as sonnerToast, toast } from "sonner";
-import { format } from "date-fns";
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -215,7 +215,7 @@ const getHeaders = (token: string) => ({
 });
 
 const formatDate = (d: string | null) =>
-  d ? format(new Date(d), "dd-MM-yyyy") : "—";
+  formatToDDMMYYYY(d);
 
 const getEndpoint = (key: DocumentKey, id?: number): string => {
   const cfg = docConfig[key];
@@ -641,7 +641,7 @@ function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: Documen
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 animate-in fade-in zoom-in-95 duration-300">
         <DialogHeader className="relative bg-[#F15A29] p-8 pb-6 border-b border-white/10">
-        
+
 
           <div className="flex justify-between items-start w-full gap-4 pr-10">
             <div className="space-y-3 flex-1">
@@ -784,9 +784,9 @@ function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: Documen
 /* ────────────────────── Main Component ────────────────────── */
 export default function SignAgreementAdminTab() {
   const { id } = useParams();
-  const driver_id=id as string;
+  const driver_id = id as string;
   // const searchParams=useSearchParams();
-  
+
   // alert(user_id)
   const searchParams = useSearchParams();
   const userId = searchParams.get("user_id")
@@ -916,91 +916,91 @@ export default function SignAgreementAdminTab() {
   };
 
   const toggleApplicable = async (key: DocumentKey) => {
-  const doc = docs[key];
-  const cfg = docConfig[key];
-  const newApplicable = !doc.isApplicable;
+    const doc = docs[key];
+    const cfg = docConfig[key];
+    const newApplicable = !doc.isApplicable;
 
-  try {
-    let endpoint = "";
-    let method = "";
-    const payload: any = {
-      driver_id: Number(userId),
-      is_applicable: newApplicable,
-    };
+    try {
+      let endpoint = "";
+      let method = "";
+      const payload: any = {
+        driver_id: Number(userId),
+        is_applicable: newApplicable,
+      };
 
-    // Case 1: Document already exists → simple PATCH
-    if (doc.id) {
-      endpoint = getEndpoint(key, doc.id);
-      method = "PATCH";
-      // Only send what we need
-      Object.assign(payload, { is_applicable: newApplicable });
-    }
-    // Case 2: No document yet → we CREATE one just to save applicability
-    else {
-      endpoint = getEndpoint(key); // list/create endpoint
-      method = "POST";
-
-      // Add minimal required fields depending on document type
-      if (key === "nightWorker") {
-        Object.assign(payload, {
-          is_night_worker: true,
-          admin_uploaded: false,
-          agreement_date: new Date().toISOString().split("T")[0], // today
-        });
+      // Case 1: Document already exists → simple PATCH
+      if (doc.id) {
+        endpoint = getEndpoint(key, doc.id);
+        method = "PATCH";
+        // Only send what we need
+        Object.assign(payload, { is_applicable: newApplicable });
       }
+      // Case 2: No document yet → we CREATE one just to save applicability
+      else {
+        endpoint = getEndpoint(key); // list/create endpoint
+        method = "POST";
 
-      if (key === "pensionInfo") {
-        Object.assign(payload, {
-          eligible: true,
-          auto_enrollment: true,
-          current_status: "not_uploaded", // since no file yet
-        });
-      }
-
-      // For normal signed agreements (contract, NDA, handbook, etc.)
-      if (!cfg.apiKey) {
-        const docName = documentNames.find((d) => d.name === cfg.title);
-        if (!docName) {
-          sonnerToast.error(`Document "${cfg.title}" not found in system`);
-          return;
+        // Add minimal required fields depending on document type
+        if (key === "nightWorker") {
+          Object.assign(payload, {
+            is_night_worker: true,
+            admin_uploaded: false,
+            agreement_date: new Date().toISOString().split("T")[0], // today
+          });
         }
 
-        Object.assign(payload, {
-          document_name_id: docName.id,
-          name: cfg.title,
-          category: cfg.category,
-          status: "pending",
-          priority: 1,
-          document_type: "signable",
-          requires_signature: true,
-          is_signed: false,
-          link: null,
-          document_link: null,
-        });
+        if (key === "pensionInfo") {
+          Object.assign(payload, {
+            eligible: true,
+            auto_enrollment: true,
+            current_status: "not_uploaded", // since no file yet
+          });
+        }
+
+        // For normal signed agreements (contract, NDA, handbook, etc.)
+        if (!cfg.apiKey) {
+          const docName = documentNames.find((d) => d.name === cfg.title);
+          if (!docName) {
+            sonnerToast.error(`Document "${cfg.title}" not found in system`);
+            return;
+          }
+
+          Object.assign(payload, {
+            document_name_id: docName.id,
+            name: cfg.title,
+            category: cfg.category,
+            status: "pending",
+            priority: 1,
+            document_type: "signable",
+            requires_signature: true,
+            is_signed: false,
+            link: null,
+            document_link: null,
+          });
+        }
       }
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: getHeaders(token),
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to save: ${errorText || res.statusText}`);
+      }
+
+      await reload(); // Refresh all documents
+
+      sonnerToast.success(
+        `${cfg.title} is now ${newApplicable ? "Applicable" : "Not Applicable"}`
+      );
+    } catch (err: any) {
+      console.error("toggleApplicable error:", err);
+      sonnerToast.error(err.message || "Failed to update applicability");
     }
-
-    const res = await fetch(endpoint, {
-      method,
-      headers: getHeaders(token),
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Failed to save: ${errorText || res.statusText}`);
-    }
-
-    await reload(); // Refresh all documents
-
-    sonnerToast.success(
-      `${cfg.title} is now ${newApplicable ? "Applicable" : "Not Applicable"}`
-    );
-  } catch (err: any) {
-    console.error("toggleApplicable error:", err);
-    sonnerToast.error(err.message || "Failed to update applicability");
-  }
-};
+  };
 
   const deleteDoc = async (id?: number, key?: DocumentKey) => {
     if (!id || !key) return;
@@ -1018,13 +1018,13 @@ export default function SignAgreementAdminTab() {
     );
   }
 
-return (
+  return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-4 md:p-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <FileText className="h-6 w-6 text-gray-700" />
         <h1 className="text-xl font-semibold text-gray-900">
-          Signed Agreements – <span className="text-orange-600"><span className="text-black">Driver </span>{ name ?name:`# ${userId}`}</span>
+          Signed Agreements – <span className="text-orange-600"><span className="text-black">Driver </span>{name ? name : `# ${userId}`}</span>
         </h1>
       </div>
 
@@ -1041,29 +1041,28 @@ return (
             ? isImage
               ? fileUrl
               : fileUrl?.endsWith(".pdf")
-              ? `https://api.dicebear.com/7.x/shapes/svg?seed=pdf&backgroundColor=ff6b35`
-              : null
+                ? `https://api.dicebear.com/7.x/shapes/svg?seed=pdf&backgroundColor=ff6b35`
+                : null
             : null;
 
           return (
             <Card
               key={key}
-              className={`overflow-hidden bg-white rounded-xl border border-gray-200 transition-all hover:shadow-lg ${
-                !d.isApplicable ? "opacity-50" : ""
-              }`}
+              className={`overflow-hidden bg-white rounded-xl border border-gray-200 transition-all hover:shadow-lg ${!d.isApplicable ? "opacity-50" : ""
+                }`}
             >
               {/* Image/Preview Area */}
-              <div 
+              <div
                 className="h-44 bg-gray-100 relative overflow-hidden cursor-pointer group"
                 onClick={() => uploaded && setDetail({ open: true, key: k })}
               >
                 {uploaded ? (
                   previewUrl ? (
                     isImage ? (
-                      <img 
-                        src={previewUrl} 
-                        alt={cfg.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                      <img
+                        src={previewUrl}
+                        alt={cfg.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full">
@@ -1084,7 +1083,7 @@ return (
                     <span className="text-xs text-gray-400 mt-1">or click upload button</span>
                   </div>
                 )}
-                
+
                 {/* Delete button overlay for uploaded docs */}
                 {uploaded && (
                   <button
@@ -1105,11 +1104,11 @@ return (
                 <div className="flex justify-between items-start gap-2">
                   <h3 className="font-semibold text-sm text-gray-900 line-clamp-1">{cfg.title}</h3>
                   {/* {cfg.fields.includes("applicable") && ( */}
-                    <Switch
-                      checked={d.isApplicable}
-                      onCheckedChange={() => toggleApplicable(k)}
-                      // className="data-[state=checked]:bg-green-500"
-                    />
+                  <Switch
+                    checked={d.isApplicable}
+                    onCheckedChange={() => toggleApplicable(k)}
+                  // className="data-[state=checked]:bg-green-500"
+                  />
                   {/* )} */}
                 </div>
 
@@ -1124,7 +1123,7 @@ return (
                 {/* Status Badge */}
                 <div className="flex items-center justify-between">
                   {getStatusBadge(d)}
-                  
+
                   {/* Date info */}
                   {uploaded && (
                     <div className="text-xs text-gray-500">

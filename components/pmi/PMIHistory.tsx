@@ -112,7 +112,7 @@ const ActionMenu: FC<{
 
   onView: (row: PmiRow) => void;
 
-}> = ({ row,onView }) => (
+}> = ({ row, onView }) => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
       <Button variant="ghost" size="sm">
@@ -124,8 +124,8 @@ const ActionMenu: FC<{
         <Eye className="w-4 h-4 mr-2" />
         View
       </DropdownMenuItem>
-     
-     
+
+
     </DropdownMenuContent>
   </DropdownMenu>
 );
@@ -134,7 +134,7 @@ interface StatusCellProps {
   rowId: number | string;
   field: keyof PmiRow;
   column: string;
- 
+
   isEditable?: boolean;
   type?: "status" | "number" | "date";
 }
@@ -158,15 +158,15 @@ const StatusCell: FC<StatusCellProps> = ({
   };
 
 
- 
+
   if (type === "status") {
     return (
       <div className="flex items-center justify-center">
-    
-          <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
-            {status || "N/A"}
-          </div>
-        
+
+        <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
+          {status || "N/A"}
+        </div>
+
       </div>
     );
   }
@@ -174,17 +174,17 @@ const StatusCell: FC<StatusCellProps> = ({
   if (type === "number") {
     return (
       <div className="flex items-center justify-center">
-      
-          <div
-            onDoubleClick={handleDoubleClick}
-            className={cn(
-              "cursor-pointer px-2 py-1 rounded",
-              getSafetyColor(status, field)
-            )}
-          >
-            {status || "N/A"}
-          </div>
-        
+
+        <div
+          onDoubleClick={handleDoubleClick}
+          className={cn(
+            "cursor-pointer px-2 py-1 rounded",
+            getSafetyColor(status, field)
+          )}
+        >
+          {status || "N/A"}
+        </div>
+
       </div>
     );
   }
@@ -192,22 +192,22 @@ const StatusCell: FC<StatusCellProps> = ({
   if (type === "date") {
     return (
       <div className="flex items-center justify-center">
-       
-          <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
-            {status || "N/A"}
-          </div>
-        
+
+        <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
+          {status || "N/A"}
+        </div>
+
       </div>
     );
   }
 
   return (
     <div className="flex items-center justify-center">
-  
-        <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
-          {status || "N/A"}
-        </div>
-      
+
+      <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
+        {status || "N/A"}
+      </div>
+
     </div>
   );
 };
@@ -306,11 +306,11 @@ const PMIHistory: FC = () => {
             );
             const driverInfo = matchingDriver
               ? {
-                  defects: matchingDriver.defects,
-                  status: matchingDriver.status,
-                  notes: matchingDriver.notes,
-                  pmi_report_date: matchingDriver.pmi_report_date,
-                }
+                defects: matchingDriver.defects,
+                status: matchingDriver.status,
+                notes: matchingDriver.notes,
+                pmi_report_date: matchingDriver.pmi_report_date,
+              }
               : undefined;
             flatData.push({
               ...record,
@@ -479,8 +479,8 @@ const PMIHistory: FC = () => {
     return pmiData.filter((row) => {
       const matchesSearch = searchTerm
         ? Object.values(row).some((value) =>
-            value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-          )
+          value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+        )
         : true;
       const matchesVehicle =
         selectedVehicle === "all"
@@ -686,7 +686,7 @@ const PMIHistory: FC = () => {
                         {sortConfig?.key === "vehicle_reg" &&
                           (sortConfig.direction === "asc" ? "↑" : "↓")}
                       </TableHead>
-                
+
                       <TableHead
                         colSpan={tyreColumns.length}
                         className="text-center bg-blue-50 border-l border-r border-blue-200"
@@ -744,7 +744,7 @@ const PMIHistory: FC = () => {
                       {sortConfig?.key === "vehicle_reg" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-                    
+
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
                         {col}
@@ -772,7 +772,7 @@ const PMIHistory: FC = () => {
                       {sortConfig?.key === "vehicle_reg" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-                  
+
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
                         {col}
@@ -897,9 +897,9 @@ const PMIHistory: FC = () => {
                           <TableCell className="text-center">
                             <ActionMenu
                               row={row}
-                         
+
                               onView={handleView}
-                            
+
                             />
                           </TableCell>
                         </TableRow>
@@ -937,10 +937,10 @@ const PMIHistory: FC = () => {
                           <TableCell className="text-center">
                             <ActionMenu
                               row={row}
-                             
+
                               onView={handleView}
-                             
-                            
+
+
                             />
                           </TableCell>
                         </TableRow>
@@ -972,9 +972,9 @@ const PMIHistory: FC = () => {
                           <TableCell className="text-center">
                             <ActionMenu
                               row={row}
-                              
+
                               onView={handleView}
-                             
+
                             />
                           </TableCell>
                         </TableRow>
@@ -1024,9 +1024,9 @@ const PMIHistory: FC = () => {
                           <TableCell className="text-center">
                             <ActionMenu
                               row={row}
-                         
+
                               onView={handleView}
-                            
+
                             />
                           </TableCell>
                         </TableRow>
@@ -1064,7 +1064,7 @@ const PMIHistory: FC = () => {
                   className={cn(
                     "w-8 h-8 p-0",
                     currentPage === pageNum &&
-                      "bg-orange-500 hover:bg-orange-600"
+                    "bg-orange-500 hover:bg-orange-600"
                   )}
                 >
                   {pageNum}

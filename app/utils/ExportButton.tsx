@@ -19,15 +19,15 @@ interface ExportChartButtonProps {
 // Function to clean data - extract meaningful values from objects and remove functions
 const cleanDataItem = (item: Record<string, any>): Record<string, any> => {
   const cleaned: Record<string, any> = {};
-  
+
   Object.keys(item).forEach(key => {
     const value = item[key];
-    
+
     // Skip function definitions
     if (typeof value === 'string' && value.includes('=>') && value.includes('if (run.traveled_mileage')) {
       return; // Skip this field
     }
-    
+
     // Handle objects - extract meaningful values
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       // For vehicle object
@@ -53,7 +53,7 @@ const cleanDataItem = (item: Record<string, any>): Record<string, any> => {
         if (value.id) cleaned[`${key}_id`] = value.id;
         if (value.value !== undefined) cleaned[key] = value.value;
       }
-    } 
+    }
     // Handle arrays (except stops which we already handled)
     else if (Array.isArray(value)) {
       cleaned[`${key}_count`] = value.length;
@@ -63,7 +63,7 @@ const cleanDataItem = (item: Record<string, any>): Record<string, any> => {
       cleaned[key] = value;
     }
   });
-  
+
   return cleaned;
 };
 
@@ -73,7 +73,7 @@ const calculateTraveledMileage = (run: Record<string, any>): number => {
   if (run.traveled_mileage && parseFloat(run.traveled_mileage) > 0) {
     return parseFloat(run.traveled_mileage);
   }
-  
+
   // If end_mileage and vehicle last_mileage exist
   if (run.end_mileage && run.vehicle?.last_mileage) {
     const end = parseFloat(run.end_mileage);
@@ -82,14 +82,14 @@ const calculateTraveledMileage = (run: Record<string, any>): number => {
       return end - start;
     }
   }
-  
+
   // Calculate from stops
   if (run.stops && Array.isArray(run.stops)) {
     return run.stops.reduce((sum: number, stop: any) => {
       return sum + (parseFloat(stop.mileage) || 0);
     }, 0);
   }
-  
+
   return 0;
 };
 
@@ -107,14 +107,16 @@ const flattenObject = (obj: Record<string, any>, prefix = ""): Record<string, st
   }, {});
 };
 
+import { formatToDDMMYYYY } from "./DateFormat";
+
 const formatXAxisValue = (value: any) => {
   if (value instanceof Date) {
-    return value.toLocaleDateString();
+    return formatToDDMMYYYY(value);
   }
   if (typeof value === "string") {
     const date = new Date(value);
     if (!isNaN(date.getTime()) && value.includes("-")) {
-      return date.toLocaleDateString();
+      return formatToDDMMYYYY(date);
     }
   }
   return value;
@@ -131,30 +133,30 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
   // Clean and prepare chart data
   const chartData = data.map(item => {
     const cleaned = cleanDataItem(item);
-    
+
     // Add calculated mileage if not present
     if (!cleaned.traveled_mileage || parseFloat(cleaned.traveled_mileage) === 0) {
       const calculatedMileage = calculateTraveledMileage(item);
       cleaned.traveled_mileage = calculatedMileage;
     }
-    
+
     // Format date for X-axis
     if (cleaned.created_at) {
       cleaned.formatted_date = formatXAxisValue(cleaned.created_at);
     }
-    
+
     return cleaned;
   });
 
   // Get chart configuration from cleaned data
-  const xAxisKey = chartData.length > 0 ? Object.keys(chartData[0]).find(key => 
+  const xAxisKey = chartData.length > 0 ? Object.keys(chartData[0]).find(key =>
     key.includes('date') || key.includes('created') || key === 'formatted_date'
   ) : 'formatted_date';
 
   // Find numeric fields for Y-axis (excluding IDs and boolean fields)
   const yAxisKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => {
     if (key.includes('id') || key.includes('is_') || key === xAxisKey) return false;
-    
+
     const sampleValue = chartData[0][key];
     const numValue = parseFloat(sampleValue);
     return !isNaN(numValue) && typeof numValue === 'number';
@@ -171,7 +173,7 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
     try {
       // Dynamically import ExcelJS to avoid SSR issues
       const ExcelJS = (await import("exceljs")).default;
-      
+
       // Clean data before flattening
       const cleanedData = data.map(item => cleanDataItem(item));
       const flattenedData = cleanedData.map(item => flattenObject(item));
@@ -211,14 +213,14 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error exporting to Excel:", error);
-      
+
       // Fallback: Create a simple CSV export
       if (data && data.length > 0) {
         const cleanedData = data.map(item => cleanDataItem(item));
         const headers = Object.keys(cleanedData[0]);
         const csvContent = [
           headers.join(","),
-          ...cleanedData.map(row => 
+          ...cleanedData.map(row =>
             headers.map(header => {
               const value = row[header];
               // Handle special characters in CSV
@@ -228,7 +230,7 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
             }).join(",")
           )
         ].join("\n");
-        
+
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -246,7 +248,7 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
 
   const handleExportPDF = async () => {
     if (!chartRef.current) return;
-    
+
     setIsGenerating(true);
     try {
       // Get the SVG element from recharts
@@ -271,7 +273,7 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
 
       // Create image from SVG
       const htmlImg = new window.Image();
-      
+
       await new Promise((resolve, reject) => {
         htmlImg.onload = resolve;
         htmlImg.onerror = reject;
@@ -282,7 +284,7 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
       canvas.width = htmlImg.width * 2;
       canvas.height = htmlImg.height * 2;
       const ctx = canvas.getContext("2d");
-      
+
       if (ctx) {
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -304,13 +306,13 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
         // Create a simple data table for the PDF using cleaned data
         const cleanedData = data.map(item => cleanDataItem(item));
         const tableHeaders = cleanedData.length > 0 ? Object.keys(cleanedData[0]) : [];
-        
+
         const ChartDocument = () => (
           <Document>
             <Page size="A4" style={styles.page}>
               <Text style={styles.title}>{fileName} Report</Text>
               <Image src={chartImage} style={styles.image} />
-              
+
               {cleanedData.length > 0 && (
                 <View style={styles.table}>
                   <View style={styles.tableRow}>
@@ -350,7 +352,7 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
         document.body.removeChild(link);
         URL.revokeObjectURL(pdfUrl);
       }
-      
+
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -371,7 +373,7 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
   }
 
   // Check if we have valid chart data
-  const hasValidChartData = chartData.length > 0 && 
+  const hasValidChartData = chartData.length > 0 &&
     (yAxisKeys.length > 0 || chartData.some(item => item.traveled_mileage > 0));
 
   return (
@@ -386,14 +388,14 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
         <DialogHeader>
           <DialogTitle>Data Chart</DialogTitle>
         </DialogHeader>
-        
+
         {hasValidChartData ? (
-          <div 
-            ref={chartRef} 
-            className="mb-4" 
-            style={{ 
-              height: "400px", 
-              width: "100%", 
+          <div
+            ref={chartRef}
+            className="mb-4"
+            style={{
+              height: "400px",
+              width: "100%",
               backgroundColor: "#ffffff",
               padding: "16px",
               borderRadius: "8px"
@@ -402,13 +404,13 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
+                <XAxis
                   dataKey={xAxisKey}
                   tickFormatter={formatXAxisValue}
                   stroke="#6b7280"
                 />
                 <YAxis stroke="#6b7280" />
-                <Tooltip 
+                <Tooltip
                   labelFormatter={formatXAxisValue}
                   contentStyle={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb" }}
                 />
@@ -434,9 +436,9 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
         )}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-          <Button 
-            onClick={handleExportPDF} 
-            variant="outline" 
+          <Button
+            onClick={handleExportPDF}
+            variant="outline"
             className="gap-2"
             disabled={isGenerating || !hasValidChartData}
           >

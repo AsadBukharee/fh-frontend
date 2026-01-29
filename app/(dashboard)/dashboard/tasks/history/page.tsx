@@ -67,6 +67,7 @@ import HistoryTaskDialog from "@/components/task/HistoryTaskDialog";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useRouter } from "next/navigation";
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 
 
 // ---------------------------------------------------
@@ -171,7 +172,7 @@ const Page = () => {
   const [prevPage, setPrevPage] = useState<string | null>(null);
   const [totalTasks, setTotalTasks] = useState(0);
   const [loading, setLoading] = useState(false);
-  const router=useRouter()
+  const router = useRouter()
 
   // Filters
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -255,20 +256,20 @@ const Page = () => {
         }),
         ...(dateAssignedRange.from &&
           isValid(dateAssignedRange.from) && {
-            date_assigned_start: format(dateAssignedRange.from, "yyyy-MM-dd"),
-          }),
+          date_assigned_start: format(dateAssignedRange.from, "yyyy-MM-dd"),
+        }),
         ...(dateAssignedRange.to &&
           isValid(dateAssignedRange.to) && {
-            date_assigned_end: format(dateAssignedRange.to, "yyyy-MM-dd"),
-          }),
+          date_assigned_end: format(dateAssignedRange.to, "yyyy-MM-dd"),
+        }),
         ...(deadlineRange.from &&
           isValid(deadlineRange.from) && {
-            deadline_start: format(deadlineRange.from, "yyyy-MM-dd"),
-          }),
+          deadline_start: format(deadlineRange.from, "yyyy-MM-dd"),
+        }),
         ...(deadlineRange.to &&
           isValid(deadlineRange.to) && {
-            deadline_end: format(deadlineRange.to, "yyyy-MM-dd"),
-          }),
+          deadline_end: format(deadlineRange.to, "yyyy-MM-dd"),
+        }),
       });
 
       const res = await fetch(`${API_HOST}/api/tasks/history/?${params}`, {
@@ -435,7 +436,7 @@ const Page = () => {
       </p>
 
       {/* ---------- FILTER BAR (exact image) ---------- */}
-   
+
 
       {/* ---------- SEARCH & ACTIONS ---------- */}
       <div className="flex flex-wrap gap-4 mt-4 mb-6">
@@ -449,12 +450,12 @@ const Page = () => {
           />
         </div>
 
-      
+
         <ExportButton data={tasks} fileName="tasks_export.csv" />
-      
+
 
       </div>
-   <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+      <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
         {/* Task Type */}
         <Button
           variant="ghost"
@@ -596,7 +597,7 @@ const Page = () => {
         </Select>
 
         {/* Settings */}
-     
+
       </div>
       {/* ---------- TABLE ---------- */}
       {loading ? (
@@ -616,7 +617,7 @@ const Page = () => {
               <TableHead>Status</TableHead>
               <TableHead>Overdue</TableHead>
               <TableHead>Reassign Reason</TableHead>
-            
+
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -643,15 +644,11 @@ const Page = () => {
                 <TableCell>{task.assigned_by.full_name}</TableCell>
 
                 <TableCell>
-                  {new Date(task.created_at).toLocaleDateString()}
+                  {formatToDDMMYYYY(task.created_at)}
                 </TableCell>
 
                 <TableCell>
-                  {new Date(task.deadline).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })}
+                  {formatToDDMMYYYY(task.deadline)}
                 </TableCell>
 
                 <TableCell>
@@ -684,11 +681,11 @@ const Page = () => {
                       <DropdownMenuItem onClick={() => openView(task)}>
                         <Eye className="mr-2 h-4 w-4" /> View
                       </DropdownMenuItem>
-                    
+
                       <DropdownMenuItem onClick={() => openHistory(task)}>
                         <Logs className="mr-2 h-4 w-4" /> Logs
                       </DropdownMenuItem>
-                    
+
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -713,7 +710,7 @@ const Page = () => {
         </Button>
       </div>
 
-  
+
 
       <ViewTaskDialog
         isOpen={isViewOpen}
@@ -721,7 +718,7 @@ const Page = () => {
         task={selectedTask}
       />
 
-   
+
 
       <HistoryTaskDialog
         isOpen={isHistoryOpen}

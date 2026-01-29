@@ -237,8 +237,8 @@ export default function DriverLogsOverview() {
   )
   const totalPages = Math.ceil(filteredAndSortedDrivers.length / rowsPerPage)
 
-  const navigateToDetail = (driverId: number, category: string) => {
-    router.push(`/dashboard/users/daily-duty-logs/${driverId}?tab=${category}`)
+  const navigateToDetail = (driverId: number, category: string,Name:string) => {
+    router.push(`/dashboard/users/daily-duty-logs/${driverId}?tab=${category}&name=${Name}`)
   }
 
   const resetFilters = () => {
@@ -454,7 +454,7 @@ export default function DriverLogsOverview() {
                 <TableCell className="text-center">
                   <CountPill
                     value={driver.current_total}
-                    onClick={() => navigateToDetail(driver.user_id, "current")}
+                    onClick={() => navigateToDetail(driver.user_id, "current",driver.full_name)}
                   />
                 </TableCell>
 
@@ -464,7 +464,7 @@ export default function DriverLogsOverview() {
                     color="red"
                     onClick={() =>
                       driver.current_incomplete > 0 &&
-                      navigateToDetail(driver.user_id, "current-incomplete")
+                      navigateToDetail(driver.user_id, "current-incomplete",driver.full_name)
                     }
                     disabled={true}
                   />
@@ -476,7 +476,7 @@ export default function DriverLogsOverview() {
                     color="green"
                     onClick={() =>
                       driver.current_complete > 0 &&
-                      navigateToDetail(driver.user_id, "current-complete")
+                      navigateToDetail(driver.user_id, "current-complete",driver.full_name)
                     }
                     disabled={true}
                   />
@@ -488,7 +488,7 @@ export default function DriverLogsOverview() {
                     color="yellow"
                     onClick={() =>
                       driver.awaiting_approval > 0 &&
-                      navigateToDetail(driver.user_id, "awaiting-approval")
+                      navigateToDetail(driver.user_id, "awaiting-approval",driver.full_name)
                     }
                     disabled={driver.awaiting_approval === 0}
                   />
@@ -500,7 +500,7 @@ export default function DriverLogsOverview() {
                     color="red"
                     onClick={() =>
                       driver.historical_incomplete > 0 &&
-                      navigateToDetail(driver.user_id, "historical-incomplete")
+                      navigateToDetail(driver.user_id, "historical-incomplete",driver.full_name)
                     }
                     disabled={driver.historical_incomplete === 0}
                   />
@@ -512,7 +512,7 @@ export default function DriverLogsOverview() {
                     color="green"
                     onClick={() =>
                       driver.historical_complete > 0 &&
-                      navigateToDetail(driver.user_id, "historical-complete")
+                      navigateToDetail(driver.user_id, "historical-complete",driver.full_name)
                     }
                     disabled={driver.historical_complete === 0}
                   />

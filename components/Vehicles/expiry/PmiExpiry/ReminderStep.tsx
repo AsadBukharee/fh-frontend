@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 
 type StepType = "reminder" | "brakeReminder";
 
@@ -13,7 +14,7 @@ interface ReminderStepProps {
   vehicleRegistration: string;
   reminderDateTime: string;
   setReminderDateTime: (value: string) => void;
- 
+
 }
 
 const ReminderStep: React.FC<ReminderStepProps> = ({
@@ -21,10 +22,10 @@ const ReminderStep: React.FC<ReminderStepProps> = ({
   vehicleRegistration,
   reminderDateTime,
   setReminderDateTime,
-  
+
 }) => {
   const reminderType = step === "reminder" ? "PMI certificate" : "brake test re-booking";
-  const token=useCookies().get("access_token") || ''
+  const token = useCookies().get("access_token") || ''
   const [isLoading, setIsLoading] = useState(false);
 
   const handleReminder = async (type: "pmi" | "brake", reminderType: string) => {
@@ -81,7 +82,7 @@ const ReminderStep: React.FC<ReminderStepProps> = ({
         </p>
         <p className="text-xs text-blue-600 mt-1">
           Vehicle Registration: {vehicleRegistration}
-          {step === "brakeReminder" && ` - Failed brake test on ${new Date().toLocaleDateString("en-GB")}`}
+          {step === "brakeReminder" && ` - Failed brake test on ${formatToDDMMYYYY(new Date())}`}
         </p>
       </div>
       <div>

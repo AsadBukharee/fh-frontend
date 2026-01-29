@@ -35,8 +35,9 @@ import { Trash2, Edit, Plus } from 'lucide-react'
 import { toast } from 'sonner' // Assuming sonner for notifications, or replace with your preferred toast library
 import API_URL from '@/app/utils/ENV'
 import { useCookies } from 'next-client-cookies'
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat'
 
-const API_BASE =API_URL
+const API_BASE = API_URL
 
 interface VehicleType {
   id: number
@@ -54,7 +55,7 @@ const VehicleTypeTab = () => {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [formData, setFormData] = useState({ name: '', description: '' })
   const [editId, setEditId] = useState<number | null>(null)
-  const cookies=useCookies();
+  const cookies = useCookies();
 
   const resetForm = () => {
     setFormData({ name: '', description: '' })
@@ -64,8 +65,8 @@ const VehicleTypeTab = () => {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/api/vehicle-types/`,{
-      headers: {
+      const response = await fetch(`${API_BASE}/api/vehicle-types/`, {
+        headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
@@ -108,7 +109,7 @@ const VehicleTypeTab = () => {
     try {
       const response = await fetch(url, {
         method,
-         headers: {
+        headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
@@ -135,7 +136,7 @@ const VehicleTypeTab = () => {
     try {
       const response = await fetch(`${API_BASE}/api/vehicle-types/${deleteId}`, {
         method: 'DELETE',
-         headers: {
+        headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
@@ -214,7 +215,7 @@ const VehicleTypeTab = () => {
               <TableCell>{item.id}</TableCell>
               <TableCell>{item.name}</TableCell>
               <TableCell>{item.description}</TableCell>
-              <TableCell>{new Date(item.created_at).toLocaleDateString()}</TableCell>
+              <TableCell>{formatToDDMMYYYY(item.created_at)}</TableCell>
               <TableCell className="flex space-x-2">
                 <Button
                   variant="outline"
@@ -225,8 +226,8 @@ const VehicleTypeTab = () => {
                 </Button>
                 <AlertDialog open={deleteId === item.id} onOpenChange={() => setDeleteId(null)}>
                   <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="destructive" 
+                    <Button
+                      variant="destructive"
                       size="sm"
                       onClick={() => setDeleteId(item.id)}
                     >

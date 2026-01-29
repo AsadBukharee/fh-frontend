@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar, Clock, User, MessageSquare, ArrowRight, AlertCircle, Save } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 interface ShiftChange {
   id: number;
@@ -213,11 +214,10 @@ const ChangeShifts: React.FC = () => {
             <button
               key={key}
               onClick={() => setFilterStatus(key)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                filterStatus === key
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${filterStatus === key
                   ? 'bg-orange-600 text-white shadow-md shadow-orange-200'
                   : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-              }`}
+                }`}
             >
               {label}
               <span className="ml-2 text-sm opacity-80">
@@ -237,7 +237,7 @@ const ChangeShifts: React.FC = () => {
                 No requests found
               </p>
               <p className="text-slate-500 text-sm">
-                {filterStatus === 'all' 
+                {filterStatus === 'all'
                   ? 'There are no shift change requests at the moment.'
                   : `No ${filterStatus} requests available.`}
               </p>
@@ -324,7 +324,7 @@ const ChangeShifts: React.FC = () => {
                         <Calendar className="h-4 w-4" />
                         Requested Shift Changes
                       </h3>
-                      
+
                       <div className="overflow-x-auto rounded-lg border border-slate-200">
                         <table className="w-full">
                           <thead>
@@ -345,11 +345,7 @@ const ChangeShifts: React.FC = () => {
                               return (
                                 <tr key={shift.id} className="border-b border-slate-100 hover:bg-slate-50">
                                   <td className="px-4 py-3 font-medium text-slate-700">
-                                    {new Date(shift.date).toLocaleDateString('en-US', {
-                                      month: 'short',
-                                      day: 'numeric',
-                                      year: 'numeric'
-                                    })}
+                                    {formatToDDMMYYYY(shift.date)}
                                   </td>
                                   <td className="px-4 py-3">
                                     <span className="inline-flex items-center px-3 py-1 rounded-md bg-slate-100 text-slate-700 text-sm font-medium">
@@ -374,14 +370,12 @@ const ChangeShifts: React.FC = () => {
                                       <div className="flex items-center justify-center gap-2">
                                         <button
                                           onClick={() => toggleShiftDecision(shift.id)}
-                                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                            isApproved ? 'bg-green-600' : 'bg-red-600'
-                                          }`}
+                                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isApproved ? 'bg-green-600' : 'bg-red-600'
+                                            }`}
                                         >
                                           <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                              isApproved ? 'translate-x-6' : 'translate-x-1'
-                                            }`}
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isApproved ? 'translate-x-6' : 'translate-x-1'
+                                              }`}
                                           />
                                         </button>
                                         <span className={`text-sm font-medium ${isApproved ? 'text-green-700' : 'text-red-700'}`}>
