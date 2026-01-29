@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 
 interface ReminderConfirmationStepProps {
   vehicleRegistration: string;
@@ -19,7 +20,7 @@ const ReminderConfirmationStep: React.FC<ReminderConfirmationStepProps> = ({
       <p className="text-sm font-medium text-green-800">Reminder Saved</p>
       <p className="text-sm text-green-700 mt-2">
         Reminder set for {reminderType} upload for {vehicleRegistration} on{" "}
-        {new Date(reminderDateTime).toLocaleDateString("en-GB")}.
+        {formatToDDMMYYYY(reminderDateTime)}.
       </p>
     </div>
     <Button onClick={handleClose} className="w-full">

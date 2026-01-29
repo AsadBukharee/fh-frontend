@@ -68,6 +68,7 @@ import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 
 
 // ---------------------------------------------------
@@ -178,7 +179,7 @@ const Page = () => {
   const [prevPage, setPrevPage] = useState<string | null>(null);
   const [totalTasks, setTotalTasks] = useState(0);
   const [loading, setLoading] = useState(false);
-  const router=useRouter()
+  const router = useRouter()
 
   // Filters
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -230,114 +231,114 @@ const Page = () => {
     }
   };
 
- const fetchUsers = async () => {
-  try {
-    const res = await fetch(`${API_HOST}/users/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${API_HOST}/users/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const payload = await res.json();               // <-- the whole response
-    const userArray = payload.data?.results ?? [];   // <-- correct path
+      const payload = await res.json();               // <-- the whole response
+      const userArray = payload.data?.results ?? [];   // <-- correct path
 
-    // Optional: keep the total count if you ever need it
-    // setTotalUsers(payload.data?.count ?? 0);
+      // Optional: keep the total count if you ever need it
+      // setTotalUsers(payload.data?.count ?? 0);
 
-    setUsers(userArray);
-  } catch (e) {
-    console.error("Failed to load users", e);
-    setUsers([]);   // keep UI stable
-  }
-};
+      setUsers(userArray);
+    } catch (e) {
+      console.error("Failed to load users", e);
+      setUsers([]);   // keep UI stable
+    }
+  };
 
   const fetchTasks = async () => {
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const params = new URLSearchParams();
+    try {
+      const params = new URLSearchParams();
 
-    // ---- Pagination & Search ----
-    params.set("page", currentPage.toString());
+      // ---- Pagination & Search ----
+      params.set("page", currentPage.toString());
 
-    if (searchTerm.trim()) {
-      params.set("search", searchTerm); // NO encodeURIComponent
+      if (searchTerm.trim()) {
+        params.set("search", searchTerm); // NO encodeURIComponent
+      }
+
+      // ---- Single-value filters ----
+      if (priorityFilter !== "all") {
+        params.set("priority", priorityFilter);
+      }
+
+      if (statusFilter !== "all") {
+        params.set("status", statusFilter);
+      }
+
+      // ---- Multi-ID filters (comma separated) ----
+      if (taskTypeFilter.length > 0) {
+        params.set("task_type", taskTypeFilter.join(","));
+      }
+
+      if (assignedToFilter.length > 0) {
+        params.set("assigned_to", assignedToFilter.join(","));
+      }
+
+      if (assignedByFilter.length > 0) {
+        params.set("assigned_by", assignedByFilter.join(","));
+      }
+
+      // ---- Date assigned range ----
+      if (dateAssignedRange.from && isValid(dateAssignedRange.from)) {
+        params.set(
+          "date_assigned_start",
+          format(dateAssignedRange.from, "yyyy-MM-dd")
+        );
+      }
+
+      if (dateAssignedRange.to && isValid(dateAssignedRange.to)) {
+        params.set(
+          "date_assigned_end",
+          format(dateAssignedRange.to, "yyyy-MM-dd")
+        );
+      }
+
+      // ---- Deadline range ----
+      if (deadlineRange.from && isValid(deadlineRange.from)) {
+        params.set(
+          "deadline_start",
+          format(deadlineRange.from, "yyyy-MM-dd")
+        );
+      }
+
+      if (deadlineRange.to && isValid(deadlineRange.to)) {
+        params.set(
+          "deadline_end",
+          format(deadlineRange.to, "yyyy-MM-dd")
+        );
+      }
+
+      const res = await fetch(`${API_HOST}/api/tasks/?${params.toString()}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data: ApiResponse = await res.json();
+
+      setTasks(data.results);
+      setTotalTasks(data.count);
+      setNextPage(data.next);
+      setPrevPage(data.previous);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load tasks");
+    } finally {
+      setLoading(false);
     }
-
-    // ---- Single-value filters ----
-    if (priorityFilter !== "all") {
-      params.set("priority", priorityFilter);
-    }
-
-    if (statusFilter !== "all") {
-      params.set("status", statusFilter);
-    }
-
-    // ---- Multi-ID filters (comma separated) ----
-    if (taskTypeFilter.length > 0) {
-      params.set("task_type", taskTypeFilter.join(","));
-    }
-
-    if (assignedToFilter.length > 0) {
-      params.set("assigned_to", assignedToFilter.join(","));
-    }
-
-    if (assignedByFilter.length > 0) {
-      params.set("assigned_by", assignedByFilter.join(","));
-    }
-
-    // ---- Date assigned range ----
-    if (dateAssignedRange.from && isValid(dateAssignedRange.from)) {
-      params.set(
-        "date_assigned_start",
-        format(dateAssignedRange.from, "yyyy-MM-dd")
-      );
-    }
-
-    if (dateAssignedRange.to && isValid(dateAssignedRange.to)) {
-      params.set(
-        "date_assigned_end",
-        format(dateAssignedRange.to, "yyyy-MM-dd")
-      );
-    }
-
-    // ---- Deadline range ----
-    if (deadlineRange.from && isValid(deadlineRange.from)) {
-      params.set(
-        "deadline_start",
-        format(deadlineRange.from, "yyyy-MM-dd")
-      );
-    }
-
-    if (deadlineRange.to && isValid(deadlineRange.to)) {
-      params.set(
-        "deadline_end",
-        format(deadlineRange.to, "yyyy-MM-dd")
-      );
-    }
-
-    const res = await fetch(`${API_HOST}/api/tasks/?${params.toString()}`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const data: ApiResponse = await res.json();
-
-    setTasks(data.results);
-    setTotalTasks(data.count);
-    setNextPage(data.next);
-    setPrevPage(data.previous);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to load tasks");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
   // ------------------- EFFECTS -------------------
@@ -482,7 +483,7 @@ const Page = () => {
       </p>
 
       {/* ---------- FILTER BAR (exact image) ---------- */}
-   
+
 
       {/* ---------- SEARCH & ACTIONS ---------- */}
       <div className="flex flex-wrap gap-4 mt-4 mb-6">
@@ -504,7 +505,7 @@ const Page = () => {
         </Button>
 
         <ExportButton data={tasks} fileName="tasks_export.csv" />
-           <Button
+        <Button
           variant="ghost"
           size="icon"
           onClick={() => router.push("/dashboard/tasks/settings")}
@@ -512,18 +513,18 @@ const Page = () => {
         >
           <Settings size={20} className="h-6 w-6" />
         </Button>
-          <Button
+        <Button
           variant="ghost"
           size="icon"
           onClick={() => router.push("/dashboard/tasks/task-types")}
           title="Task Type List"
         >
-                    <ListFilter className="h-4 w-4" />
+          <ListFilter className="h-4 w-4" />
 
         </Button>
 
       </div>
-   <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+      <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
         {/* Task Type */}
         <Button
           variant="ghost"
@@ -665,7 +666,7 @@ const Page = () => {
         </Select>
 
         {/* Settings */}
-     
+
       </div>
       {/* ---------- TABLE ---------- */}
       {loading ? (
@@ -712,15 +713,11 @@ const Page = () => {
                 <TableCell>{task.assigned_by?.full_name}</TableCell>
 
                 <TableCell>
-                  {new Date(task.created_at).toLocaleDateString()}
+                  {formatToDDMMYYYY(task.created_at)}
                 </TableCell>
 
                 <TableCell>
-                  {new Date(task.deadline).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })}
+                  {formatToDDMMYYYY(task.deadline)}
                 </TableCell>
 
                 <TableCell>
@@ -768,7 +765,7 @@ const Page = () => {
                       <DropdownMenuItem onClick={() => openHistory(task)}>
                         <Logs className="mr-2 h-4 w-4" /> Logs
                       </DropdownMenuItem>
-                     
+
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -825,7 +822,7 @@ const Page = () => {
         onClose={() => setIsHistoryOpen(false)}
         // assignmentLogs={selectedTask?.assignment_logs ?? []}/
         history={selectedTask?.history ?? []}
-        // changeLogs={selectedTask?.change_logs ?? []}
+      // changeLogs={selectedTask?.change_logs ?? []}
       />
 
 

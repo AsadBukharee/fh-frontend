@@ -23,9 +23,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import API_URL from '@/app/utils/ENV';
-import { 
-  EllipsisVertical, Gauge, MapPin, UsersRound, Eye, Edit, Trash2, 
-  Calendar, Filter, User, CalendarDays, ChevronLeft, ChevronRight 
+import {
+  EllipsisVertical, Gauge, MapPin, UsersRound, Eye, Edit, Trash2,
+  Calendar, Filter, User, CalendarDays, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import {
   Select,
@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import ExportButton from '@/app/utils/ExportButton';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 type Stop = {
   id: number;
@@ -59,8 +60,8 @@ type Run = {
     vehicles_type_name: string;
     last_mileage: string;
   } | null;
-  driver: { 
-    id: number; 
+  driver: {
+    id: number;
     full_name: string;
     email: string;
   } | null;
@@ -128,7 +129,7 @@ const MileageTracker = () => {
   const [runs, setRuns] = useState<Run[]>([]);
   const [filteredRuns, setFilteredRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Filter states
   const [activeRunType, setActiveRunType] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(() => {
@@ -139,13 +140,13 @@ const MileageTracker = () => {
   const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
-  
+
   // Advanced filter dialog
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
@@ -166,9 +167,9 @@ const MileageTracker = () => {
     const fetchDrivers = async () => {
       try {
         const res = await fetch(`${API_URL}/users/?role=Driver`, {
-          headers: { 
-            "Content-Type": "application/json", 
-            Authorization: `Bearer ${token}` 
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
           },
         });
         const data = await res.json();
@@ -191,7 +192,7 @@ const MileageTracker = () => {
         const params = new URLSearchParams();
         params.append('page', currentPage.toString());
         params.append('page_size', pageSize.toString());
-        
+
         if (dateFrom) {
           params.append('date_from', format(dateFrom, 'yyyy-MM-dd'));
         }
@@ -210,16 +211,16 @@ const MileageTracker = () => {
         console.log('Fetching from:', apiUrl);
 
         const res = await fetch(apiUrl, {
-          headers: { 
-            "Content-Type": "application/json", 
-            Authorization: `Bearer ${token}` 
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
           },
         });
-        
+
         console.log('Response status:', res.status);
         const data = await res.json();
         console.log('Response data:', data);
-        
+
         if (data?.data?.results) {
           // Process the data
           const processedData = data.data.results.map((run: Run) => ({
@@ -243,11 +244,11 @@ const MileageTracker = () => {
               return run.stops.reduce((sum, stop) => sum + stop.mileage, 0);
             }
           }));
-          
-          const sortedData = processedData.sort((a: Run, b: Run) => 
+
+          const sortedData = processedData.sort((a: Run, b: Run) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
-          
+
           console.log('Processed runs:', sortedData);
           setRuns(sortedData);
           setFilteredRuns(sortedData);
@@ -304,7 +305,7 @@ const MileageTracker = () => {
     const today = new Date();
     const weekAgo = new Date();
     weekAgo.setDate(today.getDate() - 7);
-    
+
     setDateFrom(weekAgo);
     setDateTo(today);
     setSelectedDriver("all");
@@ -321,24 +322,24 @@ const MileageTracker = () => {
   // Get the current active run type display name
   const getActiveRunTypeDisplay = () => {
     if (activeRunType === "all") return "All Runs";
-    
+
     const runTypeObj = ALL_RUN_TYPES.find(rt => rt.id === activeRunType);
     if (!runTypeObj) return activeRunType;
-    
+
     return runTypeObj.display;
   };
 
   // Get driver totals for summary
   const getDriverTotals = (driverName: string) => {
     const driverRuns = filteredRuns.filter(run => getDriverDisplayName(run) === driverName);
-    
-    const totalTransfers = driverRuns.reduce((sum, run) => 
+
+    const totalTransfers = driverRuns.reduce((sum, run) =>
       sum + run.stops.reduce((s, stop) => s + Math.abs(stop.number), 0), 0
     );
-    
+
     const totalJobs = driverRuns.reduce((sum, run) => sum + run.stops.length, 0);
     const totalMileage = driverRuns.reduce((sum, run) => sum + calculateTotalMileage(run), 0);
-    
+
     return { totalTransfers, totalJobs, totalMileage };
   };
 
@@ -443,21 +444,21 @@ const MileageTracker = () => {
             </div>
             <div className="flex items-center gap-2">
               <ExportButton
-              data={runs}
-              fileName='Mileage_tracker'
+                data={runs}
+                fileName='Mileage_tracker'
               />
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowAdvancedFilters(true)}
                 className="flex items-center gap-2"
               >
                 <Filter size={16} />
                 Advanced Filters
               </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={resetFilters}
               >
                 Reset
@@ -472,11 +473,10 @@ const MileageTracker = () => {
                 {OTHER_RUN_TYPES.filter(rt => rt.id !== 'all').map(f => (
                   <Badge
                     key={f.id}
-                    className={`cursor-pointer px-5 py-2 rounded-full text-sm font-semibold transition-all border-2 ${
-                      activeRunType === f.id
+                    className={`cursor-pointer px-5 py-2 rounded-full text-sm font-semibold transition-all border-2 ${activeRunType === f.id
                         ? "bg-white border-gray-800 shadow-md text-gray-900 font-bold"
                         : f.color + " border-transparent"
-                    }`}
+                      }`}
                     onClick={() => setActiveRunType(f.id)}
                   >
                     {f.label}
@@ -485,11 +485,10 @@ const MileageTracker = () => {
                 {SHUTTLE_TYPES.map(f => (
                   <Badge
                     key={f.id}
-                    className={`cursor-pointer px-5 py-2 rounded-full text-sm font-semibold transition-all border-2 ${
-                      activeRunType === f.id
+                    className={`cursor-pointer px-5 py-2 rounded-full text-sm font-semibold transition-all border-2 ${activeRunType === f.id
                         ? "bg-white border-gray-800 shadow-md text-gray-900 font-bold"
                         : f.color + " border-transparent"
-                    }`}
+                      }`}
                     onClick={() => setActiveRunType(f.id)}
                   >
                     {f.label}
@@ -497,11 +496,10 @@ const MileageTracker = () => {
                 ))}
                 <Badge
                   key="all"
-                  className={`cursor-pointer px-5 py-2 rounded-full text-sm font-semibold transition-all border-2 ${
-                    activeRunType === "all"
+                  className={`cursor-pointer px-5 py-2 rounded-full text-sm font-semibold transition-all border-2 ${activeRunType === "all"
                       ? "bg-white border-gray-800 shadow-md text-gray-900 font-bold"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200 border-transparent"
-                  }`}
+                    }`}
                   onClick={() => setActiveRunType("all")}
                 >
                   All Runs
@@ -569,11 +567,7 @@ const MileageTracker = () => {
                         minute: '2-digit',
                         hour12: true
                       });
-                      const runDateStr = runDate.toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      });
+                      const runDateStr = formatToDDMMYYYY(run.created_at);
 
                       // Determine badge color based on run type
                       let badgeColor = "bg-gray-100 text-gray-700";
@@ -616,9 +610,8 @@ const MileageTracker = () => {
                                     </div>
                                   )}
                                   <div className="flex flex-col items-center min-w-28">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${
-                                      run.direction === "out" ? "bg-pink-100" : "bg-green-100"
-                                    }`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${run.direction === "out" ? "bg-pink-100" : "bg-green-100"
+                                      }`}>
                                       <MapPin size={14} className={
                                         run.direction === "out" ? "text-pink-600" : "text-green-600"
                                       } />
@@ -629,7 +622,7 @@ const MileageTracker = () => {
                                       </div>
                                       <div className="text-xs text-gray-600 flex items-center justify-center gap-1 mt-1">
                                         <UsersRound size={12} />
-                                        SU: {stop.number} 
+                                        SU: {stop.number}
                                         {stop.spillover !== 0 && (
                                           <span className={stop.spillover > 0 ? "text-green-600" : "text-red-600"}>
                                             ({stop.spillover > 0 ? '+' : ''}{stop.spillover})
@@ -643,11 +636,10 @@ const MileageTracker = () => {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge variant="outline" className={`px-4 py-1 text-sm font-bold border-2 ${
-                              run.direction === "in"
+                            <Badge variant="outline" className={`px-4 py-1 text-sm font-bold border-2 ${run.direction === "in"
                                 ? "bg-green-100 text-green-700 border-green-400"
                                 : "bg-red-100 text-red-700 border-red-400"
-                            }`}>
+                              }`}>
                               {run.direction.toUpperCase()}
                             </Badge>
                           </TableCell>
@@ -685,12 +677,12 @@ const MileageTracker = () => {
                 <Filter size={48} className="mx-auto text-gray-300 mb-4" />
                 <h3 className="text-lg font-semibold text-gray-600">No runs found</h3>
                 <p className="text-gray-500 mt-2">
-                  {activeRunType === "all" 
+                  {activeRunType === "all"
                     ? "No runs found for the selected date range and filters."
                     : `No ${getActiveRunTypeDisplay()} runs found for the selected date range and filters.`}
                 </p>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="mt-4"
                   onClick={resetFilters}
                 >
@@ -717,10 +709,10 @@ const MileageTracker = () => {
                   <TableBody>
                     {uniqueDrivers.map(driverName => {
                       if (!driverName) return null;
-                      
+
                       const driverRuns = filteredRuns.filter(run => getDriverDisplayName(run) === driverName);
                       const totals = getDriverTotals(driverName);
-                      
+
                       return (
                         <TableRow key={driverName}>
                           <TableCell className="font-medium">{driverName}</TableCell>
@@ -762,7 +754,7 @@ const MileageTracker = () => {
               Filter runs by date range, driver, and other criteria
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6 py-4">
             {/* Date Range */}
             <div className="space-y-3">
@@ -790,9 +782,9 @@ const MileageTracker = () => {
                     />
                   </PopoverContent>
                 </Popover>
-                
+
                 <span className="text-gray-500">to</span>
-                
+
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -857,8 +849,8 @@ const MileageTracker = () => {
             {/* Page Size */}
             <div className="space-y-3">
               <Label>Results per page</Label>
-              <Select 
-                value={pageSize.toString()} 
+              <Select
+                value={pageSize.toString()}
                 onValueChange={(value) => setPageSize(Number(value))}
               >
                 <SelectTrigger>
@@ -930,7 +922,7 @@ const MileageTracker = () => {
               </div>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={resetFilters}>
               Reset All

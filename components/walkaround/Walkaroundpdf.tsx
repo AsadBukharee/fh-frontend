@@ -2,7 +2,9 @@
 'use client'
 
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { saveAs } from 'file-saver';
 import { WalkaroundData } from './types';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 // PDF Styles (extracted from original)
 export const styles = StyleSheet.create({
@@ -280,17 +282,7 @@ export const styles = StyleSheet.create({
 
 // Helper functions for formatting
 export const formatDate = (dateString: string): string => {
-  if (!dateString) return 'N/A';
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  } catch {
-    return 'Invalid Date';
-  }
+  return formatToDDMMYYYY(dateString, 'N/A');
 };
 
 export const formatTime = (timeString: string): string => {
@@ -336,10 +328,10 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.label}>Status</Text>
-              <View style={[styles.answerBadge, 
-                walkaround.status === 'completed' ? styles.completedBadge : 
-                walkaround.status === 'pending' ? styles.pendingBadge : 
-                styles.pendingBadge
+              <View style={[styles.answerBadge,
+              walkaround.status === 'completed' ? styles.completedBadge :
+                walkaround.status === 'pending' ? styles.pendingBadge :
+                  styles.pendingBadge
               ]}>
                 <Text>{walkaround.status?.toUpperCase() || 'PENDING'}</Text>
               </View>
@@ -401,10 +393,10 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
         <View style={styles.sectionContent}>
           {answers && answers.length > 0 ? (
             answers.map((item, idx) => (
-              <View 
-                key={item.id || idx} 
+              <View
+                key={item.id || idx}
                 style={[
-                  styles.answerItem, 
+                  styles.answerItem,
                   item.is_defected ? { backgroundColor: '#fef2f2', borderColor: '#fecaca' } : {}
                 ]}
               >
@@ -416,25 +408,25 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
                     {item.is_defected ? '!' : idx + 1}
                   </Text>
                 </View>
-                
+
                 <View style={styles.answerContent}>
                   <Text style={styles.questionText}>{item.question_text || 'No question text available'}</Text>
-                  
+
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <View style={[styles.answerBadge, 
-                      item.answer?.toLowerCase().includes('yes') || item.answer?.toLowerCase().includes('laboris') ? styles.yesBadge :
+                    <View style={[styles.answerBadge,
+                    item.answer?.toLowerCase().includes('yes') || item.answer?.toLowerCase().includes('laboris') ? styles.yesBadge :
                       item.answer?.toLowerCase().includes('no') || item.answer?.toLowerCase().includes('dolore') ? styles.noBadge :
-                      styles.noBadge
+                        styles.noBadge
                     ]}>
                       <Text>{item.answer || 'No'}</Text>
                     </View>
-                    
-                    <View style={[styles.answerBadge, 
-                      item.is_defected ? styles.failBadge : styles.passBadge
+
+                    <View style={[styles.answerBadge,
+                    item.is_defected ? styles.failBadge : styles.passBadge
                     ]}>
                       <Text>{item.is_defected ? "FAIL" : "PASS"}</Text>
                     </View>
-                    
+
                     <View style={[styles.answerBadge, styles.ldfBadge]}>
                       <Text>LDF</Text>
                     </View>
@@ -445,7 +437,7 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
                       </View>
                     )}
                   </View>
-                  
+
                   {item.is_defected && item.description && (
                     <Text style={styles.description}>
                       Defect Note: {item.description}
@@ -476,7 +468,7 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
             </View>
           </View>
         </View>
-        
+
         <View style={styles.column}>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -499,8 +491,8 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
           </View>
           <View style={styles.sectionContent}>
             <View style={styles.signatureContainer}>
-              <Image 
-                src={walkaround.signature} 
+              <Image
+                src={walkaround.signature}
                 style={styles.signatureImage}
               />
               <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 5 }}>
@@ -522,7 +514,7 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
 // Combined All Steps PDF Document
 export const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: any[] }) => {
   const validSteps = stepDataList.filter(step => step.data?.success);
-  
+
   if (validSteps.length === 0) {
     return (
       <Document>
@@ -547,7 +539,7 @@ export const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: any[] }) =
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={styles.title}>Vehicle Inspection Report</Text>
           <Text style={styles.subtitle}>Comprehensive Walkaround Details</Text>
-          
+
           <View style={{ marginTop: 40, alignItems: 'center' }}>
             <Text style={{ fontSize: 16, color: '#374151', marginBottom: 10 }}>
               {registration}
@@ -555,7 +547,7 @@ export const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: any[] }) =
             <Text style={{ fontSize: 14, color: '#6b7280' }}>
               {vehicleInfo?.vehicles_type_name || 'N/A'}
             </Text>
-            
+
             <View style={[styles.statsContainer, { marginTop: 30, width: '80%' }]}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{totalSteps}</Text>
@@ -570,9 +562,9 @@ export const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: any[] }) =
                 <Text style={styles.statLabel}>Total Checks</Text>
               </View>
             </View>
-            
+
             <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 40 }}>
-              Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+              Generated on {formatToDDMMYYYY(new Date())} at {new Date().toLocaleTimeString()}
             </Text>
           </View>
         </View>
@@ -582,7 +574,7 @@ export const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: any[] }) =
       {validSteps.map((step, index) => (
         <Page key={step.stepId} size="A4" style={styles.page}>
           <StepPDFDocument data={step.data!} stepNumber={step.stepNumber} />
-          
+
           {/* Footer for each step page */}
           <View style={styles.footer}>
             <View>

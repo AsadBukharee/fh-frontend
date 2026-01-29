@@ -26,6 +26,7 @@ import { Badge } from "../ui/badge"
 import { Card, CardContent } from "../ui/card"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat"
 
 // Define the shape of the API response data
 interface JobData {
@@ -171,7 +172,7 @@ const ProgressInMechanic = ({
                       <Calendar className="w-4 h-4 text-gray-500" />
                       <div>
                         <p className="text-sm text-gray-500">Created</p>
-                        <p className="font-medium">{new Date(jobData.timestamp).toLocaleDateString("en-GB")}</p>
+                        <p className="font-medium">{formatToDDMMYYYY(jobData.timestamp)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

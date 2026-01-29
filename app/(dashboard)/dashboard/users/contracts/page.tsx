@@ -40,6 +40,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useDebounce } from "use-debounce"
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat"
 
 // Type declarations
 interface Shift {
@@ -134,7 +135,7 @@ const ShiftCard = memo(
       `}
       >
         <div className="absolute top-0 left-0 w-1 h-full rounded-l-lg" style={{ backgroundColor: shift.colors }} />
-        
+
         <div className="p-4 pl-5">
           {isEditingThis && editedTemplate ? (
             <div className="space-y-3">
@@ -153,7 +154,7 @@ const ShiftCard = memo(
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1.5 block">Shift Name</label>
@@ -165,7 +166,7 @@ const ShiftCard = memo(
                     className="h-9"
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-600 mb-1.5 block">Start Time</label>
@@ -188,7 +189,7 @@ const ShiftCard = memo(
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1.5 block">Hourly Rate</label>
                   <div className="relative">
@@ -209,7 +210,7 @@ const ShiftCard = memo(
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1.5 block">Notes (Optional)</label>
                   <Input
@@ -220,7 +221,7 @@ const ShiftCard = memo(
                     className="h-9"
                   />
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <label className="text-xs font-medium text-gray-600">Color Label</label>
                   <input
@@ -232,7 +233,7 @@ const ShiftCard = memo(
                   />
                 </div>
               </div>
-              
+
               <Button
                 onClick={() => (isTemplate ? handleSaveTemplate(shift as ShiftTemplate) : handleSaveShift(shift as Shift))}
                 disabled={saving}
@@ -295,7 +296,7 @@ const ShiftCard = memo(
                     style={{ backgroundColor: shift.colors }}
                   />
                   <span className="text-xs text-gray-500">
-                    {new Date(shift.updated_at).toLocaleDateString("en-GB")}
+                    {formatToDDMMYYYY(shift.updated_at)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -792,8 +793,8 @@ const ShiftManagement = () => {
             <p className="text-gray-600 text-sm mt-1">Manage contracts, shifts, and templates</p>
           </div>
           <div className="flex items-center gap-3">
-           
-        
+
+
           </div>
         </div>
 
@@ -812,7 +813,7 @@ const ShiftManagement = () => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-gray-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -826,7 +827,7 @@ const ShiftManagement = () => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-gray-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -840,7 +841,7 @@ const ShiftManagement = () => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-gray-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -898,42 +899,42 @@ const ShiftManagement = () => {
           <TabsContent value="contracts" className="mt-6 space-y-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">All Contracts</h2>
-             <div className=" flex gap-2">
-                   <GradientButton
-              text="New Contract"
-              onClick={() => setIsContractModalOpen(true)}
-              Icon={Plus}
-            />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Filter className="h-4 w-4" />
-                    {selectedContract === "all" ? "All Contracts" : contracts.find(c => c.id.toString() === selectedContract)?.name}
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => setSelectedContract("all")}>
-                    <LayoutGrid className="h-4 w-4 mr-2" />
-                    All Contracts
-                    {selectedContract === "all" && <Check className="h-4 w-4 ml-auto text-orange" />}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {contracts.map((contract) => (
-                    <DropdownMenuItem
-                      key={contract.id}
-                      onClick={() => setSelectedContract(contract.id.toString())}
-                    >
-                      <Building2 className="h-4 w-4 mr-2" />
-                      {contract.name}
-                      {selectedContract === contract.id.toString() && (
-                        <Check className="h-4 w-4 ml-auto text-orange" />
-                      )}
+              <div className=" flex gap-2">
+                <GradientButton
+                  text="New Contract"
+                  onClick={() => setIsContractModalOpen(true)}
+                  Icon={Plus}
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Filter className="h-4 w-4" />
+                      {selectedContract === "all" ? "All Contracts" : contracts.find(c => c.id.toString() === selectedContract)?.name}
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => setSelectedContract("all")}>
+                      <LayoutGrid className="h-4 w-4 mr-2" />
+                      All Contracts
+                      {selectedContract === "all" && <Check className="h-4 w-4 ml-auto text-orange" />}
                     </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-             </div>
+                    <DropdownMenuSeparator />
+                    {contracts.map((contract) => (
+                      <DropdownMenuItem
+                        key={contract.id}
+                        onClick={() => setSelectedContract(contract.id.toString())}
+                      >
+                        <Building2 className="h-4 w-4 mr-2" />
+                        {contract.name}
+                        {selectedContract === contract.id.toString() && (
+                          <Check className="h-4 w-4 ml-auto text-orange" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
 
             {filteredContracts.length > 0 ? (
@@ -959,7 +960,7 @@ const ShiftManagement = () => {
                           <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {new Date(contract.updated_at).toLocaleDateString("en-GB")}
+                              {formatToDDMMYYYY(contract.updated_at)}
                             </span>
                             {contract.updated_by_name && (
                               <span>• {contract.updated_by_name}</span>
@@ -1066,38 +1067,38 @@ const ShiftManagement = () => {
 
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">All Templates</h2>
-           <div className=" flex gap-2">
-                <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setIsAddModalOpen(true)}
-              className="border-gray-300 hover:bg-gray-50"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Shift Template
-            </Button>
-              {shiftTemplates.length > 0 && (
+              <div className=" flex gap-2">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={handleToggleSelectAll}
-                  disabled={saving}
-                  className="text-orange hover:text-orange/90 hover:bg-orange/10"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="border-gray-300 hover:bg-gray-50"
                 >
-                  {selectedTemplates.length === shiftTemplates.length ? (
-                    <>
-                      <X className="h-4 w-4 mr-2" />
-                      Deselect All
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Select All
-                    </>
-                  )}
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Shift Template
                 </Button>
-              )}
-           </div>
+                {shiftTemplates.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleSelectAll}
+                    disabled={saving}
+                    className="text-orange hover:text-orange/90 hover:bg-orange/10"
+                  >
+                    {selectedTemplates.length === shiftTemplates.length ? (
+                      <>
+                        <X className="h-4 w-4 mr-2" />
+                        Deselect All
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Select All
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
 
             {filteredTemplates.length > 0 ? (

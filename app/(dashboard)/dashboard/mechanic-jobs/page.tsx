@@ -57,6 +57,7 @@ import {
   Edit,
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat"
 import { useCookies } from "next-client-cookies"
 import { useToast } from "@/app/Context/ToastContext"
 import Link from "next/link"
@@ -118,13 +119,13 @@ interface MechanicJobApiResponse extends ApiResponse<{
   page: number
   page_size: number
   total_pages: number
-}> {}
+}> { }
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface UserApiResponse extends ApiResponse<User[]> {}
+interface UserApiResponse extends ApiResponse<User[]> { }
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface VehicleApiResponse extends ApiResponse<Vehicle[]> {}
+interface VehicleApiResponse extends ApiResponse<Vehicle[]> { }
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface MechanicDefectApiResponse extends ApiResponse<MechanicDefectPayload> {}
+interface MechanicDefectApiResponse extends ApiResponse<MechanicDefectPayload> { }
 
 export default function MechanicJobsPage() {
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
@@ -145,7 +146,7 @@ export default function MechanicJobsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
-  
+
   // Filter states
   const [filterStatus, setFilterStatus] = useState<string>("")
   const [filterVehicleReg, setFilterVehicleReg] = useState<string>("")
@@ -155,7 +156,7 @@ export default function MechanicJobsPage() {
   const [filterDefects, setFilterDefects] = useState<string>("")
   const [filterStartDate, setFilterStartDate] = useState<string>("")
   const [filterEndDate, setFilterEndDate] = useState<string>("")
-  
+
   // State for job update
   const [jobPayload, setJobPayload] = useState<MechanicJobPayload>({
     vehicle: 0,
@@ -184,17 +185,17 @@ export default function MechanicJobsPage() {
   // Filtered jobs logic
   const filteredJobs = useMemo(() => {
     return allJobs.filter(job => {
-      const matchesSearch = searchQuery === '' || 
+      const matchesSearch = searchQuery === '' ||
         job.vehicle_reg.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.mechanic_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.assignee_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.notes.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.mechanicdefects.some(defect => 
+        job.mechanicdefects.some(defect =>
           defect.toLowerCase().includes(searchQuery.toLowerCase())
         )
 
-      const matchesStatus = filterStatus === '' || filterStatus === 'all' || 
+      const matchesStatus = filterStatus === '' || filterStatus === 'all' ||
         job.status.toLowerCase() === filterStatus.toLowerCase()
 
       const matchesVehicleReg = filterVehicleReg === '' || filterVehicleReg === 'all' ||
@@ -210,31 +211,31 @@ export default function MechanicJobsPage() {
         job.source.toLowerCase().includes(filterSource.toLowerCase())
 
       const matchesDefects = filterDefects === '' ||
-        job.mechanicdefects.some(defect => 
+        job.mechanicdefects.some(defect =>
           defect.toLowerCase().includes(filterDefects.toLowerCase())
         )
 
       const jobDate = new Date(job.timestamp)
-      const matchesStartDate = filterStartDate === '' || 
+      const matchesStartDate = filterStartDate === '' ||
         jobDate >= new Date(filterStartDate)
-      
-      const matchesEndDate = filterEndDate === '' || 
+
+      const matchesEndDate = filterEndDate === '' ||
         jobDate <= new Date(filterEndDate)
 
-      return matchesSearch && matchesStatus && matchesVehicleReg && 
-             matchesMechanicName && matchesAssigneeName && matchesSource && 
-             matchesDefects && matchesStartDate && matchesEndDate
+      return matchesSearch && matchesStatus && matchesVehicleReg &&
+        matchesMechanicName && matchesAssigneeName && matchesSource &&
+        matchesDefects && matchesStartDate && matchesEndDate
     })
   }, [
-    allJobs, 
-    searchQuery, 
-    filterStatus, 
-    filterVehicleReg, 
-    filterMechanicName, 
-    filterAssigneeName, 
-    filterSource, 
-    filterDefects, 
-    filterStartDate, 
+    allJobs,
+    searchQuery,
+    filterStatus,
+    filterVehicleReg,
+    filterMechanicName,
+    filterAssigneeName,
+    filterSource,
+    filterDefects,
+    filterStartDate,
     filterEndDate
   ])
 
@@ -635,7 +636,7 @@ export default function MechanicJobsPage() {
               <Filter className="w-4 h-4" />
               Filter ({filteredJobs.length} of {allJobs.length})
             </Button>
-            <ExportButton data={paginatedJobs} fileName="Mechanic Job"/>
+            <ExportButton data={paginatedJobs} fileName="Mechanic Job" />
             <button
               onClick={fetchJobs}
               disabled={loading}
@@ -689,11 +690,11 @@ export default function MechanicJobsPage() {
       ) : (
         <>
           <div className="mb-4 text-sm text-gray-600">
-            Showing {paginatedJobs.length} of {filteredJobs.length} mechanic jobs 
-            {searchQuery || Object.values({filterStatus, filterVehicleReg, filterMechanicName, filterAssigneeName, filterSource, filterDefects, filterStartDate, filterEndDate}).some(f => f !== '') && 
+            Showing {paginatedJobs.length} of {filteredJobs.length} mechanic jobs
+            {searchQuery || Object.values({ filterStatus, filterVehicleReg, filterMechanicName, filterAssigneeName, filterSource, filterDefects, filterStartDate, filterEndDate }).some(f => f !== '') &&
               ` (filtered from ${allJobs.length} total)`}
           </div>
-          
+
           <div className="rounded-lg overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
@@ -744,7 +745,7 @@ export default function MechanicJobsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {new Date(job.timestamp).toLocaleDateString("en-GB")}
+                        {formatToDDMMYYYY(job.timestamp)}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>

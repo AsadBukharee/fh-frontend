@@ -152,85 +152,69 @@ const TimeZone: React.FC = () => {
   }, [fetchCurrentTimezone, fetchAvailableTimezones])
 
   return (
-    <Card className="w-full">
-   
-      <CardContent className="">
-       
+  <div className="max-w-sm mx-2">
+  <div className="flex items-center gap-2">
+  
 
-        {/* Timezone Selector */}
-        <div className="space-y-0">
-          <h3 className="text-sm font-medium">Select Timezone</h3>
-          {loading.list ? (
-            <Skeleton className="h-10 w-full" />
-          ) : (
-            <Select 
-              value={selectedTimezone} 
-              onValueChange={handleTimezoneChange}
-              disabled={loading.update}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a timezone">
-                  {selectedTimezone ? (
-                    availableTimezones.find(tz => tz.key === selectedTimezone)?.label || selectedTimezone
-                  ) : (
-                    'Select a timezone'
-                  )}
-                </SelectValue>
-                {loading.update && (
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {availableTimezones.map((tz) => (
-                  <SelectItem key={tz.key} value={tz.key}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{tz.label}</span>
-                      <span className="text-xs text-muted-foreground ml-2">
-                        {tz.key}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
+    {loading.list ? (
+      <Skeleton className="h-9 w-[120px]" />
+    ) : (
+      <Select
+        value={selectedTimezone}
+        onValueChange={handleTimezoneChange}
+        disabled={loading.update}
+      >
+        <SelectTrigger className="h-9 px-2 text-sm w-[120px]">
+          <SelectValue placeholder="Select timezone">
+            {selectedTimezone
+              ? availableTimezones.find(tz => tz.key === selectedTimezone)?.label
+              : 'Select timezone'}
+          </SelectValue>
 
-        {/* Error Message */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Success Message */}
-        {successMessage && (
-          <Alert className="bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">
-              {successMessage}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Status Indicators */}
-        <div className="space-y-3">
           {loading.update && (
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-              Updating timezone...
-            </div>
+            <Loader2 className="ml-2 h-4 w-4 animate-spin" />
           )}
-          
-          {selectedTimezone && selectedTimezone !== timezone && !loading.update && (
-            <div className="text-sm text-amber-600">
-              Timezone will be updated to: {selectedTimezone}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        </SelectTrigger>
+
+        <SelectContent className="text-sm max-h-[260px]">
+          {availableTimezones.map((tz) => (
+            <SelectItem
+              key={tz.key}
+              value={tz.key}
+              className="py-1.5"
+            >
+              <div className="flex flex-col justify-between gap-2">
+                <span className="truncate max-w-[120px]">
+                  {tz.label}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {tz.key}
+                </span>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )}
+
+    {/* Status Icon */}
+    {successMessage && !loading.update && (
+      <CheckCircle className="h-4 w-4 text-green-600" />
+    )}
+
+    {error && (
+      <AlertCircle className="h-4 w-4 text-red-500" />
+    )}
+  </div>
+
+  {/* Optional inline error (small, non-blocking) */}
+  {error && (
+    <p className="text-xs text-red-500 mt-1">
+      {error}
+    </p>
+  )}
+</div>
+
   )
 }
 

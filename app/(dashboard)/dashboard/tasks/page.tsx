@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, isValid } from "date-fns";
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 import ExportButton from "@/app/utils/ExportButton";
 import CreateTaskDialog from "@/components/task/CreateTaskDialog";
 import ReassignTaskDialog from "@/components/task/ReassignTaskDialog";
@@ -171,7 +172,7 @@ const Page = () => {
   const [prevPage, setPrevPage] = useState<string | null>(null);
   const [totalTasks, setTotalTasks] = useState(0);
   const [loading, setLoading] = useState(false);
-  const router=useRouter()
+  const router = useRouter()
 
   // Filters
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -255,20 +256,20 @@ const Page = () => {
         }),
         ...(dateAssignedRange.from &&
           isValid(dateAssignedRange.from) && {
-            date_assigned_start: format(dateAssignedRange.from, "yyyy-MM-dd"),
-          }),
+          date_assigned_start: format(dateAssignedRange.from, "yyyy-MM-dd"),
+        }),
         ...(dateAssignedRange.to &&
           isValid(dateAssignedRange.to) && {
-            date_assigned_end: format(dateAssignedRange.to, "yyyy-MM-dd"),
-          }),
+          date_assigned_end: format(dateAssignedRange.to, "yyyy-MM-dd"),
+        }),
         ...(deadlineRange.from &&
           isValid(deadlineRange.from) && {
-            deadline_start: format(deadlineRange.from, "yyyy-MM-dd"),
-          }),
+          deadline_start: format(deadlineRange.from, "yyyy-MM-dd"),
+        }),
         ...(deadlineRange.to &&
           isValid(deadlineRange.to) && {
-            deadline_end: format(deadlineRange.to, "yyyy-MM-dd"),
-          }),
+          deadline_end: format(deadlineRange.to, "yyyy-MM-dd"),
+        }),
       });
 
       const res = await fetch(`${API_HOST}/api/tasks/?${params}`, {
@@ -435,7 +436,7 @@ const Page = () => {
       </p>
 
       {/* ---------- FILTER BAR (exact image) ---------- */}
-   
+
 
       {/* ---------- SEARCH & ACTIONS ---------- */}
       <div className="flex flex-wrap gap-4 mt-4 mb-6">
@@ -457,7 +458,7 @@ const Page = () => {
         </Button>
 
         <ExportButton data={tasks} fileName="tasks_export.csv" />
-           <Button
+        <Button
           variant="ghost"
           size="icon"
           onClick={() => router.push("/dashboard/tasks/settings")}
@@ -465,18 +466,18 @@ const Page = () => {
         >
           <Settings size={20} className="h-6 w-6" />
         </Button>
-          <Button
+        <Button
           variant="ghost"
           size="icon"
           onClick={() => router.push("/dashboard/tasks/task-types")}
           title="Task Type List"
         >
-                    <ListFilter className="h-4 w-4" />
+          <ListFilter className="h-4 w-4" />
 
         </Button>
 
       </div>
-   <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+      <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
         {/* Task Type */}
         <Button
           variant="ghost"
@@ -618,7 +619,7 @@ const Page = () => {
         </Select>
 
         {/* Settings */}
-     
+
       </div>
       {/* ---------- TABLE ---------- */}
       {loading ? (
@@ -665,15 +666,11 @@ const Page = () => {
                 <TableCell>{task.assigned_by.full_name}</TableCell>
 
                 <TableCell>
-                  {new Date(task.created_at).toLocaleDateString()}
+                  {formatToDDMMYYYY(task.created_at)}
                 </TableCell>
 
                 <TableCell>
-                  {new Date(task.deadline).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })}
+                  {formatToDDMMYYYY(task.deadline)}
                 </TableCell>
 
                 <TableCell>
@@ -721,7 +718,7 @@ const Page = () => {
                       <DropdownMenuItem onClick={() => openHistory(task)}>
                         <Logs className="mr-2 h-4 w-4" /> Logs
                       </DropdownMenuItem>
-                       <DropdownMenuItem onClick={() => router.push('/dashboard/tasks/history')}>
+                      <DropdownMenuItem onClick={() => router.push('/dashboard/tasks/history')}>
                         <History className="mr-2 h-4 w-4" /> History
                       </DropdownMenuItem>
                     </DropdownMenuContent>

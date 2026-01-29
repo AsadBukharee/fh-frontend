@@ -115,7 +115,7 @@ export default function VehicleDetailPage() {
           },
         });
         const vehicleData = await vehicleRes.json();
-        
+
         // Fetch sites list
         const sitesRes = await fetch(`${API_URL}/api/sites/list-names/`, {
           headers: {
@@ -124,7 +124,7 @@ export default function VehicleDetailPage() {
           },
         });
         const sitesData = await sitesRes.json();
-        
+
         // Fetch vehicle types
         const typesRes = await fetch(`${API_URL}/api/vehicle-types/`, {
           headers: {
@@ -133,7 +133,7 @@ export default function VehicleDetailPage() {
           },
         });
         const typesData = await typesRes.json();
-        
+
         if (vehicleData.success) {
           setVehicle(vehicleData.data);
           const formattedData = {
@@ -141,7 +141,7 @@ export default function VehicleDetailPage() {
             is_wheelchair_lift_fitted: vehicleData.data.is_wheelchair_lift_fitted === "Yes",
           };
           setEditVehicle(formattedData);
-          
+
           // Set selected sites from vehicle data
           if (vehicleData.data.site_allocated) {
             const siteIds = vehicleData.data.site_allocated.map((site: any) => site.id);
@@ -150,13 +150,13 @@ export default function VehicleDetailPage() {
         } else {
           setError("Failed to fetch vehicle data");
         }
-        
+
         if (sitesData.success) {
           setSites(sitesData.data || []);
         } else {
           console.error("Failed to fetch sites:", sitesData.message);
         }
-        
+
         if (typesData.success) {
           setVehicleTypes(typesData.data || []);
         } else {
@@ -516,55 +516,54 @@ export default function VehicleDetailPage() {
       default: return status;
     }
   };
-function StaticRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-slate-600">{label}</span>
-      <span className="font-semibold text-slate-900">{value}</span>
-    </div>
-  );
-}
-type TyreRowProps = {
-  label: string;
-  unit: string;
-  valueKey: string;
-  type?: string;
-  highlight?: boolean;
-};
+  function StaticRow({ label, value }: { label: string; value: string | number }) {
+    return (
+      <div className="flex justify-between">
+        <span className="text-slate-600">{label}</span>
+        <span className="font-semibold text-slate-900">{value}</span>
+      </div>
+    );
+  }
+  type TyreRowProps = {
+    label: string;
+    unit: string;
+    valueKey: string;
+    type?: string;
+    highlight?: boolean;
+  };
 
-function TyreRow({ label, unit, valueKey, type = "text", highlight }: TyreRowProps) {
-  const value = isEditing ? editVehicle[valueKey] : vehicle[valueKey];
+  function TyreRow({ label, unit, valueKey, type = "text", highlight }: TyreRowProps) {
+    const value = isEditing ? editVehicle[valueKey] : vehicle[valueKey];
 
-  return (
-    <div className="flex justify-between items-center">
-      <span className="text-slate-600">{label}</span>
+    return (
+      <div className="flex justify-between items-center">
+        <span className="text-slate-600">{label}</span>
 
-      {isEditing ? (
-        <Input
-          type={type}
-          value={value ?? ""}
-          onChange={(e) =>
-            handleInputChange(
-              valueKey,
-              type === "number" ? Number(e.target.value) : e.target.value
-            )
-          }
-          className="w-20 h-7 text-xs"
-        />
-      ) : (
-        <span
-          className={`font-semibold ${
-            highlight
-              ? "text-green-600 bg-green-100 px-2 rounded-md"
-              : "text-slate-900"
-          }`}
-        >
-          {value ?? "N/A"} {unit}
-        </span>
-      )}
-    </div>
-  );
-}
+        {isEditing ? (
+          <Input
+            type={type}
+            value={value ?? ""}
+            onChange={(e) =>
+              handleInputChange(
+                valueKey,
+                type === "number" ? Number(e.target.value) : e.target.value
+              )
+            }
+            className="w-20 h-7 text-xs"
+          />
+        ) : (
+          <span
+            className={`font-semibold ${highlight
+                ? "text-green-600 bg-green-100 px-2 rounded-md"
+                : "text-slate-900"
+              }`}
+          >
+            {value ?? "N/A"} {unit}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   const getRoadworthyDisplayText = (status: string) => {
     switch (status) {
@@ -593,37 +592,37 @@ function TyreRow({ label, unit, valueKey, type = "text", highlight }: TyreRowPro
     { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText },
     { key: "others_docs", label: "Other Documents", icon: FileText },
   ];
-function TyreCard({ title, pos }: { title: string; pos: string }) {
-  return (
-    <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm">
-      <p className="font-medium text-slate-900 mb-3">{title}</p>
+  function TyreCard({ title, pos }: { title: string; pos: string }) {
+    return (
+      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm">
+        <p className="font-medium text-slate-900 mb-3">{title}</p>
 
-      <div className="space-y-2 text-sm">
-        <TyreRow
-          label="Pressure"
-          unit="PSI"
-          valueKey={`tyre_pressure_${pos}`}
-          type="number"
-        />
+        <div className="space-y-2 text-sm">
+          <TyreRow
+            label="Pressure"
+            unit="PSI"
+            valueKey={`tyre_pressure_${pos}`}
+            type="number"
+          />
 
-        <TyreRow
-          label="Depth"
-          unit="mm"
-          valueKey={`tyre_depth_${pos}`}
-          highlight
-        />
+          <TyreRow
+            label="Depth"
+            unit="mm"
+            valueKey={`tyre_depth_${pos}`}
+            highlight
+          />
 
-        <TyreRow
-          label="Torque"
-          unit="NM"
-          valueKey={`tyre_torque_${pos}`}
-          type="number" highlight={undefined}        />
+          <TyreRow
+            label="Torque"
+            unit="NM"
+            valueKey={`tyre_torque_${pos}`}
+            type="number" highlight={undefined} />
 
-        <StaticRow label="Tyre Age" value="" />
+          <StaticRow label="Tyre Age" value="" />
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   const shouldShowComplianceItem = (item: typeof complianceItems[0]) => {
     if (showAllCompliance) return true;
@@ -1068,56 +1067,56 @@ function TyreCard({ title, pos }: { title: string; pos: string }) {
               </div>
             </div>
           </TabsContent>
-<TabsContent value="maintenance" className="mt-6">
-  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <TabsContent value="maintenance" className="mt-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
 
-    {/* Header */}
-    <div className="flex items-center justify-between mb-8">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-          <Gauge className="w-5 h-5 text-orange-600" />
-        </div>
-        <h3 className="text-lg font-semibold text-slate-900">
-          Tyre Management
-        </h3>
-      </div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                    <Gauge className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Tyre Management
+                  </h3>
+                </div>
 
-    
-    </div>
 
-    {/* Main Layout */}
-    <div className="grid grid-cols-[1fr_260px_1fr] gap-8 items-center">
+              </div>
 
-      {/* LEFT */}
-      <div className="space-y-4">
-        <TyreCard title="Front Passenger" pos="front_passenger" />
-        <TyreCard title="Rear Outer Passenger" pos="rear_outer_passenger" />
-        <TyreCard title="Rear Inner Passenger" pos="rear_inner_passenger" />
-      </div>
+              {/* Main Layout */}
+              <div className="grid grid-cols-[1fr_260px_1fr] gap-8 items-center">
 
-      {/* CENTER VEHICLE */}
-      <div className="relative flex justify-center">
-        <img
-          src="/vehicle-top.png"
-          alt="Vehicle"
-          className="w-44 z-10"
-        />
+                {/* LEFT */}
+                <div className="space-y-4">
+                  <TyreCard title="Front Passenger" pos="front_passenger" />
+                  <TyreCard title="Rear Outer Passenger" pos="rear_outer_passenger" />
+                  <TyreCard title="Rear Inner Passenger" pos="rear_inner_passenger" />
+                </div>
 
-        {/* Highlight rear tyres */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-[90%] w-10 h-14 bg-red-500 rounded-md opacity-90" />
-        <div className="absolute bottom-10 left-1/2 translate-x-[10%] w-10 h-14 bg-blue-500 rounded-md opacity-90" />
-      </div>
+                {/* CENTER VEHICLE */}
+                <div className="relative flex justify-center">
+                  <img
+                    src="/vehicle-top.png"
+                    alt="Vehicle"
+                    className="w-44 z-10"
+                  />
 
-      {/* RIGHT */}
-      <div className="space-y-4">
-        <TyreCard title="Front Driver" pos="front_driver" />
-        <TyreCard title="Rear Outer Driver" pos="rear_outer_driver" />
-        <TyreCard title="Rear Inner Driver" pos="rear_inner_driver" />
-      </div>
+                  {/* Highlight rear tyres */}
+                  <div className="absolute bottom-10 left-1/2 -translate-x-[90%] w-10 h-14 bg-red-500 rounded-md opacity-90" />
+                  <div className="absolute bottom-10 left-1/2 translate-x-[10%] w-10 h-14 bg-blue-500 rounded-md opacity-90" />
+                </div>
 
-    </div>
-  </div>
-</TabsContent>
+                {/* RIGHT */}
+                <div className="space-y-4">
+                  <TyreCard title="Front Driver" pos="front_driver" />
+                  <TyreCard title="Rear Outer Driver" pos="rear_outer_driver" />
+                  <TyreCard title="Rear Inner Driver" pos="rear_inner_driver" />
+                </div>
+
+              </div>
+            </div>
+          </TabsContent>
 
 
 

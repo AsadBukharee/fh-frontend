@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 
 interface DriverPMIOpenStepProps {
   vehicleRegistration: string;
@@ -13,7 +14,7 @@ const DriverPMIOpenStep: React.FC<DriverPMIOpenStepProps> = ({ vehicleRegistrati
     <div className="space-y-2 text-sm text-green-700">
       <div className="grid grid-cols-2 gap-2">
         <div>Vehicle Registration: <span className="font-medium">{vehicleRegistration}</span></div>
-        <div>Date: <span className="font-medium">{new Date().toLocaleDateString("en-GB")}</span></div>
+        <div>Date: <span className="font-medium">{formatToDDMMYYYY(new Date())}</span></div>
         <div>Username: <span className="font-medium">{username}</span></div>
         <div>Status: <span className="font-medium text-green-600">Form Ready</span></div>
       </div>

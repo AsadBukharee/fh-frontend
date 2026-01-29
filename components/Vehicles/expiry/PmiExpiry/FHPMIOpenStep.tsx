@@ -18,6 +18,7 @@ import { useCookies } from "next-client-cookies";
 import { debounce } from "lodash";
 import DefectsInput from "@/components/ui/DefectsInput";
 import FileUploader from "@/components/Media/MediaUpload";
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 
 
 // Lazy load SignatureCanvas
@@ -57,7 +58,7 @@ interface FormData {
   notes: string;
 
   file_url: string;
-  
+
   brake_imbalance: string;
   brake_imbalance_note: string;
   brake_test_not_recorded: string;
@@ -292,7 +293,7 @@ const FHPMIOpenStep: React.FC<FHPMIOpenStepProps> = ({ vehicleRegistration, user
       errors.vehicle = "Vehicle selection is required";
       isValid = false;
     }
-   
+
     if (formData.file_url && !/^https?:\/\/[^\s$.?#].[^\s]*$/.test(formData.file_url)) {
       errors.file_url = "Invalid URL format";
       isValid = false;
@@ -432,7 +433,7 @@ const FHPMIOpenStep: React.FC<FHPMIOpenStepProps> = ({ vehicleRegistration, user
       <div className="space-y-2 text-sm text-blue-700">
         <div className="grid grid-cols-2 gap-2">
           <div>Vehicle Registration: <span className="font-medium">{vehicleRegistration}</span></div>
-          <div>Date: <span className="font-medium">{new Date().toLocaleDateString("en-GB")}</span></div>
+          <div>Date: <span className="font-medium">{formatToDDMMYYYY(new Date())}</span></div>
           <div>Username: <span className="font-medium">{username}</span></div>
           <div>Status: <span className="font-medium text-green-600">Form Ready</span></div>
         </div>

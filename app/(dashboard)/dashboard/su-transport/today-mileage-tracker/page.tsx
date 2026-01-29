@@ -4,6 +4,7 @@
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import React, { useEffect, useState } from 'react';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 // Define TypeScript interfaces for the API response
 interface JobSummary {
@@ -36,7 +37,7 @@ const TodayMileagePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [autoRefresh, setAutoRefresh] = useState(false);
-const cookies=useCookies();
+  const cookies = useCookies();
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -55,7 +56,7 @@ const cookies=useCookies();
       }
 
       const result: ApiResponse = await response.json();
-      
+
       if (result.success) {
         setData(result);
         setLastUpdated(new Date().toLocaleTimeString());
@@ -90,7 +91,7 @@ const cookies=useCookies();
   const parseJobDetails = (suRuns: string) => {
     const [jobsPart, kmsPart] = suRuns.split('/');
     if (!jobsPart || !kmsPart) return { jobCount: '0', mileage: '0' };
-    
+
     const jobCount = jobsPart.replace('jobs', '').trim();
     const mileage = kmsPart.replace('kms', '').trim();
     return { jobCount, mileage };
@@ -196,13 +197,13 @@ const cookies=useCookies();
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Today's Mileage Operations</h1>
               <p className="text-gray-600 mt-2">
-                {date_from === date_to 
-                  ? `Date: ${new Date(date_from).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
-                  : `Period: ${new Date(date_from).toLocaleDateString()} to ${new Date(date_to).toLocaleDateString()}`
+                {date_from === date_to
+                  ? `Date: ${formatToDDMMYYYY(date_from)}`
+                  : `Period: ${formatToDDMMYYYY(date_from)} to ${formatToDDMMYYYY(date_to)}`
                 }
               </p>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border">
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,7 +213,7 @@ const cookies=useCookies();
                   Last updated: {lastUpdated || 'Never'}
                 </span>
               </div>
-              
+
               <div className="flex gap-2">
                 <button
                   onClick={fetchData}
@@ -233,14 +234,13 @@ const cookies=useCookies();
                     </>
                   )}
                 </button>
-                
+
                 <button
                   onClick={() => setAutoRefresh(!autoRefresh)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 ${
-                    autoRefresh
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 ${autoRefresh
                       ? 'bg-green-100 text-green-700 hover:bg-green-200'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -268,7 +268,7 @@ const cookies=useCookies();
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -282,7 +282,7 @@ const cookies=useCookies();
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -296,7 +296,7 @@ const cookies=useCookies();
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -322,7 +322,7 @@ const cookies=useCookies();
             <h2 className="text-lg font-semibold text-gray-900">Vehicle Operations Details</h2>
             <p className="text-sm text-gray-500 mt-1">Detailed breakdown of each vehicle's mileage and jobs</p>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -351,7 +351,7 @@ const cookies=useCookies();
                 {results.map((item, index) => {
                   const { jobCount, mileage } = parseJobDetails(item.su_runs);
                   const { jobs: internalJobs } = parseInternalJobs(item.internal_jobs_operational);
-                  
+
                   return (
                     <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
                       <td className="px-6 py-4">
@@ -407,11 +407,10 @@ const cookies=useCookies();
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col items-start space-y-2">
-                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            item.total_jobs > 0 
+                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${item.total_jobs > 0
                               ? 'bg-green-100 text-green-800'
                               : 'bg-gray-100 text-gray-800'
-                          }`}>
+                            }`}>
                             {item.total_jobs} Total Jobs
                           </span>
                           {item.total_mileage > 100 && (
@@ -507,7 +506,7 @@ const cookies=useCookies();
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              
+
               <button
                 onClick={() => {
                   const csvContent = [
@@ -522,7 +521,7 @@ const cookies=useCookies();
                       item.su_runs
                     ])
                   ].map(row => row.join(',')).join('\n');
-                  
+
                   const blob = new Blob([csvContent], { type: 'text/csv' });
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement('a');
@@ -542,11 +541,11 @@ const cookies=useCookies();
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              
+
               <button
                 onClick={() => {
                   const summary = `Mileage Report for ${date_from}\n\n` +
-                    results.map(item => 
+                    results.map(item =>
                       `${item.vehicle_registration}: ${item.total_mileage}km (${item.total_jobs} jobs)`
                     ).join('\n');
                   alert(summary);
@@ -570,7 +569,7 @@ const cookies=useCookies();
         {/* Footer */}
         <div className="text-center text-sm text-gray-500 mt-8 pt-6 border-t border-gray-200">
           <p>
-            Data fetched from operations system • Report generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+            Data fetched from operations system • Report generated on {formatToDDMMYYYY(new Date())} at {new Date().toLocaleTimeString()}
           </p>
           {lastUpdated && (
             <p className="mt-1">

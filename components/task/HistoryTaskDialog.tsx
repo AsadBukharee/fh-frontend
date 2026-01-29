@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 import {
   Table,
   TableBody,
@@ -57,16 +58,6 @@ interface HistoryTaskDialogProps {
   onClose: () => void;
   history: HistoryItem[];
 }
-
-// Helper: format date
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleString([], {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 
 // Helper: safe display name
 const getDisplayName = (entry: HistoryItem): string => {
@@ -123,7 +114,7 @@ const HistoryTaskDialog: React.FC<HistoryTaskDialogProps> = ({
                         {entry.comment || '—'}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(entry.created_at)}
+                        {formatToDDMMYYYY(entry.created_at)}
                       </TableCell>
                     </TableRow>
                   );

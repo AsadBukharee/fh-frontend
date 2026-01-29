@@ -10,6 +10,7 @@ import API_URL from '@/app/utils/ENV';
 import { Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 // Interfaces
 interface Steps {
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     overflow: 'hidden',
   },
-  
+
   // Header Section - Orange background like StepCard
   headerSection: {
     backgroundColor: '#ffedd5',
@@ -142,12 +143,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#92400e',
   },
-  
+
   // Card Content
   cardContent: {
     padding: 20,
   },
-  
+
   // Grid Layout like StepCard
   gridRow: {
     flexDirection: 'row',
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#9ca3af',
   },
-  
+
   // Badge styles matching StepCard
   badge: {
     flexDirection: 'row',
@@ -213,7 +214,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ea580c',
     color: '#ffffff',
   },
-  
+
   // Daily Checks Section
   dailyChecksHeader: {
     flexDirection: 'row',
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 4,
   },
-  
+
   // Answer Items matching StepCard grid
   answersGrid: {
     flexDirection: 'row',
@@ -304,7 +305,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginTop: 4,
   },
-  
+
   // Notes and Defects Section
   notesSection: {
     marginTop: 20,
@@ -332,7 +333,7 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 1.5,
   },
-  
+
   // Signature Section
   signatureSection: {
     marginTop: 20,
@@ -365,7 +366,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginTop: 4,
   },
-  
+
   // Footer matching StepCard
   footer: {
     flexDirection: 'row',
@@ -384,7 +385,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#6b7280',
   },
-  
+
   // Two column layout for notes and defects
   twoColumn: {
     flexDirection: 'row',
@@ -399,23 +400,11 @@ const styles = StyleSheet.create({
 // Individual Step PDF Component - Updated to match StepCard UI
 const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumber: number }) => {
   const { walkaround, answers, defected_count, total_answers } = data.data;
-  
+
   const motionDetectedCount = answers.filter(a => a.motion_detected).length;
   const motionNotDetectedCount = answers.length - motionDetectedCount;
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
-    } catch {
-      return 'Invalid Date';
-    }
-  };
+
 
   const formatTime = (timeString: string) => {
     if (!timeString) return 'N/A';
@@ -435,9 +424,9 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
               Chain ID: #{walkaround.parent ?? "—"} · Latest Step: {stepNumber} of {stepNumber}
             </Text>
           </View>
-          
-          <View style={[styles.badge, 
-            walkaround.status === "completed" ? styles.statusBadge : styles.pendingBadge
+
+          <View style={[styles.badge,
+          walkaround.status === "completed" ? styles.statusBadge : styles.pendingBadge
           ]}>
             <Text>{walkaround.status}</Text>
           </View>
@@ -452,12 +441,12 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
             <Text style={styles.label}>Registration No.</Text>
             <Text style={styles.value}>{walkaround.vehicle?.registration_number || 'N/A'}</Text>
           </View>
-          
+
           <View style={styles.gridItem}>
             <Text style={styles.label}>Vehicle Type</Text>
             <Text style={styles.value}>{walkaround.vehicle?.vehicles_type_name || 'N/A'}</Text>
           </View>
-          
+
           <View style={styles.gridItem}>
             <Text style={styles.label}>Sites</Text>
             <Text style={styles.value}>
@@ -467,7 +456,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
               Active
             </Text>
           </View>
-          
+
           <View style={styles.gridItem}>
             <Text style={styles.label}>Current Mileage</Text>
             <Text style={styles.value}>
@@ -482,20 +471,20 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
             <Text style={styles.label}>Driver Name</Text>
             <Text style={styles.value}>{walkaround.conducted_by?.full_name || 'N/A'}</Text>
             <Text style={styles.subValue}>
-              {formatDate(walkaround.date)} at {formatTime(walkaround.time)}
+              {formatToDDMMYYYY(walkaround.date)} at {formatTime(walkaround.time)}
             </Text>
           </View>
-          
+
           <View style={styles.gridItem}>
             <Text style={styles.label}>Manager Name</Text>
             <Text style={styles.value}>
               {walkaround.walkaround_assignee?.full_name || 'Unroad worthy'}
             </Text>
             <Text style={styles.subValue}>
-              {formatDate(walkaround.date)} at {formatTime(walkaround.time)}
+              {formatToDDMMYYYY(walkaround.date)} at {formatTime(walkaround.time)}
             </Text>
           </View>
-          
+
           <View style={styles.gridItem}>
             <Text style={styles.label}>Motion</Text>
             <View style={{ flexDirection: 'row', gap: 4 }}>
@@ -507,7 +496,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
               </View>
             </View>
           </View>
-          
+
           <View style={styles.gridItem}>
             <Text style={styles.label}>Total Time</Text>
             <Text style={styles.value}>{walkaround.walkaround_duration ?? "—"} s</Text>
@@ -517,14 +506,14 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
         {/* Daily Checks Header */}
         <View style={styles.dailyChecksHeader}>
           <Text style={styles.dailyChecksTitle}>Daily checks</Text>
-         
+
         </View>
 
         {/* Answers Grid */}
         <View style={styles.answersGrid}>
           {answers.map((item, idx) => (
-            <View 
-              key={item.id || idx} 
+            <View
+              key={item.id || idx}
               style={[
                 styles.answerCard,
                 ...(item.is_defected ? [styles.answerCardDefect] : [])
@@ -536,26 +525,26 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
                 </Text>
                 <View style={[
                   styles.statusDot,
-                  item.is_defected 
+                  item.is_defected
                     ? { backgroundColor: '#ef4444' }
                     : { backgroundColor: '#10b981' }
                 ]} />
               </View>
-              
+
               <View style={styles.badgesRow}>
                 <View style={[styles.badge, styles.ldfBadge, { fontSize: 8 }]}>
                   <Text>In-motion</Text>
                 </View>
-                
+
                 <View style={[
-                  styles.badge, 
+                  styles.badge,
                   item.answer?.toLowerCase().includes('yes') ? styles.passBadge : styles.failBadge,
                   { fontSize: 8 }
                 ]}>
                   <Text>{item.answer}</Text>
                 </View>
               </View>
-              
+
               {/* Defect Note in PDF */}
               {item.is_defected && item.description && (
                 <View style={styles.defectNote}>
@@ -584,7 +573,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
               </View>
             </View>
           </View>
-          
+
           {/* Additional Notes Column */}
           <View style={styles.column}>
             <View style={styles.notesSection}>
@@ -603,7 +592,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
           <View style={styles.signatureSection}>
             <Text style={styles.sectionTitle}>Signature</Text>
             <View style={styles.signatureContainer}>
-              <Image 
+              <Image
                 src={walkaround.signature}
                 style={styles.signatureImage}
               />
@@ -614,7 +603,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
                 {walkaround.conducted_by?.full_name || 'N/A'}
               </Text>
               <Text style={[styles.signatureInfo, { marginTop: 4 }]}>
-                Date: {formatDate(walkaround.date)} • Time: {formatTime(walkaround.time)}
+                Date: {formatToDDMMYYYY(walkaround.date)} • Time: {formatTime(walkaround.time)}
               </Text>
             </View>
           </View>
@@ -626,7 +615,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
             Total Defects: {defected_count} / {total_answers}
           </Text>
           <Text style={styles.footerRight}>
-            {formatDate(walkaround.date)} · {formatTime(walkaround.time)}
+            {formatToDDMMYYYY(walkaround.date)} · {formatTime(walkaround.time)}
           </Text>
         </View>
       </View>
@@ -637,7 +626,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
 // All Steps PDF Document - Cover page with StepCard styling
 const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => {
   const validSteps = stepDataList.filter(step => step.data?.success);
-  
+
   if (validSteps.length === 0) {
     return (
       <Document>
@@ -669,9 +658,9 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
     <Document>
       {/* Cover Page */}
       <Page size="A4" style={styles.page}>
-        <View style={{ 
-          flex: 1, 
-          justifyContent: 'center', 
+        <View style={{
+          flex: 1,
+          justifyContent: 'center',
           alignItems: 'center',
           backgroundColor: '#f8fafc'
         }}>
@@ -693,7 +682,7 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
             }}>
               Vehicle Inspection Report
             </Text>
-            
+
             <Text style={{
               fontSize: 14,
               color: '#6b7280',
@@ -701,7 +690,7 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
             }}>
               Comprehensive Walkaround Details
             </Text>
-            
+
             <View style={{
               backgroundColor: '#ffedd5',
               padding: 16,
@@ -725,7 +714,7 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
                 {vehicleInfo?.vehicles_type_name || 'N/A'}
               </Text>
             </View>
-            
+
             <View style={[styles.statsContainer, { marginBottom: 24 }]}>
               <View style={{
                 alignItems: 'center',
@@ -749,7 +738,7 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
                   Steps
                 </Text>
               </View>
-              
+
               <View style={{
                 alignItems: 'center',
                 padding: 12,
@@ -772,7 +761,7 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
                   Passed
                 </Text>
               </View>
-              
+
               <View style={{
                 alignItems: 'center',
                 padding: 12,
@@ -796,7 +785,7 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
                 </Text>
               </View>
             </View>
-            
+
             <View style={{
               width: '100%',
               marginTop: 16,
@@ -835,18 +824,14 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
                 </Text>
               )}
             </View>
-            
+
             <Text style={{
               fontSize: 10,
               color: '#9ca3af',
               marginTop: 32,
               textAlign: 'center',
             }}>
-              Generated on {new Date().toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-              })} at {new Date().toLocaleTimeString('en-GB', {
+              Generated on {formatToDDMMYYYY(new Date())} at {new Date().toLocaleTimeString('en-GB', {
                 hour: '2-digit',
                 minute: '2-digit'
               })}
@@ -859,7 +844,7 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
       {validSteps.map((step, index) => (
         <Page key={step.stepId} size="A4" style={styles.page}>
           <StepPDFDocument data={step.data!} stepNumber={step.stepNumber} />
-          
+
           {/* Page footer */}
           <View style={{
             position: 'absolute',
@@ -903,7 +888,7 @@ const StepPDFDownloadButton = ({ data }: { data: WalkaroundData }) => {
       const registration = walkaround.vehicle?.registration_number || 'vehicle';
       const date = new Date(walkaround.date).toISOString().split('T')[0];
       const step = walkaround.walkaround_step;
-      
+
       const IndividualPDF = () => (
         <Document>
           <Page size="A4" style={styles.page}>
@@ -952,7 +937,7 @@ const AllStepsPDFDownloadButton = ({ stepDataList }: { stepDataList: StepData[] 
     setIsGenerating(true);
     try {
       const validSteps = stepDataList.filter(step => step.data?.success);
-      
+
       if (validSteps.length === 0) {
         alert('No valid walkaround data available to generate PDF.');
         return;
@@ -1008,7 +993,7 @@ const VehicleInspectionDashboard = () => {
     try {
       const url = new URL(window.location.href);
       const params = new URLSearchParams(url.search);
-      
+
       const extractedSteps: Steps = {
         step_1: params.get('step_1') || undefined,
         step_2: params.get('step_2') || undefined,
@@ -1019,7 +1004,7 @@ const VehicleInspectionDashboard = () => {
       };
 
       setSteps(extractedSteps);
-      
+
       const stepList: StepData[] = [];
       if (extractedSteps.step_1) {
         stepList.push({ stepNumber: 1, stepId: extractedSteps.step_1, data: null, loading: true, error: null });
@@ -1031,7 +1016,7 @@ const VehicleInspectionDashboard = () => {
         stepList.push({ stepNumber: 3, stepId: extractedSteps.step_3, data: null, loading: true, error: null });
       }
       setStepDataList(stepList);
-      
+
       fetchAllStepsData(stepList);
     } catch (error) {
       console.error('Error extracting steps from URL:', error);
@@ -1072,7 +1057,7 @@ const VehicleInspectionDashboard = () => {
           }
 
           const data = await response.json();
-          
+
           if (data?.success) {
             return {
               ...step,
@@ -1096,7 +1081,7 @@ const VehicleInspectionDashboard = () => {
       const results = await Promise.all(fetchPromises);
       setStepDataList(results);
       setIsLoading(false);
-      
+
     } catch (error) {
       console.error('Error fetching all steps data:', error);
       const updatedSteps = stepsList.map(step => ({
@@ -1121,7 +1106,7 @@ const VehicleInspectionDashboard = () => {
     }
 
     setSavingStates(prev => ({ ...prev, [answerId]: true }));
-    
+
     try {
       const response = await fetch(`${API_URL}/api/answer/${answerId}/`, {
         method: 'PATCH',
@@ -1170,16 +1155,12 @@ const VehicleInspectionDashboard = () => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const formatDate = (dateString: string): string => {
+  // Format date using the standardized utility
+  const formatToDDMMYYYY = (dateString: string) => {
     if (!dateString) return 'N/A';
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
-    } catch (error) {
+      return formatToDDMMYYYY(dateString);
+    } catch {
       return 'Invalid Date';
     }
   };
@@ -1210,14 +1191,14 @@ const VehicleInspectionDashboard = () => {
 
         <div className="space-y-4">
           {stepDataList.map((stepData) => (
-            <StepCard 
-              key={stepData.stepNumber} 
+            <StepCard
+              key={stepData.stepNumber}
               stepData={stepData}
               onSaveComments={handleSaveComments}
               savingStates={savingStates}
               expandedSections={expandedSections}
               toggleSection={toggleSection}
-              formatDate={formatDate}
+              formatToDDMMYYYY={formatToDDMMYYYY}
               formatTime={formatTime}
             />
           ))}
@@ -1233,7 +1214,7 @@ const StepCard = ({
   savingStates,
   expandedSections,
   toggleSection,
-  formatDate,
+  formatToDDMMYYYY,
   formatTime,
 }: {
   stepData: StepData
@@ -1241,7 +1222,7 @@ const StepCard = ({
   savingStates: Record<number, boolean>
   expandedSections: Record<string, boolean>
   toggleSection: (section: string) => void
-  formatDate: (dateString: string) => string
+  formatToDDMMYYYY: (dateString: string) => string
   formatTime: (timeString: string) => string
 }) => {
   const { stepNumber, data, loading, error } = stepData;
@@ -1313,7 +1294,7 @@ const StepCard = ({
           <Info
             label="Driver Name"
             value={<Badge className="bg-green-100 text-green-700">{walkaround.conducted_by.full_name}</Badge>}
-            sub={`${formatDate(walkaround.date)} at ${formatTime(walkaround.time)}`}
+            sub={`${formatToDDMMYYYY(walkaround.date)} at ${formatTime(walkaround.time)}`}
           />
 
           <Info
@@ -1323,7 +1304,7 @@ const StepCard = ({
                 {walkaround.walkaround_assignee?.full_name ?? "Unroad worthy"}
               </Badge>
             }
-            sub={`${formatDate(walkaround.date)} at ${formatTime(walkaround.time)}`}
+            sub={`${formatToDDMMYYYY(walkaround.date)} at ${formatTime(walkaround.time)}`}
           />
 
           <Info
@@ -1399,9 +1380,8 @@ const StepCard = ({
 
                       {/* status dot */}
                       <span
-                        className={`w-2 h-2 rounded-full mt-1 ${
-                          a.is_defected ? "bg-red-500" : "bg-green-500"
-                        }`}
+                        className={`w-2 h-2 rounded-full mt-1 ${a.is_defected ? "bg-red-500" : "bg-green-500"
+                          }`}
                       />
                     </div>
                   </TooltipTrigger>
@@ -1427,7 +1407,7 @@ const StepCard = ({
         {isExpanded && (
           <div className="pt-3 border-t border-gray-200 text-xs text-gray-500 flex justify-between">
             <span>Total Defects: {defected_count} / {total_answers}</span>
-            <span>{formatDate(walkaround.date)} · {formatTime(walkaround.time)}</span>
+            <span>{formatToDDMMYYYY(walkaround.date)} · {formatTime(walkaround.time)}</span>
           </div>
         )}
       </CardContent>
@@ -1444,12 +1424,12 @@ const Info = ({ label, value, sub }: { label: string; value: any; sub?: string }
   </div>
 );
 
-const DefectItem = ({ 
-  answer, 
-  index, 
+const DefectItem = ({
+  answer,
+  index,
   stepNumber,
-  onSaveComments, 
-  isSaving 
+  onSaveComments,
+  isSaving
 }: {
   answer: Answer;
   index: number;
@@ -1482,25 +1462,25 @@ const DefectItem = ({
       <div className="flex-shrink-0 w-5 h-5 rounded-full bg-red-100 flex items-center justify-center mt-0.5">
         <span className="text-xs font-semibold text-red-600">{index + 1}</span>
       </div>
-      
+
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-2">
           <p className="text-xs font-medium text-gray-900 leading-relaxed">
             {answer.question_text || 'No question text'}
           </p>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <Badge className={answer.is_defected ? 
+            <Badge className={answer.is_defected ?
               "bg-red-100 text-red-700 hover:bg-red-100" :
               "bg-green-100 text-green-700 hover:bg-green-100"
             } style={{ fontSize: '10px', padding: '2px 6px', fontWeight: 600 }}>
               {answer.is_defected ? "Fail" : "Pass"}
             </Badge>
-            <Badge className="bg-orange-50 text-orange-600 hover:bg-orange-50 border border-orange-200" 
+            <Badge className="bg-orange-50 text-orange-600 hover:bg-orange-50 border border-orange-200"
               style={{ fontSize: '10px', padding: '2px 6px' }}>
               LDF
             </Badge>
             {answer.motion_detected && (
-              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100" 
+              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100"
                 style={{ fontSize: '10px', padding: '2px 6px' }}>
                 Motion
               </Badge>
@@ -1519,7 +1499,7 @@ const DefectItem = ({
             />
 
             {hasChanges && (
-              <Button 
+              <Button
                 onClick={handleSave}
                 disabled={isSaving}
                 size="sm"

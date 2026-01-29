@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Document, Page, Text, View, StyleSheet, pdf, Image, Font } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 // ... your existing interfaces remain the same
 interface Answer {
@@ -284,7 +285,7 @@ export default function WalkAroundPDFPrint({ data }: VehicleInspectionDashboardP
 
   const getAnswerStatus = (answer: string, is_defected: boolean) => {
     if (!answer) return { label: "N/A", style: styles.naBadge };
-    
+
     const answerLower = answer.toLowerCase();
     if (answerLower.includes("yes") || answerLower.includes("laboris") || answerLower.includes("voluptas"))
       return { label: "Yes", style: styles.yesBadge };
@@ -294,13 +295,7 @@ export default function WalkAroundPDFPrint({ data }: VehicleInspectionDashboardP
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-GB');
-    } catch {
-      return 'Invalid Date';
-    }
+    return formatToDDMMYYYY(dateString, 'N/A');
   };
 
   // Safe data access with fallbacks
@@ -365,7 +360,7 @@ export default function WalkAroundPDFPrint({ data }: VehicleInspectionDashboardP
               <View style={styles.gridItem}>
                 <Text style={styles.label}>Date & Time</Text>
                 <Text style={styles.value}>
-                  {formatDate(safeWalkaround.date)} at {safeWalkaround.time || 'N/A'}
+                  {formatToDDMMYYYY(safeWalkaround.date)} at {safeWalkaround.time || 'N/A'}
                 </Text>
               </View>
               <View style={styles.gridItem}>
@@ -396,12 +391,12 @@ export default function WalkAroundPDFPrint({ data }: VehicleInspectionDashboardP
               safeAnswers.map((item, idx) => {
                 const safeItem = item || {};
                 const status = getAnswerStatus(safeItem.answer || '', safeItem.is_defected || false);
-                
+
                 return (
-                  <View 
-                    key={safeItem.id || idx} 
+                  <View
+                    key={safeItem.id || idx}
                     style={[
-                      styles.answerItem, 
+                      styles.answerItem,
                       safeItem.is_defected ? { backgroundColor: '#fef2f2', borderColor: '#fecaca' } : {}
                     ]}
                   >
@@ -413,22 +408,22 @@ export default function WalkAroundPDFPrint({ data }: VehicleInspectionDashboardP
                         {safeItem.is_defected ? '!' : idx + 1}
                       </Text>
                     </View>
-                    
+
                     <View style={styles.answerContent}>
                       <Text style={styles.questionText}>{safeItem.question_text || 'No question text available'}</Text>
-                      
+
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: safeItem.is_defected ? 6 : 0 }}>
                         <View style={[styles.answerBadge, status.style]}>
                           <Text>{status.label}</Text>
                         </View>
-                        
+
                         {safeItem.is_defected && (
                           <View style={[styles.answerBadge, styles.defectBadge]}>
                             <Text>Defect</Text>
                           </View>
                         )}
                       </View>
-                      
+
                       {safeItem.is_defected && safeItem.description && (
                         <Text style={styles.description}>{safeItem.description}</Text>
                       )}
@@ -458,7 +453,7 @@ export default function WalkAroundPDFPrint({ data }: VehicleInspectionDashboardP
               </View>
             </View>
           </View>
-          
+
           <View style={styles.column}>
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -480,15 +475,15 @@ export default function WalkAroundPDFPrint({ data }: VehicleInspectionDashboardP
               <Text style={styles.sectionTitle}>SIGNATURE</Text>
             </View>
             <View style={[styles.sectionContent, styles.signatureContainer]}>
-              <Image 
-                src={safeWalkaround.signature} 
+              <Image
+                src={safeWalkaround.signature}
                 style={styles.signatureImage}
               />
             </View>
           </View>
         )}
 
-      
+
       </Page>
     </Document>
   );

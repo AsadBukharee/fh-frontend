@@ -1,5 +1,5 @@
 import { useCookies } from 'next-client-cookies';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   Card,
@@ -57,6 +57,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import API_URL from '@/app/utils/ENV';
 import ExportButton from '@/app/utils/ExportButton';
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 
 interface UserWeek {
   id: number;
@@ -119,11 +120,25 @@ const Incomplete = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState('all');
+  const router = useRouter()
 
   useEffect(() => {
     fetchIncompletedWeeks();
   }, [id, token]);
+  const handleLogClick = (log: Log) => {
+    // Navigate to detail page with log data as query parameters
+    // router.push(`/detail-page?data=${encodeURIComponent(JSON.stringify(log))}`);
 
+    // OR if you want to use dynamic routing with a route parameter:
+    // router.push(`/duty-logs/${log.id}?day=${log.day}&date=${log.date}`);
+
+    // OR if you want to pass state (recommended for larger objects):
+    if (log.on_duty) {
+      router.push(
+        `/dashboard/users/daily-duty-logs/${id}/${log.day}?logData=${encodeURIComponent(JSON.stringify(log))}`
+      );
+    }
+  };
   const fetchIncompletedWeeks = async () => {
     try {
       setLoading(true);
@@ -158,31 +173,31 @@ const Incomplete = () => {
     const approvedWeeks = weeks.filter(w => w.userweek.is_approved).length;
     const pendingWeeks = totalWeeks - approvedWeeks;
     const totalHours = weeks.reduce((sum, w) => sum + w.userweek.total_hours_worked, 0);
-    const avgUtilization = totalWeeks > 0 
+    const avgUtilization = totalWeeks > 0
       ? weeks.reduce((sum, w) => sum + (w.userweek.total_hours_worked / w.userweek.allowed_hours) * 100, 0) / totalWeeks
       : 0;
-    
+
     return { totalWeeks, approvedWeeks, pendingWeeks, totalHours, avgUtilization };
   }, [weeks]);
 
   // Filter weeks based on search and tab
   const filteredWeeks = useMemo(() => {
     let filtered = weeks;
-    
+
     if (selectedTab === 'approved') {
       filtered = filtered.filter(w => w.userweek.is_approved);
     } else if (selectedTab === 'pending') {
       filtered = filtered.filter(w => !w.userweek.is_approved);
     }
-    
+
     if (searchQuery) {
-      filtered = filtered.filter(w => 
+      filtered = filtered.filter(w =>
         w.userweek.week_number.toString().includes(searchQuery) ||
         w.userweek.reference_period.toString().includes(searchQuery) ||
         w.userweek.week_start_date?.includes(searchQuery)
       );
     }
-    
+
     return filtered;
   }, [weeks, selectedTab, searchQuery]);
 
@@ -193,11 +208,7 @@ const Incomplete = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    return formatToDDMMYYYY(dateString);
   };
 
   const formatDateRange = (start: string | null, end: string | null) => {
@@ -245,7 +256,7 @@ const Incomplete = () => {
             <Skeleton className="h-10 w-80" />
             <Skeleton className="h-5 w-96" />
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
               <Card key={i} className="border-0 shadow-sm">
@@ -283,8 +294,8 @@ const Incomplete = () => {
               {error}
             </AlertDescription>
           </Alert>
-          <Button 
-            onClick={fetchIncompletedWeeks} 
+          <Button
+            onClick={fetchIncompletedWeeks}
             size="lg"
             className="mt-6 shadow-sm"
           >
@@ -334,77 +345,13 @@ const Incomplete = () => {
             </p>
           </div>
           <div className="flex gap-2">
-           <ExportButton data={filteredWeeks} fileName='Incomplete-duty-logs'/>
+            <ExportButton data={filteredWeeks} fileName='Incomplete-duty-logs' />
             <Button onClick={fetchIncompletedWeeks} variant="outline" size="lg" className="shadow-sm">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-[#E63946] to-[#d62839]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-white/90">Total Weeks</p>
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <Calendar className="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-white">{stats.totalWeeks}</p>
-                <p className="text-sm text-white/80">weeks</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-[#F77F00] to-[#e67300]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-white/90">Approved</p>
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <CheckCircle2 className="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-white">{stats.approvedWeeks}</p>
-                <p className="text-sm text-white/90 font-medium">
-                  {stats.totalWeeks > 0 ? Math.round((stats.approvedWeeks / stats.totalWeeks) * 100) : 0}%
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-[#FCBF49] to-[#f4b436]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-slate-800">Total Hours</p>
-                <div className="p-2 bg-white/40 rounded-lg">
-                  <Clock className="h-4 w-4 text-slate-800" />
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-slate-900">{stats.totalHours}</p>
-                <p className="text-sm text-slate-700">hours</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-[#E63946] to-[#d62839]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-white/90">Avg Utilization</p>
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <TrendingUp className="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-white">{stats.avgUtilization.toFixed(1)}%</p>
-                <Progress value={stats.avgUtilization} className="h-1.5 flex-1 bg-white/20" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Search and Filters */}
         <Card className="border-0 shadow-sm">
@@ -428,8 +375,8 @@ const Incomplete = () => {
         </Card>
 
         {/* Tabs and Content */}
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-          <TabsList className="bg-white border-0 shadow-sm p-1">
+        {/* <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6"> */}
+        {/* <TabsList className="bg-white border-0 shadow-sm p-1">
             <TabsTrigger value="all" className="data-[state=active]:bg-[#E63946] data-[state=active]:text-white">
               All Weeks ({weeks.length})
             </TabsTrigger>
@@ -439,91 +386,91 @@ const Incomplete = () => {
             <TabsTrigger value="pending" className="data-[state=active]:bg-[#FCBF49] data-[state=active]:text-white">
               Pending ({stats.pendingWeeks})
             </TabsTrigger>
-          </TabsList>
+          </TabsList> */}
 
-          <TabsContent value={selectedTab} className="space-y-4">
-            {filteredWeeks.length === 0 ? (
-              <Card className="border-0 shadow-sm">
-                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                  <FileText className="h-12 w-12 text-slate-300 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-1">No weeks found</h3>
-                  <p className="text-sm text-slate-500">
-                    Try adjusting your search or filter criteria
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <Accordion type="single" collapsible className="space-y-4">
-                {filteredWeeks.map((weekData) => {
-                  const { userweek, logs } = weekData;
-                  const utilizationPercentage = (userweek.total_hours_worked / userweek.allowed_hours) * 100;
-                  const totalDrivingHours = calculateTotalDrivingHours(logs);
-                  const totalOtherHours = calculateTotalOtherHours(logs);
+        {/* <TabsContent value={selectedTab} className="space-y-4"> */}
+        {filteredWeeks.length === 0 ? (
+          <Card className="border-0 shadow-sm">
+            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+              <FileText className="h-12 w-12 text-slate-300 mb-4" />
+              <h3 className="text-lg font-medium text-slate-900 mb-1">No weeks found</h3>
+              <p className="text-sm text-slate-500">
+                Try adjusting your search or filter criteria
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Accordion type="single" collapsible className="space-y-4">
+            {filteredWeeks.map((weekData) => {
+              const { userweek, logs } = weekData;
+              const utilizationPercentage = (userweek.total_hours_worked / userweek.allowed_hours) * 100;
+              const totalDrivingHours = calculateTotalDrivingHours(logs);
+              const totalOtherHours = calculateTotalOtherHours(logs);
 
-                  return (
-                    <AccordionItem 
-                      key={userweek.id} 
-                      value={`week-${userweek.id}`}
-                      className="border-0 shadow-sm rounded-xl overflow-hidden bg-white"
-                    >
-                      <AccordionTrigger className="hover:no-underline px-6 py-5 hover:bg-slate-50 transition-colors">
-                        <div className="flex items-center justify-between w-full pr-4">
-                                                      <div className="flex items-center gap-4 flex-wrap">
-                            <div className="flex items-center gap-2">
-                              <div className="p-2 bg-[#E63946]/10 rounded-lg border border-[#E63946]/20">
-                                <Calendar className="h-4 w-4 text-[#E63946]" />
-                              </div>
-                              <div className="text-left">
-                                <p className="font-semibold text-slate-900">Week {userweek.week_number}</p>
-                                <p className="text-xs text-slate-500">{formatDateRange(userweek.week_start_date, userweek.week_end_date)}</p>
-                              </div>
-                            </div>
-                            
-                            <Badge 
-                              variant={userweek.is_approved ? "default" : "secondary"}
-                              className={userweek.is_approved 
-                                ? "bg-[#F77F00] text-white hover:bg-[#F77F00] border-[#F77F00]" 
-                                : "bg-[#FCBF49] text-slate-800 hover:bg-[#FCBF49] border-[#FCBF49]"
-                              }
-                            >
-                              {userweek.is_approved ? (
-                                <>
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Approved
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  Pending
-                                </>
-                              )}
-                            </Badge>
-                            
-                            <Badge variant="outline" className="border-slate-300">
-                              <BarChart3 className="h-3 w-3 mr-1" />
-                              RP {userweek.reference_period}
-                            </Badge>
+              return (
+                <AccordionItem
+                  key={userweek.id}
+                  value={`week-${userweek.id}`}
+                  className="border-0 shadow-sm rounded-xl overflow-hidden bg-white"
+                >
+                  <AccordionTrigger className="hover:no-underline px-6 py-5 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center justify-between w-full pr-4">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-[#E63946]/10 rounded-lg border border-[#E63946]/20">
+                            <Calendar className="h-4 w-4 text-[#E63946]" />
                           </div>
-                          
-                          <div className="hidden lg:flex items-center gap-6">
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-slate-900">{userweek.total_hours_worked}h</p>
-                              <p className="text-xs text-slate-500">of {userweek.allowed_hours}h</p>
-                            </div>
-                            <div className={`px-4 py-2 rounded-lg border ${getUtilizationBgColor(utilizationPercentage)}`}>
-                              <p className={`text-lg font-bold ${getUtilizationColor(utilizationPercentage)}`}>
-                                {utilizationPercentage.toFixed(0)}%
-                              </p>
-                              <p className="text-xs text-slate-600">utilized</p>
-                            </div>
+                          <div className="text-left">
+                            <p className="font-semibold text-slate-900">Week {userweek.week_number}</p>
+                            <p className="text-xs text-slate-500">{formatDateRange(userweek.week_start_date, userweek.week_end_date)}</p>
                           </div>
                         </div>
-                      </AccordionTrigger>
-                      
-                      <AccordionContent>
-                        <div className="px-6 pb-6 space-y-6">
-                          {/* Stats Grid */}
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+
+                        <Badge
+                          variant={userweek.is_approved ? "default" : "secondary"}
+                          className={userweek.is_approved
+                            ? "bg-[#F77F00] text-white hover:bg-[#F77F00] border-[#F77F00]"
+                            : "bg-[#FCBF49] text-slate-800 hover:bg-[#FCBF49] border-[#FCBF49]"
+                          }
+                        >
+                          {userweek.is_approved ? (
+                            <>
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Approved
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="h-3 w-3 mr-1" />
+                              Pending
+                            </>
+                          )}
+                        </Badge>
+
+                        <Badge variant="outline" className="border-slate-300">
+                          <BarChart3 className="h-3 w-3 mr-1" />
+                          RP {userweek.reference_period}
+                        </Badge>
+                      </div>
+
+                      <div className="hidden lg:flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-slate-900">{userweek.total_hours_worked}h</p>
+                          <p className="text-xs text-slate-500">of {userweek.allowed_hours}h</p>
+                        </div>
+                        <div className={`px-4 py-2 rounded-lg border ${getUtilizationBgColor(utilizationPercentage)}`}>
+                          <p className={`text-lg font-bold ${getUtilizationColor(utilizationPercentage)}`}>
+                            {utilizationPercentage.toFixed(0)}%
+                          </p>
+                          <p className="text-xs text-slate-600">utilized</p>
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+
+                  <AccordionContent>
+                    <div className="px-6 pb-6 space-y-6">
+                      {/* Stats Grid */}
+                      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
                             <Card className="border border-slate-200 shadow-none">
                               <CardContent className="p-4">
                                 <div className="flex items-center gap-2 mb-2">
@@ -571,93 +518,93 @@ const Incomplete = () => {
                                 <p className="text-2xl font-bold text-slate-900">{userweek.average_hours.toFixed(1)}h</p>
                               </CardContent>
                             </Card>
-                          </div>
+                          </div> */}
 
-                          {/* Daily Logs Table */}
-                          <div>
-                            <div className="flex items-center justify-between mb-4">
-                              <h3 className="text-lg font-semibold text-slate-900">Daily Activity Logs</h3>
-                              <Badge variant="outline">{logs.length} days logged</Badge>
-                            </div>
-                            <div className="rounded-lg border border-slate-200 overflow-hidden">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow className="bg-slate-50 hover:bg-slate-50">
-                                    <TableHead className="font-semibold">Date</TableHead>
-                                    <TableHead className="font-semibold">Day</TableHead>
-                                    <TableHead className="font-semibold">Shift</TableHead>
-                                    <TableHead className="font-semibold">Vehicle</TableHead>
-                                    <TableHead className="font-semibold">Duty Hours</TableHead>
-                                    <TableHead className="font-semibold">Driving</TableHead>
-                                    <TableHead className="font-semibold">Other Duty</TableHead>
-                                    <TableHead className="font-semibold">Breaks</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {logs.map((log) => (
-                                    <TableRow key={log.id} className="hover:bg-slate-50">
-                                      <TableCell className="font-medium">
-                                        {formatDate(log.date)}
-                                      </TableCell>
-                                      <TableCell>
-                                        <Badge variant="outline" className="font-medium">
-                                          {log.day}
-                                        </Badge>
-                                      </TableCell>
-                                      <TableCell>
-                                        <div>
-                                          <Badge variant="secondary" className="mb-1">
-                                            {log.shift_name}
-                                          </Badge>
-                                          <p className="text-xs text-slate-500">
-                                            {log.duty_start_time} - {log.duty_end_time}
-                                          </p>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        {log.vehicle_registration ? (
-                                          <Badge variant="outline" className="border-[#F77F00]/30 bg-[#F77F00]/10 text-[#F77F00]">
-                                            <Truck className="h-3 w-3 mr-1" />
-                                            {log.vehicle_registration}
-                                          </Badge>
-                                        ) : (
-                                          <span className="text-slate-400">-</span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="font-medium">{formatTime(log.total_duty_time)}</TableCell>
-                                      <TableCell className="text-[#F77F00] font-medium">{formatTime(log.driving_duty_hours)}</TableCell>
-                                      <TableCell className="text-[#FCBF49] font-medium">{formatTime(log.other_duty_hours)}</TableCell>
-                                      <TableCell className="text-[#E63946] font-medium">{formatTime(log.breaks_taken)}</TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          </div>
-
-                          {/* Approver Info if approved */}
-                          {userweek.is_approved && userweek.approver_remarks && (
-                            <Card className="border border-[#F77F00]/30 bg-[#F77F00]/10">
-                              <CardContent className="p-4">
-                                <div className="flex items-start gap-3">
-                                  <CheckCircle2 className="h-5 w-5 text-[#F77F00] mt-0.5" />
-                                  <div>
-                                    <p className="font-medium text-slate-900 mb-1">Approved</p>
-                                    <p className="text-sm text-slate-700">{userweek.approver_remarks}</p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )}
+                      {/* Daily Logs Table */}
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-slate-900">Daily Activity Logs</h3>
+                          <Badge variant="outline">{logs.length} days logged</Badge>
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-            )}
-          </TabsContent>
-        </Tabs>
+                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-slate-50 hover:bg-slate-50">
+                                <TableHead className="font-semibold">Date</TableHead>
+                                <TableHead className="font-semibold">Day</TableHead>
+                                <TableHead className="font-semibold">Shift</TableHead>
+                                <TableHead className="font-semibold">Vehicle</TableHead>
+                                <TableHead className="font-semibold">Duty Hours</TableHead>
+                                <TableHead className="font-semibold">Driving</TableHead>
+                                <TableHead className="font-semibold">Other Duty</TableHead>
+                                <TableHead className="font-semibold">Breaks</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {logs.map((log) => (
+                                <TableRow key={log.id} onClick={() => handleLogClick(log)} className="hover:bg-slate-50">
+                                  <TableCell className="font-medium">
+                                    {formatDate(log.date)}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="font-medium">
+                                      {log.day}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div>
+                                      <Badge variant="secondary" className="mb-1">
+                                        {log.shift_name}
+                                      </Badge>
+                                      <p className="text-xs text-slate-500">
+                                        {log.duty_start_time} - {log.duty_end_time}
+                                      </p>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {log.vehicle_registration ? (
+                                      <Badge variant="outline" className="border-[#F77F00]/30 bg-[#F77F00]/10 text-[#F77F00]">
+                                        <Truck className="h-3 w-3 mr-1" />
+                                        {log.vehicle_registration}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-slate-400">-</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="font-medium">{formatTime(log.total_duty_time)}</TableCell>
+                                  <TableCell className="text-[#F77F00] font-medium">{formatTime(log.driving_duty_hours)}</TableCell>
+                                  <TableCell className="text-[#FCBF49] font-medium">{formatTime(log.other_duty_hours)}</TableCell>
+                                  <TableCell className="text-[#E63946] font-medium">{formatTime(log.breaks_taken)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+
+                      {/* Approver Info if approved */}
+                      {userweek.is_approved && userweek.approver_remarks && (
+                        <Card className="border border-[#F77F00]/30 bg-[#F77F00]/10">
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              <CheckCircle2 className="h-5 w-5 text-[#F77F00] mt-0.5" />
+                              <div>
+                                <p className="font-medium text-slate-900 mb-1">Approved</p>
+                                <p className="text-sm text-slate-700">{userweek.approver_remarks}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        )}
+        {/* </TabsContent> */}
+        {/* </Tabs> */}
       </div>
     </div>
   );

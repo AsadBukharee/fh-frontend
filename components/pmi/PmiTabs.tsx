@@ -650,9 +650,9 @@ const PMITabs: FC = () => {
           row.id === rowId
             ? column
               ? {
-                  ...row,
-                  [field]: { ...(row[field] as TyreData), [column]: value },
-                }
+                ...row,
+                [field]: { ...(row[field] as TyreData), [column]: value },
+              }
               : { ...row, [field]: value }
             : row
         )
@@ -917,7 +917,7 @@ const PMITabs: FC = () => {
         className={cn(
           "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border",
           statusStyles[status as keyof typeof statusStyles] ||
-            "bg-gray-100 text-gray-800 border-gray-200"
+          "bg-gray-100 text-gray-800 border-gray-200"
         )}
       >
         {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -934,11 +934,11 @@ const PMITabs: FC = () => {
         <div className="mb-6">
           <h1 className="text-2xl flex items-center font-semibold text-gray-900 mb-1">
             PMI Analysis - Maintenance
-              <RefreshCcw
-                
-                  className="w-4 h-4 text-gray-400 mx-4 hover:text-gray-700 cursor-pointer"
-                  onClick={() => fetchPmiData()}
-                />
+            <RefreshCcw
+
+              className="w-4 h-4 text-gray-400 mx-4 hover:text-gray-700 cursor-pointer"
+              onClick={() => fetchPmiData()}
+            />
           </h1>
           <p className="text-sm text-gray-600 mb-6">
             Comprehensive vehicle inspection data with action controls
@@ -951,12 +951,12 @@ const PMITabs: FC = () => {
               <button
                 key={tab.label}
                 onClick={() => setActiveTab(tab.label)}
-              className={cn(
-  "relative flex items-center h-[30px] gap-2 px-10 py-4 text-xs font-medium whitespace-nowrap justify-start transition-colors clip-tab",
-  activeTab === tab.label
-    ? "bg-orange-500 text-white border-b-2 border-orange-500"
-    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-)}
+                className={cn(
+                  "relative flex items-center h-[30px] gap-2 px-10 py-4 text-xs font-medium whitespace-nowrap justify-start transition-colors clip-tab",
+                  activeTab === tab.label
+                    ? "bg-orange-500 text-white border-b-2 border-orange-500"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
               >
                 <Icon size={16} />
                 {tab.label}
@@ -981,9 +981,9 @@ const PMITabs: FC = () => {
                   className="pl-10"
                 />
               </div>
-              
+
               <div className="flex space-x-2 items-center">
-               
+
                 <Popover open={showDateFilter} onOpenChange={setShowDateFilter}>
                   <PopoverTrigger asChild>
                     <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">
@@ -1000,7 +1000,7 @@ const PMITabs: FC = () => {
                     />
                   </PopoverContent>
                 </Popover>
-               
+
                 <Select
                   value={selectedVehicle || "all"}
                   onValueChange={(value) =>
@@ -1054,7 +1054,7 @@ const PMITabs: FC = () => {
                         {sortConfig?.key === "vehicle_reg" &&
                           (sortConfig.direction === "asc" ? "↑" : "↓")}
                       </TableHead>
-                   
+
                       <TableHead
                         colSpan={tyreColumns.length}
                         className="text-center bg-orange-50 border-l border-r border-orange-200"
@@ -1113,7 +1113,7 @@ const PMITabs: FC = () => {
                       {sortConfig?.key === "vehicle_reg" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-               
+
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
                         {col}
@@ -1141,7 +1141,7 @@ const PMITabs: FC = () => {
                       {sortConfig?.key === "vehicle_reg" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-                   
+
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
                         {col}
@@ -1169,7 +1169,7 @@ const PMITabs: FC = () => {
                       {sortConfig?.key === "vehicle_reg" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-                
+
                     {tyreColumns.map((col) => (
                       <TableHead key={col} className="text-center">
                         {col}
@@ -1474,7 +1474,7 @@ const PMITabs: FC = () => {
                   className={cn(
                     "w-8 h-8 p-0",
                     currentPage === pageNum &&
-                      "bg-orange-500 hover:bg-orange-600"
+                    "bg-orange-500 hover:bg-orange-600"
                   )}
                 >
                   {pageNum}

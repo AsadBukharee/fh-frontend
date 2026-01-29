@@ -57,6 +57,11 @@ import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import Link from "next/link";
 import { toast } from "sonner";
+import DateDisplay, {
+  formatDate,
+  getDateStatus,
+  shouldShowTBC,
+} from "./DateDisplay";
 
 interface ApiResponse {
   success: boolean;
@@ -120,192 +125,25 @@ interface VehicleRow {
   calibration?: ApiResponse["data"]["calibrations"][0];
 }
 
-type TabType = "All Data" | "MOT" | "PMI Inspection" | "Vehicle Tacho Download" | 
-  "Tyre Maintenance Check" | "Insurance & Check" | "Calibrations";
+type TabType =
+  | "All Data"
+  | "MOT"
+  | "PMI Inspection"
+  | "Vehicle Tacho Download"
+  | "Tyre Maintenance Check"
+  | "Insurance & Check"
+  | "Calibrations";
 
 type EditableField = {
-  type: 'mot_date' | 'mot_time' | 'pmi_date' | 'tacho_calib_date' | 'loller_calib_date';
+  type:
+    | "mot_date"
+    | "mot_time"
+    | "pmi_date"
+    | "tacho_calib_date"
+    | "loller_calib_date";
   vehicleId: number;
   originalValue: string;
 };
-
-// Helper function to check if value should show TBC
-const shouldShowTBC = (value: string | null | undefined, fieldType?: string): boolean => {
-  if (!value || value === "TBC" || value === "NA" || value === "null" || value === "null null") {
-    return true;
-  }
-  
-  // For MOT/PMI booked dates, show TBC if they're empty or invalid
-  if (fieldType === 'booking' && (!value.trim() || value === "")) {
-    return true;
-  }
-  
-  return false;
-};
-
-// Date status utility function
-const getDateStatus = (dateString: string | null, compareDate?: string | null): 'green' | 'yellow' | 'red' | 'gray' => {
-  if (shouldShowTBC(dateString)) {
-    return 'gray';
-  }
-
-  try {
-    let date: Date;
-    
-    // Parse UK date format DD/MM/YYYY
-    if (dateString && dateString.includes('/')) {
-      const parts = dateString.split('/');
-      if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const year = parseInt(parts[2], 10);
-        date = new Date(year, month, day);
-      } else {
-        date = new Date(dateString);
-      }
-    } else {
-      date = new Date(dateString!);
-    }
-    
-    if (isNaN(date.getTime())) return 'gray';
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
-    
-    // Calculate difference in days
-    const diffTime = targetDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    // For comparison with another date (e.g., "Book Next From" date)
-    if (compareDate && !shouldShowTBC(compareDate)) {
-      let compareDateObj: Date;
-      
-      // Parse compare date if it's in UK format
-      if (compareDate.includes('/')) {
-        const parts = compareDate.split('/');
-        if (parts.length === 3) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1;
-          const year = parseInt(parts[2], 10);
-          compareDateObj = new Date(year, month, day);
-        } else {
-          compareDateObj = new Date(compareDate);
-        }
-      } else {
-        compareDateObj = new Date(compareDate);
-      }
-      
-      compareDateObj.setHours(0, 0, 0, 0);
-      
-      const todayTime = today.getTime();
-      const targetTime = targetDate.getTime();
-      const compareTime = compareDateObj.getTime();
-      
-      // If we're past the target date (expired)
-      if (targetTime < todayTime) return 'red';
-      
-      // If today is on or after the "book from" date
-      if (todayTime >= compareTime) {
-        // And target date is within 7 days
-        if (diffDays <= 7) return 'yellow';
-        // Just reached "book from" date but still >7 days away
-        return 'green';
-      }
-      
-      // Not yet at "book from" date
-      return 'green';
-    }
-    
-    // Standard expiry logic
-    if (diffDays < 0) return 'red'; // Expired
-    if (diffDays <= 7) return 'yellow'; // Within 7 days
-    return 'green'; // More than 7 days away
-    
-  } catch (error) {
-    return 'gray';
-  }
-};
-
-// Date Display Component
-interface DateDisplayProps {
-  date: string | null;
-  compareDate?: string | null;
-  className?: string;
-  children?: React.ReactNode;
-  onClick?: () => void;
-  isEditable?: boolean;
-  showTBC?: boolean;
-  fieldType?: string;
-}
-
-const DateDisplay: React.FC<DateDisplayProps> = ({ 
-  date, 
-  compareDate, 
-  className = "", 
-  children,
-  onClick,
-  isEditable = false,
-  showTBC = true,
-  fieldType
-}) => {
-  const status = getDateStatus(date, compareDate);
-  
-  const statusClasses = {
-    green: 'text-green-700 bg-green-50 hover:bg-green-100',
-    yellow: 'text-yellow-700 bg-yellow-50 hover:bg-yellow-100',
-    red: 'text-red-700 bg-red-50 hover:bg-red-100',
-    gray: 'text-gray-500 bg-gray-50 hover:bg-gray-100'
-  };
-
-  let displayText = children;
-  
-  if (!children) {
-    if (shouldShowTBC(date, fieldType)) {
-      displayText = showTBC ? "TBC" : "NA";
-    } else if (date && date.includes('/')) {
-      // Keep UK format for display
-      displayText = date;
-    } else {
-      try {
-        const dateObj = new Date(date!);
-        if (!isNaN(dateObj.getTime())) {
-          displayText = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        } else {
-          displayText = showTBC ? "TBC" : "NA";
-        }
-      } catch {
-        displayText = showTBC ? "TBC" : "NA";
-      }
-    }
-  }
-  
-  return (
-    <div
-      className={`px-3 py-4 text-sm rounded min-h-[44px] flex items-center transition-colors ${
-        isEditable ? 'cursor-pointer' : 'cursor-default'
-      } ${statusClasses[status]} ${className}`}
-      onClick={isEditable ? onClick : undefined}
-      title={isEditable ? "Double-click to edit" : ""}
-    >
-      {displayText}
-    </div>
-  );
-};
-
-// Display component for driver/vehicle related fields (shows NA)
-const NAField: React.FC<{ label?: string; icon?: React.ReactNode; className?: string }> = ({ 
-  label, 
-  icon,
-  className = "" 
-}) => (
-  <div className={`px-3 py-4 text-sm text-gray-500 bg-gray-50 rounded min-h-[44px] flex items-center justify-center ${className}`}>
-    {icon && <span className="mr-2">{icon}</span>}
-    {label || "NA"}
-  </div>
-);
 
 export default function VehicleDashboard() {
   const [fullApiData, setFullApiData] = useState<ApiResponse | null>(null);
@@ -319,12 +157,10 @@ export default function VehicleDashboard() {
   const [vehicleRegFilter, setVehicleRegFilter] = useState("All Registrations");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
 
-  // Inline editing state
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Time update dialog state
   const [timeDialogOpen, setTimeDialogOpen] = useState(false);
   const [pendingDateUpdate, setPendingDateUpdate] = useState<{
     vehicleId: number;
@@ -335,52 +171,34 @@ export default function VehicleDashboard() {
   } | null>(null);
   const [newTimeValue, setNewTimeValue] = useState("09:00");
 
-  // Sweep Audit dialog state
   const [sweepDialogOpen, setSweepDialogOpen] = useState(false);
   const [isSweeping, setIsSweeping] = useState(false);
   const [sweepTitle, setSweepTitle] = useState("Maintenance Notice");
-  const [sweepMessage, setSweepMessage] = useState("System maintenance scheduled at midnight.");
+  const [sweepMessage, setSweepMessage] = useState(
+    "System maintenance scheduled at midnight.",
+  );
 
   const cookies = useCookies();
 
-  const formatDate = (s: string | null | undefined, showTBC: boolean = true): string => {
-    if (shouldShowTBC(s)) {
-      return showTBC ? "TBC" : "NA";
-    }
-    
-    try {
-      let date: Date;
-      
-      // Parse UK date format
-      if (s && s.includes('/')) {
-        const parts = s.split('/');
-        if (parts.length === 3) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1;
-          const year = parseInt(parts[2], 10);
-          date = new Date(year, month, day);
-        } else {
-          date = new Date(s);
-        }
-      } else {
-        date = new Date(s!);
-      }
-      
-      if (isNaN(date.getTime())) return showTBC ? "TBC" : "NA";
-      
-      return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-      return showTBC ? "TBC" : "NA";
-    }
-  };
-
   const getStatusBadge = (text: string) => {
-    if (shouldShowTBC(text)) 
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-gray-600">TBC</span>;
+    if (shouldShowTBC(text))
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-gray-600">
+          TBC
+        </span>
+      );
     if (text.includes("Expired"))
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-red-800">{text}</span>;
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-red-800">
+          {text}
+        </span>
+      );
     if (text.includes("days left"))
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-amber-800">{text}</span>;
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-amber-800">
+          {text}
+        </span>
+      );
     return <span className="text-gray-700 text-sm">{text}</span>;
   };
 
@@ -409,12 +227,14 @@ export default function VehicleDashboard() {
     if (!fullApiData) return [];
 
     const maps = {
-      mot: new Map(fullApiData.data.mot.map(i => [i.vehicle, i])),
-      pmi: new Map(fullApiData.data.pmi.map(i => [i.vehicle, i])),
-      tacho: new Map(fullApiData.data.tacho.map(i => [i.vehicle, i])),
-      tyre: new Map(fullApiData.data.tyre.map(i => [i.vehicle, i])),
-      insurance: new Map(fullApiData.data.insurance.map(i => [i.vehicle, i])),
-      calibration: new Map(fullApiData.data.calibrations.map(i => [i.vehicle, i])),
+      mot: new Map(fullApiData.data.mot.map((i) => [i.vehicle, i])),
+      pmi: new Map(fullApiData.data.pmi.map((i) => [i.vehicle, i])),
+      tacho: new Map(fullApiData.data.tacho.map((i) => [i.vehicle, i])),
+      tyre: new Map(fullApiData.data.tyre.map((i) => [i.vehicle, i])),
+      insurance: new Map(fullApiData.data.insurance.map((i) => [i.vehicle, i])),
+      calibration: new Map(
+        fullApiData.data.calibrations.map((i) => [i.vehicle, i]),
+      ),
     };
 
     const allIds = new Set([
@@ -426,7 +246,7 @@ export default function VehicleDashboard() {
       ...maps.calibration.keys(),
     ]);
 
-    return Array.from(allIds).map(id => ({
+    return Array.from(allIds).map((id) => ({
       vehicle: id,
       vehicle_reg:
         maps.mot.get(id)?.vehicle_reg ||
@@ -449,37 +269,60 @@ export default function VehicleDashboard() {
     let data = buildRows();
 
     if (activeFilter !== "All Data") {
-      if (activeFilter === "MOT") data = data.filter(r => r.mot);
-      if (activeFilter === "PMI Inspection") data = data.filter(r => r.pmi);
-      if (activeFilter === "Vehicle Tacho Download") data = data.filter(r => r.tacho);
-      if (activeFilter === "Tyre Maintenance Check") data = data.filter(r => r.tyre);
-      if (activeFilter === "Insurance & Check") data = data.filter(r => r.insurance);
-      if (activeFilter === "Calibrations") data = data.filter(r => r.calibration);
+      if (activeFilter === "MOT") data = data.filter((r) => r.mot);
+      if (activeFilter === "PMI Inspection") data = data.filter((r) => r.pmi);
+      if (activeFilter === "Vehicle Tacho Download")
+        data = data.filter((r) => r.tacho);
+      if (activeFilter === "Tyre Maintenance Check")
+        data = data.filter((r) => r.tyre);
+      if (activeFilter === "Insurance & Check")
+        data = data.filter((r) => r.insurance);
+      if (activeFilter === "Calibrations")
+        data = data.filter((r) => r.calibration);
     }
 
     if (searchQuery)
-      data = data.filter(r => r.vehicle_reg.toLowerCase().includes(searchQuery.toLowerCase()));
-    if (vehicleRegFilter !== "All Registrations") data = data.filter(r => r.vehicle_reg === vehicleRegFilter);
-    if (statusFilter === "Expired") data = data.filter(r => r.mot?.mot_status.includes("Expired"));
-    if (statusFilter === "Upcoming") data = data.filter(r => r.mot?.mot_status.includes("days left"));
-    if (statusFilter === "TBC") data = data.filter(r => shouldShowTBC(r.mot?.next_mot_booked_date, 'booking'));
+      data = data.filter((r) =>
+        r.vehicle_reg.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    if (vehicleRegFilter !== "All Registrations")
+      data = data.filter((r) => r.vehicle_reg === vehicleRegFilter);
+    if (statusFilter === "Expired")
+      data = data.filter((r) => r.mot?.mot_status.includes("Expired"));
+    if (statusFilter === "Upcoming")
+      data = data.filter((r) => r.mot?.mot_status.includes("days left"));
+    if (statusFilter === "TBC")
+      data = data.filter((r) =>
+        shouldShowTBC(r.mot?.next_mot_booked_date, "booking"),
+      );
 
     setFilteredData(data);
     setCurrentPage(1);
   }, [buildRows, activeFilter, searchQuery, vehicleRegFilter, statusFilter]);
 
-  const handleDoubleClick = (vehicleId: number, fieldType: EditableField['type'], currentValue: string) => {
-    // For mot_time, check if there's a valid date first
-    if (fieldType === 'mot_time') {
-      const row = filteredData.find(r => r.vehicle === vehicleId);
-      if (row && shouldShowTBC(row.mot?.next_mot_booked_date, 'booking')) {
+  const handleDoubleClick = (
+    vehicleId: number,
+    fieldType: EditableField["type"],
+    currentValue: string,
+  ) => {
+    if (fieldType === "mot_time") {
+      const row = filteredData.find((r) => r.vehicle === vehicleId);
+      if (row && shouldShowTBC(row.mot?.next_mot_booked_date, "booking")) {
         toast.error("Please set a date first before setting time");
         return;
       }
-      setEditingField({ type: fieldType, vehicleId, originalValue: currentValue });
+      setEditingField({
+        type: fieldType,
+        vehicleId,
+        originalValue: currentValue,
+      });
       setEditValue(currentValue || "");
     } else {
-      setEditingField({ type: fieldType, vehicleId, originalValue: currentValue });
+      setEditingField({
+        type: fieldType,
+        vehicleId,
+        originalValue: currentValue,
+      });
       setEditValue(currentValue || "");
     }
   };
@@ -493,78 +336,84 @@ export default function VehicleDashboard() {
     setIsUpdating(true);
     try {
       const payload: any = {};
-      
+
       switch (editingField.type) {
-        case 'mot_date':
-          // ALWAYS show time dialog when changing MOT date
-          const motItem = fullApiData?.data.mot.find(m => m.vehicle === editingField.vehicleId);
-          const hasExistingTime = motItem?.next_mot_booked_time && !shouldShowTBC(motItem.next_mot_booked_time);
-          
-          // Show dialog to update time
+        case "mot_date":
+          const motItem = fullApiData?.data.mot.find(
+            (m) => m.vehicle === editingField.vehicleId,
+          );
+          const hasExistingTime =
+            motItem?.next_mot_booked_time &&
+            !shouldShowTBC(motItem.next_mot_booked_time);
+
           setPendingDateUpdate({
             vehicleId: editingField.vehicleId,
             newDate: editValue,
             vehicleReg: motItem?.vehicle_reg || "Unknown",
             currentTime: motItem?.next_mot_booked_time,
-            isFirstTime: !hasExistingTime
+            isFirstTime: !hasExistingTime,
           });
-          
-          // Set default time value
+
           if (hasExistingTime) {
             setNewTimeValue(motItem.next_mot_booked_time);
           } else {
-            setNewTimeValue("09:00"); // Default morning time
+            setNewTimeValue("09:00");
           }
-          
+
           setTimeDialogOpen(true);
           setIsUpdating(false);
           return;
-          
-        case 'mot_time':
-          // Before saving time, check if date is valid
-          const motItemForTime = fullApiData?.data.mot.find(m => m.vehicle === editingField.vehicleId);
-          if (shouldShowTBC(motItemForTime?.next_mot_booked_date, 'booking')) {
+
+        case "mot_time":
+          const motItemForTime = fullApiData?.data.mot.find(
+            (m) => m.vehicle === editingField.vehicleId,
+          );
+          if (shouldShowTBC(motItemForTime?.next_mot_booked_date, "booking")) {
             toast.error("Please set a date first before setting time");
             setIsUpdating(false);
             return;
           }
-          payload.mot_booked_time = editValue.includes(':') ? editValue : `${editValue}:00`;
+          payload.mot_booked_time = editValue.includes(":")
+            ? editValue
+            : `${editValue}:00`;
           break;
-          
-        case 'pmi_date':
+
+        case "pmi_date":
           payload.next_pmi_book_date = editValue;
           break;
-        case 'tacho_calib_date':
+        case "tacho_calib_date":
           payload.next_tacho_calibration_book_date = editValue;
           break;
-        case 'loller_calib_date':
+        case "loller_calib_date":
           payload.next_loller_test_date = editValue;
           break;
       }
 
-      // For non-mot_date fields, save directly
       if (
-        editingField.type === 'mot_time' ||
-        editingField.type === 'pmi_date' ||
-        editingField.type === 'tacho_calib_date' ||
-        editingField.type === 'loller_calib_date'
+        editingField.type === "mot_time" ||
+        editingField.type === "pmi_date" ||
+        editingField.type === "tacho_calib_date" ||
+        editingField.type === "loller_calib_date"
       ) {
-        const response = await fetch(`${API_URL}/api/vehicles/${editingField.vehicleId}/`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${cookies.get("access_token")}`,
+        const response = await fetch(
+          `${API_URL}/api/vehicles/${editingField.vehicleId}/`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cookies.get("access_token")}`,
+            },
+            body: JSON.stringify(payload),
           },
-          body: JSON.stringify(payload),
-        });
+        );
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || 'Update failed');
+          throw new Error(errorData.message || "Update failed");
         }
 
         const result = await response.json();
-        
+
         if (result.success) {
           toast.success(result.message || "Updated successfully");
           updateLocalData(editingField.vehicleId, editingField.type, editValue);
@@ -574,7 +423,7 @@ export default function VehicleDashboard() {
         }
       }
     } catch (error) {
-      console.error('Update error:', error);
+      console.error("Update error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to update.");
       setEditValue(editingField.originalValue);
     } finally {
@@ -582,23 +431,27 @@ export default function VehicleDashboard() {
     }
   };
 
-  const saveDateAndTime = async (vehicleId: number, date: string, time: string | null) => {
+  const saveDateAndTime = async (
+    vehicleId: number,
+    date: string,
+    time: string | null,
+  ) => {
     setIsUpdating(true);
     try {
       const payload: any = {
-        mot_booked_date: date
+        mot_booked_date: date,
       };
-      
+
       if (time) {
-        payload.mot_booked_time = time.includes(':') ? time : `${time}:00`;
+        payload.mot_booked_time = time.includes(":") ? time : `${time}:00`;
       } else {
         payload.mot_booked_time = null;
       }
 
       const response = await fetch(`${API_URL}/api/vehicles/${vehicleId}/`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
         body: JSON.stringify(payload),
@@ -606,28 +459,29 @@ export default function VehicleDashboard() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Update failed');
+        throw new Error(errorData.message || "Update failed");
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
-        const successMessage = time 
-          ? "Date and time updated successfully" 
+        const successMessage = time
+          ? "Date and time updated successfully"
           : "Date updated successfully (time cleared)";
         toast.success(successMessage);
-        
-        // Update local data
+
         if (fullApiData) {
           const updatedData = { ...fullApiData };
-          const motIndex = updatedData.data.mot.findIndex(m => m.vehicle === vehicleId);
+          const motIndex = updatedData.data.mot.findIndex(
+            (m) => m.vehicle === vehicleId,
+          );
           if (motIndex !== -1) {
             updatedData.data.mot[motIndex].next_mot_booked_date = date;
             updatedData.data.mot[motIndex].next_mot_booked_time = time || "";
             setFullApiData(updatedData);
           }
         }
-        
+
         setEditingField(null);
         setTimeDialogOpen(false);
         setPendingDateUpdate(null);
@@ -635,7 +489,7 @@ export default function VehicleDashboard() {
         throw new Error(result.message || "Update failed");
       }
     } catch (error) {
-      console.error('Update error:', error);
+      console.error("Update error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to update.");
     } finally {
       setIsUpdating(false);
@@ -644,20 +498,26 @@ export default function VehicleDashboard() {
 
   const handleTimeDialogSave = () => {
     if (pendingDateUpdate) {
-      saveDateAndTime(pendingDateUpdate.vehicleId, pendingDateUpdate.newDate, newTimeValue);
+      saveDateAndTime(
+        pendingDateUpdate.vehicleId,
+        pendingDateUpdate.newDate,
+        newTimeValue,
+      );
     }
   };
 
   const handleTimeDialogSkip = () => {
     if (pendingDateUpdate) {
-      // If it's first time setting date, we can't skip - they must set time
       if (pendingDateUpdate.isFirstTime) {
         toast.error("Please set a time for the booking");
         return;
       }
-      
-      // For existing bookings, allow skipping (clears time)
-      saveDateAndTime(pendingDateUpdate.vehicleId, pendingDateUpdate.newDate, null);
+
+      saveDateAndTime(
+        pendingDateUpdate.vehicleId,
+        pendingDateUpdate.newDate,
+        null,
+      );
     }
   };
 
@@ -668,37 +528,53 @@ export default function VehicleDashboard() {
     toast.info("Date change cancelled");
   };
 
-  const updateLocalData = (vehicleId: number, fieldType: EditableField['type'], value: string) => {
+  const updateLocalData = (
+    vehicleId: number,
+    fieldType: EditableField["type"],
+    value: string,
+  ) => {
     if (!fullApiData) return;
 
     const updatedData = { ...fullApiData };
-    
-    if (fieldType === 'mot_date') {
-      const motIndex = updatedData.data.mot.findIndex(m => m.vehicle === vehicleId);
+
+    if (fieldType === "mot_date") {
+      const motIndex = updatedData.data.mot.findIndex(
+        (m) => m.vehicle === vehicleId,
+      );
       if (motIndex !== -1) {
         updatedData.data.mot[motIndex].next_mot_booked_date = value;
         setFullApiData(updatedData);
       }
-    } else if (fieldType === 'mot_time') {
-      const motIndex = updatedData.data.mot.findIndex(m => m.vehicle === vehicleId);
+    } else if (fieldType === "mot_time") {
+      const motIndex = updatedData.data.mot.findIndex(
+        (m) => m.vehicle === vehicleId,
+      );
       if (motIndex !== -1) {
         updatedData.data.mot[motIndex].next_mot_booked_time = value;
         setFullApiData(updatedData);
       }
-    } else if (fieldType === 'pmi_date') {
-      const pmiIndex = updatedData.data.pmi.findIndex(p => p.vehicle === vehicleId);
+    } else if (fieldType === "pmi_date") {
+      const pmiIndex = updatedData.data.pmi.findIndex(
+        (p) => p.vehicle === vehicleId,
+      );
       if (pmiIndex !== -1) {
         updatedData.data.pmi[pmiIndex].next_pmi_book_date = value;
         setFullApiData(updatedData);
       }
-    } else if (fieldType === 'tacho_calib_date') {
-      const calibIndex = updatedData.data.calibrations.findIndex(c => c.vehicle === vehicleId);
+    } else if (fieldType === "tacho_calib_date") {
+      const calibIndex = updatedData.data.calibrations.findIndex(
+        (c) => c.vehicle === vehicleId,
+      );
       if (calibIndex !== -1) {
-        updatedData.data.calibrations[calibIndex].next_tacho_calibration_book_date = value;
+        updatedData.data.calibrations[
+          calibIndex
+        ].next_tacho_calibration_book_date = value;
         setFullApiData(updatedData);
       }
-    } else if (fieldType === 'loller_calib_date') {
-      const calibIndex = updatedData.data.calibrations.findIndex(c => c.vehicle === vehicleId);
+    } else if (fieldType === "loller_calib_date") {
+      const calibIndex = updatedData.data.calibrations.findIndex(
+        (c) => c.vehicle === vehicleId,
+      );
       if (calibIndex !== -1) {
         updatedData.data.calibrations[calibIndex].next_loller_test_date = value;
         setFullApiData(updatedData);
@@ -714,24 +590,48 @@ export default function VehicleDashboard() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!editingField) return;
-      
-      if (e.key === 'Enter') {
+
+      if (e.key === "Enter") {
         handleSaveEdit();
-      } else if (e.key === 'Escape') {
+      } else if (e.key === "Escape") {
         handleCancelEdit();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [editingField, editValue]);
 
-  const renderMOTBookedDate = (row: VehicleRow) => {
-    const isEditing = editingField?.type === 'mot_date' && editingField?.vehicleId === row.vehicle;
-    const value = row.mot?.next_mot_booked_date;
+  // Helper function to get planned date by key
+  const getPlannedDate = (row: VehicleRow, key: string): string => {
+    if (!row.pmi?.hover) return "";
+    // Try different key formats
+    const keysToTry = [
+      key,
+      key.toLowerCase(),
+      key.toLowerCase().replace(/\s+/g, '_'),
+      key.replace(/\s+/g, '_'),
+      key.replace(/\s+/g, '_').toLowerCase()
+    ];
     
-    // Show TBC for booking dates until user enters a date
-    const displayValue = shouldShowTBC(value, 'booking') ? "TBC" : formatDate(value, false);
+    for (const k of keysToTry) {
+      if (row.pmi.hover[k]) {
+        return row.pmi.hover[k];
+      }
+    }
+    
+    return "";
+  };
+
+  const renderMOTBookedDate = (row: VehicleRow) => {
+    const isEditing =
+      editingField?.type === "mot_date" &&
+      editingField?.vehicleId === row.vehicle;
+    const value = row.mot?.next_mot_booked_date;
+
+    const displayValue = shouldShowTBC(value, "booking")
+      ? "TBC"
+      : formatDate(value, false);
 
     if (isEditing) {
       return (
@@ -744,24 +644,46 @@ export default function VehicleDashboard() {
             autoFocus
             disabled={isUpdating}
           />
-          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSaveEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <Check className="h-4 w-4 text-green-600" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCancelEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <X className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       );
     }
-    
+
     return (
       <DateDisplay
         date={row.mot?.next_mot_booked_date || null}
         compareDate={row.mot?.book_next_mot_from}
-        onClick={() => handleDoubleClick(row.vehicle, 'mot_date', row.mot?.next_mot_booked_date || "")}
+        onClick={() =>
+          handleDoubleClick(
+            row.vehicle,
+            "mot_date",
+            row.mot?.next_mot_booked_date || "",
+          )
+        }
         isEditable={true}
         showTBC={true}
         fieldType="booking"
+        showBookedText={
+          !shouldShowTBC(row.mot?.next_mot_booked_date, "booking")
+        }
+        isBooking={!shouldShowTBC(row.mot?.next_mot_booked_date, "booking")}
       >
         {displayValue}
       </DateDisplay>
@@ -769,11 +691,15 @@ export default function VehicleDashboard() {
   };
 
   const renderMOTBookedTime = (row: VehicleRow) => {
-    const isEditing = editingField?.type === 'mot_time' && editingField?.vehicleId === row.vehicle;
+    const isEditing =
+      editingField?.type === "mot_time" &&
+      editingField?.vehicleId === row.vehicle;
     const value = row.mot?.next_mot_booked_time;
-    const hasValidDate = !shouldShowTBC(row.mot?.next_mot_booked_date, 'booking');
-    
-    // Show TBC if no valid date is set
+    const hasValidDate = !shouldShowTBC(
+      row.mot?.next_mot_booked_date,
+      "booking",
+    );
+
     if (!hasValidDate && !isEditing) {
       return (
         <div
@@ -784,9 +710,8 @@ export default function VehicleDashboard() {
         </div>
       );
     }
-    
-    // Show TBC for booking time until user enters a time
-    const displayValue = shouldShowTBC(value) ? "TBC" : (value || "NA");
+
+    const displayValue = shouldShowTBC(value) ? "TBC" : value || "NA";
 
     if (isEditing) {
       return (
@@ -799,25 +724,43 @@ export default function VehicleDashboard() {
             autoFocus
             disabled={isUpdating}
           />
-          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSaveEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <Check className="h-4 w-4 text-green-600" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCancelEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <X className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       );
     }
-    
+
     return (
       <div
         className="px-3 py-4 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded min-h-[44px] flex items-center"
         onDoubleClick={() => {
           if (hasValidDate) {
-            handleDoubleClick(row.vehicle, 'mot_time', row.mot?.next_mot_booked_time || "");
+            handleDoubleClick(
+              row.vehicle,
+              "mot_time",
+              row.mot?.next_mot_booked_time || "",
+            );
           }
         }}
-        title={hasValidDate ? "Double-click to edit" : "Set date first to add time"}
+        title={
+          hasValidDate ? "Double-click to edit" : "Set date first to add time"
+        }
       >
         {displayValue}
       </div>
@@ -825,11 +768,14 @@ export default function VehicleDashboard() {
   };
 
   const renderPMIBookedDate = (row: VehicleRow) => {
-    const isEditing = editingField?.type === 'pmi_date' && editingField?.vehicleId === row.vehicle;
+    const isEditing =
+      editingField?.type === "pmi_date" &&
+      editingField?.vehicleId === row.vehicle;
     const value = row.pmi?.next_pmi_book_date;
-    
-    // Show TBC for booking dates until user enters a date
-    const displayValue = shouldShowTBC(value, 'booking') ? "TBC" : formatDate(value, false);
+
+    const displayValue = shouldShowTBC(value, "booking")
+      ? "TBC"
+      : formatDate(value, false);
 
     if (isEditing) {
       return (
@@ -842,27 +788,44 @@ export default function VehicleDashboard() {
             autoFocus
             disabled={isUpdating}
           />
-          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSaveEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <Check className="h-4 w-4 text-green-600" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCancelEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <X className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       );
     }
-    
-    if (activeFilter !== "PMI Inspection" && row.pmi?.book_next_pmi_from === "booked" && row.pmi?.hover) {
+
+    // Show popover for non-PMI tabs or when hover data exists
+    if (row.pmi?.hover && Object.keys(row.pmi.hover).length > 0) {
       return (
         <Popover>
           <PopoverTrigger asChild>
             <button
-              className="text-rose-600 hover:text-rose-800 underline font-medium cursor-pointer min-h-[44px] flex items-center"
+              className="text-rose-600 hover:text-rose-800 underline font-medium cursor-pointer min-h-[44px] flex items-center gap-1"
               onDoubleClick={(e) => {
                 e.stopPropagation();
-                handleDoubleClick(row.vehicle, 'pmi_date', row.pmi?.next_pmi_book_date || "");
+                handleDoubleClick(
+                  row.vehicle,
+                  "pmi_date",
+                  row.pmi?.next_pmi_book_date || "",
+                );
               }}
-              title="Double-click to edit"
+              title="Double-click to edit, hover for planned dates"
             >
               <DateDisplay
                 date={row.pmi?.next_pmi_book_date || null}
@@ -870,19 +833,37 @@ export default function VehicleDashboard() {
                 className="!bg-transparent !text-rose-600 hover:!text-rose-800"
                 showTBC={true}
                 fieldType="booking"
+                showBookedText={
+                  !shouldShowTBC(row.pmi?.next_pmi_book_date, "booking")
+                }
+                isBooking={
+                  !shouldShowTBC(row.pmi?.next_pmi_book_date, "booking")
+                }
               >
                 {displayValue}
               </DateDisplay>
+             
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-72">
+          <PopoverContent className="w-96 max-h-80 overflow-y-auto">
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-gray-900">Planned PMI Dates</h4>
-              <div className="text-xs space-y-1">
-                {Object.entries(row.pmi.hover).map(([k, v]) => (
-                  <div key={k} className="flex justify-between py-1 border-b border-gray-100">
-                    <span className="font-medium text-gray-600">{k.replace(/_/g, " ")}:</span>
-                    <span className="text-gray-900">{v}</span>
+              <h4 className="font-semibold text-sm text-gray-900">
+                Planned PMI Dates for {row.vehicle_reg}
+              </h4>
+              <div className="text-xs">
+                <div className="grid grid-cols-2 gap-1 mb-2 pb-2 border-b border-gray-200">
+                  <div className="font-semibold text-gray-700">Period</div>
+                  <div className="font-semibold text-gray-700">Planned Date</div>
+                </div>
+                {Object.entries(row.pmi.hover).map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="grid grid-cols-2 gap-1 py-1 border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="font-medium text-gray-600 capitalize">
+                      {key.replace(/_/g, " ")}:
+                    </div>
+                    <div className="text-gray-900">{value}</div>
                   </div>
                 ))}
               </div>
@@ -891,15 +872,23 @@ export default function VehicleDashboard() {
         </Popover>
       );
     }
-    
+
     return (
       <DateDisplay
         date={row.pmi?.next_pmi_book_date || null}
         compareDate={row.pmi?.book_next_pmi_from}
-        onClick={() => handleDoubleClick(row.vehicle, 'pmi_date', row.pmi?.next_pmi_book_date || "")}
+        onClick={() =>
+          handleDoubleClick(
+            row.vehicle,
+            "pmi_date",
+            row.pmi?.next_pmi_book_date || "",
+          )
+        }
         isEditable={true}
         showTBC={true}
         fieldType="booking"
+        showBookedText={!shouldShowTBC(row.pmi?.next_pmi_book_date, "booking")}
+        isBooking={!shouldShowTBC(row.pmi?.next_pmi_book_date, "booking")}
       >
         {displayValue}
       </DateDisplay>
@@ -907,11 +896,14 @@ export default function VehicleDashboard() {
   };
 
   const renderTachoCalibrationDate = (row: VehicleRow) => {
-    const isEditing = editingField?.type === 'tacho_calib_date' && editingField?.vehicleId === row.vehicle;
+    const isEditing =
+      editingField?.type === "tacho_calib_date" &&
+      editingField?.vehicleId === row.vehicle;
     const value = row.calibration?.next_tacho_calibration_book_date;
-    
-    // Show TBC for booking dates until user enters a date
-    const displayValue = shouldShowTBC(value, 'booking') ? "TBC" : formatDate(value, false);
+
+    const displayValue = shouldShowTBC(value, "booking")
+      ? "TBC"
+      : formatDate(value, false);
 
     if (isEditing) {
       return (
@@ -924,23 +916,53 @@ export default function VehicleDashboard() {
             autoFocus
             disabled={isUpdating}
           />
-          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSaveEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <Check className="h-4 w-4 text-green-600" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCancelEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <X className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       );
     }
-    
+
     return (
       <DateDisplay
         date={row.calibration?.next_tacho_calibration_book_date || null}
-        onClick={() => handleDoubleClick(row.vehicle, 'tacho_calib_date', row.calibration?.next_tacho_calibration_book_date || "")}
+        onClick={() =>
+          handleDoubleClick(
+            row.vehicle,
+            "tacho_calib_date",
+            row.calibration?.next_tacho_calibration_book_date || "",
+          )
+        }
         isEditable={true}
         showTBC={true}
         fieldType="booking"
+        showBookedText={
+          !shouldShowTBC(
+            row.calibration?.next_tacho_calibration_book_date,
+            "booking",
+          )
+        }
+        isBooking={
+          !shouldShowTBC(
+            row.calibration?.next_tacho_calibration_book_date,
+            "booking",
+          )
+        }
       >
         {displayValue}
       </DateDisplay>
@@ -948,11 +970,14 @@ export default function VehicleDashboard() {
   };
 
   const renderLollerCalibrationDate = (row: VehicleRow) => {
-    const isEditing = editingField?.type === 'loller_calib_date' && editingField?.vehicleId === row.vehicle;
+    const isEditing =
+      editingField?.type === "loller_calib_date" &&
+      editingField?.vehicleId === row.vehicle;
     const value = row.calibration?.next_loller_test_date;
-    
-    // Show TBC for booking dates until user enters a date
-    const displayValue = shouldShowTBC(value, 'booking') ? "TBC" : formatDate(value, false);
+
+    const displayValue = shouldShowTBC(value, "booking")
+      ? "TBC"
+      : formatDate(value, false);
 
     if (isEditing) {
       return (
@@ -965,23 +990,47 @@ export default function VehicleDashboard() {
             autoFocus
             disabled={isUpdating}
           />
-          <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSaveEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <Check className="h-4 w-4 text-green-600" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating} className="h-8 w-8 p-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCancelEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
             <X className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       );
     }
-    
+
     return (
       <DateDisplay
         date={row.calibration?.next_loller_test_date || null}
-        onClick={() => handleDoubleClick(row.vehicle, 'loller_calib_date', row.calibration?.next_loller_test_date || "")}
+        onClick={() =>
+          handleDoubleClick(
+            row.vehicle,
+            "loller_calib_date",
+            row.calibration?.next_loller_test_date || "",
+          )
+        }
         isEditable={true}
         showTBC={true}
         fieldType="booking"
+        showBookedText={
+          !shouldShowTBC(row.calibration?.next_loller_test_date, "booking")
+        }
+        isBooking={
+          !shouldShowTBC(row.calibration?.next_loller_test_date, "booking")
+        }
       >
         {displayValue}
       </DateDisplay>
@@ -990,17 +1039,27 @@ export default function VehicleDashboard() {
 
   const getVisibleColumns = () => {
     switch (activeFilter) {
-      case "MOT": return { showMOT: true };
-      case "PMI Inspection": return { showPMI: true };
-      case "Vehicle Tacho Download": return { showTacho: true };
-      case "Tyre Maintenance Check": return { showTyre: true };
-      case "Insurance & Check": return { showInsurance: true };
-      case "Calibrations": return { showCalibrations: true };
+      case "MOT":
+        return { showMOT: true };
+      case "PMI Inspection":
+        return { 
+          showPMI: true,
+          showPMIPlannedDates: true
+        };
+      case "Vehicle Tacho Download":
+        return { showTacho: true };
+      case "Tyre Maintenance Check":
+        return { showTyre: true };
+      case "Insurance & Check":
+        return { showInsurance: true };
+      case "Calibrations":
+        return { showCalibrations: true };
       case "All Data":
       default:
         return {
           showMOT: true,
           showPMI: true,
+          showPMIPlannedDates: false,
           showTacho: true,
           showTyre: true,
           showInsurance: true,
@@ -1019,18 +1078,21 @@ export default function VehicleDashboard() {
     try {
       const nowIso = new Date().toISOString();
 
-      const response = await fetch(`${API_URL}/api/notifications/sweep-vehicle-audit-now/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
+      const response = await fetch(
+        `${API_URL}/api/notifications/sweep-vehicle-audit-now/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+          body: JSON.stringify({
+            title: sweepTitle.trim(),
+            message: sweepMessage.trim(),
+            datetime: nowIso,
+          }),
         },
-        body: JSON.stringify({
-          title: sweepTitle.trim(),
-          message: sweepMessage.trim(),
-          datetime: nowIso,
-        }),
-      });
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -1045,7 +1107,11 @@ export default function VehicleDashboard() {
       setSweepMessage("System maintenance scheduled at midnight.");
     } catch (error) {
       console.error("Sweep audit error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to trigger sweep audit");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to trigger sweep audit",
+      );
     } finally {
       setIsSweeping(false);
     }
@@ -1053,8 +1119,14 @@ export default function VehicleDashboard() {
 
   const visibleColumns = getVisibleColumns();
   const totalPages = Math.ceil(filteredData.length / perPage);
-  const paginated = filteredData.slice((currentPage - 1) * perPage, currentPage * perPage);
-  const uniqueRegs = ["All Registrations", ...Array.from(new Set(filteredData.map(r => r.vehicle_reg))).sort()];
+  const paginated = filteredData.slice(
+    (currentPage - 1) * perPage,
+    currentPage * perPage,
+  );
+  const uniqueRegs = [
+    "All Registrations",
+    ...Array.from(new Set(filteredData.map((r) => r.vehicle_reg))).sort(),
+  ];
 
   const tabs = [
     { key: "All Data", label: "All Data", icon: null },
@@ -1066,15 +1138,23 @@ export default function VehicleDashboard() {
     { key: "Calibrations", label: "Calibrations", icon: Settings },
   ];
 
+  // Planned date keys in order
+  const plannedDateKeys = [
+    "second_planned", 
+    "third_planned",
+    "fourth_planned",
+    "fifth_planned",
+    "sixth_planned"
+  ];
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-6">
-      {/* Time Update Dialog */}
       <AlertDialog open={timeDialogOpen} onOpenChange={setTimeDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pendingDateUpdate?.isFirstTime 
-                ? "Set Booking Time" 
+              {pendingDateUpdate?.isFirstTime
+                ? "Set Booking Time"
                 : "Update Booking Time"}
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -1084,7 +1164,8 @@ export default function VehicleDashboard() {
                   <span className="font-semibold text-orange-600">
                     {pendingDateUpdate?.vehicleReg}
                   </span>
-                  . Please select a booking time for {pendingDateUpdate?.newDate}.
+                  . Please select a booking time for{" "}
+                  {pendingDateUpdate?.newDate}.
                 </>
               ) : (
                 <>
@@ -1092,20 +1173,26 @@ export default function VehicleDashboard() {
                   <span className="font-semibold text-orange-600">
                     {pendingDateUpdate?.vehicleReg}
                   </span>
-                  . Please update the booking time for {pendingDateUpdate?.newDate}.
+                  . Please update the booking time for{" "}
+                  {pendingDateUpdate?.newDate}.
                   {pendingDateUpdate?.currentTime && (
                     <div className="mt-2 text-sm">
-                      Current time: <span className="font-medium">{pendingDateUpdate.currentTime}</span>
+                      Current time:{" "}
+                      <span className="font-medium">
+                        {pendingDateUpdate.currentTime}
+                      </span>
                     </div>
                   )}
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          
+
           <div className="py-4">
             <Label htmlFor="time-input" className="block mb-2">
-              {pendingDateUpdate?.isFirstTime ? "Booking Time" : "New Booking Time"}
+              {pendingDateUpdate?.isFirstTime
+                ? "Booking Time"
+                : "New Booking Time"}
               <span className="text-red-500 ml-1">*</span>
             </Label>
             <Input
@@ -1118,50 +1205,65 @@ export default function VehicleDashboard() {
               required
             />
             <p className="text-xs text-gray-500 mt-2">
-              Select the time for the MOT appointment on {pendingDateUpdate?.newDate}
+              Select the time for the MOT appointment on{" "}
+              {pendingDateUpdate?.newDate}
             </p>
           </div>
-          
+
           <AlertDialogFooter>
             {!pendingDateUpdate?.isFirstTime && (
-              <AlertDialogCancel onClick={handleTimeDialogCancel} disabled={isUpdating}>
+              <AlertDialogCancel
+                onClick={handleTimeDialogCancel}
+                disabled={isUpdating}
+              >
                 Cancel
               </AlertDialogCancel>
             )}
             {pendingDateUpdate?.isFirstTime ? (
               <div className="flex gap-2 w-full">
-                <AlertDialogCancel onClick={handleTimeDialogCancel} disabled={isUpdating} className="flex-1">
+                <AlertDialogCancel
+                  onClick={handleTimeDialogCancel}
+                  disabled={isUpdating}
+                  className="flex-1"
+                >
                   Cancel
                 </AlertDialogCancel>
-                <Button onClick={handleTimeDialogSave} disabled={isUpdating || !newTimeValue} className="flex-1">
+                <Button
+                  onClick={handleTimeDialogSave}
+                  disabled={isUpdating || !newTimeValue}
+                  className="flex-1"
+                >
                   {isUpdating ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
                     </>
                   ) : (
-                    'Save Date & Time'
+                    "Save Date & Time"
                   )}
                 </Button>
               </div>
             ) : (
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={handleTimeDialogSkip} 
+                <Button
+                  variant="outline"
+                  onClick={handleTimeDialogSkip}
                   disabled={isUpdating}
                   className="text-red-600 hover:text-red-800 hover:bg-red-50"
                 >
                   Clear Time
                 </Button>
-                <Button onClick={handleTimeDialogSave} disabled={isUpdating || !newTimeValue}>
+                <Button
+                  onClick={handleTimeDialogSave}
+                  disabled={isUpdating || !newTimeValue}
+                >
                   {isUpdating ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Updating...
                     </>
                   ) : (
-                    'Update Time'
+                    "Update Time"
                   )}
                 </Button>
               </div>
@@ -1171,20 +1273,34 @@ export default function VehicleDashboard() {
       </AlertDialog>
 
       <div className="max-w-[1600px] mx-auto space-y-6">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Vehicle Compliance</h1>
-            <p className="text-sm text-gray-600 mt-1">Monitor and manage vehicle maintenance schedules</p>
-            <p className="text-xs text-gray-500 mt-1">Double-click on MOT/PMI booked dates to edit</p>
-            <p className="text-xs text-orange-500 mt-1">⚠️ Time selection required when setting/updating MOT dates</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Vehicle Compliance
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Monitor and manage vehicle maintenance schedules
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Double-click on MOT/PMI booked dates to edit
+            </p>
+            <p className="text-xs text-orange-500 mt-1">
+              ⚠️ Time selection required when setting/updating MOT dates
+            </p>
           </div>
 
           <div className="flex gap-3">
             <Dialog open={sweepDialogOpen} onOpenChange={setSweepDialogOpen}>
               <DialogTrigger asChild>
-                <Button disabled={loading || isUpdating || isSweeping} variant="outline" className="bg-orange-500 hover:bg-orange-600 cursor-pointer text-white hover:text-white" size="sm">
-                  <Play className={`w-4 h-4 mr-2 ${isSweeping ? 'animate-spin' : ''}`} />
+                <Button
+                  disabled={loading || isUpdating || isSweeping}
+                  variant="outline"
+                  className="bg-orange-500 hover:bg-orange-600 cursor-pointer text-white hover:text-white"
+                  size="sm"
+                >
+                  <Play
+                    className={`w-4 h-4 mr-2 ${isSweeping ? "animate-spin" : ""}`}
+                  />
                   Sweep Audit
                 </Button>
               </DialogTrigger>
@@ -1192,7 +1308,8 @@ export default function VehicleDashboard() {
                 <DialogHeader>
                   <DialogTitle>Trigger Sweep Vehicle Audit</DialogTitle>
                   <DialogDescription>
-                    This will immediately run a vehicle compliance sweep using the current date and time ({new Date().toLocaleString()}).
+                    This will immediately run a vehicle compliance sweep using
+                    the current date and time ({new Date().toLocaleString()}).
                   </DialogDescription>
                 </DialogHeader>
 
@@ -1247,17 +1364,23 @@ export default function VehicleDashboard() {
               </DialogContent>
             </Dialog>
 
-            <Button onClick={fetchData} disabled={loading || isUpdating || isSweeping} variant="outline" size="sm">
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading || isUpdating || isSweeping ? 'animate-spin' : ''}`} />
+            <Button
+              onClick={fetchData}
+              disabled={loading || isUpdating || isSweeping}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw
+                className={`w-4 h-4 mr-2 ${loading || isUpdating || isSweeping ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="bg-white">
           <div className="flex flex-wrap gap-1">
-            {tabs.map(tab => {
+            {tabs.map((tab) => {
               const Icon = tab.icon;
               const active = activeFilter === tab.key;
               return (
@@ -1266,9 +1389,10 @@ export default function VehicleDashboard() {
                   onClick={() => setActiveFilter(tab.key as TabType)}
                   className={`
                     flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all
-                    ${active 
-                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md' 
-                      : 'text-gray-600 hover:bg-gray-100'
+                    ${
+                      active
+                        ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md"
+                        : "text-gray-600 hover:bg-gray-100"
                     }
                   `}
                 >
@@ -1280,16 +1404,15 @@ export default function VehicleDashboard() {
           </div>
         </div>
 
-        {/* Filters */}
         <div className="bg-white">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[200px] max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute z-10 left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 placeholder="Search by registration..."
                 className="pl-9 border-gray-300 focus:ring-2 focus:ring-orange-500"
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <DropdownMenu>
@@ -1299,9 +1422,15 @@ export default function VehicleDashboard() {
                   {vehicleRegFilter}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
-                {uniqueRegs.map(r => (
-                  <DropdownMenuItem key={r} onSelect={() => setVehicleRegFilter(r)}>
+              <DropdownMenuContent
+                align="start"
+                className="max-h-64 overflow-y-auto"
+              >
+                {uniqueRegs.map((r) => (
+                  <DropdownMenuItem
+                    key={r}
+                    onSelect={() => setVehicleRegFilter(r)}
+                  >
                     {r}
                   </DropdownMenuItem>
                 ))}
@@ -1315,7 +1444,7 @@ export default function VehicleDashboard() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                {["All Statuses", "Expired", "Upcoming", "TBC"].map(s => (
+                {["All Statuses", "Expired", "Upcoming", "TBC"].map((s) => (
                   <DropdownMenuItem key={s} onSelect={() => setStatusFilter(s)}>
                     {s}
                   </DropdownMenuItem>
@@ -1323,12 +1452,12 @@ export default function VehicleDashboard() {
               </DropdownMenuContent>
             </DropdownMenu>
             <div className="ml-auto text-sm text-gray-600">
-              {filteredData.length} vehicle{filteredData.length !== 1 ? 's' : ''}
+              {filteredData.length} vehicle
+              {filteredData.length !== 1 ? "s" : ""}
             </div>
           </div>
         </div>
 
-        {/* Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16">
@@ -1338,70 +1467,87 @@ export default function VehicleDashboard() {
           ) : filteredData.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               <p className="text-gray-600 text-lg">No vehicles found</p>
-              <p className="text-gray-400 text-sm mt-1">Try adjusting your filters</p>
+              <p className="text-gray-400 text-sm mt-1">
+                Try adjusting your filters
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 z-30">
                   <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
-                    <th rowSpan={2} className="p-4 text-left font-semibold text-gray-900 sticky left-0 bg-gray-100 z-40 border-r-2 border-gray-300 min-w-[140px]">
+                    <th
+                      rowSpan={2}
+                      className="p-4 text-left font-semibold text-gray-900 sticky left-0 bg-gray-100 z-40 border-r-2 border-gray-300 min-w-[140px]"
+                    >
                       Vehicle Reg
                     </th>
 
-                    {/* MOT Information Header */}
                     {visibleColumns.showMOT && (
-                      <th colSpan={5} className="px-4 py-3 text-center text-sm font-semibold text-orange-500 bg-orange-100 border-x border-gray-200">
+                      <th
+                        colSpan={5}
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-orange-500 bg-orange-100 border-x border-gray-200"
+                      >
                         <div className="flex items-center justify-center gap-2">
                           <Calendar className="w-4 h-4" />
                           MOT Information
                         </div>
                       </th>
                     )}
-                    
-                    {/* PMI Information Header */}
+
                     {visibleColumns.showPMI && (
-                      <th colSpan={4} className="px-4 py-3 text-center text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200">
+                      <th
+                        colSpan={activeFilter === "PMI Inspection" ? 10 : 4}
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200"
+                      >
                         <div className="flex items-center justify-center gap-2">
                           <Wrench className="w-4 h-4" />
                           PMI Information
                         </div>
                       </th>
                     )}
-                    
-                    {/* Vehicle Tacho Download Information Header */}
+
                     {visibleColumns.showTacho && (
-                      <th colSpan={2} className="px-4 py-3 text-center text-sm font-semibold text-blue-900 bg-blue-50 border-x border-gray-200">
+                      <th
+                        colSpan={2}
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-blue-900 bg-blue-50 border-x border-gray-200"
+                      >
                         <div className="flex items-center justify-center gap-2">
                           <Download className="w-4 h-4" />
                           Vehicle Tacho Download Information
                         </div>
                       </th>
                     )}
-                    
-                    {/* Tyre Maintenance Information Header */}
+
                     {visibleColumns.showTyre && (
-                      <th colSpan={2} className="px-4 py-3 text-center text-sm font-semibold text-purple-900 bg-purple-50 border-x border-gray-200">
+                      <th
+                        colSpan={2}
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-purple-900 bg-purple-50 border-x border-gray-200"
+                      >
                         <div className="flex items-center justify-center gap-2">
                           <Circle className="w-4 h-4" />
                           Tyre Maintenance Information
                         </div>
                       </th>
                     )}
-                    
-                    {/* Insurance & Tax Information Header */}
+
                     {visibleColumns.showInsurance && (
-                      <th colSpan={2} className="px-4 py-3 text-center text-sm font-semibold text-green-900 bg-green-50 border-x border-gray-200">
+                      <th
+                        colSpan={2}
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-green-900 bg-green-50 border-x border-gray-200"
+                      >
                         <div className="flex items-center justify-center gap-2">
                           <Shield className="w-4 h-4" />
                           Insurance & Tax Information
                         </div>
                       </th>
                     )}
-                    
-                    {/* Vehicle Tacho & Loller Calibration Information Header */}
+
                     {visibleColumns.showCalibrations && (
-                      <th colSpan={4} className="px-4 py-3 text-center text-sm font-semibold text-yellow-900 bg-yellow-50 border-x border-gray-200">
+                      <th
+                        colSpan={4}
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-yellow-900 bg-yellow-50 border-x border-gray-200"
+                      >
                         <div className="flex items-center justify-center gap-2">
                           <Settings className="w-4 h-4" />
                           Vehicle Tacho & Loller Calibration Information
@@ -1411,82 +1557,143 @@ export default function VehicleDashboard() {
                   </tr>
 
                   <tr className="bg-white border-y-2 border-gray-300 sticky top-[61px] z-20">
-                    {/* MOT Sub-headers */}
                     {visibleColumns.showMOT && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">Status</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">MOT Expiry Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">Book Next MOT From</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">Next MOT Booked Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-orange-50/30">Time</th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">
+                          MOT Status
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">
+                          MOT Expiry Date
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">
+                          Book Next MOT From
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">
+                          Next MOT Booked Date
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-orange-50/30">
+                          Time
+                        </th>
                       </>
                     )}
 
-                    {/* PMI Sub-headers */}
                     {visibleColumns.showPMI && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Status</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">Last PMI Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">PMI Expiry Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-rose-50/30">Next PMI Booked Date</th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">
+                          PMI Status
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">
+                          Last PMI Date
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">
+                          PMI Expiry Date
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-rose-50/30">
+                          Next PMI Booked Date
+                        </th>
+                        
+                        {/* Planned Dates Columns - Only show when PMI tab is active */}
+                        {activeFilter === "PMI Inspection" && (
+                          <>
+                            {plannedDateKeys.map((key, index) => (
+                              <th 
+                                key={key} 
+                                className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30"
+                              >
+                                {key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </th>
+                            ))}
+                          </>
+                        )}
                       </>
                     )}
 
-                    {/* Vehicle Tacho Download Sub-headers */}
                     {visibleColumns.showTacho && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-blue-50/30">Last Vehicle Tacho Download</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-blue-50/30">Next Vehicle Tacho Download</th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-blue-50/30">
+                          Last Vehicle Tacho Download
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-blue-50/30">
+                          Next Vehicle Tacho Download
+                        </th>
                       </>
                     )}
 
-                    {/* Tyre Maintenance Sub-headers */}
                     {visibleColumns.showTyre && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-purple-50/30">Last Tyre Check</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-purple-50/30">Next Tyre Check</th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-purple-50/30">
+                          Last Tyre Check
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-purple-50/30">
+                          Next Tyre Check
+                        </th>
                       </>
                     )}
 
-                    {/* Insurance & Tax Sub-headers */}
                     {visibleColumns.showInsurance && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-green-50/30">Insurance Expiry</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-green-50/30">Tax Expiry</th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-green-50/30">
+                          Insurance Expiry
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-green-50/30">
+                          Tax Expiry
+                        </th>
                       </>
                     )}
 
-                    {/* Calibration Sub-headers */}
                     {visibleColumns.showCalibrations && (
                       <>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">Last Tacho Calib Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">Next Tacho Calib Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">Last Loller Calib Date</th>
-                        <th className="px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-yellow-50/30">Next Loller Calib Date</th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">
+                          Tacho Calibration Expiry
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">
+                          Next Tacho Calib Date
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">
+                          Loller Calibration Expiry
+                        </th>
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-yellow-50/30">
+                          Next Loller Calib Date
+                        </th>
                       </>
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {paginated.map((row, idx) => (
-                    <tr key={row.vehicle} className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <tr
+                      key={row.vehicle}
+                      className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}
+                    >
                       <td className="p-4 font-semibold text-gray-900 sticky left-0 bg-inherit z-10 border-r-2 border-gray-200">
-                        <Link href={`/dashboard/compliance-management/vehicle-management/${row.vehicle}`}>
+                        <Link
+                          href={`/dashboard/compliance-management/vehicle-management/${row.vehicle}`}
+                        >
                           {row.vehicle_reg}
                         </Link>
                       </td>
 
-                      {/* MOT Information Columns */}
                       {visibleColumns.showMOT && (
                         <>
-                          <td className="px-3 py-4 border-l border-gray-200">{getStatusBadge(row.mot?.mot_status || "")}</td>
+                          <td className="px-3 py-4 border-l border-gray-200">
+                            {getStatusBadge(row.mot?.mot_status || "")}
+                          </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
-                            <DateDisplay date={row.mot?.mot_expiry ?? null}>
+                            <DateDisplay
+                              date={row.mot?.mot_expiry ?? null}
+                              fieldType="mot_expiry"
+                              warningDays={60}
+                              showExpiryText={true}
+                            >
                               {formatDate(row.mot?.mot_expiry, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
-                            <DateDisplay date={row.mot?.book_next_mot_from ?? null}>
+                            <DateDisplay
+                              date={row.mot?.book_next_mot_from ?? null}
+                              compareDate={row.mot?.next_mot_booked_date}
+                              isNextMOTFrom={true}
+                            >
                               {formatDate(row.mot?.book_next_mot_from, false)}
                             </DateDisplay>
                           </td>
@@ -1499,7 +1706,6 @@ export default function VehicleDashboard() {
                         </>
                       )}
 
-                      {/* PMI Information Columns */}
                       {visibleColumns.showPMI && (
                         <>
                           <td className="px-3 py-4 text-sm border-l border-gray-200">
@@ -1508,20 +1714,28 @@ export default function VehicleDashboard() {
                                 Booked
                               </span>
                             ) : (
-                              <DateDisplay date={row.pmi?.book_next_pmi_from ?? null}>
+                              <DateDisplay
+                                date={row.pmi?.book_next_pmi_from ?? null}
+                              >
                                 {formatDate(row.pmi?.book_next_pmi_from, false)}
                               </DateDisplay>
                             )}
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
-                            <DateDisplay date={row.pmi?.last_pmi_date ?? null}>
+                            <DateDisplay
+                              date={row.pmi?.last_pmi_date ?? null}
+                              isBlackText={true}
+                            >
                               {formatDate(row.pmi?.last_pmi_date, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
-                            <DateDisplay 
-                              date={row.pmi?.pmi_expiry?? null} 
+                            <DateDisplay
+                              date={row.pmi?.pmi_expiry ?? null}
                               compareDate={row.pmi?.book_next_pmi_from}
+                              fieldType="pmi_expiry"
+                              warningDays={10}
+                              showExpiryText={true}
                             >
                               {formatDate(row.pmi?.pmi_expiry, false)}
                             </DateDisplay>
@@ -1529,71 +1743,156 @@ export default function VehicleDashboard() {
                           <td className="px-3 py-4 text-sm border-l border-x border-gray-200">
                             {renderPMIBookedDate(row)}
                           </td>
+                          
+                          {/* Planned Dates Cells - Only show when PMI tab is active */}
+                          {activeFilter === "PMI Inspection" && (
+                            <>
+                              {plannedDateKeys.map((key) => (
+                                <td 
+                                  key={key} 
+                                  className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200 bg-rose-50/30"
+                                >
+                                  <DateDisplay
+                                    date={getPlannedDate(row, key) || null}
+                                    isBlackText={true}
+                                    showTBC={false}
+                                  >
+                                    {getPlannedDate(row, key) || "-"}
+                                  </DateDisplay>
+                                </td>
+                              ))}
+                            </>
+                          )}
                         </>
                       )}
 
-                      {/* Vehicle Tacho Download Information Columns */}
                       {visibleColumns.showTacho && (
                         <>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
-                            <DateDisplay date={row.tacho?.last_download ?? null}>
+                            <DateDisplay
+                              date={row.tacho?.last_download ?? null}
+                              isBlackText={true}
+                            >
                               {formatDate(row.tacho?.last_download, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
-                            <DateDisplay date={row.tacho?.next_download?? null}>
+                            <DateDisplay
+                              date={row.tacho?.next_download ?? null}
+                              fieldType="booking"
+                              showBookedText={
+                                !shouldShowTBC(row.tacho?.next_download)
+                              }
+                              isBooking={
+                                !shouldShowTBC(row.tacho?.next_download)
+                              }
+                            >
                               {formatDate(row.tacho?.next_download, false)}
                             </DateDisplay>
                           </td>
                         </>
                       )}
 
-                      {/* Tyre Maintenance Information Columns */}
                       {visibleColumns.showTyre && (
                         <>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
-                            <DateDisplay date={row.tyre?.last_check ?? null}>
+                            <DateDisplay
+                              date={row.tyre?.last_check ?? null}
+                              isBlackText={true}
+                            >
                               {formatDate(row.tyre?.last_check, false)}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
-                            <DateDisplay date={row.tyre?.next_check?? null}>
+                            <DateDisplay
+                              date={row.tyre?.next_check ?? null}
+                              fieldType="booking"
+                              showBookedText={
+                                !shouldShowTBC(row.tyre?.next_check)
+                              }
+                              isBooking={!shouldShowTBC(row.tyre?.next_check)}
+                            >
                               {formatDate(row.tyre?.next_check, false)}
                             </DateDisplay>
                           </td>
                         </>
                       )}
 
-                      {/* Insurance & Tax Information Columns */}
                       {visibleColumns.showInsurance && (
                         <>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
-                            <DateDisplay date={row.insurance?.insurance_expiry?? null}>
-                              {formatDate(row.insurance?.insurance_expiry, false)}
+                            <DateDisplay
+                              date={row.insurance?.insurance_expiry ?? null}
+                              fieldType="insurance_expiry"
+                              warningDays={60}
+                              showExpiryText={true}
+                              hoverText={
+                                row.insurance?.insurance_expiry
+                                  ? getDateStatus(
+                                      row.insurance.insurance_expiry,
+                                    ) === "red"
+                                    ? "Insurance expired"
+                                    : "5 days to insurance expiry"
+                                  : "No expiry date"
+                              }
+                            >
+                              {formatDate(
+                                row.insurance?.insurance_expiry,
+                                false,
+                              )}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
-                            <DateDisplay date={row.insurance?.tax_expiry?? null}>
+                            <DateDisplay
+                              date={row.insurance?.tax_expiry ?? null}
+                              fieldType="tax_expiry"
+                              warningDays={45}
+                              showExpiryText={true}
+                              hoverText={
+                                row.insurance?.tax_expiry
+                                  ? getDateStatus(row.insurance.tax_expiry) ===
+                                    "red"
+                                    ? "Tax expired"
+                                    : "5 days to tax expiry"
+                                  : "No expiry date"
+                              }
+                            >
                               {formatDate(row.insurance?.tax_expiry, false)}
                             </DateDisplay>
                           </td>
                         </>
                       )}
 
-                      {/* Vehicle Tacho & Loller Calibration Information Columns */}
                       {visibleColumns.showCalibrations && (
                         <>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
-                            <DateDisplay date={row.calibration?.tacho_calibration_expiry ?? null}>
-                              {formatDate(row.calibration?.tacho_calibration_expiry, false)}
+                            <DateDisplay
+                              date={
+                                row.calibration?.tacho_calibration_expiry ??
+                                null
+                              }
+                              isBlackText={true}
+                            >
+                              {formatDate(
+                                row.calibration?.tacho_calibration_expiry,
+                                false,
+                              )}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
                             {renderTachoCalibrationDate(row)}
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
-                            <DateDisplay date={row.calibration?.loller_test_expiry_date?? null}>
-                              {formatDate(row.calibration?.loller_test_expiry_date, false)}
+                            <DateDisplay
+                              date={
+                                row.calibration?.loller_test_expiry_date ?? null
+                              }
+                              isBlackText={true}
+                            >
+                              {formatDate(
+                                row.calibration?.loller_test_expiry_date,
+                                false,
+                              )}
                             </DateDisplay>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
@@ -1609,26 +1908,35 @@ export default function VehicleDashboard() {
           )}
         </div>
 
-        {/* Pagination */}
         {filteredData.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
               <div className="text-sm text-gray-600">
-                Showing <span className="font-semibold text-gray-900">{(currentPage - 1) * perPage + 1}</span> to{" "}
-                <span className="font-semibold text-gray-900">{Math.min(currentPage * perPage, filteredData.length)}</span> of{" "}
-                <span className="font-semibold text-gray-900">{filteredData.length}</span> vehicles
+                Showing{" "}
+                <span className="font-semibold text-gray-900">
+                  {(currentPage - 1) * perPage + 1}
+                </span>{" "}
+                to{" "}
+                <span className="font-semibold text-gray-900">
+                  {Math.min(currentPage * perPage, filteredData.length)}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold text-gray-900">
+                  {filteredData.length}
+                </span>{" "}
+                vehicles
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={currentPage === 1} 
-                  onClick={() => setCurrentPage(p => p - 1)}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous
                 </Button>
-                
+
                 <div className="flex gap-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNum = i + 1;
@@ -1639,22 +1947,24 @@ export default function VehicleDashboard() {
                     return (
                       <Button
                         key={pageNum}
-                        variant={currentPage === pageNum ? "default" : "outline"}
+                        variant={
+                          currentPage === pageNum ? "default" : "outline"
+                        }
                         size="sm"
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 ${currentPage === pageNum ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white' : ''}`}
+                        className={`w-10 ${currentPage === pageNum ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white" : ""}`}
                       >
                         {pageNum}
                       </Button>
                     );
                   })}
                 </div>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={currentPage === totalPages} 
-                  onClick={() => setCurrentPage(p => p + 1)}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />

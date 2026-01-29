@@ -26,6 +26,7 @@ type TabValue = keyof typeof TAB_VALUES;
 export default function DailyLogsPage() {
   const searchParams = useSearchParams();
   const paramTab = searchParams.get("tab");
+  const Username=searchParams.get("name")
 
   // Map URL param → valid tab value (with fallback)
   const initialTab = paramTab 
@@ -47,7 +48,7 @@ export default function DailyLogsPage() {
     <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 max-w-5xl">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Daily Logs - John Smith</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Daily Logs - {Username && Username}</h1>
       
         </div>
        

@@ -4,13 +4,13 @@ import { useParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { 
-  Edit, 
-  Save, 
-  X, 
+import {
+  Edit,
+  Save,
+  X,
   CheckCircle,
   AlertCircle,
-  Mail 
+  Mail
 } from "lucide-react";
 // Add Dialog components
 import {
@@ -155,7 +155,7 @@ export default function DriverDetailPage() {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingHealth, setIsEditingHealth] = useState(false);
-  
+
   // FIXED: Updated editFormData structure to match DriverDetailTab expectations
   const [editFormData, setEditFormData] = useState({
     // Basic driver info
@@ -168,7 +168,7 @@ export default function DriverDetailPage() {
     post_code: "",
     email: "",
     avatar: "",
-    
+
     // Next of kin
     next_of_kin_first_name: "",
     next_of_kin_last_name: "",
@@ -176,14 +176,14 @@ export default function DriverDetailPage() {
     next_of_kin_email: "",
     next_of_kin_address: "",
     next_of_kin_relationship: "",
-    
+
     // Other fields
     account_no: "",
     sort_code: "",
     have_other_jobs: false,
     have_other_jobs_note: "",
   });
-  
+
   const [editHealthData, setEditHealthData] = useState<HealthAnswer[]>([]);
   const [saving, setSaving] = useState(false);
   const [savingHealth, setSavingHealth] = useState(false);
@@ -196,7 +196,7 @@ export default function DriverDetailPage() {
   const [assigningSites, setAssigningSites] = useState(false);
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("driver-detail");
-  
+
   // Add state for disapproval dialog
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
   const [disapproveRemarks, setDisapproveRemarks] = useState("");
@@ -208,7 +208,7 @@ export default function DriverDetailPage() {
     // You can replace this with your actual toast implementation
     alert(`${type.toUpperCase()}: ${message}`);
   };
-  
+
   const formatDate = (dateString: string | null) => (dateString ? formatDmy(dateString) : "Not set");
 
   const fetchData = async () => {
@@ -226,11 +226,11 @@ export default function DriverDetailPage() {
       const result = await response.json();
       if (result.success) {
         setDriverData(result.data);
-        
+
         // FIXED: Initialize editFormData with proper structure
         const fullNameParts = result.data.user.full_name?.split(" ") || [];
         const nextOfKinParts = result.data.next_of_kin_name?.split(" ") || [];
-        
+
         setEditFormData({
           // Basic driver info
           first_name: fullNameParts[0] || "",
@@ -242,7 +242,7 @@ export default function DriverDetailPage() {
           post_code: result.data.post_code || "",
           email: result.data.user.email || "",
           avatar: result.data.user.avatar || "",
-          
+
           // Next of kin
           next_of_kin_first_name: nextOfKinParts[0] || "",
           next_of_kin_last_name: nextOfKinParts.slice(1).join(" ") || "",
@@ -250,7 +250,7 @@ export default function DriverDetailPage() {
           next_of_kin_email: result.data.next_of_kin_email || "",
           next_of_kin_address: result.data.next_of_kin_address || "",
           next_of_kin_relationship: result.data.next_of_kin_relationship || "",
-          
+
           // Other fields
           account_no: result.data.account_no || "",
           sort_code: result.data.sort_code || "",
@@ -297,7 +297,7 @@ export default function DriverDetailPage() {
 
   const fetchHealthData = async () => {
     if (!driverData?.user?.id) return;
-    
+
     setHealthLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/profiles/health-answers/?answered_by=${driverData.user.id}`, {
@@ -324,7 +324,7 @@ export default function DriverDetailPage() {
       setHealthLoading(false);
     }
   };
-  
+
   const handleResendActivation = async (userId: number) => {
     try {
       const response = await fetch(`${API_URL}/auth/resend-activation/`, {
@@ -342,7 +342,7 @@ export default function DriverDetailPage() {
         alert("Session expired. Please log in again.");
         return;
       }
-      
+
       if (response.ok && data.success) {
         showToast("Activation email resent successfully", "success");
       } else {
@@ -353,7 +353,7 @@ export default function DriverDetailPage() {
       showToast(errorMessage, "error");
     }
   };
-  
+
   // Add disapproval handler function
   const handleDisapproveDriver = async () => {
     if (!disapproveRemarks.trim()) {
@@ -376,7 +376,7 @@ export default function DriverDetailPage() {
       });
 
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         showToast("Driver disapproved successfully", "success");
         // Reset dialog state
@@ -433,7 +433,7 @@ export default function DriverDetailPage() {
         setContractsLoading(false);
       }
     };
-    
+
     const fetchSites = async () => {
       setSitesLoading(true);
       try {
@@ -462,7 +462,7 @@ export default function DriverDetailPage() {
         setSitesLoading(false);
       }
     };
-    
+
     fetchContracts();
     fetchSites();
   }, [cookies]);
@@ -562,7 +562,7 @@ export default function DriverDetailPage() {
       if (driverData) {
         const fullNameParts = driverData.user.full_name?.split(" ") || [];
         const nextOfKinParts = driverData.next_of_kin_name?.split(" ") || [];
-        
+
         setEditFormData({
           first_name: fullNameParts[0] || "",
           last_name: fullNameParts.slice(1).join(" ") || "",
@@ -573,14 +573,14 @@ export default function DriverDetailPage() {
           post_code: driverData.post_code || "",
           email: driverData.user.email || "",
           avatar: driverData.user.avatar || "",
-          
+
           next_of_kin_first_name: nextOfKinParts[0] || "",
           next_of_kin_last_name: nextOfKinParts.slice(1).join(" ") || "",
           next_of_kin_contact: driverData.next_of_kin_contact || "",
           next_of_kin_email: driverData.next_of_kin_email || "",
           next_of_kin_address: driverData.next_of_kin_address || "",
           next_of_kin_relationship: driverData.next_of_kin_relationship || "",
-          
+
           account_no: driverData.account_no || "",
           sort_code: driverData.sort_code || "",
           have_other_jobs: driverData.have_other_jobs || false,
@@ -619,7 +619,7 @@ export default function DriverDetailPage() {
       showToast("Email, first name, and last name are required", "error");
       return;
     }
-    
+
     setSaving(true);
     try {
       // Prepare user payload
@@ -628,7 +628,7 @@ export default function DriverDetailPage() {
         full_name: `${editFormData.first_name} ${editFormData.last_name}`.trim(),
         avatar: editFormData.avatar || null,
       };
-      
+
       const userResponse = await fetch(`${API_URL}/users/${driverData?.user.id}/`, {
         method: "PATCH",
         headers: {
@@ -637,11 +637,11 @@ export default function DriverDetailPage() {
         },
         body: JSON.stringify(userPayload),
       });
-      
+
       if (!userResponse.ok) {
         throw new Error("Failed to update user profile");
       }
-      
+
       // Prepare driver payload
       const driverPayload = {
         phone: editFormData.phone,
@@ -659,7 +659,7 @@ export default function DriverDetailPage() {
         have_other_jobs: editFormData.have_other_jobs,
         have_other_jobs_note: editFormData.have_other_jobs_note,
       };
-      
+
       const driverResponse = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
         method: "PUT",
         headers: {
@@ -668,43 +668,43 @@ export default function DriverDetailPage() {
         },
         body: JSON.stringify(driverPayload),
       });
-      
+
       if (!driverResponse.ok) {
         throw new Error("Failed to update driver profile");
       }
-      
+
       const userResult = await userResponse.json();
       const driverResult = await driverResponse.json();
-      
+
       if (userResult.success && driverResult.success) {
         setDriverData((prev) =>
           prev
             ? {
-                ...prev,
-                user: {
-                  ...prev.user,
-                  email: editFormData.email,
-                  full_name: `${editFormData.first_name} ${editFormData.last_name}`.trim(),
-                  avatar: editFormData.avatar || prev.user.avatar,
-                },
-                phone: editFormData.phone,
-                address: editFormData.address,
-                date_of_birth: editFormData.date_of_birth,
-                national_insurance_no: editFormData.national_insurance_no,
-                post_code: editFormData.post_code,
-                next_of_kin_name: `${editFormData.next_of_kin_first_name} ${editFormData.next_of_kin_last_name}`.trim(),
-                next_of_kin_relationship: editFormData.next_of_kin_relationship,
-                next_of_kin_contact: editFormData.next_of_kin_contact,
-                next_of_kin_email: editFormData.next_of_kin_email,
-                next_of_kin_address: editFormData.next_of_kin_address,
-                account_no: editFormData.account_no,
-                sort_code: editFormData.sort_code,
-                have_other_jobs: editFormData.have_other_jobs,
-                have_other_jobs_note: editFormData.have_other_jobs_note,
-              }
+              ...prev,
+              user: {
+                ...prev.user,
+                email: editFormData.email,
+                full_name: `${editFormData.first_name} ${editFormData.last_name}`.trim(),
+                avatar: editFormData.avatar || prev.user.avatar,
+              },
+              phone: editFormData.phone,
+              address: editFormData.address,
+              date_of_birth: editFormData.date_of_birth,
+              national_insurance_no: editFormData.national_insurance_no,
+              post_code: editFormData.post_code,
+              next_of_kin_name: `${editFormData.next_of_kin_first_name} ${editFormData.next_of_kin_last_name}`.trim(),
+              next_of_kin_relationship: editFormData.next_of_kin_relationship,
+              next_of_kin_contact: editFormData.next_of_kin_contact,
+              next_of_kin_email: editFormData.next_of_kin_email,
+              next_of_kin_address: editFormData.next_of_kin_address,
+              account_no: editFormData.account_no,
+              sort_code: editFormData.sort_code,
+              have_other_jobs: editFormData.have_other_jobs,
+              have_other_jobs_note: editFormData.have_other_jobs_note,
+            }
             : null
         );
-        
+
         setIsEditing(false);
         showToast("Profile updated successfully", "success");
       } else {
@@ -877,30 +877,30 @@ export default function DriverDetailPage() {
         </TabsList>
 
         <TabsContent value="driver-detail">
-   
-<TabsContent value="driver-detail">
-  <DriverDetailTab
-    driverData={driverData}
-    editFormData={editFormData}
-    contracts={contracts}
-    sites={sites}
-    selectedContractId={selectedContractId}
-    setSelectedContractId={setSelectedContractId}
-    selectedSiteIds={selectedSiteIds}
-    setSelectedSiteIds={setSelectedSiteIds}
-    formatDate={formatDate}
-    handleInputChange={handleInputChange}
-    handleAssignContract={handleAssignContract}
-    handleAssignSites={handleAssignSites}
-    contractsLoading={contractsLoading}
-    sitesLoading={sitesLoading}
-    assigningContract={assigningContract}
-    assigningSites={assigningSites}
-    handleEditToggle={handleEditToggle} // <-- Add this line
-    handleSaveProfile={handleSaveProfile}
-    saving={saving}
-  />
-</TabsContent>
+
+          <TabsContent value="driver-detail">
+            <DriverDetailTab
+              driverData={driverData}
+              editFormData={editFormData}
+              contracts={contracts}
+              sites={sites}
+              selectedContractId={selectedContractId}
+              setSelectedContractId={setSelectedContractId}
+              selectedSiteIds={selectedSiteIds}
+              setSelectedSiteIds={setSelectedSiteIds}
+              formatDate={formatDate}
+              handleInputChange={handleInputChange}
+              handleAssignContract={handleAssignContract}
+              handleAssignSites={handleAssignSites}
+              contractsLoading={contractsLoading}
+              sitesLoading={sitesLoading}
+              assigningContract={assigningContract}
+              assigningSites={assigningSites}
+              handleEditToggle={handleEditToggle} // <-- Add this line
+              handleSaveProfile={handleSaveProfile}
+              saving={saving}
+            />
+          </TabsContent>
         </TabsContent>
         <TabsContent value="professional-competency">
           <ProfessionalCompetencyTab
@@ -933,11 +933,11 @@ export default function DriverDetailPage() {
           <SignAgreementTab />
         </TabsContent>
       </Tabs>
-      
+
       <div className="fixed bottom-6 right-5 z-50 flex flex-col gap-2">
         {isEditing ? null : (
           <div className="flex flex-col gap-2">
-       
+
             {driverData.profile_status === "approved" && (
               <Button
                 onClick={() => setIsDisapproveDialogOpen(true)}

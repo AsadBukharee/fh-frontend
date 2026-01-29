@@ -39,6 +39,7 @@ import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { format, parse } from "date-fns";
 import { formatDmy } from "@/lib/utils";
+import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 import {
   BarChart,
   Bar,
@@ -97,7 +98,7 @@ interface Site {
   max_staff_allowed: number;
   contact_position: string;
   contact_phone: string;
-  contact_name:string;
+  contact_name: string;
   contact_email: string;
   radius_m: number;
   latitude: number;
@@ -125,7 +126,7 @@ const initializeDefaultOperationHours = (): OperationHour[] =>
 
 const formatTime = (time: string | null) => {
   if (!time) return "N/A";
-  const clean = time.slice(0,5); // "HH:mm"
+  const clean = time.slice(0, 5); // "HH:mm"
   try {
     const parsed = parse(clean, "HH:mm", new Date());
     return format(parsed, "h:mm a");
@@ -191,7 +192,7 @@ const fetchAddressFromPostcode = async (
   try {
     // Clean postcode - remove spaces
     const cleanPostcode = postcode.trim().replace(/\s+/g, '');
-    
+
     if (!cleanPostcode || cleanPostcode.length < 3) {
       return {
         address: "",
@@ -239,7 +240,7 @@ const fetchAddressFromPostcode = async (
     }
 
     const data: NominatimResult[] = await response.json();
-    
+
     if (!data || data.length === 0) {
       return {
         address: "",
@@ -251,7 +252,7 @@ const fetchAddressFromPostcode = async (
     }
 
     const result = data[0];
-    
+
     // Build address string from address components
     const addressComponents = [];
     if (result.address.road) addressComponents.push(result.address.road);
@@ -259,7 +260,7 @@ const fetchAddressFromPostcode = async (
     if (result.address.city) addressComponents.push(result.address.city);
     if (result.address.state) addressComponents.push(result.address.state);
     if (result.address.country) addressComponents.push(result.address.country);
-    
+
     const formattedAddress = addressComponents.join(', ') || result.display_name;
 
     return {
@@ -268,7 +269,7 @@ const fetchAddressFromPostcode = async (
       longitude: parseFloat(result.lon),
       success: true
     };
-    
+
   } catch (error) {
     console.error('Error fetching address from postcode:', error);
     return {
@@ -304,7 +305,7 @@ export default function SiteDetails() {
     loading: false,
     success: false
   });
-  
+
   const [lastProcessedPostcode, setLastProcessedPostcode] = useState<string>("");
   const postcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -325,10 +326,10 @@ export default function SiteDetails() {
         operation_hours:
           data.operation_hours && data.operation_hours.length
             ? data.operation_hours.map((h) => ({
-                ...h,
-                opens_at: h.opens_at ?? "09:00",
-                closes_at: h.closes_at ?? "17:00",
-              }))
+              ...h,
+              opens_at: h.opens_at ?? "09:00",
+              closes_at: h.closes_at ?? "17:00",
+            }))
             : initializeDefaultOperationHours(),
         warnings: data.warnings || [],
         presence: data.presence,
@@ -354,23 +355,23 @@ export default function SiteDetails() {
   const handlePostcodeChange = async (postcode: string) => {
     // Update postcode field immediately
     handleInputChange("postcode", postcode);
-    
+
     // Clear existing timeout
     if (postcodeTimeoutRef.current) {
       clearTimeout(postcodeTimeoutRef.current);
     }
-    
+
     const cleanPostcode = postcode.trim().replace(/\s+/g, '');
-    
+
     // Don't process if postcode is too short or hasn't changed
     if (cleanPostcode.length < 3 || cleanPostcode === lastProcessedPostcode) {
       setGeocodeStatus({ loading: false, success: false });
       return;
     }
-    
+
     // Show loading state immediately
     setGeocodeStatus({ loading: true, success: false });
-    
+
     // Check if we should fetch immediately (user paused typing)
     if (cleanPostcode.length >= 5) {
       // Immediate fetch for longer postcodes (likely complete)
@@ -386,7 +387,7 @@ export default function SiteDetails() {
   const fetchAndUpdateAddress = async (cleanPostcode: string) => {
     try {
       const result = await fetchAddressFromPostcode(cleanPostcode);
-      
+
       if (result.success) {
         // Update all fields at once
         setEditSite((prev) => {
@@ -399,26 +400,26 @@ export default function SiteDetails() {
             postcode: cleanPostcode
           };
         });
-        
-        setGeocodeStatus({ 
-          loading: false, 
+
+        setGeocodeStatus({
+          loading: false,
           success: true,
           message: "Address updated successfully"
         });
-        
+
         setLastProcessedPostcode(cleanPostcode);
-        
+
         // Show success toast
         toast.success("Address updated", {
           description: "Location information has been auto-filled"
         });
       } else {
-        setGeocodeStatus({ 
-          loading: false, 
+        setGeocodeStatus({
+          loading: false,
           success: false,
           message: result.message || "Failed to fetch address"
         });
-        
+
         if (result.message) {
           toast.warning("Address lookup failed", {
             description: result.message
@@ -427,12 +428,12 @@ export default function SiteDetails() {
       }
     } catch (error) {
       console.error("Failed to fetch address:", error);
-      setGeocodeStatus({ 
-        loading: false, 
+      setGeocodeStatus({
+        loading: false,
         success: false,
         message: "Network error occurred"
       });
-      
+
       toast.error("Network error", {
         description: "Could not fetch address information"
       });
@@ -442,10 +443,10 @@ export default function SiteDetails() {
   // Manual trigger for address lookup
   const triggerManualLookup = async () => {
     if (!editSite?.postcode) return;
-    
+
     const cleanPostcode = editSite.postcode.trim().replace(/\s+/g, '');
     if (cleanPostcode.length < 3) return;
-    
+
     setGeocodeStatus({ loading: true, success: false });
     await fetchAndUpdateAddress(cleanPostcode);
   };
@@ -900,17 +901,17 @@ export default function SiteDetails() {
                 <Users className="w-5 h-5 text-orange-600" />
                 <span>Current Staff onsite</span>
               </div>
-              
-                <div className="flex justify-evenly items-center mt-2">
-                  {staffBreakdown.map((role, index) => (
-                    <div key={index} className="bg-gray-100 w-[70px] h-[70px] p-2 rounded-md text-center">
-                      <p className="text-lg font-bold text-gray-800">{role.count}</p>
-                      <p className="text-xs text-gray-500">{role.role}</p>
-                    </div>
-                  ))}
-                </div>
+
+              <div className="flex justify-evenly items-center mt-2">
+                {staffBreakdown.map((role, index) => (
+                  <div key={index} className="bg-gray-100 w-[70px] h-[70px] p-2 rounded-md text-center">
+                    <p className="text-lg font-bold text-gray-800">{role.count}</p>
+                    <p className="text-xs text-gray-500">{role.role}</p>
+                  </div>
+                ))}
+              </div>
             </Card>
-           
+
             <Card className="p-4 rounded-lg bg-white border border-gray-200 shadow">
               <h3 className="text-gray-800 font-semibold mb-6 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-orange-600" /> Operational Statistics
@@ -930,9 +931,9 @@ export default function SiteDetails() {
                     <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
                     <YAxis stroke="#6b7280" fontSize={12} tickFormatter={(value) => `${value} L`} domain={[0, 6]} />
                     <Tooltip formatter={(value) => [`${value} L`, 'Fuel Usage']} />
-                    <Bar 
-                      dataKey="fuel" 
-                      radius={[4, 4, 0, 0]} 
+                    <Bar
+                      dataKey="fuel"
+                      radius={[4, 4, 0, 0]}
                       fill={'#ffbbed'}
                     />
                   </BarChart>
@@ -957,14 +958,14 @@ export default function SiteDetails() {
             <div className="space-y-4">
               <div className="w-full h-[200px] rounded-md bg-gray-50 flex justify-center items-center border border-gray-200 overflow-hidden">
                 {editSite.image ? (
-                  <Image 
-                    src={editSite.image} 
-                    width={400} 
+                  <Image
+                    src={editSite.image}
+                    width={400}
                     unoptimized
-                    height={300} 
-                    className="w-full h-full object-cover" 
+                    height={300}
+                    className="w-full h-full object-cover"
                     alt="site"
-                    
+
                     onError={handleImageError}
                   />
                 ) : (
@@ -981,7 +982,7 @@ export default function SiteDetails() {
                   <TriangleAlert className="w-5 h-5 text-yellow-600" />
                   <span className="text-yellow-600 font-bold">Site Alerts</span>
                 </div>
-            
+
               </div>
               <ul className="text-sm text-gray-700 list-disc pl-4">
                 {site.warnings.map((warning, index) => (
@@ -989,7 +990,7 @@ export default function SiteDetails() {
                 ))}
               </ul>
               <p className="text-xs text-gray-500 mt-2">
-                Last Updated: {new Date(site.updated_at).toLocaleDateString("en-GB")}
+                Last Updated: {formatToDDMMYYYY(site.updated_at)}
               </p>
             </Card>
             <Card className="p-4 rounded-lg bg-white border border-gray-200">
@@ -1028,33 +1029,33 @@ export default function SiteDetails() {
                     ) : hour.is_open_24_hours ? (
                       <span className="text-sm font-medium text-orange-600">24 hrs</span>
                     ) : null}
-                       {isEditing ? (
-                    <div className="flex gap-4">
-                      <Input
-                        type="time"
-                        value={hour.opens_at ?? ""}
-                        onChange={(e) => handleOperationHourChange(index, "opens_at", e.target.value)}
-                        disabled={hour.is_open_24_hours || hour.is_closed}
-                        className="flex-1 text-sm border-gray-300"
-                      />
-                      <Input
-                        type="time"
-                        value={hour.closes_at ?? ""}
-                        onChange={(e) => handleOperationHourChange(index, "closes_at", e.target.value)}
-                        disabled={hour.is_open_24_hours || hour.is_closed}
-                        className="flex-1 text-sm border-gray-300"
-                      />
-                    </div>
-                  ) : !hour.is_closed && !hour.is_open_24_hours ? (
-                    <div className="flex gap-4 text-sm text-gray-700">
-                      <span className="px-3 py-2 rounded-lg bg-gray-100">{formatTime(hour.opens_at)}</span>
-                      <span className="px-3 py-2 rounded-lg bg-gray-100">{formatTime(hour.closes_at)}</span>
-                    </div>
-                  ) : hour.is_closed ? (
-                    <span className="text-sm text-gray-700">Closed</span>
-                  ) : null}
+                    {isEditing ? (
+                      <div className="flex gap-4">
+                        <Input
+                          type="time"
+                          value={hour.opens_at ?? ""}
+                          onChange={(e) => handleOperationHourChange(index, "opens_at", e.target.value)}
+                          disabled={hour.is_open_24_hours || hour.is_closed}
+                          className="flex-1 text-sm border-gray-300"
+                        />
+                        <Input
+                          type="time"
+                          value={hour.closes_at ?? ""}
+                          onChange={(e) => handleOperationHourChange(index, "closes_at", e.target.value)}
+                          disabled={hour.is_open_24_hours || hour.is_closed}
+                          className="flex-1 text-sm border-gray-300"
+                        />
+                      </div>
+                    ) : !hour.is_closed && !hour.is_open_24_hours ? (
+                      <div className="flex gap-4 text-sm text-gray-700">
+                        <span className="px-3 py-2 rounded-lg bg-gray-100">{formatTime(hour.opens_at)}</span>
+                        <span className="px-3 py-2 rounded-lg bg-gray-100">{formatTime(hour.closes_at)}</span>
+                      </div>
+                    ) : hour.is_closed ? (
+                      <span className="text-sm text-gray-700">Closed</span>
+                    ) : null}
                   </div>
-               
+
                 </div>
               ))}
             </Card>
@@ -1082,7 +1083,7 @@ export default function SiteDetails() {
                     </Badge>
                   )}
                 </div>
-              
+
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-700">Active Alerts</span>
                   <Badge className="bg-red-100 text-red-700 text-xs font-medium">
@@ -1103,33 +1104,33 @@ export default function SiteDetails() {
               <div className="space-y-2 text-sm text-gray-700">
                 <div className="flex justify-between">
                   <span>Early Shift</span>
-                
-                    <span>{site.presence.early}</span>
-             
+
+                  <span>{site.presence.early}</span>
+
                 </div>
                 <div className="flex justify-between">
                   <span>Middle Shift</span>
-                 
-                    <span>{site.presence.middle}</span>
-                
+
+                  <span>{site.presence.middle}</span>
+
                 </div>
                 <div className="flex justify-between">
                   <span>Day</span>
-                  
-                    <span>{site.presence.day}</span>
-                 
+
+                  <span>{site.presence.day}</span>
+
                 </div>
                 <div className="flex justify-between">
                   <span>Night Shift</span>
-                
-                    <span>{site.presence.night}</span>
-                
+
+                  <span>{site.presence.night}</span>
+
                 </div>
                 <div className="flex justify-between">
                   <span>Supervisor</span>
-                 
-                    <span>{site.presence.supervisor}</span>
-                
+
+                  <span>{site.presence.supervisor}</span>
+
                 </div>
               </div>
             </Card>
