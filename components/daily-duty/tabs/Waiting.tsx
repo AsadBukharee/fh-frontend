@@ -377,7 +377,7 @@ const Waiting = () => {
           </CardContent>
         </Card>
 
-        {/* Tabs and Content */}
+        {/* Tabs and Content
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
           <TabsList className="bg-white border-0 shadow-sm p-1">
             <TabsTrigger value="all" className="data-[state=active]:bg-[#E63946] data-[state=active]:text-white">
@@ -389,9 +389,9 @@ const Waiting = () => {
             <TabsTrigger value="pending" className="data-[state=active]:bg-[#FCBF49] data-[state=active]:text-white">
               Pending ({stats.pendingWeeks})
             </TabsTrigger>
-          </TabsList>
+          </TabsList> */}
 
-          <TabsContent value={selectedTab} className="space-y-4">
+          {/* <TabsContent value={selectedTab} className="space-y-4"> */}
             {filteredWeeks.length === 0 ? (
               <Card className="border-0 shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center p-12 text-center">
@@ -606,8 +606,8 @@ const Waiting = () => {
                 })}
               </Accordion>
             )}
-          </TabsContent>
-        </Tabs>
+          {/* </TabsContent>
+        </Tabs> */}
       </div>
     </div>
   );

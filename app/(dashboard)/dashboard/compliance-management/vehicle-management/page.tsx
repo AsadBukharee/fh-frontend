@@ -20,8 +20,6 @@ import {
   Check,
   X,
   Play,
-  User,
-  Car,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -75,6 +73,7 @@ interface ApiResponse {
       next_mot_booked_date: string;
       next_mot_booked_time: string;
       mot_status: string;
+      mot_status_color: string;
     }>;
     pmi: Array<{
       vehicle: number;
@@ -136,11 +135,11 @@ type TabType =
 
 type EditableField = {
   type:
-    | "mot_date"
-    | "mot_time"
-    | "pmi_date"
-    | "tacho_calib_date"
-    | "loller_calib_date";
+  | "mot_date"
+  | "mot_time"
+  | "pmi_date"
+  | "tacho_calib_date"
+  | "loller_calib_date";
   vehicleId: number;
   originalValue: string;
 };
@@ -180,22 +179,52 @@ export default function VehicleDashboard() {
 
   const cookies = useCookies();
 
-  const getStatusBadge = (text: string) => {
+  const getStatusBadge = (text: string, color?: string) => {
     if (shouldShowTBC(text))
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-gray-600">
           TBC
         </span>
       );
+
+    // Use the color from API if provided
+    if (color) {
+      const colorClasses = {
+        red: "bg-red-100 text-red-800",
+        green: "bg-green-100 text-green-800",
+        amber: "bg-amber-100 text-amber-800",
+        orange: "bg-orange-100 text-orange-800",
+        yellow: "bg-yellow-100 text-yellow-800",
+        blue: "bg-blue-100 text-blue-800",
+        purple: "bg-purple-100 text-purple-800",
+        gray: "bg-gray-100 text-gray-800"
+      };
+
+      const bgColor = colorClasses[color as keyof typeof colorClasses] || colorClasses.gray;
+
+      return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bgColor}`}>
+          {text}
+        </span>
+      );
+    }
+
+    // Fallback to old logic if no color provided
     if (text.includes("Expired"))
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-red-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
           {text}
         </span>
       );
     if (text.includes("days left"))
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-amber-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+          {text}
+        </span>
+      );
+    if (text === "Booked")
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
           {text}
         </span>
       );
@@ -602,26 +631,14 @@ export default function VehicleDashboard() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [editingField, editValue]);
 
-  // Helper function to get planned date by key
-  const getPlannedDate = (row: VehicleRow, key: string): string => {
-    if (!row.pmi?.hover) return "";
-    // Try different key formats
-    const keysToTry = [
-      key,
-      key.toLowerCase(),
-      key.toLowerCase().replace(/\s+/g, '_'),
-      key.replace(/\s+/g, '_'),
-      key.replace(/\s+/g, '_').toLowerCase()
-    ];
-    
-    for (const k of keysToTry) {
-      if (row.pmi.hover[k]) {
-        return row.pmi.hover[k];
-      }
-    }
-    
-    return "";
-  };
+  // Planned date keys in order
+  const plannedDateKeys = [
+    "second_planned",
+    "third_planned",
+    "fourth_planned",
+    "fifth_planned",
+    "sixth_planned"
+  ];
 
   const renderMOTBookedDate = (row: VehicleRow) => {
     const isEditing =
@@ -842,7 +859,6 @@ export default function VehicleDashboard() {
               >
                 {displayValue}
               </DateDisplay>
-             
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-96 max-h-80 overflow-y-auto">
@@ -1042,10 +1058,7 @@ export default function VehicleDashboard() {
       case "MOT":
         return { showMOT: true };
       case "PMI Inspection":
-        return { 
-          showPMI: true,
-          showPMIPlannedDates: true
-        };
+        return { showPMI: true };
       case "Vehicle Tacho Download":
         return { showTacho: true };
       case "Tyre Maintenance Check":
@@ -1059,7 +1072,6 @@ export default function VehicleDashboard() {
         return {
           showMOT: true,
           showPMI: true,
-          showPMIPlannedDates: false,
           showTacho: true,
           showTyre: true,
           showInsurance: true,
@@ -1136,15 +1148,6 @@ export default function VehicleDashboard() {
     { key: "Tyre Maintenance Check", label: "Tyre Check", icon: Circle },
     { key: "Insurance & Check", label: "Insurance", icon: Shield },
     { key: "Calibrations", label: "Calibrations", icon: Settings },
-  ];
-
-  // Planned date keys in order
-  const plannedDateKeys = [
-    "second_planned", 
-    "third_planned",
-    "fourth_planned",
-    "fifth_planned",
-    "sixth_planned"
   ];
 
   return (
@@ -1389,10 +1392,9 @@ export default function VehicleDashboard() {
                   onClick={() => setActiveFilter(tab.key as TabType)}
                   className={`
                     flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all
-                    ${
-                      active
-                        ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md"
-                        : "text-gray-600 hover:bg-gray-100"
+                    ${active
+                      ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-100"
                     }
                   `}
                 >
@@ -1474,11 +1476,11 @@ export default function VehicleDashboard() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
-                <thead className="sticky top-0 z-30">
+                <thead className="sticky top-0 z-50">
                   <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <th
                       rowSpan={2}
-                      className="p-4 text-left font-semibold text-gray-900 sticky left-0 bg-gray-100 z-40 border-r-2 border-gray-300 min-w-[140px]"
+                      className="p-4 text-left font-semibold text-gray-900 sticky left-0 bg-gray-100 z-50 border-r-2 border-gray-300 min-w-[140px]"
                     >
                       Vehicle Reg
                     </th>
@@ -1486,7 +1488,7 @@ export default function VehicleDashboard() {
                     {visibleColumns.showMOT && (
                       <th
                         colSpan={5}
-                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-orange-500 bg-orange-100 border-x border-gray-200"
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-orange-500 bg-orange-100 border-x border-gray-200 sticky top-0 z-40"
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Calendar className="w-4 h-4" />
@@ -1498,7 +1500,7 @@ export default function VehicleDashboard() {
                     {visibleColumns.showPMI && (
                       <th
                         colSpan={activeFilter === "PMI Inspection" ? 10 : 4}
-                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200"
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200 sticky top-0 z-40"
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Wrench className="w-4 h-4" />
@@ -1510,7 +1512,7 @@ export default function VehicleDashboard() {
                     {visibleColumns.showTacho && (
                       <th
                         colSpan={2}
-                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-blue-900 bg-blue-50 border-x border-gray-200"
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-blue-900 bg-blue-50 border-x border-gray-200 sticky top-0 z-40"
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Download className="w-4 h-4" />
@@ -1522,7 +1524,7 @@ export default function VehicleDashboard() {
                     {visibleColumns.showTyre && (
                       <th
                         colSpan={2}
-                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-purple-900 bg-purple-50 border-x border-gray-200"
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-purple-900 bg-purple-50 border-x border-gray-200 sticky top-0 z-40"
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Circle className="w-4 h-4" />
@@ -1534,7 +1536,7 @@ export default function VehicleDashboard() {
                     {visibleColumns.showInsurance && (
                       <th
                         colSpan={2}
-                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-green-900 bg-green-50 border-x border-gray-200"
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-green-900 bg-green-50 border-x border-gray-200 sticky top-0 z-40"
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Shield className="w-4 h-4" />
@@ -1546,7 +1548,7 @@ export default function VehicleDashboard() {
                     {visibleColumns.showCalibrations && (
                       <th
                         colSpan={4}
-                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-yellow-900 bg-yellow-50 border-x border-gray-200"
+                        className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-yellow-900 bg-yellow-50 border-x border-gray-200 sticky top-0 z-40"
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Settings className="w-4 h-4" />
@@ -1556,22 +1558,22 @@ export default function VehicleDashboard() {
                     )}
                   </tr>
 
-                  <tr className="bg-white border-y-2 border-gray-300 sticky top-[61px] z-20">
+                  <tr className="bg-white border-y-2 border-gray-300 sticky top-[61px] z-40">
                     {visibleColumns.showMOT && (
                       <>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                           MOT Status
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                           MOT Expiry Date
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                           Book Next MOT From
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                           Next MOT Booked Date
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-orange-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-orange-50/30 sticky top-[61px]">
                           Time
                         </th>
                       </>
@@ -1579,26 +1581,26 @@ export default function VehicleDashboard() {
 
                     {visibleColumns.showPMI && (
                       <>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
                           PMI Status
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
                           Last PMI Date
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
                           PMI Expiry Date
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-rose-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-rose-50/30 sticky top-[61px]">
                           Next PMI Booked Date
                         </th>
-                        
+
                         {/* Planned Dates Columns - Only show when PMI tab is active */}
                         {activeFilter === "PMI Inspection" && (
                           <>
                             {plannedDateKeys.map((key, index) => (
-                              <th 
-                                key={key} 
-                                className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30"
+                              <th
+                                key={key}
+                                className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]"
                               >
                                 {key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                               </th>
@@ -1610,10 +1612,10 @@ export default function VehicleDashboard() {
 
                     {visibleColumns.showTacho && (
                       <>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-blue-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-blue-50/30 sticky top-[61px]">
                           Last Vehicle Tacho Download
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-blue-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-blue-50/30 sticky top-[61px]">
                           Next Vehicle Tacho Download
                         </th>
                       </>
@@ -1621,10 +1623,10 @@ export default function VehicleDashboard() {
 
                     {visibleColumns.showTyre && (
                       <>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-purple-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-purple-50/30 sticky top-[61px]">
                           Last Tyre Check
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-purple-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-purple-50/30 sticky top-[61px]">
                           Next Tyre Check
                         </th>
                       </>
@@ -1632,10 +1634,10 @@ export default function VehicleDashboard() {
 
                     {visibleColumns.showInsurance && (
                       <>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-green-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-green-50/30 sticky top-[61px]">
                           Insurance Expiry
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-green-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-green-50/30 sticky top-[61px]">
                           Tax Expiry
                         </th>
                       </>
@@ -1643,16 +1645,16 @@ export default function VehicleDashboard() {
 
                     {visibleColumns.showCalibrations && (
                       <>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30 sticky top-[61px]">
                           Tacho Calibration Expiry
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30 sticky top-[61px]">
                           Next Tacho Calib Date
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30 sticky top-[61px]">
                           Loller Calibration Expiry
                         </th>
-                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-yellow-50/30">
+                        <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-yellow-50/30 sticky top-[61px]">
                           Next Loller Calib Date
                         </th>
                       </>
@@ -1665,7 +1667,7 @@ export default function VehicleDashboard() {
                       key={row.vehicle}
                       className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}
                     >
-                      <td className="p-4 font-semibold text-gray-900 sticky left-0 bg-inherit z-10 border-r-2 border-gray-200">
+                      <td className="p-4 font-semibold text-gray-900 sticky left-0 bg-inherit z-30 border-r-2 border-gray-200">
                         <Link
                           href={`/dashboard/compliance-management/vehicle-management/${row.vehicle}`}
                         >
@@ -1676,17 +1678,13 @@ export default function VehicleDashboard() {
                       {visibleColumns.showMOT && (
                         <>
                           <td className="px-3 py-4 border-l border-gray-200">
-                            {getStatusBadge(row.mot?.mot_status || "")}
+                            {getStatusBadge(
+                              row.mot?.mot_status || "",
+                              row.mot?.mot_status_color
+                            )}
                           </td>
-                          <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
-                            <DateDisplay
-                              date={row.mot?.mot_expiry ?? null}
-                              fieldType="mot_expiry"
-                              warningDays={60}
-                              showExpiryText={true}
-                            >
-                              {formatDate(row.mot?.mot_expiry, false)}
-                            </DateDisplay>
+                          <td className="px-3 py-4 text-sm text-black border-l border-gray-200">
+                            {formatDate(row.mot?.mot_expiry, false)}
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                             <DateDisplay
@@ -1743,21 +1741,21 @@ export default function VehicleDashboard() {
                           <td className="px-3 py-4 text-sm border-l border-x border-gray-200">
                             {renderPMIBookedDate(row)}
                           </td>
-                          
+
                           {/* Planned Dates Cells - Only show when PMI tab is active */}
                           {activeFilter === "PMI Inspection" && (
                             <>
                               {plannedDateKeys.map((key) => (
-                                <td 
-                                  key={key} 
+                                <td
+                                  key={key}
                                   className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200 bg-rose-50/30"
                                 >
                                   <DateDisplay
-                                    date={getPlannedDate(row, key) || null}
+                                    date={row.pmi?.hover?.[key] || null}
                                     isBlackText={true}
                                     showTBC={false}
                                   >
-                                    {getPlannedDate(row, key) || "-"}
+                                    {row.pmi?.hover?.[key] || "-"}
                                   </DateDisplay>
                                 </td>
                               ))}
@@ -1829,8 +1827,8 @@ export default function VehicleDashboard() {
                               hoverText={
                                 row.insurance?.insurance_expiry
                                   ? getDateStatus(
-                                      row.insurance.insurance_expiry,
-                                    ) === "red"
+                                    row.insurance.insurance_expiry,
+                                  ) === "red"
                                     ? "Insurance expired"
                                     : "5 days to insurance expiry"
                                   : "No expiry date"

@@ -161,6 +161,7 @@ const DutyTracker = () => {
       other_duty_hours: `${otherTime}:00`,
       breaks_taken: `${minutesToTime(remainingMinutes)}:00`,
       total_duty_time: `${minutesToTime(totalDutyMinutes)}:00`,
+      time_spent: `${minutesToTime(usedMinutes)}:00`,
     };
 
     try {
@@ -209,10 +210,10 @@ const DutyTracker = () => {
         </Badge>
       </div>
 
-      <div className="p-5 max-w-5xl mx-auto space-y-6">
+      <div className="p-5 max-w-6xl mx-auto space-y-6">
         {/* Vehicle + Mileage */}
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h2 className="text-lg font-semibold mb-4">Vehicle Information</h2>
             {loadingVehicles ? (
               <p>Loading vehicles...</p>
@@ -221,7 +222,7 @@ const DutyTracker = () => {
                 {selectedVehicle && (
                   <div className="bg-blue-50 p-3 rounded-lg text-sm">
                     <span className="font-medium">Currently assigned: </span>
-                    <strong>{selectedVehicle.registration_number}</strong> 
+                    <strong>{selectedVehicle.registration_number}</strong>
                     {' '}({selectedVehicle.make} {selectedVehicle.model})
                   </div>
                 )}
@@ -232,7 +233,7 @@ const DutyTracker = () => {
                   <select
                     value={selectedVehicleId ?? ''}
                     onChange={(e) => setSelectedVehicleId(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full h-11 border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="w-full h-11 border border-gray-100 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
                   >
                     <option value="">-- Select a vehicle --</option>
                     {vehicles.map(v => (
@@ -246,7 +247,7 @@ const DutyTracker = () => {
             )}
           </div>
 
-          <div className="bg-white rounded-xl border shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h2 className="text-lg font-semibold mb-4">Mileage Info</h2>
             <div className="grid grid-cols-2 gap-5">
               <div>
@@ -262,7 +263,7 @@ const DutyTracker = () => {
         </div>
 
         {/* Duty Times */}
-        <div className="bg-white rounded-xl border shadow-sm p-6">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h2 className="text-lg font-semibold mb-4">Duty Times</h2>
           <div className="grid md:grid-cols-3 gap-5">
             <div>
@@ -283,11 +284,16 @@ const DutyTracker = () => {
         </div>
 
         {/* Shift Hours Breakdown */}
-        <div className="bg-white rounded-xl border shadow-sm p-6">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h2 className="text-lg font-semibold mb-4">Shift Hours Breakdown</h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-4 gap-6">
             {/* Driving Hours */}
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-5 text-center relative">
+            <div className="bg-pink-50 border border-gray-100 border-pink-200 rounded-lg p-5 text-center">
+              <div className="text-sm text-pink-800 mb-2">Max Hours Available</div>
+              <div className="text-4xl font-bold text-pink-600">{minutesToTime(remainingMinutes)}</div>
+            </div>
+
+            <div className="bg-orange-50 border border-gray-100 border-orange-200 rounded-lg p-5 text-center relative">
               <div className="text-sm text-orange-800 mb-2">Driving Hours</div>
               {editDriving ? (
                 <div className="relative">
@@ -323,7 +329,7 @@ const DutyTracker = () => {
             </div>
 
             {/* Other Duty Hours */}
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-5 text-center relative">
+            <div className="bg-orange-50 border border-gray-100 border-orange-200 rounded-lg p-5 text-center relative">
               <div className="text-sm text-orange-800 mb-2">Others Duty Hrs (walkaround etc)</div>
               {editOther ? (
                 <div className="relative">
@@ -359,40 +365,17 @@ const DutyTracker = () => {
             </div>
 
             {/* Max Hours Available */}
-            <div className="bg-pink-50 border border-pink-200 rounded-lg p-5 text-center">
-              <div className="text-sm text-pink-800 mb-2">Max Hours Available</div>
-              <div className="text-4xl font-bold text-pink-600">00:00</div>
+            <div className="bg-pink-50 border border-gray-100 border-pink-200 rounded-lg p-5 text-center">
+              <div className="text-sm text-pink-800 mb-2">Breaks Taken</div>
+              <div className="text-4xl font-bold text-pink-600">{minutesToTime(remainingMinutes)}</div>
             </div>
           </div>
         </div>
 
-        {/* Total Breakdown */}
-        <div className="bg-white rounded-xl border shadow-sm p-6">
-          <h2 className="text-lg font-semibold mb-4">Total Breakdown</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div>
-              <label className="text-sm text-gray-500 block mb-2">Total Driving Hours</label>
-              <div className="h-11 flex items-center text-xl font-medium bg-gray-50 rounded px-4">
-                {drivingTime}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm text-gray-500 block mb-2">Other Hours</label>
-              <div className="h-11 flex items-center text-xl font-medium bg-gray-50 rounded px-4">
-                {otherTime}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm text-gray-500 block mb-2">Breaks Taken</label>
-              <div className="h-11 flex items-center text-xl font-medium bg-green-50 rounded px-4">
-                {minutesToTime(remainingMinutes)}
-              </div>
-            </div>
-          </div>
-        </div>
+
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-4 text-red-800">
+          <div className="bg-red-50 border border-gray-100 border-red-200 rounded-xl p-5 flex items-start gap-4 text-red-800">
             <AlertTriangle size={24} className="mt-1 flex-shrink-0" />
             <div>
               <p className="font-medium mb-1">Invalid time combination</p>
@@ -405,9 +388,8 @@ const DutyTracker = () => {
         <Button
           onClick={handleSave}
           disabled={isSaving || !!error || loadingVehicles}
-          className={`w-full h-14 text-lg font-semibold rounded-xl shadow-lg ${
-            error || loadingVehicles ? 'bg-gray-400 cursor-not-allowed' : 'bg-pink-500 hover:bg-pink-600'
-          }`}
+          className={`w-full h-14 text-lg font-semibold rounded-xl shadow-lg ${error || loadingVehicles ? 'bg-gray-400 cursor-not-allowed' : 'bg-pink-500 hover:bg-pink-600'
+            }`}
         >
           {isSaving ? 'Saving...' : error ? 'Fix Error First' : 'Save Changes'}
         </Button>
