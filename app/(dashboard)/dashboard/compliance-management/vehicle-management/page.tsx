@@ -83,6 +83,8 @@ interface ApiResponse {
       book_next_pmi_from: string | null;
       next_pmi_book_date: string;
       hover: Record<string, string>;
+      pmi_status: string;
+      pmi_status_color: string;
     }>;
     tacho: Array<{
       vehicle: number;
@@ -210,13 +212,13 @@ export default function VehicleDashboard() {
     }
 
     // Fallback to old logic if no color provided
-    if (text.includes("Expired"))
+    if (text.includes("Expired") || text.includes("Expires today"))
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
           {text}
         </span>
       );
-    if (text.includes("days left"))
+    if (text.includes("Expiring in") || text.includes("days left"))
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
           {text}
@@ -1707,16 +1709,9 @@ export default function VehicleDashboard() {
                       {visibleColumns.showPMI && (
                         <>
                           <td className="px-3 py-4 text-sm border-l border-gray-200">
-                            {row.pmi?.book_next_pmi_from === "booked" ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Booked
-                              </span>
-                            ) : (
-                              <DateDisplay
-                                date={row.pmi?.book_next_pmi_from ?? null}
-                              >
-                                {formatDate(row.pmi?.book_next_pmi_from, false)}
-                              </DateDisplay>
+                            {getStatusBadge(
+                              row.pmi?.pmi_status || "",
+                              row.pmi?.pmi_status_color
                             )}
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
