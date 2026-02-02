@@ -246,12 +246,18 @@ export default function VehicleDetailPage() {
         tyre_torque_front_passenger: editVehicle.tyre_torque_front_passenger,
         tyre_torque_rear_outer_driver: editVehicle.tyre_torque_rear_outer_driver,
         tyre_torque_rear_outer_passenger: editVehicle.tyre_torque_rear_outer_passenger,
+        tyre_expiry_front_driver: editVehicle.tyre_expiry_front_driver,
+        tyre_expiry_front_passenger: editVehicle.tyre_expiry_front_passenger,
+        tyre_expiry_rear_outer_driver: editVehicle.tyre_expiry_rear_outer_driver,
+        tyre_expiry_rear_outer_passenger: editVehicle.tyre_expiry_rear_outer_passenger,
+        tyre_expiry_rear_inner_driver: editVehicle.tyre_expiry_rear_inner_driver,
+        tyre_expiry_rear_inner_passenger: editVehicle.tyre_expiry_rear_inner_passenger,
         vehicle_status: editVehicle.vehicle_status,
         vehicle_roadworthy_status: editVehicle.vehicle_roadworthy_status,
         is_roadworthy: editVehicle.is_roadworthy,
         is_active: editVehicle.is_active,
         site_allocated: selectedSites,
-        vehicles_type: editVehicle.vehicles_type, // Add vehicle type to payload
+        vehicles_type: editVehicle.vehicles_type,
       };
 
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
@@ -439,6 +445,62 @@ export default function VehicleDetailPage() {
     return `${day} ${month} ${year}`;
   };
 
+  // Helper function to get week number
+  function getWeekNumber(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
+
+  // Format tyre expiry week/year
+  const formatTyreExpiry = (expiryString: string) => {
+    if (!expiryString || expiryString.trim() === "") return "N/A";
+    
+    // Assuming format is "2625" where 26=week, 25=year
+    try {
+      const week = expiryString.substring(0, 2);
+      const year = "20" + expiryString.substring(2);
+      return `Week ${week}, ${year}`;
+    } catch {
+      return expiryString; // Return as-is if parsing fails
+    }
+  };
+
+  // Check tyre expiry status
+  const getTyreExpiryStatus = (expiryString: string) => {
+    if (!expiryString || expiryString.trim() === "") {
+      return { isExpired: false, isExpiring: false, textColor: "text-slate-700" };
+    }
+    
+    try {
+      const week = parseInt(expiryString.substring(0, 2));
+      const year = parseInt("20" + expiryString.substring(2));
+      
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentWeek = getWeekNumber(currentDate);
+      
+      // Check if expired
+      if (year < currentYear || (year === currentYear && week < currentWeek)) {
+        return { isExpired: true, isExpiring: false, textColor: "text-red-600" };
+      }
+      
+      // Check if expiring soon (within 4 weeks)
+      const weeksUntilExpiry = (year - currentYear) * 52 + (week - currentWeek);
+      const isExpiringSoon = weeksUntilExpiry <= 4;
+      
+      return { 
+        isExpired: false, 
+        isExpiring: isExpiringSoon,
+        textColor: isExpiringSoon ? "text-amber-600" : "text-emerald-600"
+      };
+    } catch (error) {
+      return { isExpired: false, isExpiring: false, textColor: "text-slate-700" };
+    }
+  };
+
   const Field = ({
     label,
     value,
@@ -516,14 +578,24 @@ export default function VehicleDetailPage() {
       default: return status;
     }
   };
-  function StaticRow({ label, value }: { label: string; value: string | number }) {
+
+  type StaticRowProps = {
+    label: string;
+    value: string | number;
+    highlight?: boolean;
+  };
+
+  function StaticRow({ label, value, highlight }: StaticRowProps) {
     return (
       <div className="flex justify-between">
         <span className="text-slate-600">{label}</span>
-        <span className="font-semibold text-slate-900">{value}</span>
+        <span className={`font-semibold ${highlight ? "text-green-600" : "text-slate-900"}`}>
+          {value}
+        </span>
       </div>
     );
   }
+
   type TyreRowProps = {
     label: string;
     unit: string;
@@ -592,10 +664,27 @@ export default function VehicleDetailPage() {
     { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText },
     { key: "others_docs", label: "Other Documents", icon: FileText },
   ];
+
   function TyreCard({ title, pos }: { title: string; pos: string }) {
+    const tyreExpiryKey = `tyre_expiry_${pos}`;
+    const tyreExpiry = isEditing ? editVehicle[tyreExpiryKey] : vehicle[tyreExpiryKey];
+    const { isExpired, isExpiring, textColor } = getTyreExpiryStatus(tyreExpiry);
+    
     return (
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm">
-        <p className="font-medium text-slate-900 mb-3">{title}</p>
+      <div className={`bg-slate-50 rounded-xl border ${isExpired ? 'border-red-300 ring-2 ring-red-100' : isExpiring ? 'border-amber-300 ring-1 ring-amber-100' : 'border-slate-200'} p-4 shadow-sm`}>
+        <div className="flex justify-between items-center mb-3">
+          <p className="font-medium text-slate-900">{title}</p>
+          {isExpired && (
+            <Badge className="bg-red-100 text-red-700 border-red-200 text-xs">
+              Expired
+            </Badge>
+          )}
+          {isExpiring && !isExpired && (
+            <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs">
+              Expiring Soon
+            </Badge>
+          )}
+        </div>
 
         <div className="space-y-2 text-sm">
           <TyreRow
@@ -616,9 +705,25 @@ export default function VehicleDetailPage() {
             label="Torque"
             unit="NM"
             valueKey={`tyre_torque_${pos}`}
-            type="number" highlight={undefined} />
+            type="number"
+          />
 
-          <StaticRow label="Tyre Age" value="" />
+          <div className="flex justify-between items-center">
+            <span className="text-slate-600">Tyre Age</span>
+            {isEditing ? (
+              <Input
+                type="text"
+                value={editVehicle[tyreExpiryKey] || ""}
+                onChange={(e) => handleInputChange(tyreExpiryKey, e.target.value)}
+                placeholder="e.g., 2625"
+                className="w-20 h-7 text-xs"
+              />
+            ) : (
+              <span className={`font-semibold ${textColor}`}>
+                {tyreExpiry}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -1067,9 +1172,9 @@ export default function VehicleDetailPage() {
               </div>
             </div>
           </TabsContent>
+
           <TabsContent value="maintenance" className="mt-6">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-
               {/* Header */}
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
@@ -1080,13 +1185,10 @@ export default function VehicleDetailPage() {
                     Tyre Management
                   </h3>
                 </div>
-
-
               </div>
 
               {/* Main Layout */}
               <div className="grid grid-cols-[1fr_260px_1fr] gap-8 items-center">
-
                 {/* LEFT */}
                 <div className="space-y-4">
                   <TyreCard title="Front Passenger" pos="front_passenger" />
@@ -1113,23 +1215,13 @@ export default function VehicleDetailPage() {
                   <TyreCard title="Rear Outer Driver" pos="rear_outer_driver" />
                   <TyreCard title="Rear Inner Driver" pos="rear_inner_driver" />
                 </div>
-
               </div>
             </div>
           </TabsContent>
 
-
-
           {/* Compliance Tab */}
           <TabsContent value="compliance" className="space-y-6 mt-6">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                  <Settings className="w-5 h-5 text-indigo-600" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">Equipment Status</h3>
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/30 rounded-xl p-5 border border-indigo-200">
                   <div className="flex items-center justify-between mb-4">

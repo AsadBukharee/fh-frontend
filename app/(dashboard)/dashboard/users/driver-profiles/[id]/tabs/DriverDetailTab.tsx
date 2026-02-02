@@ -31,7 +31,7 @@ interface DriverDetailTabProps {
   sitesLoading: boolean;
   assigningContract: boolean;
   assigningSites: boolean;
-    handleEditToggle: () => void;
+  handleEditToggle: () => void;
   handleSaveProfile: () => Promise<void>;
   saving: boolean;
 }
@@ -74,7 +74,7 @@ const MultiSelect = ({
         }
       }}
     >
-      <SelectTrigger className="w-full border-gray-300 rounded-xl h-10">
+      <SelectTrigger className="w-full min-w-[250px] border-gray-300 rounded-xl h-10">
         <SelectValue placeholder={selected.length > 0 ? `${selected.length} selected` : placeholder} />
       </SelectTrigger>
       <SelectContent className="max-h-72">
@@ -419,73 +419,74 @@ export default function DriverDetailTab({
 
           {isEditingEmployment && (
             <div className="space-y-10 pt-8 border-t border-gray-100">
-              {/* Assign Contract */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium text-gray-900">Assign Contract</Label>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  {contractsLoading ? (
-                    <div className="w-full sm:w-80 h-10 bg-gray-100 rounded-xl animate-pulse" />
-                  ) : contracts.length === 0 ? (
-                    <div className="w-full sm:w-80 p-3 bg-amber-50 text-amber-800 rounded-xl text-sm">
-                      No contracts available
-                    </div>
-                  ) : (
-                    <Select value={selectedContractId} onValueChange={setSelectedContractId} disabled={assigningContract}>
-                      <SelectTrigger className="w-full sm:w-80 rounded-xl border-gray-300">
-                        <SelectValue placeholder="Select a contract" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {contracts.map((c) => (
-                          <SelectItem key={c.id} value={c.id.toString()}>
-                            {c.name || `Contract #${c.id}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  <Button
-                    className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl h-10 px-6"
-                    onClick={handleAssignContract}
-                    disabled={assigningContract || !selectedContractId || contracts.length === 0}
-                  >
-                    {assigningContract ? "Assigning..." : "Assign"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Assign Sites */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium text-gray-900">Assign Sites</Label>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 max-w-md">
-                    {sitesLoading ? (
-                      <div className="h-10 bg-gray-100 rounded-xl animate-pulse" />
-                    ) : sites.length === 0 ? (
-                      <div className="p-3 bg-amber-50 text-amber-800 rounded-xl text-sm">
-                        No sites available
+              <div className=" flex  justify-between">
+                {/* Assign Contract */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium text-gray-900">Assign Contract</Label>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {contractsLoading ? (
+                      <div className="w-full sm:w-80 h-10 bg-gray-100 rounded-xl animate-pulse" />
+                    ) : contracts.length === 0 ? (
+                      <div className="w-full sm:w-80 p-3 bg-amber-50 text-amber-800 rounded-xl text-sm">
+                        No contracts available
                       </div>
                     ) : (
-                      <MultiSelect
-                        options={sites.map((site) => ({ value: site.id.toString(), label: site.name }))}
-                        selected={selectedSiteIds}
-                        onChange={setSelectedSiteIds}
-                        disabled={assigningSites}
-                        placeholder="Select sites"
-                      />
+                      <Select value={selectedContractId} onValueChange={setSelectedContractId} disabled={assigningContract}>
+                        <SelectTrigger className="w-full sm:w-80 rounded-xl border-gray-300">
+                          <SelectValue placeholder="Select a contract" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {contracts.map((c) => (
+                            <SelectItem key={c.id} value={c.id.toString()}>
+                              {c.name || `Contract #${c.id}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
-                  </div>
 
-                  <Button
-                    className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl h-10 px-6"
-                    onClick={handleAssignSites}
-                    disabled={assigningSites || selectedSiteIds.length === 0 || sites.length === 0}
-                  >
-                    {assigningSites ? "Assigning..." : "Assign Sites"}
-                  </Button>
+                    <Button
+                      className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl h-10 px-6"
+                      onClick={handleAssignContract}
+                      disabled={assigningContract || !selectedContractId || contracts.length === 0}
+                    >
+                      {assigningContract ? "Assigning..." : "Assign"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Assign Sites */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium text-gray-900">Assign Sites</Label>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1 max-w-md">
+                      {sitesLoading ? (
+                        <div className="h-10 bg-gray-100 rounded-xl animate-pulse" />
+                      ) : sites.length === 0 ? (
+                        <div className="p-3 bg-amber-50 text-amber-800 rounded-xl text-sm">
+                          No sites available
+                        </div>
+                      ) : (
+                        <MultiSelect
+                          options={sites.map((site) => ({ value: site.id.toString(), label: site.name }))}
+                          selected={selectedSiteIds}
+                          onChange={setSelectedSiteIds}
+                          disabled={assigningSites}
+                          placeholder="Select sites"
+                        />
+                      )}
+                    </div>
+
+                    <Button
+                      className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl h-10 px-6"
+                      onClick={handleAssignSites}
+                      disabled={assigningSites || selectedSiteIds.length === 0 || sites.length === 0}
+                    >
+                      {assigningSites ? "Assigning..." : "Assign Sites"}
+                    </Button>
+                  </div>
                 </div>
               </div>
-
               {/* Assign Bright HR Manager */}
               <div className="space-y-3">
                 <Label className="text-base font-medium text-gray-900">Assign Bright HR Manager</Label>

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -121,13 +121,15 @@ const FIELD_CONFIG = {
   ]
 } as const;
 
-// Sticky header styles
-const stickyHeaderClass = "sticky top-0 bg-white z-10 shadow-sm";
+// Sticky header and name column styles
+const stickyHeaderClass = "sticky top-0 bg-white z-10";
+const stickyNameClass = "sticky left-0 bg-white z-20 border-r border-gray-200";
 
 const DriverManagementPage = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [stickyName, setStickyName] = useState<string | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -206,24 +208,29 @@ const DriverManagementPage = () => {
     fetchDrivers();
   }, [currentPage, pageSize, filters]);
 
-  // Handle scroll for sticky name
+  // Handle scroll for fixed header and name column
   useEffect(() => {
     const handleScroll = () => {
-      const table = document.querySelector('.driver-table');
-      if (table) {
-        const scrollLeft = table.scrollLeft;
-        if (scrollLeft > 0) {
-          setStickyName('sticky left-0 bg-white border-r border-gray-200 z-20');
-        } else {
-          setStickyName(null);
-        }
+      if (tableContainerRef.current) {
+        const scrollLeft = tableContainerRef.current.scrollLeft;
+        const scrollTop = tableContainerRef.current.scrollTop;
+        
+        // Apply shadow to header when scrolled vertically
+        const headerCells = document.querySelectorAll('thead th');
+        headerCells.forEach(cell => {
+          if (scrollTop > 0) {
+            cell.classList.add('shadow-sm');
+          } else {
+            cell.classList.remove('shadow-sm');
+          }
+        });
       }
     };
 
-    const table = document.querySelector('.driver-table');
-    if (table) {
-      table.addEventListener('scroll', handleScroll);
-      return () => table.removeEventListener('scroll', handleScroll);
+    const tableContainer = tableContainerRef.current;
+    if (tableContainer) {
+      tableContainer.addEventListener('scroll', handleScroll);
+      return () => tableContainer.removeEventListener('scroll', handleScroll);
     }
   }, []);
 
@@ -680,25 +687,33 @@ const DriverManagementPage = () => {
 
       {/* Table Container with Horizontal Scroll */}
       <div className="border border-gray-100 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto driver-table" style={{ maxHeight: 'calc(100vh - 300px)' }}>
-          <Table>
+        <div 
+          ref={tableContainerRef}
+          className="overflow-x-auto" 
+          style={{ 
+            maxHeight: 'calc(100vh - 300px)',
+            position: 'relative'
+          }}
+        >
+          <Table ref={tableRef}>
             <TableHeader>
               <TableRow>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} ${stickyName ? 'left-0 z-30' : ''}`}>
+                {/* Fixed Header Cells */}
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} ${stickyNameClass}`}>
                   Driver Name
                 </TableHead>
-                <TableHead className="min-w-[150px]">License No.</TableHead>
-                <TableHead className="min-w-[150px]">License Expiry</TableHead>
-                <TableHead className="min-w-[150px]">D/D1 Expiry</TableHead>
-                <TableHead className="min-w-[150px]">CPC Card Expiry</TableHead>
-                <TableHead className="min-w-[150px]">Tacho Expiry</TableHead>
-                <TableHead className="min-w-[150px]">Last Check Code</TableHead>
-                <TableHead className="min-w-[150px]">Next Check Due</TableHead>
-                <TableHead className="min-w-[150px]">Last Tacho DL</TableHead>
-                <TableHead className="min-w-[150px]">Next Tacho DL</TableHead>
-                <TableHead className="min-w-[150px]">DBS Expiry</TableHead>
-                <TableHead className="min-w-[150px]">Night Worker Assessment</TableHead>
-                <TableHead className="min-w-[150px]">PMI Booked Date</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>License No.</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>License Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>D/D1 Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Last Driver Check Code</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Next Driver Check Code Due</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>CPC Card Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Tacho Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Last Tacho DL</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Next Tacho DL</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>DBS Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Night Worker Assessment</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>PMI Booked Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -717,7 +732,8 @@ const DriverManagementPage = () => {
               ) : (
                 drivers.map((driver) => (
                   <TableRow key={driver.id}>
-                    <TableCell className={`font-medium ${stickyName}`}>
+                    {/* Fixed Driver Name Column */}
+                    <TableCell className={`font-medium ${stickyNameClass}`}>
                       <Link
                         href={`/dashboard/compliance-management/driver-management/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`}
                         className="text-blue-600 hover:underline"
@@ -725,13 +741,15 @@ const DriverManagementPage = () => {
                         {driver.user.full_name}
                       </Link>
                     </TableCell>
+                    
+                    {/* Regular Cells */}
                     <TableCell>{driver.user.license_number || "NA"}</TableCell>
                     {renderDateCell('driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                     {renderDateCell('d_d1_expiry', driver.driver_compliance.d_d1_expiry, driver)}
-                    {renderDateCell('cpc_card_expiry', driver.driver_compliance.cpc_card_expiry, driver)}
-                    {renderDateCell('tacho_expiry', driver.driver_compliance.tacho_expiry, driver)}
                     {renderDateCell('last_driver_check_code_date', driver.driver_compliance.last_driver_check_code_date, driver)}
                     {renderDateCell('next_driver_check_code_due', driver.driver_compliance.next_driver_check_code_due, driver)}
+                    {renderDateCell('cpc_card_expiry', driver.driver_compliance.cpc_card_expiry, driver)}
+                    {renderDateCell('tacho_expiry', driver.driver_compliance.tacho_expiry, driver)}
                     {renderDateCell('last_driver_tacho_download', driver.driver_compliance.last_driver_tacho_download, driver)}
                     {renderDateCell('next_driver_tacho_download', driver.driver_compliance.next_driver_tacho_download, driver)}
                     {renderDateCell('dbs_expiry_date', driver.driver_compliance.dbs_expiry_date, driver)}
