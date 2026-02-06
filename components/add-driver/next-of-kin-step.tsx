@@ -287,7 +287,7 @@ export function NextOfKinStep({
          <CardFooter className="flex justify-between">
          
           
-           <div className="grid grid-cols-3 gap-3 w-full">
+           <div className="grid grid-cols-2 gap-3 w-full">
                      <Button
                        type="button"
                        variant="outline"
@@ -298,13 +298,13 @@ export function NextOfKinStep({
                       <ChevronLeft />
                        Previous
                      </Button>
-                   <Button
+                   {/* <Button
             type="submit"
             className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12 rounded-lg"
             disabled={loading || driverId === null}
           >
             {loading ? "Saving..." : "Save"}
-          </Button>
+          </Button> */}
                      <Button
                        type="button"
                        variant="outline"
@@ -312,7 +312,7 @@ export function NextOfKinStep({
                        onClick={handleSubmit}
                        disabled={loading}
                      >
-                       Next & Save
+                     Save & Next 
                       <ChevronRight />
                      </Button>
                    </div>

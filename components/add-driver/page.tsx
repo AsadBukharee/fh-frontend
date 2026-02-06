@@ -9,6 +9,7 @@ import { DocumentsStep } from "./documents-step";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { EmploymentDetailsStep } from "./employment-details-step";
+import SignedAgreements from "./signed-agreements";
 
 interface AddDriverProps {
   userId: number;
@@ -18,9 +19,9 @@ interface AddDriverProps {
 
 const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => {
   // Added "Employment Details" to labels, placed before Documents
-  const stepLabels = ["Personal Info", "Next of Kin", "Health Questions","Employment Details",  "Documents"];
+  const stepLabels = ["Personal Info", "Next of Kin", "Health Questions", "Employment Details", "Documents", "Signed Agreements"];
 
-  const [driverId, setDriverId] = useState<number | null>(null);
+  const [driverId, setDriverId] = useState<number>(0);
   const [personalInfoData, setPersonalInfoData] = useState<any>(null);
   const [nextOfKinData, setNextOfKinData] = useState<any>(null);
   const [healthQuestionsData, setHealthQuestionsData] = useState<any>(null);
@@ -44,7 +45,7 @@ const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => 
               user_id={userId}
               setNextOfKinData={setNextOfKinData}
             />
-            
+
             <HealthQuestionsStep
               driverId={driverId}
               userId={userId}
@@ -56,10 +57,15 @@ const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => 
               user_id={userId}
               setEmploymentData={setEmploymentData}
             />
-            {/* Documents is now the final step */}
-            <DocumentsStep 
-              driverId={driverId} 
-              setDocumentsData={setDocumentsData} 
+            {/* Documents is now the 5th step */}
+            <DocumentsStep
+              driverId={driverId}
+              setDocumentsData={setDocumentsData}
+              onOpenchange={onOpenChange}
+            />
+            <SignedAgreements
+              driverId={driverId}
+              userId={userId}
               onOpenchange={onOpenChange}
             />
           </StepperContent>

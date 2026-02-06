@@ -86,7 +86,7 @@ interface Driver {
   national_insurance_no: string | null;
   license_number: string | null;
   license_issue_number: string | null;
-  last_license_check_code: string | null;
+  last_driver_license_check_code_date: string | null;
   next_driver_check_code: string | null;
   last_tacho_download: string | null;
   next_tacho_download: string | null;
@@ -175,7 +175,7 @@ export function AssignDriverDialog({
       }
 
       const data: ApiResponse = await response.json();
-      
+
       if (data.success && data.data.results) {
         setDrivers(data.data.results);
       } else {
@@ -197,8 +197,8 @@ export function AssignDriverDialog({
   const filteredDrivers = useMemo(() => {
     if (!searchQuery.trim()) {
       return drivers.filter(
-        (driver) => 
-          driver.user.is_active && 
+        (driver) =>
+          driver.user.is_active &&
           driver.profile_status === "approved" &&
           driver.user.role === "Driver"
       );
@@ -214,7 +214,7 @@ export function AssignDriverDialog({
       const contractName = driver.user.contract?.name.toLowerCase() || "";
 
       return (
-        driver.user.is_active && 
+        driver.user.is_active &&
         driver.profile_status === "approved" &&
         driver.user.role === "Driver" &&
         (
@@ -261,7 +261,7 @@ export function AssignDriverDialog({
     }
 
     setIsAssigning(driverId);
-    
+
     try {
       const payload = {
         driver_id: selectedDriverData.user.id
@@ -285,7 +285,7 @@ export function AssignDriverDialog({
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
         toast({
           title: "Success",
@@ -376,12 +376,12 @@ export function AssignDriverDialog({
               </Button>
             )}
           </div>
-          
+
           {searchQuery && (
             <div className="mt-2 text-sm text-gray-500 flex items-center gap-2">
               <Search className="h-3 w-3" />
               <span>
-                Found {filteredDrivers.length} driver{filteredDrivers.length !== 1 ? 's' : ''} 
+                Found {filteredDrivers.length} driver{filteredDrivers.length !== 1 ? 's' : ''}
                 {searchQuery && ` for "${searchQuery}"`}
               </span>
             </div>
@@ -426,7 +426,7 @@ export function AssignDriverDialog({
                     </Button>
                   </div>
                 </div>
-                
+
                 {filteredDrivers.length === 0 ? (
                   <Card>
                     <CardContent className="p-8 text-center">
@@ -462,11 +462,10 @@ export function AssignDriverDialog({
                     {filteredDrivers.map((driver) => (
                       <Card
                         key={driver.id}
-                        className={`transition-all hover:shadow-md ${
-                          selectedDriver === driver.id
+                        className={`transition-all hover:shadow-md ${selectedDriver === driver.id
                             ? "ring-2 ring-primary"
                             : ""
-                        }`}
+                          }`}
                       >
                         <CardContent className="p-4">
                           <div className="flex flex-col space-y-3">
@@ -523,7 +522,7 @@ export function AssignDriverDialog({
                                   </div>
                                 </div>
                               </div>
-                              
+
                               {/* Quick Assign Button */}
                               <Button
                                 size="sm"
@@ -581,15 +580,14 @@ export function AssignDriverDialog({
                                   {driver.warnings.slice(0, 2).map((warning, index) => (
                                     <div
                                       key={index}
-                                      className={`flex items-center gap-1 text-xs ${
-                                        warning.includes("✅") 
-                                          ? "text-green-600" 
+                                      className={`flex items-center gap-1 text-xs ${warning.includes("✅")
+                                          ? "text-green-600"
                                           : warning.includes("⏳")
-                                          ? "text-amber-600"
-                                          : warning.includes("⚠️")
-                                          ? "text-red-600"
-                                          : "text-gray-600"
-                                      }`}
+                                            ? "text-amber-600"
+                                            : warning.includes("⚠️")
+                                              ? "text-red-600"
+                                              : "text-gray-600"
+                                        }`}
                                     >
                                       {warning.includes("✅") ? (
                                         <CheckCircle className="h-3 w-3" />
@@ -630,7 +628,7 @@ export function AssignDriverDialog({
                                     </span>
                                   )}
                                 </div>
-                                
+
                                 {/* Selection Checkbox */}
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs text-gray-500">
@@ -716,7 +714,7 @@ export function AssignDriverDialog({
               <span>Select a driver or use individual "Assign" buttons</span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -725,7 +723,7 @@ export function AssignDriverDialog({
             >
               Cancel
             </Button>
-            
+
             <Button
               onClick={handleAssign}
               disabled={!selectedDriver || isAssigning !== null}

@@ -23,13 +23,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Badge } from "@/components/ui/badge";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -60,7 +54,7 @@ interface Site {
 interface EmploymentDetailsStepProps {
   driverId: number | null;
   setEmploymentData: (data: any) => void;
-  user_id: number|null
+  user_id: number | null
 }
 
 export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
@@ -74,11 +68,10 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
   const [sites, setSites] = useState<Site[]>([]);
   const cookies = useCookies();
   const { goToNextStep, goToPreviousStep, disableBack } = useStepper();
-  
+
   // Employment form state
   const [formData, setFormData] = useState({
-    contract_signing_date: undefined as Date | undefined,
-    rota_start_date: undefined as Date | undefined,
+
     contract_id: null as number | null,
     assigned_sites: [] as number[], // Array of site IDs
   });
@@ -98,8 +91,8 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
 
   const loadDriverData = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/profiles/driver/${driverId}`,{
-           headers: {
+      const response = await fetch(`${API_URL}/api/profiles/driver/${driverId}`, {
+        headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
@@ -139,8 +132,8 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
 
   const loadContracts = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/staff/contracts/`,{
-           headers: {
+      const response = await fetch(`${API_URL}/api/staff/contracts/`, {
+        headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
@@ -156,8 +149,8 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
 
   const loadSites = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/sites/list-names/`,{
-           headers: {
+      const response = await fetch(`${API_URL}/api/sites/list-names/`, {
+        headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
@@ -218,12 +211,12 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
           contract_id: contractId,
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to assign contract");
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error("Error assigning contract:", error);
@@ -244,12 +237,12 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
           site_ids: siteIds,
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to assign sites");
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error("Error assigning sites:", error);
@@ -259,7 +252,7 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!driverId || !user_id) {
       alert("Please complete personal information first");
       return;
@@ -273,48 +266,24 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
 
     setLoading(true);
     setAssigning(true);
-    
+
     try {
-      // Prepare data for API
-      const payload = {
-        contract_signing_date: formData.contract_signing_date 
-          ? format(formData.contract_signing_date, "yyyy-MM-dd") 
-          : null,
-        rota_start_date: formData.rota_start_date 
-          ? format(formData.rota_start_date, "yyyy-MM-dd") 
-          : null,
-      };
 
       // Update driver profile with employment details
-      const response = await fetch(`${API_URL}/users/${user_id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-        body: JSON.stringify(payload),
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save employment details");
-      }
 
-      const data = await response.json();
-      setEmploymentData(data);
-      
       // Assign contract if selected
       if (formData.contract_id) {
         await assignContract(user_id, formData.contract_id);
       }
-      
+
       // Assign sites if selected
       if (formData.assigned_sites.length > 0) {
         await assignSites(user_id, formData.assigned_sites);
       }
-      
+
       goToNextStep();
-      
+
     } catch (error: any) {
       console.error("Error saving employment details:", error);
       alert(`Failed to save employment details: ${error.message || "Please try again."}`);
@@ -326,7 +295,7 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
 
   const handleNext = async () => {
     // Call the same submit handler
-    const mockEvent = { preventDefault: () => {} } as React.FormEvent;
+    const mockEvent = { preventDefault: () => { } } as React.FormEvent;
     await handleSubmit(mockEvent);
   };
 
@@ -340,67 +309,7 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Contract Signing Date */}
-          <div className="space-y-2">
-            <Label htmlFor="contract_signing_date">Contract Signing Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.contract_signing_date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.contract_signing_date ? (
-                    format(formData.contract_signing_date, "PPP")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.contract_signing_date}
-                  onSelect={(date) => setFormData(prev => ({ ...prev, contract_signing_date: date }))}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
 
-          {/* Rota Start Date */}
-          <div className="space-y-2">
-            <Label htmlFor="rota_start_date">Rota Start Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.rota_start_date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.rota_start_date ? (
-                    format(formData.rota_start_date, "PPP")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.rota_start_date}
-                  onSelect={(date) => setFormData(prev => ({ ...prev, rota_start_date: date }))}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
 
           {/* Contract Assigned */}
           <div className="space-y-2">
@@ -442,7 +351,7 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
                           <div className="flex flex-col">
                             <span>{contract.name}</span>
                             <span className="text-xs text-muted-foreground">
-                              {contract?.description?.slice(0,30)}
+                              {contract?.description?.slice(0, 30)}
                             </span>
                           </div>
                         </CommandItem>
@@ -452,7 +361,7 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
                 </Command>
               </PopoverContent>
             </Popover>
-            
+
             {formData.contract_id && (
               <div className="mt-2 p-3 border border-gray-300 rounded-md bg-white">
                 <p className="text-sm font-medium text-orange-500">
@@ -527,7 +436,7 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
                 </Command>
               </PopoverContent>
             </Popover>
-            
+
             {/* Selected Sites Display */}
             {formData.assigned_sites.length > 0 && (
               <div className="mt-2">
@@ -555,7 +464,7 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-3 w-full">
+          <div className="grid grid-cols-2 gap-3 w-full">
             <Button
               type="button"
               variant="outline"
@@ -566,13 +475,7 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
               <ChevronLeft />
               Previous
             </Button>
-            <Button
-              type="submit"
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12 rounded-lg"
-              disabled={loading || assigning || driverId === null || !user_id}
-            >
-              {(loading || assigning) ? "Saving..." : "Save"}
-            </Button>
+
             <Button
               type="button"
               variant="outline"
@@ -580,7 +483,7 @@ export const EmploymentDetailsStep: React.FC<EmploymentDetailsStepProps> = ({
               onClick={handleNext}
               disabled={loading || assigning || driverId === null || !user_id}
             >
-              Next & Save
+              Save & Next
               <ChevronRight />
             </Button>
           </div>

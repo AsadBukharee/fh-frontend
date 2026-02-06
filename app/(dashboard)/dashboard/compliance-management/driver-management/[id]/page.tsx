@@ -78,6 +78,8 @@ interface DriverData {
   national_insurance_no: string;
   license_number: string;
   license_issue_number: string;
+  last_driver_license_check_code_date: string;
+  last_driver_tacho_download: string;
   next_of_kin_name: string;
   next_of_kin_relationship: string;
   next_of_kin_note: string | null;
@@ -474,14 +476,14 @@ export default function DriverDetailPage() {
     }
     setAssigningContract(true);
     try {
-      const response = await fetch(`${API_URL}/api/staff/contracts/${selectedContractId}/assign-users/`, {
+      const response = await fetch(`${API_URL}/users/${driverData?.user.id}/assign-contract/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
         body: JSON.stringify({
-          user_ids: [Number(driverData?.user.id)],
+          contract_id: Number(selectedContractId),
         }),
       });
       if (!response.ok) {
@@ -916,6 +918,8 @@ export default function DriverDetailPage() {
             API_URL={API_URL}
             fetchCompetencyData={fetchCompetencyData}
             fetchDriverData={fetchData}
+            lastDriverLicenseCheckCodeDate={driverData.last_driver_license_check_code_date}
+            lastDriverTachoDownload={driverData.last_driver_tacho_download}
           />
         </TabsContent>
         <TabsContent value="health-answer">

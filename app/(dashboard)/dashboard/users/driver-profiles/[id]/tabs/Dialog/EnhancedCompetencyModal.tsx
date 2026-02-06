@@ -141,14 +141,14 @@ export default function EnhancedCompetencyModal({
   uploadRequired = false,
   openReminderDialog,
 }: EnhancedCompetencyModalProps) {
-  
+
   // Use external STATUS_REASONS if provided, otherwise use internal
   const statusReasons = externalStatusReasons || STATUS_REASONS;
 
   // Direct Status Update Section
   const renderDirectStatusUpdate = () => {
     if (!modalState.editData || !modalState.directStatusEditing || !modalState.editData.has_document) return null;
-    
+
     return (
       <Card className="border-2 border-indigo-300 shadow-lg bg-gradient-to-br from-indigo-50 to-white">
         <CardHeader className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
@@ -199,7 +199,7 @@ export default function EnhancedCompetencyModal({
                 </SelectContent>
               </Select>
             </div>
-          
+
             {(modalState.statusUpdateData.request_status === "pending" || modalState.statusUpdateData.request_status === "not_approved") && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
@@ -233,7 +233,7 @@ export default function EnhancedCompetencyModal({
                 </Select>
               </div>
             )}
-          
+
             {(modalState.statusUpdateData.request_status === "pending" || modalState.statusUpdateData.request_status === "not_approved") && (
               <div className="md:col-span-2 space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">Status Description</Label>
@@ -252,7 +252,7 @@ export default function EnhancedCompetencyModal({
                 />
               </div>
             )}
-          
+
             {modalState.statusUpdateData.status_reason === "other" && (
               <div className="md:col-span-2 space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">Custom Reason</Label>
@@ -268,7 +268,7 @@ export default function EnhancedCompetencyModal({
               </div>
             )}
           </div>
-        
+
           <div className="flex gap-3 pt-2">
             <Button
               onClick={handleDirectStatusUpdate}
@@ -299,7 +299,7 @@ export default function EnhancedCompetencyModal({
   // Basic Information Section
   const renderBasicInformation = () => {
     if (!modalState.editData) return null;
-    
+
     return (
       <Card className="border-2 border-orange-200 shadow-md hover:shadow-lg transition-shadow">
         <CardHeader className="bg-gradient-to-r from-orange-50 to-indigo-50 border-b border-orange-200">
@@ -323,12 +323,16 @@ export default function EnhancedCompetencyModal({
               </p>
             )}
           </div>
-        
+
           {(modalState.editData.has_expiry || (modalState.isEditing && modalState.editData.expiry_date)) && (
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                Expiry Date
+                {modalState.editData.document_type === "last-driver-check-code"
+                  ? "Last Check Code Date"
+                  : modalState.editData.document_type === "last-tacho-download"
+                    ? "Last Download Date"
+                    : "Expiry Date"}
                 {(modalState.editData.expiry_date !== originalExpiryDate) && !hasUploadedNewDocument && (
                   <span className="text-red-600 text-xs ml-2">(Requires document update)</span>
                 )}
@@ -356,7 +360,9 @@ export default function EnhancedCompetencyModal({
                             Document Update Required
                           </p>
                           <p className="text-xs text-orange-700 mt-1">
-                            Changing the expiry date requires uploading updated documents.
+                            {modalState.editData.document_type === "last-driver-check-code" || modalState.editData.document_type === "last-tacho-download"
+                              ? "Changing the date requires uploading updated documentation."
+                              : "Changing the expiry date requires uploading updated documents."}
                           </p>
                         </div>
                       </div>
@@ -365,12 +371,16 @@ export default function EnhancedCompetencyModal({
                 </div>
               ) : (
                 <p className="font-semibold text-lg text-orange-900 bg-orange-50 p-3 rounded-lg">
-                  {modalState.editData.expiry_date ? formatDate(modalState.editData.expiry_date) : "No expiry date set"}
+                  {modalState.editData.expiry_date
+                    ? formatDate(modalState.editData.expiry_date)
+                    : (modalState.editData.document_type === "last-driver-check-code" || modalState.editData.document_type === "last-tacho-download")
+                      ? "No date set"
+                      : "No expiry date set"}
                 </p>
               )}
             </div>
           )}
-        
+
           {modalState.editData.document_type === "driving-license" && (
             <>
               <div className="space-y-2">
@@ -412,7 +422,7 @@ export default function EnhancedCompetencyModal({
                   </p>
                 )}
               </div>
-            
+
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <Key className="h-4 w-4" />
@@ -451,7 +461,7 @@ export default function EnhancedCompetencyModal({
               </div>
             </>
           )}
-        
+
           <div className="space-y-2 flex flex-col">
             <Label className="text-sm font-semibold text-gray-700">Status</Label>
             {modalState.isEditing ? (
@@ -490,7 +500,7 @@ export default function EnhancedCompetencyModal({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              
+
                 {(modalState.editData.request_status === "pending" || modalState.editData.request_status === "not_approved") && (
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
@@ -516,7 +526,7 @@ export default function EnhancedCompetencyModal({
                         ))}
                       </SelectContent>
                     </Select>
-                  
+
                     {modalState.editData.status_reason === "other" && (
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">
@@ -554,7 +564,7 @@ export default function EnhancedCompetencyModal({
               </div>
             )}
           </div>
-        
+
           {!modalState.editData.has_expiry && modalState.isEditing && (
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -576,7 +586,7 @@ export default function EnhancedCompetencyModal({
               )}
             </div>
           )}
-        
+
           <div className="md:col-span-2 space-y-2">
             <Label className="text-sm font-semibold text-gray-700">Description</Label>
             {modalState.isEditing ? (
@@ -592,7 +602,7 @@ export default function EnhancedCompetencyModal({
               </p>
             )}
           </div>
-        
+
           {(modalState.showStatusDescription || modalState.editData.status_description) && (
             <div className="md:col-span-2 space-y-2">
               <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -624,11 +634,10 @@ export default function EnhancedCompetencyModal({
                   </p>
                 </div>
               ) : (
-                <div className={`p-4 rounded-lg border ${
-                  modalState.editData.request_status === "not_approved"
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-orange-50 border-orange-200'
-                }`}>
+                <div className={`p-4 rounded-lg border ${modalState.editData.request_status === "not_approved"
+                  ? 'bg-red-50 border-red-200'
+                  : 'bg-orange-50 border-orange-200'
+                  }`}>
                   <div className="flex items-start gap-3">
                     {modalState.editData.request_status === "not_approved" ? (
                       <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
@@ -651,16 +660,16 @@ export default function EnhancedCompetencyModal({
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card >
     );
   };
 
   // Documents Section
   const renderDocumentsSection = () => {
     if (!modalState.editData) return null;
-    
+
     if (!modalState.editData.has_document && !modalState.isEditing) return null;
-    
+
     return (
       <Card className="border-2 border-indigo-200 shadow-md hover:shadow-lg transition-shadow">
         <CardHeader className="bg-gradient-to-r from-indigo-50 to-orange-50 border-b border-indigo-200">
@@ -707,48 +716,50 @@ export default function EnhancedCompetencyModal({
         <CardContent className="pt-6 space-y-4">
           {(uploadRequired || (modalState.editData.document_type === "driving-license" &&
             (driverLicenseInfo.license_number !== originalLicenseInfo.license_number ||
-             driverLicenseInfo.license_issue_number !== originalLicenseInfo.license_issue_number))) &&
+              driverLicenseInfo.license_issue_number !== originalLicenseInfo.license_issue_number))) &&
             modalState.isEditing && !hasUploadedNewDocument && openReminderDialog && (
-            <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-red-900">
-                    {modalState.editData.document_type === "driving-license" ?
-                      "⚠️ Document Update Required - License Information Changed" :
-                      "⚠️ Document Update Required"
-                    }
-                  </p>
-                  <p className="text-xs text-red-700 mt-1">
-                    {modalState.editData.document_type === "driving-license" ?
-                      "You have changed license information. You must upload updated documents before saving changes." :
-                      "You have changed the expiry date. You must upload updated documents before saving changes."
-                    }
-                  </p>
-                  <div className="flex gap-2 mt-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={openReminderDialog}
-                      className="border-orange-300 text-orange-700 hover:bg-orange-100 whitespace-nowrap"
-                    >
-                      <Clock className="h-4 w-4 mr-1" />
-                      Remind Later
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => document.getElementById(`file-upload-front-${modalState.editData.id}`)?.click()}
-                      className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white"
-                    >
-                      <Upload className="h-4 w-4 mr-1" />
-                      Upload Now
-                    </Button>
+              <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-red-900">
+                      {modalState.editData.document_type === "driving-license" ?
+                        "⚠️ Document Update Required - License Information Changed" :
+                        "⚠️ Document Update Required"
+                      }
+                    </p>
+                    <p className="text-xs text-red-700 mt-1">
+                      {modalState.editData.document_type === "driving-license" ?
+                        "You have changed license information. You must upload updated documents before saving changes." :
+                        (modalState.editData.document_type === "last-driver-check-code" || modalState.editData.document_type === "last-tacho-download") ?
+                          "You have changed the date. You must upload updated documents before saving changes." :
+                          "You have changed the expiry date. You must upload updated documents before saving changes."
+                      }
+                    </p>
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={openReminderDialog}
+                        className="border-orange-300 text-orange-700 hover:bg-orange-100 whitespace-nowrap"
+                      >
+                        <Clock className="h-4 w-4 mr-1" />
+                        Remind Later
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => document.getElementById(`file-upload-front-${modalState.editData.id}`)?.click()}
+                        className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white"
+                      >
+                        <Upload className="h-4 w-4 mr-1" />
+                        Upload Now
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        
+            )}
+
           {hasUploadedNewDocument && (
             <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 mb-4">
               <div className="flex items-start gap-3">
@@ -764,7 +775,7 @@ export default function EnhancedCompetencyModal({
               </div>
             </div>
           )}
-        
+
           {modalState.isEditing ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
@@ -783,8 +794,8 @@ export default function EnhancedCompetencyModal({
                   (uploadRequired && !hasUploadedNewDocument)
                     ? "border-red-400 bg-red-50/50 hover:border-red-600"
                     : hasUploadedNewDocument
-                    ? "border-green-400 bg-green-50/50 hover:border-green-600"
-                    : "border-orange-300 bg-orange-50/50 hover:border-orange-500"
+                      ? "border-green-400 bg-green-50/50 hover:border-green-600"
+                      : "border-orange-300 bg-orange-50/50 hover:border-orange-500"
                 )}>
                   <FileUploaderLazy
                     onUploadSuccess={(url) => handleFileUpload(url, false)}
@@ -813,7 +824,7 @@ export default function EnhancedCompetencyModal({
                   </div>
                 )}
               </div>
-            
+
               {(modalState.editData.has_back_side || modalState.isEditing) && (
                 <div className="space-y-3">
                   <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -831,8 +842,8 @@ export default function EnhancedCompetencyModal({
                     (uploadRequired && modalState.editData.has_back_side && !hasUploadedNewDocument)
                       ? "border-red-400 bg-red-50/50 hover:border-red-600"
                       : hasUploadedNewDocument
-                      ? "border-green-400 bg-green-50/50 hover:border-green-600"
-                      : "border-indigo-300 bg-indigo-50/50 hover:border-indigo-500"
+                        ? "border-green-400 bg-green-50/50 hover:border-green-600"
+                        : "border-indigo-300 bg-indigo-50/50 hover:border-indigo-500"
                   )}>
                     <FileUploaderLazy
                       onUploadSuccess={(url) => handleFileUpload(url, true)}
@@ -922,11 +933,10 @@ export default function EnhancedCompetencyModal({
                                 type: 'SET_CURRENT_IMAGE_INDEX',
                                 payload: index
                               })}
-                              className={`w-2.5 h-2.5 rounded-full transition-all ${
-                                index === modalState.currentImageIndex
-                                  ? 'bg-white'
-                                  : 'bg-white/50 hover:bg-white/80'
-                              }`}
+                              className={`w-2.5 h-2.5 rounded-full transition-all ${index === modalState.currentImageIndex
+                                ? 'bg-white'
+                                : 'bg-white/50 hover:bg-white/80'
+                                }`}
                               aria-label={`View image ${index + 1}`}
                             />
                           ))}
@@ -952,18 +962,16 @@ export default function EnhancedCompetencyModal({
                           });
                         }
                       }}
-                      className={`h-auto p-3 border-2 hover:border-indigo-400 hover:bg-indigo-50 justify-start group transition-all ${
-                        index === modalState.currentImageIndex
-                          ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-indigo-200'
-                      }`}
+                      className={`h-auto p-3 border-2 hover:border-indigo-400 hover:bg-indigo-50 justify-start group transition-all ${index === modalState.currentImageIndex
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-indigo-200'
+                        }`}
                     >
                       <div className="flex items-center gap-3 w-full">
-                        <div className={`p-2 rounded-lg transition-colors ${
-                          index === modalState.currentImageIndex
-                            ? 'bg-indigo-100 group-hover:bg-indigo-200'
-                            : 'bg-gray-100 group-hover:bg-gray-200'
-                        }`}>
+                        <div className={`p-2 rounded-lg transition-colors ${index === modalState.currentImageIndex
+                          ? 'bg-indigo-100 group-hover:bg-indigo-200'
+                          : 'bg-gray-100 group-hover:bg-gray-200'
+                          }`}>
                           {isPdfUrl(url) ? (
                             <FileText className="h-5 w-5 text-indigo-600" />
                           ) : (
@@ -1018,9 +1026,9 @@ export default function EnhancedCompetencyModal({
   // Modules Section
   const renderModulesSection = () => {
     if (!modalState.editData) return null;
-    
+
     if (modalState.editData.document_type !== "cpc-card" && modalState.editData.modules.length === 0) return null;
-    
+
     return (
       <Card className="border-2 border-orange-200 shadow-md hover:shadow-lg transition-shadow">
         <CardHeader className="bg-gradient-to-r from-orange-600 to-indigo-600 text-white">
@@ -1060,7 +1068,7 @@ export default function EnhancedCompetencyModal({
                   className="border-2 border-orange-200 hover:border-orange-400 transition-all hover:shadow-xl bg-gradient-to-br from-white to-orange-50/30 overflow-hidden group"
                 >
                   <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-400/10 to-indigo-400/10 rounded-bl-full transform translate-x-8 -translate-y-8"></div>
-                
+
                   <CardHeader className="bg-white/80 backdrop-blur border-b border-orange-200 relative z-10">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -1083,7 +1091,7 @@ export default function EnhancedCompetencyModal({
                       )}
                     </div>
                   </CardHeader>
-                
+
                   <CardContent className="p-5 space-y-4 relative z-10">
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-gray-700">Module Name</Label>
@@ -1100,7 +1108,7 @@ export default function EnhancedCompetencyModal({
                         </p>
                       )}
                     </div>
-                  
+
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-gray-700">Description</Label>
                       {modalState.isEditing ? (
@@ -1112,11 +1120,11 @@ export default function EnhancedCompetencyModal({
                         />
                       ) : (
                         <p className="text-gray-700 bg-gray-50 p-3 rounded-lg leading-relaxed min-h-[80px]">
-                            {module.description || "No description"}
+                          {module.description || "No description"}
                         </p>
                       )}
                     </div>
-                  
+
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-orange-600" />
@@ -1131,10 +1139,10 @@ export default function EnhancedCompetencyModal({
                         />
                       ) : (
                         <div className="flex items-center gap-2 bg-orange-50 p-3 rounded-lg">
-                            <Calendar className="h-4 w-4 text-orange-600" />
-                            <p className="font-semibold text-orange-900">
-                              {module.expiry_date ? formatDate(module.expiry_date) : "No expiry date"}
-                            </p>
+                          <Calendar className="h-4 w-4 text-orange-600" />
+                          <p className="font-semibold text-orange-900">
+                            {module.expiry_date ? formatDate(module.expiry_date) : "No expiry date"}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1151,7 +1159,7 @@ export default function EnhancedCompetencyModal({
   // Next Five Modules (CPC Card) Section
   const renderNextFiveModules = () => {
     if (!modalState.editData || modalState.editData.document_type !== "cpc-card") return null;
-    
+
     return (
       <Card className="border-2 border-indigo-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-indigo-600 to-orange-600 text-white relative overflow-hidden">
@@ -1184,7 +1192,7 @@ export default function EnhancedCompetencyModal({
               </div>
             </div>
           )}
-        
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {modalState.editData.next_five_modules.map((module: string, index: number) => (
               <div
@@ -1238,7 +1246,7 @@ export default function EnhancedCompetencyModal({
               </div>
             ))}
           </div>
-        
+
           {!modalState.isEditing && (
             <div className="mt-6 p-4 bg-indigo-100 border border-indigo-300 rounded-lg">
               <div className="flex items-start gap-3">
@@ -1254,7 +1262,7 @@ export default function EnhancedCompetencyModal({
               </div>
             </div>
           )}
-        
+
           {modalState.isEditing && (
             <div className="mt-6 p-4 bg-orange-100 border border-orange-300 rounded-lg">
               <div className="flex items-start gap-3">
@@ -1367,21 +1375,21 @@ export default function EnhancedCompetencyModal({
             </div>
           </div>
         </DialogHeader>
-        
+
         {modalState.editData && (
           <div className="space-y-6 mt-6">
             {/* Direct Status Update Section */}
             {renderDirectStatusUpdate()}
-            
+
             {/* Basic Information */}
             {renderBasicInformation()}
-            
+
             {/* Documents Section */}
             {renderDocumentsSection()}
-            
+
             {/* Modules Section */}
             {renderModulesSection()}
-            
+
             {/* Next Five Modules (CPC Card) */}
             {renderNextFiveModules()}
           </div>

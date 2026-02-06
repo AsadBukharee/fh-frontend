@@ -427,7 +427,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
                   id="sort_code"
                   name="sort_code"
                   placeholder="Sort Code"
-                  maxLength={8}
+                  maxLength={6}
                   value={formData.sort_code}
                   onChange={handleInputChange}
                   className="pl-10 h-12 border-gray-200 focus-visible:ring-orange-500"
