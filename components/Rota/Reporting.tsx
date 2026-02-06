@@ -7,27 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Download, Users, DollarSign, Calendar, Clock, Loader, FileText, FileSpreadsheet } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-  PDFDownloadLink,
-  Font,
-} from '@react-pdf/renderer';
 import * as ExcelJS from 'exceljs';
-
-// Register fonts for @react-pdf/renderer
-Font.register({
-  family: 'Helvetica',
-  fonts: [
-    { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-light-webfont.ttf', fontWeight: 300 },
-    { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf', fontWeight: 400 },
-    { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-medium-webfont.ttf', fontWeight: 500 },
-    { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf', fontWeight: 700 },
-  ],
-});
 
 interface ReportingRow {
   driver: { id: number; name: string };
@@ -53,373 +33,6 @@ interface ReportingData {
   grand_totals: { [key: string]: number };
 }
 
-// Styles for @react-pdf/renderer
-const styles = StyleSheet.create({
-  page: {
-    flexDirection: 'column',
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    fontFamily: 'Helvetica',
-  },
-  header: {
-    marginBottom: 15,
-    paddingBottom: 10,
-    borderBottom: '2px solid #dc2626',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: '#1e293b',
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 10,
-    color: '#64748b',
-    marginBottom: 8,
-  },
-  dateRange: {
-    fontSize: 9,
-    color: '#475569',
-    marginBottom: 12,
-  },
-  section: {
-    marginBottom: 12,
-    padding: 12,
-    backgroundColor: '#f8fafc',
-    borderRadius: 4,
-    borderLeft: '4px solid #dc2626',
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#1e293b',
-    marginBottom: 8,
-  },
-  filters: {
-    fontSize: 9,
-    color: '#475569',
-    lineHeight: 1.4,
-  },
-  metricsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 15,
-    gap: 8,
-  },
-  metricCard: {
-    width: '48%',
-    padding: 8,
-    backgroundColor: '#ffffff',
-    border: '1px solid #e2e8f0',
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  metricLabel: {
-    fontSize: 9,
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: '#1e293b',
-  },
-  tableContainer: {
-    marginTop: 15,
-    border: '1px solid #e2e8f0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    backgroundColor: '#dc2626',
-    flexDirection: 'row',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#b91c1c',
-  },
-  tableHeaderCell: {
-    fontSize: 8,
-    fontWeight: 700,
-    color: '#ffffff',
-    textAlign: 'center',
-    paddingHorizontal: 4,
-    borderRightWidth: 1,
-    borderRightColor: '#b91c1c',
-    borderRightStyle: 'solid',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    borderBottomStyle: 'solid',
-    minHeight: 24,
-  },
-  tableRowEven: {
-    backgroundColor: '#f8fafc',
-  },
-  tableCell: {
-    fontSize: 7.5,
-    color: '#334155',
-    textAlign: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    borderRightWidth: 1,
-    borderRightColor: '#e2e8f0',
-    borderRightStyle: 'solid',
-    flex: 1,
-  },
-  tableCellDriver: {
-    fontSize: 8,
-    color: '#1e293b',
-    textAlign: 'left',
-    fontWeight: 600,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRightWidth: 1,
-    borderRightColor: '#e2e8f0',
-    borderRightStyle: 'solid',
-    flex: 1,
-  },
-  totalsRow: {
-    backgroundColor: '#fed7aa',
-    flexDirection: 'row',
-    borderTopWidth: 2,
-    borderTopColor: '#fb923c',
-    borderTopStyle: 'solid',
-  },
-  totalsCell: {
-    fontSize: 8,
-    fontWeight: 700,
-    color: '#1e293b',
-    textAlign: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 5,
-    borderRightWidth: 1,
-    borderRightColor: '#fb923c',
-    borderRightStyle: 'solid',
-    flex: 1,
-  },
-  totalsDriverCell: {
-    fontSize: 8,
-    fontWeight: 700,
-    color: '#1e293b',
-    textAlign: 'left',
-    paddingHorizontal: 6,
-    paddingVertical: 5,
-    borderRightWidth: 1,
-    borderRightColor: '#fb923c',
-    borderRightStyle: 'solid',
-    flex: 1,
-  },
-  footer: {
-    marginTop: 20,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    borderTopStyle: 'solid',
-    fontSize: 7,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  pageNumber: {
-    position: 'absolute',
-    bottom: 15,
-    left: 0,
-    right: 0,
-    fontSize: 8,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-});
-
-// Helper function to truncate text if too long
-const truncateText = (text: string, maxLength: number) => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
-};
-
-// React PDF Document Component with jsPDF-style table
-const ReportingPDFDocument = ({ 
-  data, 
-  filters, 
-  viewType,
-  getContractName 
-}: { 
-  data: ReportingData;
-  filters: any;
-  viewType: string;
-  getContractName: () => string;
-}) => {
-  // Shift type mapping for display names
-  const shiftNames: { [key: string]: string } = {
-    ADMIN_STAFF: 'Admin',
-    DAY: 'Day',
-    EARLY: 'Early',
-    HOLIDAYP: 'Holiday P',
-    LATE_DAY: 'Late Day',
-    MANAGER: 'Manager',
-    MIDDLE: 'Middle',
-    NIGHT: 'Night',
-    OFF: 'Off',
-    SUPERVISOR_D: 'Supervisor',
-    UNAUTHORISED_ABSENCE: 'Unauth',
-    SICKP: 'Sick P',
-    TOTAL: 'Total',
-    MECHANIC: 'Mech',
-    SUPERVISOR_E: 'Sup E',
-  };
-
-  return (
-    <Document>
-      <Page size="A4" orientation="landscape" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Driver Shift Report</Text>
-          <Text style={styles.subtitle}>Foster Hartley - Driver Management System</Text>
-          <Text style={styles.dateRange}>
-            Report Period: {new Date(filters.dateFrom).toLocaleDateString('en-GB')} to {new Date(filters.dateTo).toLocaleDateString('en-GB')}
-          </Text>
-        </View>
-
-        {/* Report Details */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Report Details</Text>
-          <Text style={styles.filters}>
-            • Contract: {getContractName()}
-            {'\n'}• Display Type: {viewType}
-            {'\n'}• Date Range: {filters.dateFrom} to {filters.dateTo}
-            {'\n'}• Generated: {new Date().toLocaleDateString('en-GB')} at {new Date().toLocaleTimeString('en-GB', { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })}
-          </Text>
-        </View>
-
-        {/* Metrics */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Summary Metrics</Text>
-          <View style={styles.metricsContainer}>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Total Drivers</Text>
-              <Text style={styles.metricValue}>{data.meta.total_drivers}</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Total {viewType}</Text>
-              <Text style={styles.metricValue}>{data.grand_totals.TOTAL || 0}</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Holiday Pay</Text>
-              <Text style={styles.metricValue}>{data.grand_totals.HOLIDAYP || 0}</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Manager Hours</Text>
-              <Text style={styles.metricValue}>{data.grand_totals.MANAGER || 0}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Table Container */}
-        <View style={styles.tableContainer}>
-          <Text style={styles.sectionTitle}>Driver Shift Details</Text>
-          
-          {/* Table Header */}
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { 
-              flex: 2,
-              textAlign: 'left',
-              paddingLeft: 8 
-            }]}>
-              Driver Name
-            </Text>
-            {data.columns.map((col, index) => (
-              <Text 
-                key={index} 
-                style={[styles.tableHeaderCell, { 
-                  flex: 1,
-                  borderRightWidth: index === data.columns.length - 1 ? 0 : 1
-                }]}
-              >
-                {truncateText(shiftNames[col] || col, 8)}
-              </Text>
-            ))}
-          </View>
-
-          {/* Table Rows */}
-          {data.rows.map((row, index) => (
-            <View
-              key={row.driver.id}
-              style={[
-                styles.tableRow,
-                ...(index % 2 === 0 ? [styles.tableRowEven] : []),
-                {
-                  borderBottomWidth: index === data.rows.length - 1 ? 0 : 1,
-                  minHeight: 20
-                }
-              ]}
-            >
-              <Text style={[styles.tableCellDriver, { 
-                flex: 2,
-                borderRightWidth: 1
-              }]}>
-                {truncateText(row.driver.name, 25)}
-              </Text>
-              {data.columns.map((col, colIndex) => (
-                <Text 
-                  key={colIndex} 
-                  style={[
-                    styles.tableCell, 
-                    { 
-                      flex: 1,
-                      borderRightWidth: colIndex === data.columns.length - 1 ? 0 : 1
-                    }
-                  ]}
-                >
-                  {row.values[col] || 0}
-                </Text>
-              ))}
-            </View>
-          ))}
-
-          {/* Totals Row */}
-          <View style={[styles.totalsRow, { minHeight: 22 }]}>
-            <Text style={[styles.totalsDriverCell, { 
-              flex: 2,
-              borderRightWidth: 1
-            }]}>
-              TOTALS
-            </Text>
-            {data.columns.map((col, index) => (
-              <Text 
-                key={index} 
-                style={[
-                  styles.totalsCell, 
-                  { 
-                    flex: 1,
-                    borderRightWidth: index === data.columns.length - 1 ? 0 : 1
-                  }
-                ]}
-              >
-                {data.grand_totals[col] || 0}
-              </Text>
-            ))}
-          </View>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text>Confidential - Foster Hartley Internal Use Only</Text>
-          <Text>Generated by Foster Hartley Reporting System</Text>
-        </View>
-
-        {/* Page Number */}
-        <Text style={styles.pageNumber} render={({ pageNumber, totalPages }) => (
-          `Page ${pageNumber} of ${totalPages}`
-        )} fixed />
-      </Page>
-    </Document>
-  );
-};
-
 export default function Reporting() {
   const [filters, setFilters] = useState({
     contractType: 'ALL',
@@ -438,6 +51,7 @@ export default function Reporting() {
   const [contracts, setContracts] = useState<{ id: number; name: string }[]>([]);
   const [shifts, setShifts] = useState<{ id: number; name: string }[]>([]);
   const [excelDownloading, setExcelDownloading] = useState(false);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
   const cookies = useCookies();
   const token = cookies.get("access_token") || "";
   const user_id = cookies.get("user_id") || "";
@@ -537,61 +151,73 @@ export default function Reporting() {
   }, [token, user_id]);
 
   // Fetch reporting data
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!token) {
-        setError('Authentication token not found');
-        return;
-      }
-      
-      setLoading(true);
-      setError(null);
-      try {
-        const params = new URLSearchParams({
-          date_from: filters.dateFrom,
-          date_to: filters.dateTo,
-          display_type: filters.displayType,
-          contract_id: filters.contractType === 'ALL' ? '' : filters.contractType,
-          driver_id: filters.driver === 'ALL' ? '' : filters.driver,
-          shift_type: filters.shiftType === 'ALL' ? '' : filters.shiftType,
-          status: 'ALL',
-          page: '1',
-          page_size: '25',
-        });
-
-        const response = await fetch(
-          `${API_URL}/api/rota/child-rota/reporting/?${params}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-        }
-        );
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error('Authentication failed. Please log in again.');
-          }
-          throw new Error(`Failed to fetch reporting data: ${response.status} ${response.statusText}`);
-        }
-
-        const data: ReportingData = await response.json();
-        setApiData(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error fetching reporting data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (token) {
-      fetchData();
+// Fetch reporting data
+useEffect(() => {
+  const fetchData = async () => {
+    if (!token) {
+      setError('Authentication token not found');
+      return;
     }
-  }, [filters, token]);
+    
+    setLoading(true);
+    setError(null);
+    try {
+      // Get shift name from the selected shift ID
+      let shiftName = '';
+      if (filters.shiftType !== 'ALL') {
+        const selectedShift = shifts.find(shift => 
+          String(shift.id) === filters.shiftType
+        );
+        if (selectedShift) {
+          shiftName = selectedShift.name;
+        }
+      }
 
+      const params = new URLSearchParams({
+        date_from: filters.dateFrom,
+        date_to: filters.dateTo,
+        display_type: filters.displayType,
+        contract_id: filters.contractType === 'ALL' ? '' : filters.contractType,
+        driver_id: filters.driver === 'ALL' ? '' : filters.driver,
+    shift_type: filters.shiftType === 'ALL' ? '' : filters.shiftType, // Now this is the name
+
+        status: 'ALL',
+        page: '1',
+        page_size: '25',
+      });
+
+      const response = await fetch(
+        `${API_URL}/api/rota/child-rota/reporting/?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      }
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please log in again.');
+        }
+        throw new Error(`Failed to fetch reporting data: ${response.status} ${response.statusText}`);
+      }
+
+      const data: ReportingData = await response.json();
+      setApiData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error fetching reporting data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (token) {
+    fetchData();
+  }
+}, [filters, token, shifts]); // Added 'shifts' to dependencies
   const handleReset = () => {
     setFilters({
       contractType: 'ALL',
@@ -601,6 +227,256 @@ export default function Reporting() {
       shiftType: 'ALL',
       displayType: 'DAYS',
     });
+  };
+
+  // Handle PDF download (simple implementation that opens a new window with HTML)
+  const handleDownloadPDF = () => {
+    if (!apiData) {
+      alert('No data available to download');
+      return;
+    }
+
+    setPdfDownloading(true);
+    try {
+      // Create HTML content for the PDF
+      const shiftNames: { [key: string]: string } = {
+        ADMIN_STAFF: 'Admin Staff',
+        DAY: 'Day',
+        EARLY: 'Early',
+        HOLIDAYP: 'Holiday P',
+        LATE_DAY: 'Late Day',
+        MANAGER: 'Manager',
+        MIDDLE: 'Middle',
+        NIGHT: 'Night',
+        OFF: 'Off',
+        SUPERVISOR_D: 'Supervisor',
+        UNAUTHORISED_ABSENCE: 'Unauthorised Absence',
+        SICKP: 'Sick P',
+        TOTAL: 'Total',
+        MECHANIC: 'Mechanic',
+        SUPERVISOR_E: 'Supervisor E',
+      };
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Driver Shift Report - ${filters.dateFrom} to ${filters.dateTo}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 40px;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #dc2626;
+              padding-bottom: 20px;
+            }
+            .title {
+              font-size: 24px;
+              font-weight: bold;
+              color: #1e293b;
+              margin-bottom: 10px;
+            }
+            .subtitle {
+              font-size: 14px;
+              color: #64748b;
+              margin-bottom: 15px;
+            }
+            .info-section {
+              background: #f8fafc;
+              padding: 20px;
+              margin-bottom: 30px;
+              border-left: 4px solid #dc2626;
+            }
+            .section-title {
+              font-size: 16px;
+              font-weight: bold;
+              color: #1e293b;
+              margin-bottom: 15px;
+            }
+            .info-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 10px;
+            }
+            .info-item {
+              font-size: 14px;
+              color: #475569;
+            }
+            .metrics {
+              display: grid;
+              grid-template-columns: repeat(5, 1fr);
+              gap: 15px;
+              margin-bottom: 30px;
+            }
+            .metric-card {
+              background: white;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 20px;
+              text-align: center;
+            }
+            .metric-label {
+              font-size: 12px;
+              color: #64748b;
+              margin-bottom: 8px;
+            }
+            .metric-value {
+              font-size: 24px;
+              font-weight: bold;
+              color: #1e293b;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+            }
+            th {
+              background: #dc2626;
+              color: white;
+              padding: 12px;
+              text-align: center;
+              font-weight: bold;
+              border: 1px solid #b91c1c;
+            }
+            td {
+              padding: 10px;
+              border: 1px solid #e2e8f0;
+              text-align: center;
+            }
+            .driver-name {
+              text-align: left;
+              font-weight: 600;
+            }
+            .even-row {
+              background: #f8fafc;
+            }
+            .totals-row {
+              background: #fed7aa;
+              font-weight: bold;
+            }
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 1px solid #e2e8f0;
+              text-align: center;
+              font-size: 12px;
+              color: #64748b;
+            }
+            @media print {
+              body {
+                margin: 20px;
+              }
+              .no-print {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">Driver Shift Report</div>
+            <div class="subtitle">Foster Hartley - Driver Management System</div>
+            <div>Report Period: ${filters.dateFrom} to ${filters.dateTo}</div>
+          </div>
+
+          <div class="info-section">
+            <div class="section-title">Report Details</div>
+            <div class="info-grid">
+              <div class="info-item">• Contract: ${getContractName()}</div>
+              <div class="info-item">• Display Type: ${viewType}</div>
+              <div class="info-item">• Date Range: ${filters.dateFrom} to ${filters.dateTo}</div>
+              <div class="info-item">• Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+          </div>
+
+          <div class="metrics">
+            <div class="metric-card">
+              <div class="metric-label">Total Drivers</div>
+              <div class="metric-value">${apiData.meta.total_drivers}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Total ${viewType}</div>
+              <div class="metric-value">${apiData.grand_totals.TOTAL || 0}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Holiday Pay</div>
+              <div class="metric-value">${apiData.grand_totals.HOLIDAYP || 0}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Manager Hours</div>
+              <div class="metric-value">${apiData.grand_totals.MANAGER || 0}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Day Shifts</div>
+              <div class="metric-value">${apiData.grand_totals.DAY || 0}</div>
+            </div>
+          </div>
+
+          <div class="section-title">Driver Shift Details</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Driver Name</th>
+                ${apiData.columns.map(col => `<th>${shiftNames[col] || col}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${apiData.rows.map((row, index) => `
+                <tr class="${index % 2 === 0 ? 'even-row' : ''}">
+                  <td class="driver-name">${row.driver.name}</td>
+                  ${apiData.columns.map(col => `<td>${row.values[col] || 0}</td>`).join('')}
+                </tr>
+              `).join('')}
+              <tr class="totals-row">
+                <td class="driver-name">TOTALS</td>
+                ${apiData.columns.map(col => `<td>${apiData.grand_totals[col] || 0}</td>`).join('')}
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <div>Confidential - Foster Hartley Internal Use Only</div>
+            <div>Generated by Foster Hartley Reporting System</div>
+            <div class="no-print">
+              <br>
+              <button onclick="window.print()" style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Print / Save as PDF
+              </button>
+              <p style="font-size: 11px; margin-top: 10px;">
+                Click the button above to print or save as PDF. In the print dialog, select "Save as PDF" as the destination.
+              </p>
+            </div>
+          </div>
+
+          <script>
+            // Auto-trigger print dialog when page loads
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 1000);
+            };
+          </script>
+        </body>
+        </html>
+      `;
+
+      // Open HTML in new window for printing/saving as PDF
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+      }
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error generating PDF. Please try again or use the Excel export.');
+    } finally {
+      setPdfDownloading(false);
+    }
   };
 
   // Handle Excel download
@@ -961,48 +837,24 @@ export default function Reporting() {
           {/* Download Buttons */}
           <div className="flex flex-col gap-2">
             <div className="flex gap-2">
-              {/* PDF Download Button */}
-              {apiData ? (
-                <PDFDownloadLink
-                  document={
-                    <ReportingPDFDocument
-                      data={apiData}
-                      filters={filters}
-                      viewType={viewType}
-                      getContractName={getContractName}
-                    />
-                  }
-                  fileName={`driver-shift-report-${filters.dateFrom}-to-${filters.dateTo}.pdf`}
-                  className="w-fit"
-                >
-                  {({ loading: pdfLoading }) => (
-                    <Button
-                      className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
-                      disabled={pdfLoading}
-                    >
-                      {pdfLoading ? (
-                        <>
-                          <Loader size={18} className="animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <FileText size={18} />
-                          Download PDF
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </PDFDownloadLink>
-              ) : (
-                <Button
-                  className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
-                  disabled
-                >
-                  <FileText size={18} />
-                  Download PDF
-                </Button>
-              )}
+              {/* PDF Download Button - Simple HTML/Print version */}
+              <Button
+                onClick={handleDownloadPDF}
+                disabled={!apiData || pdfDownloading}
+                className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
+              >
+                {pdfDownloading ? (
+                  <>
+                    <Loader size={18} className="animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText size={18} />
+                    Download PDF
+                  </>
+                )}
+              </Button>
 
               {/* Excel Download Button */}
               <Button
@@ -1063,12 +915,15 @@ export default function Reporting() {
                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-700 text-sm"
               />
             </div>
-            <FilterDropdown
-              label="Shift Type"
-              value={filters.shiftType}
-              onChange={(val) => handleFilterChange('shiftType', val)}
-              options={shifts}
-            />
+<FilterDropdown
+  label="Shift Type"
+  value={filters.shiftType}
+  onChange={(val) => handleFilterChange('shiftType', val)}
+  options={[
+    { id: 'ALL', name: 'All' },
+    ...shifts.map(shift => ({ id: shift.name, name: shift.name }))
+  ]}
+/>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-slate-700">Display Type</label>
               <div className="flex items-center gap-2">
