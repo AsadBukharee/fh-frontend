@@ -277,7 +277,7 @@ export function HealthQuestionsStep({
         </CardContent>
 
         <CardFooter className="flex justify-between">
-          <div className="grid grid-cols-3 gap-3 w-full">
+          <div className="grid grid-cols-2 gap-3 w-full">
             {/* Previous */}
             <Button
               type="button"
@@ -290,15 +290,7 @@ export function HealthQuestionsStep({
               Previous
             </Button>
 
-            {/* Save only */}
-            <Button
-              type="submit"
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12 rounded-lg"
-              disabled={submitting || driverId === null || loading || !!error}
-            >
-              {submitting ? "Saving..." : "Save"}
-            </Button>
-
+           
             {/* Save & Next */}
             <Button
               type="button"
@@ -307,7 +299,7 @@ export function HealthQuestionsStep({
               onClick={() => handleSubmit(undefined, true)}
               disabled={submitting || driverId === null || loading || !!error}
             >
-              Next & Save
+              Save & Next 
               <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </div>

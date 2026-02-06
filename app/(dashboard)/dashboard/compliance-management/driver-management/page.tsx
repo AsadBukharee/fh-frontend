@@ -42,7 +42,7 @@ interface Driver {
   profile_status: string;
   driver_compliance: {
     driver_licence_expiry: string | null;
-    last_driver_check_code_date: string | null;
+    last_driver_license_check_code_date: string | null;
     next_driver_check_code_due: string | null;
     cpc_card_expiry: string | null;
     d_d1_expiry: string | null;
@@ -86,29 +86,20 @@ interface ApiResponse {
 
 // Field configurations for different color rules
 const FIELD_CONFIG = {
-  // Fields that follow: Green >90 days, Orange <=90 days, Red expired
-  LICENSE_STYLE_FIELDS: [
-    'driver_licence_expiry',
-    'd_d1_expiry',
-    'cpc_card_expiry',
-    'tacho_expiry',
-    'dbs_expiry_date',
-    'night_worker_assessment_expiry'
-  ],
+  // Fields that follow specific rules from requirements
+  LICENSE_FIELDS: ['driver_licence_expiry', 'd_d1_expiry'],
+  NEXT_DRIVER_CHECK_FIELDS: ['next_driver_check_code_due'],
+  CPC_CARD_FIELDS: ['cpc_card_expiry'],
+  TACHO_EXPIRY_FIELDS: ['tacho_expiry'],
+  NEXT_TACHO_DL_FIELDS: ['next_driver_tacho_download'],
+  DBS_FIELDS: ['dbs_expiry_date'],
+  NIGHT_WORKER_FIELDS: ['night_worker_assessment_expiry'],
 
-  // Next Driver Check Due: Green >3 days, Orange <=3 days, Red expired
-  NEXT_DRIVER_CHECK_DUE: 'next_driver_check_code_due',
-
-  // Next Tacho Download: Green >10 days, Orange <=10 days, Red expired
-  NEXT_TACHO_DOWNLOAD: 'next_driver_tacho_download',
-
-  // Last Tacho Download: Black color
+  // Historical fields (black background)
   LAST_TACHO_DOWNLOAD: 'last_driver_tacho_download',
+  LAST_DRIVER_CHECK: 'last_driver_license_check_code_date',
 
-  // Last Driver Check Code: Black color
-  LAST_DRIVER_CHECK: 'last_driver_check_code_date',
-
-  // Booked PMI dates
+  // Booked dates for PMI and other inspections
   PMI_BOOKED_DATE: 'pmi_booked_date',
   MOT_BOOKED_DATE: 'mot_booked_date',
 
@@ -151,6 +142,10 @@ const DriverManagementPage = () => {
     cpc_card_expiry_filter: '',
     dbs_expiry_date_filter: '',
     tacho_expiry_filter: '',
+    next_driver_check_filter: '',
+    night_worker_filter: '',
+    next_tacho_dl_filter: '',
+    d_d1_expiry_filter: '',
   });
 
   const token = useCookies().get("access_token");
@@ -171,6 +166,32 @@ const DriverManagementPage = () => {
     // Profile status filter
     if (filters.profile_status && filters.profile_status !== 'all') {
       params.append('profile_status', filters.profile_status);
+    }
+
+    // Expiry filters - send to backend
+    if (filters.driver_licence_expiry_filter && filters.driver_licence_expiry_filter !== 'all') {
+      params.append('driver_licence_expiry_filter', filters.driver_licence_expiry_filter);
+    }
+    if (filters.d_d1_expiry_filter && filters.d_d1_expiry_filter !== 'all') {
+      params.append('d_d1_expiry_filter', filters.d_d1_expiry_filter);
+    }
+    if (filters.next_driver_check_filter && filters.next_driver_check_filter !== 'all') {
+      params.append('next_driver_check_filter', filters.next_driver_check_filter);
+    }
+    if (filters.cpc_card_expiry_filter && filters.cpc_card_expiry_filter !== 'all') {
+      params.append('cpc_card_expiry_filter', filters.cpc_card_expiry_filter);
+    }
+    if (filters.tacho_expiry_filter && filters.tacho_expiry_filter !== 'all') {
+      params.append('tacho_expiry_filter', filters.tacho_expiry_filter);
+    }
+    if (filters.next_tacho_dl_filter && filters.next_tacho_dl_filter !== 'all') {
+      params.append('next_tacho_dl_filter', filters.next_tacho_dl_filter);
+    }
+    if (filters.dbs_expiry_date_filter && filters.dbs_expiry_date_filter !== 'all') {
+      params.append('dbs_expiry_date_filter', filters.dbs_expiry_date_filter);
+    }
+    if (filters.night_worker_filter && filters.night_worker_filter !== 'all') {
+      params.append('night_worker_filter', filters.night_worker_filter);
     }
 
     return params.toString();
@@ -214,7 +235,7 @@ const DriverManagementPage = () => {
       if (tableContainerRef.current) {
         const scrollLeft = tableContainerRef.current.scrollLeft;
         const scrollTop = tableContainerRef.current.scrollTop;
-        
+
         // Apply shadow to header when scrolled vertically
         const headerCells = document.querySelectorAll('thead th');
         headerCells.forEach(cell => {
@@ -249,6 +270,10 @@ const DriverManagementPage = () => {
       cpc_card_expiry_filter: '',
       dbs_expiry_date_filter: '',
       tacho_expiry_filter: '',
+      next_driver_check_filter: '',
+      night_worker_filter: '',
+      next_tacho_dl_filter: '',
+      d_d1_expiry_filter: '',
     });
     setCurrentPage(1);
   };
@@ -263,130 +288,219 @@ const DriverManagementPage = () => {
       const today = new Date();
       const daysUntilExpiry = differenceInDays(date, today);
 
+      // Check if expired
       if (isPast(date)) {
-        // Expired
         const expiredDays = Math.abs(daysUntilExpiry);
         return {
           colorClass: 'bg-red-50 text-red-700',
           label: 'Expired',
-          hoverText: `Expired ${expiredDays} day${expiredDays !== 1 ? 's' : ''} ago`
+          hoverText: expiredDays === 0 ? 'Expired' : `Expiry = ${expiredDays} Days Ago`
         };
       }
 
-      // License style fields: Green >90 days, Orange <=90 days
-      if (FIELD_CONFIG.LICENSE_STYLE_FIELDS.includes(field as typeof FIELD_CONFIG.LICENSE_STYLE_FIELDS[number])) {
-        if (daysUntilExpiry <= 120) {
-          if (daysUntilExpiry <= 60) {
-            return {
-              colorClass: 'bg-orange-50 text-orange-700',
-              label: `${daysUntilExpiry} days`,
-              hoverText: `Expires in ${daysUntilExpiry} days`
-            };
-          }
+      // License / D D1 category
+      if (field === 'driver_licence_expiry' || field === 'd_d1_expiry') {
+        if (daysUntilExpiry >= 90) {
           return {
-            colorClass: 'bg-yellow-50 text-yellow-700',
+            colorClass: 'bg-green-50 text-green-700',
+            label: '',
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else if (daysUntilExpiry >= 60) {
+          return {
+            colorClass: 'bg-amber-50 text-amber-700',
             label: `${daysUntilExpiry} days`,
-            hoverText: `Expires in ${daysUntilExpiry} days`
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else if (daysUntilExpiry >= 45) {
+          return {
+            colorClass: 'bg-red-50 text-red-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else {
+          // Less than 45 days
+          return {
+            colorClass: 'bg-red-50 text-red-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
           };
         }
-        return {
-          colorClass: 'bg-green-50 text-green-700',
-          label: '',
-          hoverText: `Expires in ${daysUntilExpiry} days`
-        };
       }
 
-      // CPC Card specific rule: Green >120 days, Orange <=120 days
+      // Next Driver Check Code Due
+      if (field === 'next_driver_check_code_due') {
+        if (daysUntilExpiry >= 15) {
+          return {
+            colorClass: 'bg-green-50 text-green-700',
+            label: '',
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else if (daysUntilExpiry >= 3) {
+          return {
+            colorClass: 'bg-amber-50 text-amber-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else {
+          // Less than 3 days
+          return {
+            colorClass: 'bg-red-50 text-red-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        }
+      }
+
+      // CPC Card Expiry
       if (field === 'cpc_card_expiry') {
-        if (daysUntilExpiry <= 120) {
+        if (daysUntilExpiry >= 90) {
           return {
-            colorClass: 'bg-orange-50 text-orange-700',
+            colorClass: 'bg-green-50 text-green-700',
+            label: '',
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else if (daysUntilExpiry >= 60) {
+          return {
+            colorClass: 'bg-amber-50 text-amber-700',
             label: `${daysUntilExpiry} days`,
-            hoverText: `Expires in ${daysUntilExpiry} days`
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
           };
-        }
-        return {
-          colorClass: 'bg-green-50 text-green-700',
-          label: '',
-          hoverText: `Expires in ${daysUntilExpiry} days`
-        };
-      }
-
-      // Next Driver Check Due: Green >3 days, Orange <=3 days
-      if (field === FIELD_CONFIG.NEXT_DRIVER_CHECK_DUE) {
-        if (daysUntilExpiry <= 3) {
-          return {
-            colorClass: 'bg-orange-50 text-orange-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Due in ${daysUntilExpiry} days`
-          };
-        }
-        return {
-          colorClass: 'bg-green-50 text-green-700',
-          label: '',
-          hoverText: `Due in ${daysUntilExpiry} days`
-        };
-      }
-
-      // Next Tacho Download: Green >10 days, Orange <=10 days, Red expired
-      if (field === FIELD_CONFIG.NEXT_TACHO_DOWNLOAD) {
-        if (daysUntilExpiry <= 10) {
-          return {
-            colorClass: 'bg-orange-50 text-orange-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Download due in ${daysUntilExpiry} days`
-          };
-        }
-        return {
-          colorClass: 'bg-green-50 text-green-700',
-          label: '',
-          hoverText: `Download due in ${daysUntilExpiry} days`
-        };
-      }
-
-      // PMI Booked Date: Green if >=10 days left, Red if <10 days
-      if (field === FIELD_CONFIG.PMI_BOOKED_DATE) {
-        if (daysUntilExpiry <= 0) {
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: 'Expired',
-            hoverText: 'PMI expired'
-          };
-        } else if (daysUntilExpiry < 10) {
+        } else if (daysUntilExpiry >= 30) {
           return {
             colorClass: 'bg-red-50 text-red-700',
             label: `${daysUntilExpiry} days`,
-            hoverText: `PMI due in ${daysUntilExpiry} days`
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
           };
-        } else if (daysUntilExpiry <= 60) {
+        } else {
+          // Less than 30 days
           return {
-            colorClass: 'bg-yellow-50 text-yellow-700',
+            colorClass: 'bg-red-50 text-red-700',
             label: `${daysUntilExpiry} days`,
-            hoverText: `PMI due in ${daysUntilExpiry} days`
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
           };
         }
-        return {
-          colorClass: 'bg-green-50 text-green-700',
-          label: '',
-          hoverText: `PMI due in ${daysUntilExpiry} days`
-        };
+      }
+
+      // Tacho Expiry
+      if (field === 'tacho_expiry') {
+        if (daysUntilExpiry >= 60) {
+          return {
+            colorClass: 'bg-green-50 text-green-700',
+            label: '',
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else if (daysUntilExpiry >= 30) {
+          return {
+            colorClass: 'bg-amber-50 text-amber-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else if (daysUntilExpiry >= 10) {
+          return {
+            colorClass: 'bg-red-50 text-red-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else {
+          // Less than 10 days
+          return {
+            colorClass: 'bg-red-50 text-red-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        }
+      }
+
+      // Next Tacho DL
+      if (field === 'next_driver_tacho_download') {
+        if (daysUntilExpiry >= 10) {
+          return {
+            colorClass: 'bg-green-50 text-green-700',
+            label: '',
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else if (daysUntilExpiry >= 2) {
+          return {
+            colorClass: 'bg-amber-50 text-amber-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else {
+          // Less than 2 days
+          return {
+            colorClass: 'bg-red-50 text-red-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        }
+      }
+
+      // DBS Expiry
+      if (field === 'dbs_expiry_date') {
+        if (daysUntilExpiry >= 120) {
+          return {
+            colorClass: 'bg-green-50 text-green-700',
+            label: '',
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else if (daysUntilExpiry >= 60) {
+          return {
+            colorClass: 'bg-amber-50 text-amber-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else {
+          // Less than 60 days
+          return {
+            colorClass: 'bg-red-50 text-red-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        }
+      }
+
+      // Night Worker Assessment
+      if (field === 'night_worker_assessment_expiry') {
+        if (daysUntilExpiry >= 10) {
+          return {
+            colorClass: 'bg-green-50 text-green-700',
+            label: '',
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else if (daysUntilExpiry >= 2) {
+          return {
+            colorClass: 'bg-amber-50 text-amber-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        } else {
+          // Less than 2 days
+          return {
+            colorClass: 'bg-red-50 text-red-700',
+            label: `${daysUntilExpiry} days`,
+            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
+          };
+        }
       }
 
       // Last Tacho Download: Black background
-      if (field === FIELD_CONFIG.LAST_TACHO_DOWNLOAD) {
+      if (field === 'last_driver_tacho_download') {
+        const daysAgo = Math.abs(daysUntilExpiry);
         return {
           colorClass: 'bg-gray-50 text-gray-900',
           label: '',
-          hoverText: `Last downloaded ${daysUntilExpiry > 0 ? `${daysUntilExpiry} days ago` : 'today'}`
+          hoverText: `Last downloaded ${daysAgo > 0 ? `${daysAgo} days ago` : 'today'}`
         };
       }
 
       // Last Driver Check Code: Black background
-      if (field === FIELD_CONFIG.LAST_DRIVER_CHECK) {
+      if (field === 'last_driver_license_check_code_date') {
+        const daysAgo = Math.abs(daysUntilExpiry);
         return {
           colorClass: 'bg-gray-50 text-gray-900',
           label: '',
-          hoverText: `Last checked ${daysUntilExpiry > 0 ? `${daysUntilExpiry} days ago` : 'today'}`
+          hoverText: `Last checked ${daysAgo > 0 ? `${daysAgo} days ago` : 'today'}`
         };
       }
 
@@ -465,51 +579,68 @@ const DriverManagementPage = () => {
       <TableCell className={`whitespace-nowrap ${colorClass}`}>
         <Popover>
           <PopoverTrigger asChild>
-            <span className="cursor-pointer hover:underline">
+            <span className="cursor-pointer hover:underline flex items-center">
               {displayValue}
-              {label && <span className="ml-2 text-xs font-semibold">({label})</span>}
+              
             </span>
           </PopoverTrigger>
           <PopoverContent className="w-80 text-sm">
             <div className="space-y-2">
               <div className="font-medium">{hoverText || `${displayValue}`}</div>
-
-              {/* Show additional information for relevant fields */}
-              {field === 'driver_licence_expiry' && (
-                <div className="text-xs text-gray-500 mt-2">
-                  Hover shows:
-                  <br />- 60 days left: Orange
-                  <br />- 120 days left: Yellow
-                  <br />- Expired: Red
-                  <br />- More than 120 days: Green
-                </div>
-              )}
-
-              {field === 'cpc_card_expiry' && (
-                <div className="text-xs text-gray-500 mt-2">
-                  CPC specific:
-                  <br />- 120 days left: Orange
-                  <br />- Expired: Red
-                  <br />- More than 120 days: Green
-                </div>
-              )}
-
-              {field === FIELD_CONFIG.NEXT_TACHO_DOWNLOAD && (
-                <div className="text-xs text-gray-500 mt-2">
-                  Tacho Download:
-                  <br />- 10 days or less: Orange
-                  <br />- More than 10 days: Green
-                </div>
-              )}
-
-              {field === FIELD_CONFIG.PMI_BOOKED_DATE && (
-                <div className="text-xs text-gray-500 mt-2">
-                  PMI Inspection:
-                  <br />- 10 days or more: Green
-                  <br />- Less than 10 days: Red
-                  <br />- Expired: Red
-                </div>
-              )}
+              
+              {/* Show rules for each field */}
+              <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
+                {field === 'driver_licence_expiry' || field === 'd_d1_expiry' ? (
+                  <>
+                    <strong>License Rules:</strong>
+                    <br />- 90+ days: Green
+                    <br />- 60-89 days: Amber
+                    <br />- Under 45 days: Red
+                  </>
+                ) : field === 'next_driver_check_code_due' ? (
+                  <>
+                    <strong>Check Code Rules:</strong>
+                    <br />- 15+ days: Green
+                    <br />- Under 15 days: Amber
+                    <br />- Under 3 days: Red
+                  </>
+                ) : field === 'cpc_card_expiry' ? (
+                  <>
+                    <strong>CPC Card Rules:</strong>
+                    <br />- 90+ days: Green
+                    <br />- Under 60 days: Amber
+                    <br />- Under 30 days: Red
+                  </>
+                ) : field === 'tacho_expiry' ? (
+                  <>
+                    <strong>Tacho Rules:</strong>
+                    <br />- 60+ days: Green
+                    <br />- Under 30 days: Amber
+                    <br />- Under 10 days: Red
+                  </>
+                ) : field === 'next_driver_tacho_download' ? (
+                  <>
+                    <strong>Next Tacho DL Rules:</strong>
+                    <br />- 10+ days: Green
+                    <br />- Under 10 days: Amber
+                    <br />- Under 2 days: Red
+                  </>
+                ) : field === 'dbs_expiry_date' ? (
+                  <>
+                    <strong>DBS Rules:</strong>
+                    <br />- 120+ days: Green
+                    <br />- Under 120 days: Amber
+                    <br />- Under 60 days: Red
+                  </>
+                ) : field === 'night_worker_assessment_expiry' ? (
+                  <>
+                    <strong>Night Worker Rules:</strong>
+                    <br />- 10+ days: Green
+                    <br />- Under 10 days: Amber
+                    <br />- Under 2 days: Red
+                  </>
+                ) : null}
+              </div>
             </div>
           </PopoverContent>
         </Popover>
@@ -517,26 +648,37 @@ const DriverManagementPage = () => {
     );
   };
 
-  const renderExpiryFilter = (label: string, field: string) => (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Select
-        value={filters[field as keyof typeof filters] as string}
-        onValueChange={(v) => handleFilterChange(field, v)}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Filter by expiry" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All</SelectItem>
-          <SelectItem value="expired">Expired</SelectItem>
-          <SelectItem value="expiring_60">≤ 60 days</SelectItem>
-          <SelectItem value="expiring_120">≤ 120 days</SelectItem>
-          <SelectItem value="valid">{'>'} 120 days</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-  );
+  const renderExpiryFilter = (label: string, field: string, options: { value: string; label: string }[] = []) => {
+    const defaultOptions = [
+      { value: 'all', label: 'All' },
+      { value: 'expired', label: 'Expired' },
+      { value: 'expiring_soon', label: 'Expiring Soon' },
+      { value: 'valid', label: 'Valid' },
+    ];
+
+    const filterOptions = options.length > 0 ? options : defaultOptions;
+
+    return (
+      <div className="space-y-2">
+        <Label>{label}</Label>
+        <Select
+          value={filters[field as keyof typeof filters] as string}
+          onValueChange={(v) => handleFilterChange(field, v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select filter" />
+          </SelectTrigger>
+          <SelectContent>
+            {filterOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  };
 
   const renderPagination = () => {
     if (pagination.total_pages <= 1) return null;
@@ -629,7 +771,6 @@ const DriverManagementPage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Driver Compliance</h1>
         <div className="flex gap-3 items-center">
-          {/* <ExportChartButton data={drivers} fileName="driver_compliance_report" /> */}
           <ExportButton data={drivers} fileName="driver_compliance_report" />
         </div>
       </div>
@@ -666,11 +807,15 @@ const DriverManagementPage = () => {
 
           <section>
             <h3 className="font-semibold mb-4">Filter by Expiry Status</h3>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {renderExpiryFilter("Driving Licence", "driver_licence_expiry_filter")}
+              {renderExpiryFilter("D/D1 Expiry", "d_d1_expiry_filter")}
+              {renderExpiryFilter("Next Driver Check", "next_driver_check_filter")}
               {renderExpiryFilter("CPC Card", "cpc_card_expiry_filter")}
-              {renderExpiryFilter("DBS", "dbs_expiry_date_filter")}
-              {renderExpiryFilter("Tacho Card", "tacho_expiry_filter")}
+              {renderExpiryFilter("Tacho Expiry", "tacho_expiry_filter")}
+              {renderExpiryFilter("Next Tacho DL", "next_tacho_dl_filter")}
+              {renderExpiryFilter("DBS Expiry", "dbs_expiry_date_filter")}
+              {renderExpiryFilter("Night Worker", "night_worker_filter")}
             </div>
           </section>
 
@@ -687,10 +832,10 @@ const DriverManagementPage = () => {
 
       {/* Table Container with Horizontal Scroll */}
       <div className="border border-gray-100 rounded-lg overflow-hidden">
-        <div 
+        <div
           ref={tableContainerRef}
-          className="overflow-x-auto" 
-          style={{ 
+          className="overflow-x-hidden"
+          style={{
             maxHeight: 'calc(100vh - 300px)',
             position: 'relative'
           }}
@@ -713,7 +858,6 @@ const DriverManagementPage = () => {
                 <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Next Tacho DL</TableHead>
                 <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>DBS Expiry</TableHead>
                 <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Night Worker Assessment</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>PMI Booked Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -741,12 +885,12 @@ const DriverManagementPage = () => {
                         {driver.user.full_name}
                       </Link>
                     </TableCell>
-                    
+
                     {/* Regular Cells */}
                     <TableCell>{driver.user.license_number || "NA"}</TableCell>
                     {renderDateCell('driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                     {renderDateCell('d_d1_expiry', driver.driver_compliance.d_d1_expiry, driver)}
-                    {renderDateCell('last_driver_check_code_date', driver.driver_compliance.last_driver_check_code_date, driver)}
+                    {renderDateCell('last_driver_license_check_code_date', driver.driver_compliance.last_driver_license_check_code_date, driver)}
                     {renderDateCell('next_driver_check_code_due', driver.driver_compliance.next_driver_check_code_due, driver)}
                     {renderDateCell('cpc_card_expiry', driver.driver_compliance.cpc_card_expiry, driver)}
                     {renderDateCell('tacho_expiry', driver.driver_compliance.tacho_expiry, driver)}
@@ -754,7 +898,6 @@ const DriverManagementPage = () => {
                     {renderDateCell('next_driver_tacho_download', driver.driver_compliance.next_driver_tacho_download, driver)}
                     {renderDateCell('dbs_expiry_date', driver.driver_compliance.dbs_expiry_date, driver)}
                     {renderDateCell('night_worker_assessment_expiry', driver.driver_compliance.night_worker_assessment_expiry, driver)}
-                    {renderDateCell('pmi_booked_date', driver.driver_compliance.pmi_booked_date ?? null, driver)}
                   </TableRow>
                 ))
               )}

@@ -104,6 +104,18 @@ export default function VehicleDetailPage() {
   const [sitesOpen, setSitesOpen] = useState(false);
   const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
 
+  // Helper function to get wheelchair lift status consistently
+  const getWheelchairLiftStatus = () => {
+    if (isEditing) {
+      return editVehicle?.is_wheelchair_lift_fitted;
+    }
+    return (
+      vehicle?.is_wheelchair_lift_fitted === true ||
+      vehicle?.is_wheelchair_lift_fitted === "Yes" ||
+      vehicle?.is_wheelchair_lift_fitted === "yes"
+    );
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -138,13 +150,19 @@ export default function VehicleDetailPage() {
           setVehicle(vehicleData.data);
           const formattedData = {
             ...vehicleData.data,
-            is_wheelchair_lift_fitted: vehicleData.data.is_wheelchair_lift_fitted === "Yes",
+            is_wheelchair_lift_fitted: 
+              vehicleData.data.is_wheelchair_lift_fitted === true || 
+              vehicleData.data.is_wheelchair_lift_fitted === "Yes" ||
+              vehicleData.data.is_wheelchair_lift_fitted === "yes",
+            vehicles_type: vehicleData.data.vehicles_type?.id || "",
           };
           setEditVehicle(formattedData);
 
           // Set selected sites from vehicle data
           if (vehicleData.data.site_allocated) {
-            const siteIds = vehicleData.data.site_allocated.map((site: any) => site.id);
+            const siteIds = vehicleData.data.site_allocated.map(
+              (site: any) => site.id,
+            );
             setSelectedSites(siteIds);
           }
         } else {
@@ -176,7 +194,11 @@ export default function VehicleDetailPage() {
     if (isEditing) {
       setEditVehicle({
         ...vehicle,
-        is_wheelchair_lift_fitted: vehicle.is_wheelchair_lift_fitted === "Yes",
+        is_wheelchair_lift_fitted: 
+          vehicle.is_wheelchair_lift_fitted === true || 
+          vehicle.is_wheelchair_lift_fitted === "Yes" ||
+          vehicle.is_wheelchair_lift_fitted === "yes",
+        vehicles_type: vehicle.vehicles_type?.id || "",
       });
       // Reset selected sites to current vehicle sites
       if (vehicle?.site_allocated) {
@@ -190,13 +212,22 @@ export default function VehicleDetailPage() {
   const handleSave = async () => {
     if (!editVehicle || !token) return;
 
+    // Validation for tacho calibration
     if (editVehicle.is_tacho_fitted && !editVehicle.tacho_calibration_expiry) {
-      toast.error("Tacho calibration expiry date is required when tacho is fitted");
+      toast.error(
+        "Tacho calibration expiry date is required when tacho is fitted",
+      );
       return;
     }
 
-    if (editVehicle.is_wheelchair_lift_fitted && !editVehicle.loller_test_expiry_date) {
-      toast.error("LOLER test expiry date is required when wheelchair lift is fitted");
+    // Validation for LOLER test
+    if (
+      editVehicle.is_wheelchair_lift_fitted &&
+      !editVehicle.loller_test_expiry_date
+    ) {
+      toast.error(
+        "LOLER test expiry date is required when wheelchair lift is fitted",
+      );
       return;
     }
 
@@ -212,7 +243,9 @@ export default function VehicleDetailPage() {
         mileage_unit: editVehicle.mileage_unit,
         notes: editVehicle.notes,
         is_tacho_fitted: editVehicle.is_tacho_fitted,
-        is_wheelchair_lift_fitted: editVehicle.is_wheelchair_lift_fitted ? "Yes" : "No",
+        is_wheelchair_lift_fitted: editVehicle.is_wheelchair_lift_fitted 
+          ? "Yes" 
+          : "No",
         date_of_purchase: editVehicle.date_of_purchase,
         purchased_from: editVehicle.purchased_from,
         purchased_by: editVehicle.purchased_by,
@@ -224,34 +257,47 @@ export default function VehicleDetailPage() {
         mot_expiry: editVehicle.mot_expiry,
         tax_expiry: editVehicle.tax_expiry,
         insurance_expiry: editVehicle.insurance_expiry,
-        pmi_expiry: editVehicle.pmi_expiry,
+        pmi_expiry_date: editVehicle.pmi_expiry_date,
         loller_test_expiry_date: editVehicle.loller_test_expiry_date,
         tacho_calibration_expiry: editVehicle.tacho_calibration_expiry,
         last_pmi_date: editVehicle.last_pmi_date,
         pmi_booked_date: editVehicle.pmi_booked_date,
         next_loller_test_date: editVehicle.next_loller_test_date,
         tyre_pressure_front_driver: editVehicle.tyre_pressure_front_driver,
-        tyre_pressure_front_passenger: editVehicle.tyre_pressure_front_passenger,
-        tyre_pressure_rear_outer_driver: editVehicle.tyre_pressure_rear_outer_driver,
-        tyre_pressure_rear_outer_passenger: editVehicle.tyre_pressure_rear_outer_passenger,
-        tyre_pressure_rear_inner_driver: editVehicle.tyre_pressure_rear_inner_driver,
-        tyre_pressure_rear_inner_passenger: editVehicle.tyre_pressure_rear_inner_passenger,
+        tyre_pressure_front_passenger:
+          editVehicle.tyre_pressure_front_passenger,
+        tyre_pressure_rear_outer_driver:
+          editVehicle.tyre_pressure_rear_outer_driver,
+        tyre_pressure_rear_outer_passenger:
+          editVehicle.tyre_pressure_rear_outer_passenger,
+        tyre_pressure_rear_inner_driver:
+          editVehicle.tyre_pressure_rear_inner_driver,
+        tyre_pressure_rear_inner_passenger:
+          editVehicle.tyre_pressure_rear_inner_passenger,
         tyre_depth_front_driver: editVehicle.tyre_depth_front_driver,
         tyre_depth_front_passenger: editVehicle.tyre_depth_front_passenger,
         tyre_depth_rear_outer_driver: editVehicle.tyre_depth_rear_outer_driver,
-        tyre_depth_rear_outer_passenger: editVehicle.tyre_depth_rear_outer_passenger,
+        tyre_depth_rear_outer_passenger:
+          editVehicle.tyre_depth_rear_outer_passenger,
         tyre_depth_rear_inner_driver: editVehicle.tyre_depth_rear_inner_driver,
-        tyre_depth_rear_inner_passenger: editVehicle.tyre_depth_rear_inner_passenger,
+        tyre_depth_rear_inner_passenger:
+          editVehicle.tyre_depth_rear_inner_passenger,
         tyre_torque_front_driver: editVehicle.tyre_torque_front_driver,
         tyre_torque_front_passenger: editVehicle.tyre_torque_front_passenger,
-        tyre_torque_rear_outer_driver: editVehicle.tyre_torque_rear_outer_driver,
-        tyre_torque_rear_outer_passenger: editVehicle.tyre_torque_rear_outer_passenger,
+        tyre_torque_rear_outer_driver:
+          editVehicle.tyre_torque_rear_outer_driver,
+        tyre_torque_rear_outer_passenger:
+          editVehicle.tyre_torque_rear_outer_passenger,
         tyre_expiry_front_driver: editVehicle.tyre_expiry_front_driver,
         tyre_expiry_front_passenger: editVehicle.tyre_expiry_front_passenger,
-        tyre_expiry_rear_outer_driver: editVehicle.tyre_expiry_rear_outer_driver,
-        tyre_expiry_rear_outer_passenger: editVehicle.tyre_expiry_rear_outer_passenger,
-        tyre_expiry_rear_inner_driver: editVehicle.tyre_expiry_rear_inner_driver,
-        tyre_expiry_rear_inner_passenger: editVehicle.tyre_expiry_rear_inner_passenger,
+        tyre_expiry_rear_outer_driver:
+          editVehicle.tyre_expiry_rear_outer_driver,
+        tyre_expiry_rear_outer_passenger:
+          editVehicle.tyre_expiry_rear_outer_passenger,
+        tyre_expiry_rear_inner_driver:
+          editVehicle.tyre_expiry_rear_inner_driver,
+        tyre_expiry_rear_inner_passenger:
+          editVehicle.tyre_expiry_rear_inner_passenger,
         vehicle_status: editVehicle.vehicle_status,
         vehicle_roadworthy_status: editVehicle.vehicle_roadworthy_status,
         is_roadworthy: editVehicle.is_roadworthy,
@@ -273,7 +319,11 @@ export default function VehicleDetailPage() {
       if (res.ok && updatedData.success) {
         const formattedData = {
           ...updatedData.data,
-          is_wheelchair_lift_fitted: updatedData.data.is_wheelchair_lift_fitted === "Yes",
+          is_wheelchair_lift_fitted: 
+            updatedData.data.is_wheelchair_lift_fitted === true || 
+            updatedData.data.is_wheelchair_lift_fitted === "Yes" ||
+            updatedData.data.is_wheelchair_lift_fitted === "yes",
+          vehicles_type: updatedData.data.vehicles_type?.id || "",
         };
         setVehicle(updatedData.data);
         setEditVehicle(formattedData);
@@ -318,11 +368,16 @@ export default function VehicleDetailPage() {
       if (res.ok) {
         const updatedData = await res.json();
         if (updatedData.success) {
-          setVehicle(updatedData.data);
-          setEditVehicle({
+          const formattedData = {
             ...updatedData.data,
-            is_wheelchair_lift_fitted: updatedData.data.is_wheelchair_lift_fitted === "Yes",
-          });
+            is_wheelchair_lift_fitted: 
+              updatedData.data.is_wheelchair_lift_fitted === true || 
+              updatedData.data.is_wheelchair_lift_fitted === "Yes" ||
+              updatedData.data.is_wheelchair_lift_fitted === "yes",
+            vehicles_type: updatedData.data.vehicles_type?.id || "",
+          };
+          setVehicle(updatedData.data);
+          setEditVehicle(formattedData);
           toast.success("Vehicle image updated");
         }
       }
@@ -346,11 +401,16 @@ export default function VehicleDetailPage() {
       if (res.ok) {
         const updatedData = await res.json();
         if (updatedData.success) {
-          setVehicle(updatedData.data);
-          setEditVehicle({
+          const formattedData = {
             ...updatedData.data,
-            is_wheelchair_lift_fitted: updatedData.data.is_wheelchair_lift_fitted === "Yes",
-          });
+            is_wheelchair_lift_fitted: 
+              updatedData.data.is_wheelchair_lift_fitted === true || 
+              updatedData.data.is_wheelchair_lift_fitted === "Yes" ||
+              updatedData.data.is_wheelchair_lift_fitted === "yes",
+            vehicles_type: updatedData.data.vehicles_type?.id || "",
+          };
+          setVehicle(updatedData.data);
+          setEditVehicle(formattedData);
           toast.success("Document uploaded successfully");
         }
       }
@@ -371,7 +431,7 @@ export default function VehicleDetailPage() {
         mot_expiry: "mot_check_docs",
         tax_expiry: "tax_docs",
         insurance_expiry: "insurance_docs",
-        pmi_expiry: "pmi_inspection_docs",
+        pmi_expiry_date: "pmi_inspection_docs",
         loller_test_expiry_date: "loller_docs",
         tacho_calibration_expiry: "tacho_calibration_docs",
         next_loller_test_date: "loller_docs",
@@ -393,11 +453,16 @@ export default function VehicleDetailPage() {
       const updatedData = await res.json();
 
       if (res.ok && updatedData.success) {
-        setVehicle(updatedData.data);
-        setEditVehicle({
+        const formattedData = {
           ...updatedData.data,
-          is_wheelchair_lift_fitted: updatedData.data.is_wheelchair_lift_fitted === "Yes",
-        });
+          is_wheelchair_lift_fitted: 
+            updatedData.data.is_wheelchair_lift_fitted === true || 
+            updatedData.data.is_wheelchair_lift_fitted === "Yes" ||
+            updatedData.data.is_wheelchair_lift_fitted === "yes",
+          vehicles_type: updatedData.data.vehicles_type?.id || "",
+        };
+        setVehicle(updatedData.data);
+        setEditVehicle(formattedData);
         setEditDateField(null);
         setTempDate("");
         setUploadedDoc("");
@@ -408,7 +473,7 @@ export default function VehicleDetailPage() {
           documentUrl
             ? "Date and document updated successfully"
             : "Date updated successfully. Remember to upload the document later.",
-          { id: toastId }
+          { id: toastId },
         );
       } else {
         throw new Error(updatedData.message || "Failed to update date");
@@ -425,7 +490,7 @@ export default function VehicleDetailPage() {
       setMotDialogOpen(true);
       return;
     }
-    if (field === "pmi_expiry") {
+    if (field === "pmi_expiry_date") {
       setPmiDialogOpen(true);
       return;
     }
@@ -437,27 +502,35 @@ export default function VehicleDetailPage() {
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "Not set";
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
+    if (!dateString || dateString === "") return "Not set";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid date";
+      
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day} ${month} ${year}`;
+    } catch {
+      return "Invalid date";
+    }
   };
 
   // Helper function to get week number
   function getWeekNumber(date: Date): number {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const d = new Date(
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+    );
     const dayNum = d.getUTCDay() || 7;
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   }
 
   // Format tyre expiry week/year
   const formatTyreExpiry = (expiryString: string) => {
     if (!expiryString || expiryString.trim() === "") return "N/A";
-    
+
     // Assuming format is "2625" where 26=week, 25=year
     try {
       const week = expiryString.substring(0, 2);
@@ -471,33 +544,45 @@ export default function VehicleDetailPage() {
   // Check tyre expiry status
   const getTyreExpiryStatus = (expiryString: string) => {
     if (!expiryString || expiryString.trim() === "") {
-      return { isExpired: false, isExpiring: false, textColor: "text-slate-700" };
+      return {
+        isExpired: false,
+        isExpiring: false,
+        textColor: "text-slate-700",
+      };
     }
-    
+
     try {
       const week = parseInt(expiryString.substring(0, 2));
       const year = parseInt("20" + expiryString.substring(2));
-      
+
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentWeek = getWeekNumber(currentDate);
-      
+
       // Check if expired
       if (year < currentYear || (year === currentYear && week < currentWeek)) {
-        return { isExpired: true, isExpiring: false, textColor: "text-red-600" };
+        return {
+          isExpired: true,
+          isExpiring: false,
+          textColor: "text-red-600",
+        };
       }
-      
+
       // Check if expiring soon (within 4 weeks)
       const weeksUntilExpiry = (year - currentYear) * 52 + (week - currentWeek);
       const isExpiringSoon = weeksUntilExpiry <= 4;
-      
-      return { 
-        isExpired: false, 
+
+      return {
+        isExpired: false,
         isExpiring: isExpiringSoon,
-        textColor: isExpiringSoon ? "text-amber-600" : "text-emerald-600"
+        textColor: isExpiringSoon ? "text-amber-600" : "text-emerald-600",
       };
     } catch (error) {
-      return { isExpired: false, isExpiring: false, textColor: "text-slate-700" };
+      return {
+        isExpired: false,
+        isExpiring: false,
+        textColor: "text-slate-700",
+      };
     }
   };
 
@@ -508,11 +593,11 @@ export default function VehicleDetailPage() {
     onChange,
     type = "text",
   }: {
-    label: string
-    value?: string
-    isEditing?: boolean
-    onChange?: (v: string) => void
-    type?: string
+    label: string;
+    value?: string;
+    isEditing?: boolean;
+    onChange?: (v: string) => void;
+    type?: string;
   }) => (
     <div className="space-y-1">
       <p className="text-xs text-slate-500">{label}</p>
@@ -524,25 +609,75 @@ export default function VehicleDetailPage() {
           className="h-9 text-sm"
         />
       ) : (
-        <p className="text-sm font-medium text-slate-900">
-          {value || "-"}
-        </p>
+        <p className="text-sm font-medium text-slate-900">{value || "-"}</p>
       )}
     </div>
   );
 
   const getExpiryStatus = (expiryDate: string) => {
-    if (!expiryDate) return { color: "bg-slate-100 text-slate-600", text: "Not set", icon: AlertCircle };
+    if (!expiryDate || expiryDate === "") {
+      return {
+        color: "bg-slate-100 text-slate-600",
+        text: "Not set",
+        icon: AlertCircle,
+      };
+    }
 
-    const today = new Date();
-    const expiry = new Date(expiryDate);
-    const diffTime = expiry.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    try {
+      const today = new Date();
+      const expiry = new Date(expiryDate);
+      
+      // Check if date is valid
+      if (isNaN(expiry.getTime())) {
+        return {
+          color: "bg-slate-100 text-slate-600",
+          text: "Invalid date",
+          icon: AlertCircle,
+        };
+      }
 
-    if (diffDays < 0) return { color: "bg-red-50 text-red-600 border-red-200", text: "Expired", icon: AlertTriangle };
-    if (diffDays <= 30) return { color: "bg-orange-50 text-orange-600 border-orange-200", text: `${diffDays} days left`, icon: Clock };
-    if (diffDays <= 60) return { color: "bg-amber-50 text-amber-600 border-amber-200", text: `${diffDays} days left`, icon: Clock };
-    return { color: "bg-emerald-50 text-emerald-600 border-emerald-200", text: "Valid", icon: CheckCircle };
+      // Check if date is in the past (like 1970s dates)
+      if (expiry.getFullYear() < 2000) {
+        return {
+          color: "bg-red-50 text-red-600 border-red-200",
+          text: "Expired",
+          icon: AlertTriangle,
+        };
+      }
+
+      const diffTime = expiry.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0)
+        return {
+          color: "bg-red-50 text-red-600 border-red-200",
+          text: "Expired",
+          icon: AlertTriangle,
+        };
+      if (diffDays <= 30)
+        return {
+          color: "bg-orange-50 text-orange-600 border-orange-200",
+          text: `${diffDays} days left`,
+          icon: Clock,
+        };
+      if (diffDays <= 60)
+        return {
+          color: "bg-amber-50 text-amber-600 border-amber-200",
+          text: `${diffDays} days left`,
+          icon: Clock,
+        };
+      return {
+        color: "bg-emerald-50 text-emerald-600 border-emerald-200",
+        text: "Valid",
+        icon: CheckCircle,
+      };
+    } catch {
+      return {
+        color: "bg-slate-100 text-slate-600",
+        text: "Error",
+        icon: AlertCircle,
+      };
+    }
   };
 
   const hasDocument = (docUrl: string) => {
@@ -551,31 +686,45 @@ export default function VehicleDetailPage() {
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case "available": return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "unavailable": return "bg-slate-100 text-slate-700 border-slate-200";
-      case "assigned": return "bg-orange-50 text-orange-700 border-orange-200";
-      case "disabled": return "bg-red-50 text-red-700 border-red-200";
-      default: return "bg-slate-100 text-slate-700 border-slate-200";
+      case "available":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "unavailable":
+        return "bg-slate-100 text-slate-700 border-slate-200";
+      case "assigned":
+        return "bg-orange-50 text-orange-700 border-orange-200";
+      case "disabled":
+        return "bg-red-50 text-red-700 border-red-200";
+      default:
+        return "bg-slate-100 text-slate-700 border-slate-200";
     }
   };
 
   const getRoadworthyBadgeColor = (status: string) => {
     switch (status) {
-      case "no_defect": return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "minor_defect_roadworthy": return "bg-orange-50 text-orange-700 border-orange-200";
+      case "no_defect":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "minor_defect_roadworthy":
+        return "bg-orange-50 text-orange-700 border-orange-200";
       case "minor_defect_not_roadworthy":
-      case "major_defect_not_roadworthy": return "bg-red-50 text-red-700 border-red-200";
-      default: return "bg-slate-100 text-slate-700 border-slate-200";
+      case "major_defect_not_roadworthy":
+        return "bg-red-50 text-red-700 border-red-200";
+      default:
+        return "bg-slate-100 text-slate-700 border-slate-200";
     }
   };
 
   const getStatusDisplayText = (status: string) => {
     switch (status) {
-      case "available": return "Available";
-      case "unavailable": return "Unavailable";
-      case "assigned": return "Assigned";
-      case "disabled": return "Disabled";
-      default: return status;
+      case "available":
+        return "Available";
+      case "unavailable":
+        return "Unavailable";
+      case "assigned":
+        return "Assigned";
+      case "disabled":
+        return "Disabled";
+      default:
+        return status;
     }
   };
 
@@ -589,7 +738,9 @@ export default function VehicleDetailPage() {
     return (
       <div className="flex justify-between">
         <span className="text-slate-600">{label}</span>
-        <span className={`font-semibold ${highlight ? "text-green-600" : "text-slate-900"}`}>
+        <span
+          className={`font-semibold ${highlight ? "text-green-600" : "text-slate-900"}`}
+        >
           {value}
         </span>
       </div>
@@ -604,7 +755,13 @@ export default function VehicleDetailPage() {
     highlight?: boolean;
   };
 
-  function TyreRow({ label, unit, valueKey, type = "text", highlight }: TyreRowProps) {
+  function TyreRow({
+    label,
+    unit,
+    valueKey,
+    type = "text",
+    highlight,
+  }: TyreRowProps) {
     const value = isEditing ? editVehicle[valueKey] : vehicle[valueKey];
 
     return (
@@ -618,17 +775,18 @@ export default function VehicleDetailPage() {
             onChange={(e) =>
               handleInputChange(
                 valueKey,
-                type === "number" ? Number(e.target.value) : e.target.value
+                type === "number" ? Number(e.target.value) : e.target.value,
               )
             }
             className="w-20 h-7 text-xs"
           />
         ) : (
           <span
-            className={`font-semibold ${highlight
+            className={`font-semibold ${
+              highlight
                 ? "text-green-600 bg-green-100 px-2 rounded-md"
                 : "text-slate-900"
-              }`}
+            }`}
           >
             {value ?? "N/A"} {unit}
           </span>
@@ -639,27 +797,82 @@ export default function VehicleDetailPage() {
 
   const getRoadworthyDisplayText = (status: string) => {
     switch (status) {
-      case "no_defect": return "No Defect";
-      case "minor_defect_roadworthy": return "Minor Defect - Roadworthy";
-      case "minor_defect_not_roadworthy": return "Minor Defect - Not Roadworthy";
-      case "major_defect_not_roadworthy": return "Major Defect - Not Roadworthy";
-      default: return status;
+      case "no_defect":
+        return "No Defect";
+      case "minor_defect_roadworthy":
+        return "Minor Defect - Roadworthy";
+      case "minor_defect_not_roadworthy":
+        return "Minor Defect - Not Roadworthy";
+      case "major_defect_not_roadworthy":
+        return "Major Defect - Not Roadworthy";
+      default:
+        return status;
     }
   };
 
   const complianceItems = [
-    { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docField: "mot_check_docs", color: "orange", hasDialog: true },
-    { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docField: "insurance_docs", color: "purple" },
-    { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docField: "tax_docs", color: "green" },
-    { key: "pmi", label: "PMI Inspection", icon: Wrench, dateField: "pmi_expiry", docField: "pmi_inspection_docs", color: "orange", hasDialog: true },
-    { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docField: "loller_docs", color: "pink", requiredForWheelchair: true },
-    { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docField: "tacho_calibration_docs", color: "indigo", requiredForTacho: true },
+    {
+      key: "mot",
+      label: "MOT Certificate",
+      icon: CheckCircle,
+      dateField: "mot_expiry",
+      docField: "mot_check_docs",
+      color: "orange",
+      hasDialog: true,
+    },
+    {
+      key: "insurance",
+      label: "Insurance",
+      icon: Shield,
+      dateField: "insurance_expiry",
+      docField: "insurance_docs",
+      color: "purple",
+    },
+    {
+      key: "tax",
+      label: "Road Tax",
+      icon: DollarSign,
+      dateField: "tax_expiry",
+      docField: "tax_docs",
+      color: "green",
+    },
+    {
+      key: "pmi",
+      label: "PMI Inspection",
+      icon: Wrench,
+      dateField: "pmi_expiry_date",
+      docField: "pmi_inspection_docs",
+      color: "orange",
+      hasDialog: true,
+    },
+    {
+      key: "loller",
+      label: "LOLER Test",
+      icon: TestTube,
+      dateField: "loller_test_expiry_date",
+      docField: "loller_docs",
+      color: "pink",
+      requiredForWheelchair: true,
+    },
+    {
+      key: "tacho",
+      label: "Tacho Calibration",
+      icon: Gauge,
+      dateField: "tacho_calibration_expiry",
+      docField: "tacho_calibration_docs",
+      color: "indigo",
+      requiredForTacho: true,
+    },
   ];
 
   const additionalDocuments = [
     { key: "vehicle_invoice_docs", label: "Vehicle Invoice", icon: FileText },
     { key: "service_records_docs", label: "Service Records", icon: Wrench },
-    { key: "new_vehicle_checklist_docs", label: "New Vehicle Checklist", icon: FileCheck },
+    {
+      key: "new_vehicle_checklist_docs",
+      label: "New Vehicle Checklist",
+      icon: FileCheck,
+    },
     { key: "logbook_docs", label: "Log Book / V5C", icon: FileText },
     { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText },
     { key: "others_docs", label: "Other Documents", icon: FileText },
@@ -667,11 +880,16 @@ export default function VehicleDetailPage() {
 
   function TyreCard({ title, pos }: { title: string; pos: string }) {
     const tyreExpiryKey = `tyre_expiry_${pos}`;
-    const tyreExpiry = isEditing ? editVehicle[tyreExpiryKey] : vehicle[tyreExpiryKey];
-    const { isExpired, isExpiring, textColor } = getTyreExpiryStatus(tyreExpiry);
-    
+    const tyreExpiry = isEditing
+      ? editVehicle[tyreExpiryKey]
+      : vehicle[tyreExpiryKey];
+    const { isExpired, isExpiring, textColor } =
+      getTyreExpiryStatus(tyreExpiry);
+
     return (
-      <div className={`bg-slate-50 rounded-xl border ${isExpired ? 'border-red-300 ring-2 ring-red-100' : isExpiring ? 'border-amber-300 ring-1 ring-amber-100' : 'border-slate-200'} p-4 shadow-sm`}>
+      <div
+        className={`bg-slate-50 rounded-xl border ${isExpired ? "border-red-300 ring-2 ring-red-100" : isExpiring ? "border-amber-300 ring-1 ring-amber-100" : "border-slate-200"} p-4 shadow-sm`}
+      >
         <div className="flex justify-between items-center mb-3">
           <p className="font-medium text-slate-900">{title}</p>
           {isExpired && (
@@ -714,14 +932,14 @@ export default function VehicleDetailPage() {
               <Input
                 type="text"
                 value={editVehicle[tyreExpiryKey] || ""}
-                onChange={(e) => handleInputChange(tyreExpiryKey, e.target.value)}
+                onChange={(e) =>
+                  handleInputChange(tyreExpiryKey, e.target.value)
+                }
                 placeholder="e.g., 2625"
                 className="w-20 h-7 text-xs"
               />
             ) : (
-              <span className={`font-semibold ${textColor}`}>
-                {tyreExpiry}
-              </span>
+              <span className={`font-semibold ${textColor}`}>{tyreExpiry}</span>
             )}
           </div>
         </div>
@@ -729,16 +947,16 @@ export default function VehicleDetailPage() {
     );
   }
 
-  const shouldShowComplianceItem = (item: typeof complianceItems[0]) => {
+  const shouldShowComplianceItem = (item: (typeof complianceItems)[0]) => {
     if (showAllCompliance) return true;
 
     if (item.key === "tacho") {
-      return isEditing ? editVehicle?.is_tacho_fitted : vehicle?.is_tacho_fitted;
+      return isEditing
+        ? editVehicle?.is_tacho_fitted
+        : vehicle?.is_tacho_fitted;
     }
     if (item.key === "loller") {
-      return isEditing
-        ? editVehicle?.is_wheelchair_lift_fitted
-        : vehicle?.is_wheelchair_lift_fitted === "Yes";
+      return getWheelchairLiftStatus();
     }
     return true;
   };
@@ -759,9 +977,9 @@ export default function VehicleDetailPage() {
 
   // Handle site selection
   const handleSiteToggle = (siteId: number) => {
-    setSelectedSites(prev => {
+    setSelectedSites((prev) => {
       if (prev.includes(siteId)) {
-        return prev.filter(id => id !== siteId);
+        return prev.filter((id) => id !== siteId);
       } else {
         return [...prev, siteId];
       }
@@ -771,7 +989,7 @@ export default function VehicleDetailPage() {
   // Get selected site names
   const getSelectedSiteNames = () => {
     return selectedSites
-      .map(id => sites.find(site => site.id === id)?.name)
+      .map((id) => sites.find((site) => site.id === id)?.name)
       .filter(Boolean)
       .join(", ");
   };
@@ -784,7 +1002,9 @@ export default function VehicleDetailPage() {
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-orange-200 border-t-orange-600 mx-auto"></div>
             <Activity className="w-8 h-8 text-orange-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
           </div>
-          <p className="text-slate-600 mt-4 font-medium">Loading vehicle details...</p>
+          <p className="text-slate-600 mt-4 font-medium">
+            Loading vehicle details...
+          </p>
         </div>
       </div>
     );
@@ -797,7 +1017,9 @@ export default function VehicleDetailPage() {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-8 h-8 text-red-600" />
           </div>
-          <h3 className="text-xl font-bold text-slate-900 mb-2">Error Loading Vehicle</h3>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">
+            Error Loading Vehicle
+          </h3>
           <p className="text-slate-600">{error || "Vehicle not found"}</p>
         </div>
       </div>
@@ -816,41 +1038,18 @@ export default function VehicleDetailPage() {
             <p className="text-slate-600">{vehicle.vehicles_type?.name}</p>
           </div>
           <div className="flex items-center gap-3">
-            <Badge className={`${getStatusBadgeColor(vehicle.vehicle_status)} px-3 py-1`}>
+            <Badge
+              className={`${getStatusBadgeColor(vehicle.vehicle_status)} px-3 py-1`}
+            >
               {getStatusDisplayText(vehicle.vehicle_status)}
             </Badge>
-            <Badge className={`${getRoadworthyBadgeColor(vehicle.vehicle_roadworthy_status)} px-3 py-1`}>
+            <Badge
+              className={`${getRoadworthyBadgeColor(vehicle.vehicle_roadworthy_status)} px-3 py-1`}
+            >
               {getRoadworthyDisplayText(vehicle.vehicle_roadworthy_status)}
             </Badge>
           </div>
         </div>
-
-        {/* Driver Assignment Banner */}
-        {/* {vehicle.assignee_driver && (
-          <div className="bg-gradient-to-r from-orange-50 to-orange-100/50 border border-orange-200 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-white">
-                  {vehicle.assignee_driver.avatar ? (
-                    <img src={vehicle.assignee_driver.avatar} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-orange-100">
-                      <User className="w-6 h-6 text-orange-600" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="font-semibold">Assigned to Driver</p>
-                  <p className="text-orange-700">{vehicle.assignee_driver.full_name}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-slate-600">Site</p>
-                <p className="font-semibold">{vehicle.assignee_driver.site?.[0]?.name || "No site"}</p>
-              </div>
-            </div>
-          </div>
-        )} */}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -871,7 +1070,9 @@ export default function VehicleDetailPage() {
                 <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
                   <Car className="w-4 h-4 text-orange-600" />
                 </div>
-                <h3 className="font-semibold text-slate-900">Vehicle Details</h3>
+                <h3 className="font-semibold text-slate-900">
+                  Vehicle Details
+                </h3>
               </div>
 
               <div className="flex gap-6">
@@ -915,9 +1116,15 @@ export default function VehicleDetailPage() {
 
                   <Field
                     label="Registration"
-                    value={isEditing ? editVehicle.registration_number : vehicle.registration_number}
+                    value={
+                      isEditing
+                        ? editVehicle.registration_number
+                        : vehicle.registration_number
+                    }
                     isEditing={isEditing}
-                    onChange={(v) => handleInputChange("registration_number", v)}
+                    onChange={(v) =>
+                      handleInputChange("registration_number", v)
+                    }
                   />
 
                   <Field label="VIN Number" value={vehicle.vin} />
@@ -935,7 +1142,12 @@ export default function VehicleDetailPage() {
                       <Input
                         type="number"
                         value={editVehicle.number_of_seats || ""}
-                        onChange={(e) => handleInputChange("number_of_seats", Number(e.target.value))}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "number_of_seats",
+                            Number(e.target.value),
+                          )
+                        }
                         className="h-9 text-sm"
                       />
                     ) : (
@@ -950,14 +1162,19 @@ export default function VehicleDetailPage() {
                     {isEditing ? (
                       <Select
                         value={editVehicle.vehicles_type?.toString() || ""}
-                        onValueChange={(value) => handleInputChange("vehicles_type", Number(value))}
+                        onValueChange={(value) =>
+                          handleInputChange("vehicles_type", Number(value))
+                        }
                       >
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="Select vehicle type" />
                         </SelectTrigger>
                         <SelectContent>
                           {vehicleTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.id.toString()}>
+                            <SelectItem
+                              key={type.id}
+                              value={type.id.toString()}
+                            >
                               {type.name}
                             </SelectItem>
                           ))}
@@ -982,7 +1199,7 @@ export default function VehicleDetailPage() {
                             className="w-full justify-between h-9 text-sm"
                           >
                             {selectedSites.length > 0
-                              ? `${selectedSites.length} site${selectedSites.length > 1 ? 's' : ''} selected`
+                              ? `${selectedSites.length} site${selectedSites.length > 1 ? "s" : ""} selected`
                               : "Select sites..."}
                             <MapPin className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
@@ -1003,7 +1220,9 @@ export default function VehicleDetailPage() {
                                   >
                                     <Checkbox
                                       checked={selectedSites.includes(site.id)}
-                                      onCheckedChange={() => handleSiteToggle(site.id)}
+                                      onCheckedChange={() =>
+                                        handleSiteToggle(site.id)
+                                      }
                                       className="mr-2"
                                     />
                                     {site.name}
@@ -1017,12 +1236,18 @@ export default function VehicleDetailPage() {
                     ) : (
                       <div className="flex flex-wrap gap-1">
                         {vehicle.site_allocated?.map((site: any) => (
-                          <Badge key={site.id} className="bg-blue-100 text-blue-700">
+                          <Badge
+                            key={site.id}
+                            className="bg-blue-100 text-blue-700"
+                          >
                             {site.name}
                           </Badge>
                         ))}
-                        {(!vehicle.site_allocated || vehicle.site_allocated.length === 0) && (
-                          <span className="text-sm text-slate-500">No sites allocated</span>
+                        {(!vehicle.site_allocated ||
+                          vehicle.site_allocated.length === 0) && (
+                          <span className="text-sm text-slate-500">
+                            No sites allocated
+                          </span>
                         )}
                       </div>
                     )}
@@ -1044,7 +1269,11 @@ export default function VehicleDetailPage() {
                 <Field
                   label="Purchase Date"
                   type="date"
-                  value={isEditing ? editVehicle.date_of_purchase : formatDate(vehicle.date_of_purchase)}
+                  value={
+                    isEditing
+                      ? editVehicle.date_of_purchase
+                      : formatDate(vehicle.date_of_purchase)
+                  }
                   isEditing={isEditing}
                   onChange={(v) => handleInputChange("date_of_purchase", v)}
                 />
@@ -1054,7 +1283,9 @@ export default function VehicleDetailPage() {
                   {isEditing ? (
                     <Input
                       value={editVehicle.purchased_from || ""}
-                      onChange={(e) => handleInputChange("purchased_from", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("purchased_from", e.target.value)
+                      }
                       className="h-9 text-sm"
                     />
                   ) : (
@@ -1082,7 +1313,9 @@ export default function VehicleDetailPage() {
                     <Input
                       type="number"
                       value={editVehicle.price || ""}
-                      onChange={(e) => handleInputChange("price", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("price", e.target.value)
+                      }
                       className="h-9 text-sm"
                     />
                   ) : (
@@ -1117,7 +1350,6 @@ export default function VehicleDetailPage() {
                 </div>
               </div>
             </div>
-
           </TabsContent>
 
           {/* Documents Tab */}
@@ -1127,15 +1359,22 @@ export default function VehicleDetailPage() {
                 <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
                   <FileText className="w-5 h-5 text-purple-600" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Additional Documents</h3>
+                <h3 className="text-lg font-bold text-slate-900">
+                  Additional Documents
+                </h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {additionalDocuments.map((doc) => {
                   const Icon = doc.icon;
-                  const docUrl = vehicle[doc.key as keyof typeof vehicle] as string;
+                  const docUrl = vehicle[
+                    doc.key as keyof typeof vehicle
+                  ] as string;
                   const hasDoc = hasDocument(docUrl);
                   return (
-                    <div key={doc.key} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                    <div
+                      key={doc.key}
+                      className="bg-slate-50 rounded-xl p-4 border border-slate-200"
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
@@ -1143,22 +1382,34 @@ export default function VehicleDetailPage() {
                           </div>
                           <div>
                             <p className="font-semibold">{doc.label}</p>
-                            <p className="text-xs text-slate-600">{hasDoc ? "Uploaded" : "Not uploaded"}</p>
+                            <p className="text-xs text-slate-600">
+                              {hasDoc ? "Uploaded" : "Not uploaded"}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {hasDoc ? (
                             <>
-                              <Button variant="ghost" size="sm" onClick={() => setPreviewDoc(docUrl)}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setPreviewDoc(docUrl)}
+                              >
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" onClick={() => window.open(docUrl, "_blank")}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(docUrl, "_blank")}
+                              >
                                 <Download className="w-4 h-4" />
                               </Button>
                             </>
                           ) : (
                             <FileUploader
-                              onUploadSuccess={(url) => handleDocumentUpload(doc.key, url)}
+                              onUploadSuccess={(url) =>
+                                handleDocumentUpload(doc.key, url)
+                              }
                               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                               maxSize={10 * 1024 * 1024}
                               id={`upload-${doc.key}`}
@@ -1192,8 +1443,14 @@ export default function VehicleDetailPage() {
                 {/* LEFT */}
                 <div className="space-y-4">
                   <TyreCard title="Front Passenger" pos="front_passenger" />
-                  <TyreCard title="Rear Outer Passenger" pos="rear_outer_passenger" />
-                  <TyreCard title="Rear Inner Passenger" pos="rear_inner_passenger" />
+                  <TyreCard
+                    title="Rear Outer Passenger"
+                    pos="rear_outer_passenger"
+                  />
+                  <TyreCard
+                    title="Rear Inner Passenger"
+                    pos="rear_inner_passenger"
+                  />
                 </div>
 
                 {/* CENTER VEHICLE */}
@@ -1231,13 +1488,26 @@ export default function VehicleDetailPage() {
                       </div>
                       <div>
                         <h4 className="font-semibold">Tacho Fitted</h4>
-                        <p className="text-xs text-slate-600">Digital tachograph</p>
+                        <p className="text-xs text-slate-600">
+                          Digital tachograph
+                        </p>
                       </div>
                     </div>
                     {isEditing ? (
-                      <Switch checked={editVehicle.is_tacho_fitted} onCheckedChange={(c) => handleInputChange("is_tacho_fitted", c)} />
+                      <Switch
+                        checked={editVehicle.is_tacho_fitted}
+                        onCheckedChange={(c) =>
+                          handleInputChange("is_tacho_fitted", c)
+                        }
+                      />
                     ) : (
-                      <Badge className={vehicle.is_tacho_fitted ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-700 border-slate-200"}>
+                      <Badge
+                        className={
+                          vehicle.is_tacho_fitted
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-slate-100 text-slate-700 border-slate-200"
+                        }
+                      >
                         {vehicle.is_tacho_fitted ? "Yes" : "No"}
                       </Badge>
                     )}
@@ -1252,14 +1522,27 @@ export default function VehicleDetailPage() {
                       </div>
                       <div>
                         <h4 className="font-semibold">Wheelchair Lift</h4>
-                        <p className="text-xs text-slate-600">Accessibility equipment</p>
+                        <p className="text-xs text-slate-600">
+                          Accessibility equipment
+                        </p>
                       </div>
                     </div>
                     {isEditing ? (
-                      <Switch checked={editVehicle.is_wheelchair_lift_fitted} onCheckedChange={(c) => handleInputChange("is_wheelchair_lift_fitted", c)} />
+                      <Switch
+                        checked={editVehicle.is_wheelchair_lift_fitted}
+                        onCheckedChange={(c) =>
+                          handleInputChange("is_wheelchair_lift_fitted", c)
+                        }
+                      />
                     ) : (
-                      <Badge className={vehicle.is_wheelchair_lift_fitted === "Yes" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-700 border-slate-200"}>
-                        {vehicle.is_wheelchair_lift_fitted}
+                      <Badge
+                        className={
+                          getWheelchairLiftStatus()
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-slate-100 text-slate-700 border-slate-200"
+                        }
+                      >
+                        {getWheelchairLiftStatus() ? "Yes" : "No"}
                       </Badge>
                     )}
                   </div>
@@ -1271,38 +1554,64 @@ export default function VehicleDetailPage() {
               {complianceItems.map((item) => {
                 if (!shouldShowComplianceItem(item)) return null;
 
-                const dateValue = vehicle[item.dateField as keyof typeof vehicle] as string;
-                const docValue = vehicle[item.docField as keyof typeof vehicle] as string;
+                const dateValue = vehicle[
+                  item.dateField as keyof typeof vehicle
+                ] as string;
+                const docValue = vehicle[
+                  item.docField as keyof typeof vehicle
+                ] as string;
                 const status = getExpiryStatus(dateValue);
                 const hasDoc = hasDocument(docValue);
                 const Icon = item.icon;
                 const StatusIcon = status.icon;
 
                 const isRequired =
-                  (item.requiredForTacho && (isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted)) ||
-                  (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted === "Yes"));
+                  (item.requiredForTacho &&
+                    (isEditing
+                      ? editVehicle.is_tacho_fitted
+                      : vehicle.is_tacho_fitted)) ||
+                  (item.requiredForWheelchair &&
+                    getWheelchairLiftStatus());
 
                 return (
                   <div
                     key={item.key}
                     className={`bg-white rounded-2xl shadow-sm border ${isRequired && !dateValue ? "border-red-400 ring-2 ring-red-200" : "border-slate-200"} overflow-hidden`}
                   >
-                    <div className={`bg-gradient-to-r from-${item.color}-50 to-${item.color}-100/50 p-4 border-b ${isRequired && !dateValue ? "border-red-200" : `border-${item.color}-200`}`}>
+                    <div className={`bg-gradient-to-r ${item.color === "orange" ? "from-orange-50 to-orange-100/50" : item.color === "purple" ? "from-purple-50 to-purple-100/50" : item.color === "green" ? "from-green-50 to-green-100/50" : item.color === "pink" ? "from-pink-50 to-pink-100/50" : "from-indigo-50 to-indigo-100/50"} p-4 border-b ${isRequired && !dateValue ? "border-red-200" : "border-slate-200"}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 bg-${item.color}-100 rounded-xl flex items-center justify-center`}>
-                            <Icon className={`w-5 h-5 text-${item.color}-600`} />
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color === "orange" ? "bg-orange-100" : item.color === "purple" ? "bg-purple-100" : item.color === "green" ? "bg-green-100" : item.color === "pink" ? "bg-pink-100" : "bg-indigo-100"}`}
+                          >
+                            <Icon
+                              className={`w-5 h-5 ${item.color === "orange" ? "text-orange-600" : item.color === "purple" ? "text-purple-600" : item.color === "green" ? "text-green-600" : item.color === "pink" ? "text-pink-600" : "text-indigo-600"}`}
+                            />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="font-semibold">{item.label}</h4>
-                              {isRequired && <Badge className="bg-red-100 text-red-700 text-xs">Required</Badge>}
+                              {isRequired && (
+                                <Badge className="bg-red-100 text-red-700 text-xs">
+                                  Required
+                                </Badge>
+                              )}
                             </div>
-                            <p className="text-xs text-slate-600">Expiry & Documentation</p>
+                            <p className="text-xs text-slate-600">
+                              Expiry & Documentation
+                            </p>
                           </div>
                         </div>
                         {item.hasDialog && (
-                          <Button size="sm" variant="ghost" onClick={() => item.key === "pmi" ? setPmiDialogOpen(true) : setMotDialogOpen(true)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              item.key === "pmi"
+                                ? setPmiDialogOpen(true)
+                                : setMotDialogOpen(true)
+                            }
+                          >
                             <Settings className="w-4 h-4" />
                           </Button>
                         )}
@@ -1314,9 +1623,13 @@ export default function VehicleDetailPage() {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <Calendar className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm font-medium text-slate-600">Expiry Date</span>
+                            <span className="text-sm font-medium text-slate-600">
+                              Expiry Date
+                            </span>
                           </div>
-                          <p className="text-sm font-semibold ml-6">{dateValue ? formatDate(dateValue) : "Not set"}</p>
+                          <p className="text-sm font-semibold ml-6">
+                            {dateValue ? formatDate(dateValue) : "Not set"}
+                          </p>
                         </div>
                         <Badge className={`${status.color} border`}>
                           <StatusIcon className="w-3 h-3 mr-1" />
@@ -1328,27 +1641,50 @@ export default function VehicleDetailPage() {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <FileText className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm font-medium text-slate-600">Document</span>
+                            <span className="text-sm font-medium text-slate-600">
+                              Document
+                            </span>
                           </div>
-                          <p className="text-sm font-semibold ml-6">{hasDoc ? "Uploaded" : "Not uploaded"}</p>
+                          <p className="text-sm font-semibold ml-6">
+                            {hasDoc ? "Uploaded" : "Not uploaded"}
+                          </p>
                         </div>
                         <div className="flex items-center gap-2">
                           {hasDoc ? (
                             <>
-                              <Button variant="ghost" size="sm" onClick={() => setPreviewDoc(docValue)}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setPreviewDoc(docValue)}
+                              >
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" onClick={() => window.open(docValue, "_blank")}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(docValue, "_blank")}
+                              >
                                 <Download className="w-4 h-4" />
                               </Button>
                             </>
                           ) : (
-                            <FileUploader onUploadSuccess={(url) => handleDocumentUpload(item.docField, url)} />
+                            <FileUploader
+                              onUploadSuccess={(url) =>
+                                handleDocumentUpload(item.docField, url)
+                              }
+                            />
                           )}
                         </div>
                       </div>
 
-                      <Button variant="outline" size="sm" onClick={() => openEditDateDialog(item.dateField, dateValue)} className="w-full">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          openEditDateDialog(item.dateField, dateValue)
+                        }
+                        className="w-full"
+                      >
                         <Calendar className="w-4 h-4 mr-2" />
                         Update Date
                       </Button>
@@ -1364,7 +1700,11 @@ export default function VehicleDetailPage() {
         <div className="fixed bottom-6 right-6 z-50">
           {isEditing ? (
             <div className="flex gap-2 rounded-xl bg-white backdrop-blur-md p-3 shadow-lg">
-              <Button variant="outline" onClick={handleEditToggle} disabled={saving}>
+              <Button
+                variant="outline"
+                onClick={handleEditToggle}
+                disabled={saving}
+              >
                 Cancel
               </Button>
               <Button onClick={handleSave} disabled={saving}>
@@ -1383,12 +1723,15 @@ export default function VehicleDetailPage() {
         </div>
 
         {/* Date Edit Dialog */}
-        <Dialog open={!!editDateField} onOpenChange={() => {
-          setEditDateField(null);
-          setTempDate("");
-          setUploadedDoc("");
-          setSkipUpload(false);
-        }}>
+        <Dialog
+          open={!!editDateField}
+          onOpenChange={() => {
+            setEditDateField(null);
+            setTempDate("");
+            setUploadedDoc("");
+            setSkipUpload(false);
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Update Date & Document</DialogTitle>
@@ -1396,33 +1739,56 @@ export default function VehicleDetailPage() {
             <div className="space-y-4 py-4">
               <div>
                 <Label>Expiry Date *</Label>
-                <Input type="date" value={tempDate} onChange={(e) => setTempDate(e.target.value)} />
+                <Input
+                  type="date"
+                  value={tempDate}
+                  onChange={(e) => setTempDate(e.target.value)}
+                />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <Label>Supporting Document</Label>
                   <div className="flex items-center gap-2">
-                    <Checkbox checked={skipUpload} onCheckedChange={(c) => setSkipUpload(c === true)} />
+                    <Checkbox
+                      checked={skipUpload}
+                      onCheckedChange={(c) => setSkipUpload(c === true)}
+                    />
                     <Label>Upload later</Label>
                   </div>
                 </div>
                 {!skipUpload && !uploadedDoc && (
                   <div className="border-2 border-dashed rounded-xl p-6 text-center">
-                    <FileUploader onUploadSuccess={(url) => setUploadedDoc(url)} id={`date-${editDateField}-upload`} />
-                    <p className="text-sm mt-2">Click to upload (PDF, JPG, PNG)</p>
+                    <FileUploader
+                      onUploadSuccess={(url) => setUploadedDoc(url)}
+                      id={`date-${editDateField}-upload`}
+                    />
+                    <p className="text-sm mt-2">
+                      Click to upload (PDF, JPG, PNG)
+                    </p>
                   </div>
                 )}
                 {uploadedDoc && (
                   <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
                     <span className="text-sm">Document uploaded</span>
-                    <Button variant="ghost" size="sm" onClick={() => setUploadedDoc("")}><X className="w-4 h-4" /></Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setUploadedDoc("")}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
                 )}
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDateField(null)}>Cancel</Button>
-              <Button onClick={() => handleDateSave(uploadedDoc || null)} disabled={!tempDate || (!skipUpload && !uploadedDoc)}>
+              <Button variant="outline" onClick={() => setEditDateField(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleDateSave(uploadedDoc || null)}
+                disabled={!tempDate || (!skipUpload && !uploadedDoc)}
+              >
                 Save
               </Button>
             </DialogFooter>
@@ -1430,18 +1796,42 @@ export default function VehicleDetailPage() {
         </Dialog>
 
         {/* Other Dialogs & Preview */}
-        <InspectionDialog open={pmiDialogOpen} onClose={() => setPmiDialogOpen(false)} lastPMIDate={vehicle.last_pmi_date} vehicleId={vehicleId} vehicleRegistration={vehicle.registration_number} username={cookies.get("username") || "User"} onUpdateSuccess={() => location.reload()} />
-        <MOTDialog open={motDialogOpen} onClose={() => setMotDialogOpen(false)} currentMOTDate={vehicle.mot_expiry} vehicleId={vehicleId} vehicleRegistration={vehicle.registration_number} username={cookies.get("username") || "User"} onUpdateSuccess={() => location.reload()} />
+        <InspectionDialog
+          open={pmiDialogOpen}
+          onClose={() => setPmiDialogOpen(false)}
+          lastPMIDate={vehicle.last_pmi_date}
+          vehicleId={vehicleId}
+          vehicleRegistration={vehicle.registration_number}
+          username={cookies.get("username") || "User"}
+          onUpdateSuccess={() => location.reload()}
+        />
+        <MOTDialog
+          open={motDialogOpen}
+          onClose={() => setMotDialogOpen(false)}
+          currentMOTDate={vehicle.mot_expiry}
+          vehicleId={vehicleId}
+          vehicleRegistration={vehicle.registration_number}
+          username={cookies.get("username") || "User"}
+          onUpdateSuccess={() => location.reload()}
+        />
 
         {previewDoc && (
-          <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setPreviewDoc(null)}>
-            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setPreviewDoc(null)}
+          >
+            <div
+              className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex justify-between p-4 border-b">
                 <h3 className="font-bold">Document Preview</h3>
-                <Button variant="ghost" onClick={() => setPreviewDoc(null)}><X className="w-5 h-5" /></Button>
+                <Button variant="ghost" onClick={() => setPreviewDoc(null)}>
+                  <X className="w-5 h-5" />
+                </Button>
               </div>
               <div className="p-4">
-                {previewDoc.endsWith('.pdf') ? (
+                {previewDoc.endsWith(".pdf") ? (
                   <iframe src={previewDoc} className="w-full h-[70vh]" />
                 ) : (
                   <img src={previewDoc} className="max-w-full max-h-[70vh]" />

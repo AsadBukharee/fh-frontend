@@ -11,8 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  Edit,
-  Save,
+
   File,
   FileText,
   Calendar,
@@ -39,33 +38,15 @@ import {
   Pencil,
   User,
   Link,
-  Unlink,
-  RefreshCw,
-  Copy,
-  Shield,
-  Car,
-  AlertOctagon,
-  Link2,
-  Link2Off,
+
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
-import { Progress } from "@/components/ui/progress"
-import { Tabs } from "@/components/ui/tabs"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import dynamic from "next/dynamic"
 import LazyImage from "./Dialog/LazyImage"
 import EnhancedCompetencyModal from "./Dialog/EnhancedCompetencyModal"
 import CombinedLicenseDialog from "./Dialog/CombinedDialog"
 
 
-
-// Lazy load heavy components
-const FileUploaderLazy = dynamic(() => import("@/components/Media/MediaUpload"), {
-  loading: () => <div className="p-4 text-center">Loading uploader...</div>,
-  ssr: false
-})
 
 // Fixed DEFAULT_DOCUMENTS to match API response - Moved outside component to prevent recreation
 const DEFAULT_DOCUMENTS = [
@@ -118,6 +99,8 @@ interface ProfessionalCompetencyTabProps {
   licenseNumber: string
   licenseIssueNumber: string
   fetchDriverData: () => void
+  lastDriverLicenseCheckCodeDate?: string
+  lastDriverTachoDownload?: string
 }
 
 // Optimized state reducer for better performance
@@ -238,18 +221,18 @@ const EnhancedCompetencyCard = ({
   license_issue_number: string;
   onOpenCombinedDialog?: () => void;
 }) => {
-  const isLicense = competency.document_type === "driving-license" || 
-                   competency.document_type === "d-d1-category";
-  
+  const isLicense = competency.document_type === "driving-license" ||
+    competency.document_type === "d-d1-category";
+
   const hasMultipleImages = competency.urls?.length > 1;
- 
+
   const handleCardImageClick = useCallback((index: number) => {
     setCardImageIndexes(prev => ({
       ...prev,
       [competency.id || 0]: index
     }));
   }, [competency.id, setCardImageIndexes]);
-  
+
   const handleCardImageNavigation = useCallback((direction: 'prev' | 'next', urlsLength: number) => {
     setCardImageIndexes(prev => {
       const currentIndex = prev[competency.id || 0] || 0;
@@ -265,7 +248,7 @@ const EnhancedCompetencyCard = ({
       };
     });
   }, [competency.id, setCardImageIndexes]);
-  
+
   const handleCombinedClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (onOpenCombinedDialog) {
@@ -275,18 +258,17 @@ const EnhancedCompetencyCard = ({
 
   const renderImageCarousel = useMemo(() => {
     if (!competency.has_document || !competency.urls?.[0]) return null;
-   
+
     return (
       <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden group">
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-10"></div>
-      
+
         <div className="relative h-full">
           {competency.urls.map((url: string, index: number) => (
             <div
               key={`${competency.id}-${index}`}
-              className={`absolute inset-0 transition-opacity duration-300 ${
-                index === cardImageIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              }`}
+              className={`absolute inset-0 transition-opacity duration-300 ${index === cardImageIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
             >
               {isPdfUrl(url) ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-indigo-100">
@@ -301,7 +283,7 @@ const EnhancedCompetencyCard = ({
               )}
             </div>
           ))}
-        
+
           {hasMultipleImages && (
             <>
               <button
@@ -313,7 +295,7 @@ const EnhancedCompetencyCard = ({
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-            
+
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -323,7 +305,7 @@ const EnhancedCompetencyCard = ({
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
-            
+
               <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-20 flex gap-1.5">
                 {competency.urls.map((_: any, index: number) => (
                   <button
@@ -332,23 +314,22 @@ const EnhancedCompetencyCard = ({
                       e.stopPropagation();
                       handleCardImageClick(index);
                     }}
-                    className={`w-1.5 h-1.5 rounded-full transition-all ${
-                      index === cardImageIndex
-                        ? 'bg-white scale-125'
-                        : 'bg-white/50 hover:bg-white/80'
-                    }`}
+                    className={`w-1.5 h-1.5 rounded-full transition-all ${index === cardImageIndex
+                      ? 'bg-white scale-125'
+                      : 'bg-white/50 hover:bg-white/80'
+                      }`}
                     aria-label={`View image ${index + 1}`}
                   />
                 ))}
               </div>
-            
+
               <div className="absolute top-2 left-2 z-20 bg-black/50 text-white text-xs px-2 py-1 rounded">
                 {cardImageIndex + 1}/{competency.urls.length}
               </div>
             </>
           )}
         </div>
-      
+
         <Badge
           className={cn(
             "absolute top-3 right-3 z-20 px-3 py-1.5 text-xs font-semibold border shadow-lg backdrop-blur-sm inline-flex items-center gap-1.5",
@@ -385,14 +366,14 @@ const EnhancedCompetencyCard = ({
           </Button>
         </div>
       )}
-     
+
       {renderImageCarousel}
-     
+
       <CardContent className="p-5 space-y-3 relative">
         {!competency.has_document && (
           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/10 to-indigo-500/10 rounded-bl-full transform translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform"></div>
         )}
-       
+
         <div className="flex items-start justify-between relative z-10">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
@@ -428,7 +409,7 @@ const EnhancedCompetencyCard = ({
             </p>
           </div>
         </div>
-       
+
         {competency.has_document ? (
           <>
             <Separator className="bg-orange-100" />
@@ -436,11 +417,17 @@ const EnhancedCompetencyCard = ({
               {competency.has_expiry && competency.expiry_date && (
                 <div className="flex items-center gap-2 text-sm text-gray-700 bg-gradient-to-r from-orange-50 to-indigo-50 rounded-lg p-2.5 border border-orange-100">
                   <Calendar className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                  <span className="font-medium text-xs">Expires:</span>
+                  <span className="font-medium text-xs">
+                    {competency.document_type === "last-driver-check-code"
+                      ? "Last Check Code Date:"
+                      : competency.document_type === "last-tacho-download"
+                        ? "Last Download Date:"
+                        : "Expires:"}
+                  </span>
                   <span className="font-bold text-orange-700 ml-auto">{formatDate(competency.expiry_date)}</span>
                 </div>
               )}
-             
+
               {competency.description && (
                 <div className="text-xs p-2 rounded bg-gray-50 border border-gray-200">
                   <div className="flex items-start gap-2">
@@ -449,7 +436,7 @@ const EnhancedCompetencyCard = ({
                   </div>
                 </div>
               )}
-             
+
               <div className="flex items-center gap-2 text-sm flex-wrap">
                 {competency.modules && competency.modules.length > 0 && (
                   <div className="flex items-center gap-1.5 text-gray-700 bg-indigo-50 rounded-lg px-2.5 py-1.5 border border-indigo-100">
@@ -458,37 +445,42 @@ const EnhancedCompetencyCard = ({
                     <span className="text-xs">Module{competency.modules.length !== 1 ? "s" : ""}</span>
                   </div>
                 )}
-               
+
                 {competency.document_type === "driving-license" && (
                   <div className="flex justify-between w-full gap-2 mt-2">
-                    <div className="border-gray-200 border w-full p-1 bg-gray-50 rounded-lg">
+                    {/* License Number */}
+                    <div className="border-gray-200 border w-full p-2 bg-gray-50 rounded-lg">
+                      <label className="block text-xs text-gray-500 mb-1">
+                        License Number
+                      </label>
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg">
                           <IdCard className="h-4 w-4 text-gray-600" />
                         </div>
-                        <div>
-                          <p className="text-md text-gray-900">
-                            {license_number || "Not provided"}
-                          </p>
-                        </div>
+                        <p className="text-md text-gray-900">
+                          {license_number || "Not provided"}
+                        </p>
                       </div>
                     </div>
-                  
-                    <div className="border-gray-200 border w-full p-1 bg-gray-50 rounded-lg">
+
+                    {/* Issue Number */}
+                    <div className="border-gray-200 border w-full p-2 bg-gray-50 rounded-lg">
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Issue Number
+                      </label>
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg">
                           <Key className="h-4 w-4 text-gray-600" />
                         </div>
-                        <div>
-                          <p className="text-md text-gray-900">
-                            {license_issue_number || "Not provided"}
-                          </p>
-                        </div>
+                        <p className="text-md text-gray-900">
+                          {license_issue_number || "Not provided"}
+                        </p>
                       </div>
                     </div>
                   </div>
                 )}
-              
+
+
                 {competency.has_document && (
                   <div className="flex items-center gap-1.5 text-gray-700 bg-green-50 rounded-lg px-2.5 py-1.5 border border-green-100 mt-2">
                     <FileCheck className="h-3.5 w-3.5 text-green-600" />
@@ -544,6 +536,8 @@ export default function ProfessionalCompetencyTab({
   licenseNumber,
   licenseIssueNumber,
   fetchDriverData,
+  lastDriverLicenseCheckCodeDate,
+  lastDriverTachoDownload,
 }: ProfessionalCompetencyTabProps) {
   // Existing modal state reducer
   const [modalState, dispatchModal] = useReducer(modalReducer, {
@@ -563,7 +557,7 @@ export default function ProfessionalCompetencyTab({
       custom_reason: "",
     },
   });
-  
+
   // Combined dialog state
   const [isCombinedDialogOpen, setIsCombinedDialogOpen] = useState(false);
   const [combinedLicenseData, setCombinedLicenseData] = useState<{
@@ -573,7 +567,7 @@ export default function ProfessionalCompetencyTab({
     driverLicenseData: null,
     dd1CategoryData: null,
   });
-  
+
   // Existing states
   const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null)
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false)
@@ -588,7 +582,7 @@ export default function ProfessionalCompetencyTab({
     recurrence: "once",
     recurrence_interval: 1,
   })
- 
+
   const [cardImageIndexes, setCardImageIndexes] = useState<Record<number, number>>({})
   const [driverLicenseInfo, setDriverLicenseInfo] = useState({
     license_number: licenseNumber || "",
@@ -613,7 +607,7 @@ export default function ProfessionalCompetencyTab({
   });
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
   const [syncAction, setSyncAction] = useState<"update" | "skip">("skip");
-  
+
   // Function to open combined dialog
   const handleOpenCombinedDialog = useCallback((competency: any) => {
     // Find both documents from competencyData
@@ -623,26 +617,26 @@ export default function ProfessionalCompetencyTab({
     const dd1CategoryData = competencyData.find(
       (d: any) => d.document_type === "d-d1-category"
     );
-    
+
     setCombinedLicenseData({
       driverLicenseData: driverLicenseData || null,
       dd1CategoryData: dd1CategoryData || null,
     });
-    
+
     setIsCombinedDialogOpen(true);
   }, [competencyData]);
-  
+
   // Existing functions
   const getCompletedDocumentsList = useCallback(() => {
     const uploadedMap = new Map(competencyData.map((d) => [d.document_type, d]))
-  
+
     return DEFAULT_DOCUMENTS.map(defaultDoc => {
       const apiDoc = uploadedMap.get(defaultDoc.document_type)
-    
+
       if (apiDoc) {
         return apiDoc
       }
-    
+
       return {
         ...defaultDoc,
         id: null,
@@ -662,9 +656,18 @@ export default function ProfessionalCompetencyTab({
         created_at: null,
         updated_at: null,
       }
+    }).map(doc => {
+      // Inject dates from driver profile for special documents
+      if (doc.document_type === "last-driver-check-code" && lastDriverLicenseCheckCodeDate) {
+        return { ...doc, expiry_date: lastDriverLicenseCheckCodeDate, has_expiry: true };
+      }
+      if (doc.document_type === "last-tacho-download" && lastDriverTachoDownload) {
+        return { ...doc, expiry_date: lastDriverTachoDownload, has_expiry: true };
+      }
+      return doc;
     })
-  }, [competencyData])
-  
+  }, [competencyData, lastDriverLicenseCheckCodeDate, lastDriverTachoDownload])
+
   // Update license info when props change
   useEffect(() => {
     setDriverLicenseInfo({
@@ -676,24 +679,24 @@ export default function ProfessionalCompetencyTab({
       license_issue_number: licenseIssueNumber || "",
     })
   }, [licenseNumber, licenseIssueNumber])
-  
+
   // Modified handleCardClick to handle combined dialog
   const handleCardClick = useCallback((competency: any) => {
     // Check if this is one of the license documents
-    const isLicenseDocument = 
-      competency.document_type === "driving-license" || 
+    const isLicenseDocument =
+      competency.document_type === "driving-license" ||
       competency.document_type === "d-d1-category";
-    
+
     // If it's a license document and we're not in edit mode, open combined dialog
     if (isLicenseDocument && !modalState.isEditing) {
       handleOpenCombinedDialog(competency);
       return;
     }
-    
+
     // Original logic for other documents or when editing
     const modules = competency.modules || [];
     let normalizedNextFiveModules: string[] = [];
-    
+
     if (competency.next_five_modules && competency.next_five_modules.length > 0) {
       normalizedNextFiveModules = competency.next_five_modules.map((item: any) =>
         typeof item === 'string' ? item : (item.module_name || "")
@@ -703,13 +706,13 @@ export default function ProfessionalCompetencyTab({
         normalizedNextFiveModules = ["", "", "", "", ""];
       }
     }
-    
+
     while (normalizedNextFiveModules.length < 5) {
       normalizedNextFiveModules.push("");
     }
-    
+
     normalizedNextFiveModules = normalizedNextFiveModules.slice(0, 5);
-    
+
     const editData = {
       ...competency,
       modules: modules,
@@ -718,7 +721,7 @@ export default function ProfessionalCompetencyTab({
       status_reason: competency.status_reason || "",
       custom_reason: competency.custom_reason || "",
     };
-    
+
     setOriginalExpiryDate(competency.expiry_date);
     setOriginalDocumentUrls(competency.urls || []);
     setHasUploadedNewDocument(false);
@@ -729,31 +732,31 @@ export default function ProfessionalCompetencyTab({
       pendingSync: false,
       otherDocument: null,
     });
-    
+
     dispatchModal({ type: 'SET_SELECTED_COMPETENCY', payload: competency });
     dispatchModal({ type: 'SET_EDIT_DATA', payload: editData });
     dispatchModal({ type: 'SET_MODAL_OPEN', payload: true });
     dispatchModal({ type: 'SET_EDITING', payload: false });
     dispatchModal({ type: 'CLEAR_FORM_ERRORS' });
     dispatchModal({ type: 'SET_CURRENT_IMAGE_INDEX', payload: 0 });
-    dispatchModal({ 
-      type: 'SET_SHOW_STATUS_DESCRIPTION', 
-      payload: competency.request_status === "not_approved" || competency.request_status === "pending" 
+    dispatchModal({
+      type: 'SET_SHOW_STATUS_DESCRIPTION',
+      payload: competency.request_status === "not_approved" || competency.request_status === "pending"
     });
     dispatchModal({ type: 'SET_DIRECT_STATUS_EDITING', payload: false });
   }, [handleOpenCombinedDialog, modalState.isEditing]);
-  
+
   // Existing functions remain the same...
   const checkOtherDocument = useCallback(async () => {
     if (!modalState.editData) return null;
     const isDrivingLicense = modalState.editData.document_type === "driving-license";
     const isDD1Category = modalState.editData.document_type === "d-d1-category";
-   
+
     if (!isDrivingLicense && !isDD1Category) return null;
-   
+
     try {
       const otherDocumentType = isDrivingLicense ? "d-d1-category" : "driving-license";
-    
+
       const response = await fetch(
         `${API_URL}/api/profiles/professional-competency/?driver=${driverId}&document_type=${otherDocumentType}`,
         {
@@ -762,7 +765,7 @@ export default function ProfessionalCompetencyTab({
           },
         }
       );
-     
+
       if (response.ok) {
         const data = await response.json();
         return data.results?.[0] || data[0];
@@ -772,17 +775,17 @@ export default function ProfessionalCompetencyTab({
     }
     return null;
   }, [modalState.editData, driverId, API_URL, cookies]);
-  
+
   const checkAndShowSyncDialog = useCallback(async () => {
     if (!modalState.editData) return;
-  
+
     const isDrivingLicense = modalState.editData.document_type === "driving-license";
     const isDD1Category = modalState.editData.document_type === "d-d1-category";
-  
+
     if (!isDrivingLicense && !isDD1Category) return;
-  
+
     const otherDocument = await checkOtherDocument();
-  
+
     if (otherDocument && otherDocument.has_document) {
       setDocumentDependencies({
         drivingLicenseChanged: isDrivingLicense,
@@ -790,11 +793,11 @@ export default function ProfessionalCompetencyTab({
         pendingSync: true,
         otherDocument: otherDocument,
       });
-    
+
       setIsSyncDialogOpen(true);
     }
   }, [modalState.editData, checkOtherDocument]);
-  
+
   const handleInputChange = useCallback((field: string, value: any) => {
     dispatchModal({
       type: 'SET_EDIT_DATA',
@@ -805,27 +808,27 @@ export default function ProfessionalCompetencyTab({
     });
     if (field === "expiry_date") {
       const isExpiryDateChanged = value !== originalExpiryDate
-    
+
       if (isExpiryDateChanged && modalState.editData.has_document && !hasUploadedNewDocument) {
         setUploadRequired(true)
-      
+
         const isDrivingLicense = modalState.editData.document_type === "driving-license";
         const isDD1Category = modalState.editData.document_type === "d-d1-category";
         const isRelatedDocument = isDrivingLicense || isDD1Category;
-      
+
         if (isRelatedDocument && !documentDependencies.pendingSync) {
           checkAndShowSyncDialog();
         }
       }
     }
-   
+
     if (field === "request_status") {
       dispatchModal({
         type: 'SET_SHOW_STATUS_DESCRIPTION',
         payload: value === "not_approved" || value === "pending"
       });
     }
-   
+
     if (field === "status_reason" && value) {
       const statusReasons = STATUS_REASONS[(modalState.editData.request_status as keyof typeof STATUS_REASONS) || "pending"]
       const selectedReason = statusReasons?.find(reason => reason.value === value)
@@ -839,35 +842,35 @@ export default function ProfessionalCompetencyTab({
         });
       }
     }
-   
+
     dispatchModal({
       type: 'SET_FORM_ERROR',
       payload: { field, value: "" }
     });
   }, [modalState.editData, originalExpiryDate, hasUploadedNewDocument, documentDependencies, checkAndShowSyncDialog]);
-  
+
   const handleLicenseInfoChange = useCallback((field: string, value: string) => {
     setDriverLicenseInfo(prev => ({
       ...prev,
       [field]: value
     }))
-  
+
     if (modalState.editData?.document_type === "driving-license" && modalState.editData?.has_document && !hasUploadedNewDocument) {
       const isLicenseChanged = field === "license_number" &&
         value !== originalLicenseInfo.license_number
       const isIssueNumberChanged = field === "license_issue_number" &&
         value !== originalLicenseInfo.license_issue_number
-    
+
       if ((isLicenseChanged || isIssueNumberChanged) && !uploadRequired) {
         setUploadRequired(true)
-      
+
         if (!documentDependencies.pendingSync) {
           checkAndShowSyncDialog();
         }
       }
     }
   }, [modalState.editData, originalLicenseInfo, uploadRequired, hasUploadedNewDocument, documentDependencies, checkAndShowSyncDialog]);
-  
+
   const handleFileUpload = useCallback(
     (url: string, isBackSide: boolean) => {
       const updatedUrls = [...(modalState.editData.urls || [])]
@@ -886,10 +889,10 @@ export default function ProfessionalCompetencyTab({
           updatedUrls[0] = url
         }
       }
-    
+
       setHasUploadedNewDocument(true)
       setUploadRequired(false)
-    
+
       dispatchModal({
         type: 'SET_EDIT_DATA',
         payload: {
@@ -898,12 +901,12 @@ export default function ProfessionalCompetencyTab({
           has_document: true,
         }
       });
-     
+
       showToast("Document uploaded successfully", "success")
     },
     [modalState.editData, showToast],
   );
-  
+
   const handleModuleChange = useCallback((index: number, field: string, value: string) => {
     dispatchModal({
       type: 'SET_EDIT_DATA',
@@ -915,7 +918,7 @@ export default function ProfessionalCompetencyTab({
       }
     });
   }, [modalState.editData]);
-  
+
   const addModule = useCallback(() => {
     dispatchModal({
       type: 'SET_EDIT_DATA',
@@ -930,7 +933,7 @@ export default function ProfessionalCompetencyTab({
       }
     });
   }, [modalState.editData]);
-  
+
   const deleteModule = useCallback((index: number) => {
     dispatchModal({
       type: 'SET_EDIT_DATA',
@@ -940,7 +943,7 @@ export default function ProfessionalCompetencyTab({
       }
     });
   }, [modalState.editData]);
-  
+
   const handleNextFiveModulesChange = useCallback((index: number, value: string) => {
     dispatchModal({
       type: 'SET_EDIT_DATA',
@@ -952,10 +955,10 @@ export default function ProfessionalCompetencyTab({
       }
     });
   }, [modalState.editData]);
-  
+
   const updateRelatedDocument = useCallback(async () => {
     if (!modalState.editData || !documentDependencies.otherDocument) return;
-   
+
     try {
       const updatePayload: any = {
         request_status: "pending",
@@ -963,11 +966,11 @@ export default function ProfessionalCompetencyTab({
         status_description: `Requires updated documents after ${modalState.editData.document_type === "driving-license" ? "Driving License" : "D/D1 Category"} changes`,
         custom_reason: "",
       };
-     
+
       if (modalState.editData.expiry_date && modalState.editData.expiry_date !== originalExpiryDate) {
         updatePayload.expiry_date = modalState.editData.expiry_date;
       }
-     
+
       const updateResponse = await fetch(
         `${API_URL}/api/profiles/professional-competency/${documentDependencies.otherDocument.id}/`,
         {
@@ -979,7 +982,7 @@ export default function ProfessionalCompetencyTab({
           body: JSON.stringify(updatePayload),
         }
       );
-     
+
       if (updateResponse.ok) {
         showToast(
           `${modalState.editData.document_type === "driving-license" ? "D/D1 Category" : "Driving License"} marked for update`,
@@ -992,23 +995,23 @@ export default function ProfessionalCompetencyTab({
       showToast("Failed to update related document", "error");
     }
   }, [modalState.editData, documentDependencies, API_URL, cookies, showToast, fetchCompetencyData, originalExpiryDate]);
-  
+
   const saveChanges = useCallback(async () => {
     if (!modalState.editData) return;
-   
+
     dispatchModal({ type: 'SET_SAVING', payload: true });
-   
+
     try {
       if (modalState.editData.document_type === "driving-license" && driverId) {
         const hasLicenseChanged = driverLicenseInfo.license_number !== originalLicenseInfo.license_number
         const hasIssueNumberChanged = driverLicenseInfo.license_issue_number !== originalLicenseInfo.license_issue_number
-      
+
         if (hasLicenseChanged || hasIssueNumberChanged) {
           const driverPayload = {
             license_number: driverLicenseInfo.license_number,
             license_issue_number: driverLicenseInfo.license_issue_number,
           }
-         
+
           const driverResponse = await fetch(`${API_URL}/api/profiles/driver/${driverId}/`, {
             method: "PATCH",
             headers: {
@@ -1017,45 +1020,77 @@ export default function ProfessionalCompetencyTab({
             },
             body: JSON.stringify(driverPayload),
           })
-         
+
           if (!driverResponse.ok) {
             const driverError = await driverResponse.json()
             throw new Error(driverError.message || `Failed to save license info: ${driverResponse.statusText}`)
           }
-         
+
           setOriginalLicenseInfo({
             license_number: driverLicenseInfo.license_number,
             license_issue_number: driverLicenseInfo.license_issue_number,
           })
-        
+
           fetchDriverData()
         }
       }
-     
+
+      // Special handling for last-driver-check-code and last-tacho-download
+      if ((modalState.editData.document_type === "last-driver-check-code" ||
+        modalState.editData.document_type === "last-tacho-download") &&
+        modalState.editData.expiry_date !== originalExpiryDate && driverId) {
+
+        const driverPayload: any = {};
+        if (modalState.editData.document_type === "last-driver-check-code") {
+          driverPayload.last_driver_license_check_code_date = modalState.editData.expiry_date;
+        } else {
+          driverPayload.last_driver_tacho_download = modalState.editData.expiry_date;
+        }
+
+        const driverResponse = await fetch(`${API_URL}/api/profiles/driver/${driverId}/`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+          body: JSON.stringify(driverPayload),
+        })
+
+        if (!driverResponse.ok) {
+          const driverError = await driverResponse.json()
+          throw new Error(driverError.message || `Failed to update driver record: ${driverResponse.statusText}`)
+        }
+
+        fetchDriverData();
+      }
+
       const modulesData = modalState.editData.modules.map((m: any) => ({
         ...(m.id ? { id: m.id } : {}),
         module_name: m.module_name,
         description: m.description,
         expiry_date: m.expiry_date || null,
       }))
-     
+
       const filteredNextFiveModules = modalState.editData.next_five_modules
         .filter((m: string) => m && m.trim() !== "")
         .map((m: string, index: number) => ({
           module_name: m,
           module_number: index + 1
         }))
-     
+
+      const isSpecialDocument = modalState.editData.document_type === "last-driver-check-code" ||
+        modalState.editData.document_type === "last-tacho-download";
+
       const payload = {
         driver: driverId,
         document_name: modalState.editData.document_name,
         document_type: modalState.editData.document_type,
-        has_expiry: modalState.editData.has_expiry || !!modalState.editData.expiry_date,
+        has_expiry: isSpecialDocument ? false : (modalState.editData.has_expiry || !!modalState.editData.expiry_date),
         description: modalState.editData.description || "",
         status_description: modalState.editData.status_description || "",
         status_reason: modalState.editData.status_reason || "",
         custom_reason: modalState.editData.custom_reason || "",
-        expiry_date: modalState.editData.expiry_date || null,
+        expiry_date: isSpecialDocument ? null : (modalState.editData.expiry_date || null),
         has_document: modalState.editData.has_document,
         has_back_side: modalState.editData.has_back_side,
         urls: modalState.editData.urls || [],
@@ -1064,13 +1099,13 @@ export default function ProfessionalCompetencyTab({
         next_five_modules: filteredNextFiveModules,
         modules: modulesData,
       }
-     
+
       const endpoint = modalState.editData.id
         ? `${API_URL}/api/profiles/professional-competency/${modalState.editData.id}/`
         : `${API_URL}/api/profiles/professional-competency/`
-     
+
       const method = modalState.editData.id ? "PUT" : "POST"
-     
+
       const response = await fetch(endpoint, {
         method,
         headers: {
@@ -1079,13 +1114,13 @@ export default function ProfessionalCompetencyTab({
         },
         body: JSON.stringify(payload),
       })
-     
+
       const responseData = await response.json()
-     
+
       if (!response.ok) {
         throw new Error(responseData.message || `Failed to save: ${response.statusText}`)
       }
-     
+
       if (responseData.success || response.status === 200 || response.status === 201) {
         showToast("Professional competency saved successfully", "success")
         dispatchModal({ type: 'RESET_MODAL' });
@@ -1108,29 +1143,29 @@ export default function ProfessionalCompetencyTab({
       dispatchModal({ type: 'SET_SAVING', payload: false });
     }
   }, [modalState.editData, driverId, driverLicenseInfo, originalLicenseInfo, API_URL, cookies, showToast, fetchCompetencyData, fetchDriverData]);
-  
+
   const handleSave = useCallback(async () => {
     if (!modalState.editData) return;
-   
+
     if (hasUploadedNewDocument) {
       await saveChanges();
       return;
     }
-   
+
     const isExpiryDateChanged = modalState.editData.expiry_date !== originalExpiryDate;
     const isLicenseNumberChanged = driverLicenseInfo.license_number !== originalLicenseInfo.license_number;
     const isIssueNumberChanged = driverLicenseInfo.license_issue_number !== originalLicenseInfo.license_issue_number;
-  
+
     const isDrivingLicense = modalState.editData.document_type === "driving-license";
     const hasCriticalChanges = isExpiryDateChanged ||
       (isDrivingLicense && (isLicenseNumberChanged || isIssueNumberChanged));
-  
+
     if (hasCriticalChanges && modalState.editData.has_document) {
       dispatchModal({
         type: 'SET_FORM_ERROR',
         payload: { field: 'expiry_date', value: "Please upload updated documents or set a reminder" }
       });
-    
+
       if (isDrivingLicense && (isLicenseNumberChanged || isIssueNumberChanged)) {
         showToast("Please upload updated documents when changing license information", "error");
       } else {
@@ -1138,12 +1173,12 @@ export default function ProfessionalCompetencyTab({
       }
       return;
     }
-   
+
     if (modalState.isEditing && (modalState.editData.request_status === "not_approved" || modalState.editData.request_status === "pending")) {
       const hasStatusDescription =
         modalState.editData.status_description?.trim() ||
         (modalState.editData.status_reason === "other" && modalState.editData.custom_reason?.trim())
-    
+
       if (!hasStatusDescription) {
         dispatchModal({
           type: 'SET_FORM_ERROR',
@@ -1153,21 +1188,21 @@ export default function ProfessionalCompetencyTab({
         return;
       }
     }
-   
+
     await saveChanges();
   }, [modalState.editData, modalState.isEditing, originalExpiryDate, driverLicenseInfo, originalLicenseInfo, saveChanges, showToast, hasUploadedNewDocument]);
-  
+
   const openReminderDialog = useCallback(() => {
     if (!modalState.editData) return;
-    
+
     const title = modalState.editData.document_type === "driving-license"
       ? "Upload updated Driving License documents"
       : `Upload documents for ${modalState.editData?.document_name}`
-  
+
     const description = modalState.editData.document_type === "driving-license"
       ? `License information has been updated. Please upload updated Driving License documents with new license number: ${driverLicenseInfo.license_number} and issue number: ${driverLicenseInfo.license_issue_number}`
       : `Upload updated documents for ${modalState.editData.document_name} with new expiry date: ${modalState.editData.expiry_date}`
-  
+
     setReminderData({
       title,
       description,
@@ -1178,12 +1213,12 @@ export default function ProfessionalCompetencyTab({
     })
     setIsReminderDialogOpen(true)
   }, [modalState.editData, driverLicenseInfo]);
-  
+
   const handleDirectStatusUpdate = useCallback(async () => {
     if (!modalState.editData || !modalState.statusUpdateData.request_status) return
-  
+
     dispatchModal({ type: 'SET_SAVING', payload: true });
-   
+
     try {
       const payload = {
         ...modalState.editData,
@@ -1192,7 +1227,7 @@ export default function ProfessionalCompetencyTab({
         status_description: modalState.statusUpdateData.status_description || "",
         custom_reason: modalState.statusUpdateData.custom_reason || "",
       }
-     
+
       const response = await fetch(`${API_URL}/api/profiles/professional-competency/${modalState.editData.id}/`, {
         method: "PUT",
         headers: {
@@ -1201,13 +1236,13 @@ export default function ProfessionalCompetencyTab({
         },
         body: JSON.stringify(payload),
       })
-     
+
       const responseData = await response.json()
-     
+
       if (!response.ok) {
         throw new Error(responseData.message || `Failed to update status: ${response.statusText}`)
       }
-     
+
       if (responseData.success || response.status === 200) {
         showToast("Status updated successfully", "success")
         dispatchModal({ type: 'SET_DIRECT_STATUS_EDITING', payload: false });
@@ -1221,7 +1256,7 @@ export default function ProfessionalCompetencyTab({
           }
         });
         fetchCompetencyData()
-      
+
         dispatchModal({
           type: 'SET_EDIT_DATA',
           payload: payload
@@ -1236,7 +1271,7 @@ export default function ProfessionalCompetencyTab({
       dispatchModal({ type: 'SET_SAVING', payload: false });
     }
   }, [modalState.editData, modalState.statusUpdateData, API_URL, cookies, showToast, fetchCompetencyData]);
-  
+
   const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case "approved":
@@ -1249,7 +1284,7 @@ export default function ProfessionalCompetencyTab({
         return "bg-gray-50 text-gray-700 border-gray-200"
     }
   }, []);
-  
+
   const getStatusIcon = useCallback((status: string) => {
     switch (status) {
       case "approved":
@@ -1262,27 +1297,27 @@ export default function ProfessionalCompetencyTab({
         return null
     }
   }, []);
-  
+
   const openPdfModal = useCallback((url: string) => {
     setSelectedPdfUrl(url)
     setIsPdfModalOpen(true)
   }, []);
-  
+
   // Helper function for reminder dialog
   const handleRemindMeLater = useCallback(async () => {
     // Implementation for creating reminder
     setIsReminderDialogOpen(false);
     await saveChanges();
   }, [saveChanges]);
-  
+
   // Memoize the documents list
   const allDocuments = useMemo(() => getCompletedDocumentsList(), [getCompletedDocumentsList])
-  
+
   // Memoize competency cards with combined dialog integration
   const competencyCards = useMemo(() =>
     allDocuments.map((competency: any) => {
       const cardImageIndex = cardImageIndexes[competency.id || 0] || 0;
-      
+
       return (
         <EnhancedCompetencyCard
           key={competency.id || competency.document_type}
@@ -1297,24 +1332,19 @@ export default function ProfessionalCompetencyTab({
           license_number={licenseNumber}
           license_issue_number={licenseIssueNumber}
           onOpenCombinedDialog={
-            (competency.document_type === "driving-license" || 
-             competency.document_type === "d-d1-category") 
+            (competency.document_type === "driving-license" ||
+              competency.document_type === "d-d1-category")
               ? () => handleOpenCombinedDialog(competency)
               : undefined
           }
         />
       );
     }),
-    [allDocuments, cardImageIndexes, handleCardClick, handleOpenCombinedDialog, 
-     isPdfUrl, formatDate, getStatusColor, getStatusIcon, licenseNumber, licenseIssueNumber]
+    [allDocuments, cardImageIndexes, handleCardClick, handleOpenCombinedDialog,
+      isPdfUrl, formatDate, getStatusColor, getStatusIcon, licenseNumber, licenseIssueNumber]
   );
 
-  // Check if we have license data to show the combined button
-  const hasLicenseData = useMemo(() => {
-    return competencyData.some((d: any) => 
-      d.document_type === "driving-license" || d.document_type === "d-d1-category"
-    );
-  }, [competencyData]);
+
 
   return (
     <div className="space-y-6">
@@ -1344,9 +1374,9 @@ export default function ProfessionalCompetencyTab({
           </div>
         </CardContent>
       </Card>
-     
+
       {/* External Dialog Components */}
-      
+
       {/* Combined License Dialog */}
       <CombinedLicenseDialog
         isOpen={isCombinedDialogOpen}
@@ -1404,7 +1434,7 @@ export default function ProfessionalCompetencyTab({
         uploadRequired={uploadRequired}
         openReminderDialog={openReminderDialog}
       />
-     
+
       {/* Document Synchronization Dialog - Automatically opens when changes are made */}
       <Dialog open={isSyncDialogOpen} onOpenChange={setIsSyncDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -1414,7 +1444,7 @@ export default function ProfessionalCompetencyTab({
               Document Synchronization Required
             </DialogTitle>
           </DialogHeader>
-        
+
           <div className="space-y-4 py-4">
             <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
               <p className="font-semibold text-orange-900">
@@ -1443,18 +1473,16 @@ export default function ProfessionalCompetencyTab({
             </div>
             <div className="space-y-3">
               <div
-                className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  syncAction === "update"
-                    ? "border-green-500 bg-green-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
+                className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${syncAction === "update"
+                  ? "border-green-500 bg-green-50"
+                  : "border-gray-200 hover:border-gray-300"
+                  }`}
                 onClick={() => setSyncAction("update")}
               >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                  syncAction === "update"
-                    ? "border-green-600 bg-green-600"
-                    : "border-gray-400"
-                }`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${syncAction === "update"
+                  ? "border-green-600 bg-green-600"
+                  : "border-gray-400"
+                  }`}>
                   {syncAction === "update" && (
                     <Check className="h-3 w-3 text-white" />
                   )}
@@ -1469,18 +1497,16 @@ export default function ProfessionalCompetencyTab({
                 </div>
               </div>
               <div
-                className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  syncAction === "skip"
-                    ? "border-gray-400 bg-gray-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
+                className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${syncAction === "skip"
+                  ? "border-gray-400 bg-gray-50"
+                  : "border-gray-200 hover:border-gray-300"
+                  }`}
                 onClick={() => setSyncAction("skip")}
               >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                  syncAction === "skip"
-                    ? "border-gray-600 bg-gray-600"
-                    : "border-gray-400"
-                }`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${syncAction === "skip"
+                  ? "border-gray-600 bg-gray-600"
+                  : "border-gray-400"
+                  }`}>
                   {syncAction === "skip" && (
                     <X className="h-3 w-3 text-white" />
                   )}
@@ -1514,11 +1540,11 @@ export default function ProfessionalCompetencyTab({
             <Button
               onClick={async () => {
                 setIsSyncDialogOpen(false);
-              
+
                 if (syncAction === "update") {
                   await updateRelatedDocument();
                 }
-              
+
                 await saveChanges();
               }}
               className="bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-700 hover:to-indigo-700"
@@ -1528,7 +1554,7 @@ export default function ProfessionalCompetencyTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-     
+
       {/* Reminder Dialog */}
       <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
         <DialogContent className="max-w-2xl h-[500px] overflow-y-auto bg-white">
@@ -1673,7 +1699,7 @@ export default function ProfessionalCompetencyTab({
           </div>
         </DialogContent>
       </Dialog>
-     
+
       {/* Enhanced PDF Viewer Modal */}
       <Dialog open={isPdfModalOpen} onOpenChange={setIsPdfModalOpen}>
         <DialogContent className="max-w-6xl w-full h-[90vh] p-0 overflow-hidden">

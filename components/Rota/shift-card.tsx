@@ -42,9 +42,9 @@ interface ShiftCardProps {
   total_hours: number;
   shift_list: Shift[];
   onShiftUpdate: () => void;
-  staffName?: string; // Add this prop
-  date?: string; // Add this prop
-  showHourlyRate?: boolean; // Add this prop
+  staffName?: string;
+  date?: string;
+  showHourlyRate?: boolean;
 }
 
 // ✅ Format hours like "1 Hour", "10.5 Hours"
@@ -73,9 +73,9 @@ export function ShiftCard({
   total_hours,
   shift_list,
   onShiftUpdate,
-  staffName = "Unknown Staff", // Default value
-  date = "Unknown Date", // Default value
-  showHourlyRate = false, // Default to false
+  staffName = "Unknown Staff",
+  date = "Unknown Date",
+  showHourlyRate = false,
 }: ShiftCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,11 +85,43 @@ export function ShiftCard({
   const [newShift, setNewShift] = useState<number>(shift_id);
   const [newSalary, setNewSalary] = useState<number>(rate);
   const [newHours, setNewHours] = useState<number>(total_hours);
+  const [hoursError, setHoursError] = useState<string | null>(null);
 
   const cookies = useCookies();
   const role = cookies.get("role");
 
+  // Validate hours input
+  const validateHours = (hours: number): boolean => {
+    if (hours <= 0) {
+      setHoursError("Hours must be greater than 0");
+      return false;
+    }
+    if (hours > 24) {
+      setHoursError("Hours cannot exceed 24 hours");
+      return false;
+    }
+    setHoursError(null);
+    return true;
+  };
+
+  // Handle hours input change with validation
+  const handleHoursChange = (value: string) => {
+    const hoursValue = parseFloat(value);
+    if (isNaN(hoursValue)) {
+      setNewHours(0);
+      setHoursError("Please enter a valid number");
+    } else {
+      setNewHours(hoursValue);
+      validateHours(hoursValue);
+    }
+  };
+
   const handleSaveAll = async () => {
+    // Validate hours before saving
+    if (!validateHours(newHours)) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
@@ -117,7 +149,7 @@ export function ShiftCard({
           method: "PUT",
           headers,
           body: JSON.stringify({
-            "shift": newShift,
+            shift: newShift,
           }),
         }
       );
@@ -156,13 +188,14 @@ export function ShiftCard({
         "relative flex flex-col w-[200px] items-start gap-1 rounded-md border-l-4 p-2 text-sm"
       )}
       style={{
-        borderLeftColor: color, // ✅ border color from API
-        backgroundColor: color + "33", // ✅ lighter background (adds transparency)
+        borderLeftColor: color,
+        backgroundColor: color + "33",
       }}
     >
       <div className="flex w-full items-center justify-between">
-        <span className="cursor-pointer font-semibold">{shiftType} {role === "superadmin" ? `(${formatPrice(rate)} P/H)` : null}</span>
-
+        <span className="cursor-pointer font-semibold">
+          {shiftType} {role === "superadmin" ? `(${formatPrice(rate)} P/H)` : null}
+        </span>
 
         {/* Edit Button with Modal */}
         <Dialog open={open} onOpenChange={setOpen}>
@@ -216,22 +249,33 @@ export function ShiftCard({
                 >
                   {shift_list.map((shift) => (
                     <option key={shift.id} value={shift.id}>
-                      {shift.name} - {shift.hours_from} to {shift.hours_to} ({shift.total_hours} Hrs)
+                      {shift.name} - {shift.hours_from?.slice(0, 5)} to {shift.hours_to?.slice(0, 5)} ({shift.total_hours} Hrs)
                     </option>
                   ))}
                 </select>
               </div>
-
-              {/* Hours */}
+              
+              {/* Hours Input with Validation */}
               <div>
-                <label className="text-sm font-medium">Update Hours</label>
+                <label className="text-sm font-medium">Update Hours (Max: 24)</label>
                 <Input
                   type="number"
                   step="0.5"
+                  min="0.5"
+                  max="24"
                   value={newHours || 0}
-                  onChange={(e) => setNewHours(parseFloat(e.target.value))}
+                  onChange={(e) => handleHoursChange(e.target.value)}
+                  onBlur={() => validateHours(newHours)}
                   disabled={isLoading}
+                  className={hoursError ? "border-red-500 focus-visible:ring-red-500" : ""}
+                  placeholder="Enter hours (0.5 - 24)"
                 />
+                {hoursError && (
+                  <p className="text-red-500 text-xs mt-1">{hoursError}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter a value between 0.5 and 24 hours
+                </p>
               </div>
             </div>
 
@@ -240,10 +284,11 @@ export function ShiftCard({
             <DialogFooter>
               <Button
                 onClick={handleSaveAll}
-                disabled={isLoading}
+                disabled={isLoading || !!hoursError}
                 style={{
-                  background:
-                    "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+                  background: hoursError
+                    ? "#ccc"
+                    : "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
                   width: "auto",
                   height: "auto",
                 }}
@@ -258,7 +303,7 @@ export function ShiftCard({
       {/* Display Info */}
       <div className="flex justify-between w-full text-xs text-gray-600">
         {role === "superadmin" ? (
-          <span className="cursor-pointer ">Daily Pay: ({formatPrice(shift_daily_salary)})</span>
+          <span className="cursor-pointer">Daily Pay: ({formatPrice(shift_daily_salary)})</span>
         ) : null}
         <span>{total_hours} Hr</span>
       </div>

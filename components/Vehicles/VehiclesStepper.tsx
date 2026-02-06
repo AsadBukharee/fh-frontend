@@ -69,108 +69,69 @@ interface DocumentInfo {
   estimatedHours: number
 }
 
-// Updated interface with ALL 6 tyre fields
+// Updated interface aligned with new backend JSON
 interface VehicleFormData {
-  vin: string
-  registration_number: string
-  make: string
-  model: string
-  vehicles_type: number
-  site_allocated: number[]
-  number_of_seats: number | null
-  mileage_unit: "kms" | "miles"
-  vehicle_picture: string
-  notes: string
-  current_mileage: number | null
+  // --- IDENTIFICATION ---
+  registration_number: string           // Registration plate (max 20 chars)
+  vin: string                          // Vehicle Identification Number (max 30 chars)
+  vehicles_type: number                // ID of the VehicleType (integer, REQUIRED)
+  
+  // --- LOGISTICS ---
+  site_allocated_ids: number[]         // List of Site IDs (integers)
+  vehicle_status: "available" | "unavailable" | "assigned" | "disabled"
+  is_active: boolean                   // Boolean (defaults to true)
+
+  // --- MILEAGE & BASIC INFO ---
+  mileage_unit: "kms" | "miles"        // Must match choice keys exactly
+  purchase_mileage: string             // Decimal (8 digits total, 2 decimal places)
+  last_mileage: string                 // Decimal (8 digits total, 2 decimal places)
   is_tacho_fitted: boolean
-  is_wheelchair_lift_fitted: boolean
-  date_of_purchase: string
+  is_wheelchair_lift_fitted: boolean   // Backend expects actual boolean true/false
+  number_of_seats: number | null       // Integer
+  make: string                         // Manufacturer (max 40 chars)
+  model: string                        // Model name (max 20 chars)
+  notes: string                        // Text/String
+  vehicle_picture: string              // URL string
+
+  // --- PURCHASE INFO ---
+  date_of_purchase: string             // Date format: YYYY-MM-DD (REQUIRED)
   purchased_from: string
   purchased_by: string
   price: string
   has_vat: boolean
   vat_amount: string
 
-  // Expiry dates with mandatory document uploads
-  last_pmi_date: string
+  // --- COMPLIANCE DATES (Format: YYYY-MM-DD or null) ---
   mot_expiry: string
+  pmi_expiry_date: string
   insurance_expiry: string
   tax_expiry: string
-  tacho_calibration_expiry: string
-  last_tacho_download_date: string
-  loller_calibration_expiry: string
-
-  // Document fields for each date (NEW)
-  last_pmi_date_docs: string
-  mot_expiry_docs: string
-  insurance_expiry_docs: string
-  tax_expiry_docs: string
-  tacho_calibration_expiry_docs: string
-  last_tacho_download_date_docs: string
-  loller_calibration_expiry_docs: string
-
-  // Vehicle status fields
-  vehicle_status: "available" | "maintenance" | "out_of_service"
-  vehicle_roadworthy_status: "no_defect" | "defects_found" | "requires_inspection"
-  is_roadworthy: boolean
-  is_active: boolean
-
-  // PMI fields
   pmi_booked_date: string
-  pmi_cycle: number | null
+  pmi_cycle: number | null             // Integer (e.g. 6 weeks)
+  last_pmi_date: string
+  tacho_calibration_expiry: string
+  loller_test_expiry_date: string
 
-  // Other dates
-  next_loller_test_date: string
-  next_techo_calibration_book_date: string
-  next_tacho_download_date: string
-  tacho_notes: string
-  last_tyre_maintenance_check_date: string
-  next_tyre_maintenance_check_date: string
-  last_valet_check_date: string
-  next_valet_check_date: string
-  last_equipment_check_date: string
-  next_equipment_check_date: string
-
-  // Tyre Checks - ALL 6 TYRES AS PER REQUIREMENTS
+  // --- TYRE EXPIRY (WWYY format) ---
   tyre_expiry_front_driver: string
   tyre_expiry_front_passenger: string
-  tyre_expiry_rear_outer_driver: string
-  tyre_expiry_rear_outer_passenger: string
   tyre_expiry_rear_inner_driver: string
   tyre_expiry_rear_inner_passenger: string
+  tyre_expiry_rear_outer_driver: string
+  tyre_expiry_rear_outer_passenger: string
 
-  tyre_depth_front_driver: string
-  tyre_depth_front_passenger: string
-  tyre_depth_rear_outer_driver: string
-  tyre_depth_rear_outer_passenger: string
-  tyre_depth_rear_inner_driver: string
-  tyre_depth_rear_inner_passenger: string
-
+  // --- TYRE SPECS (Optional) ---
   tyre_pressure_front_driver: number | null
-  tyre_pressure_front_passenger: number | null
-  tyre_pressure_rear_outer_driver: number | null
-  tyre_pressure_rear_outer_passenger: number | null
-  tyre_pressure_rear_inner_driver: number | null
-  tyre_pressure_rear_inner_passenger: number | null
-
+  tyre_depth_front_driver: string
   tyre_torque_front_driver: number | null
-  tyre_torque_front_passenger: number | null
-  tyre_torque_rear_outer_driver: number | null
-  tyre_torque_rear_outer_passenger: number | null
 
-  // Document uploads
+  // --- DOCUMENTS (URL strings, max 1024 chars) ---
   vehicle_invoice_docs: string
   mot_check_docs: string
   pmi_inspection_docs: string
-  others_docs: string
-  tacho_calibration_docs: string
-  tax_docs: string
-  loller_docs: string
   insurance_docs: string
-  service_records_docs: string
-  new_vehicle_checklist_docs: string
+  tax_docs: string
   logbook_docs: string
-  COIF_technical_docs: string
 }
 
 interface VehicleState {
@@ -197,7 +158,6 @@ const TYRE_DEFAULTS = {
 
 // Document configuration for task creation
 const DOCUMENT_CONFIG: Record<string, DocumentInfo> = {
-  // Step 1: Basic Vehicle Documents
   vehicle_picture: {
     field: "vehicle_picture",
     label: "Vehicle Picture",
@@ -205,14 +165,6 @@ const DOCUMENT_CONFIG: Record<string, DocumentInfo> = {
     priority: "high",
     deadlineDays: 2,
     estimatedHours: 0.5,
-  },
-  new_vehicle_checklist_docs: {
-    field: "new_vehicle_checklist_docs",
-    label: "New Vehicle Checklist",
-    description: "Completed new vehicle inspection checklist",
-    priority: "high",
-    deadlineDays: 2,
-    estimatedHours: 1,
   },
   logbook_docs: {
     field: "logbook_docs",
@@ -222,14 +174,6 @@ const DOCUMENT_CONFIG: Record<string, DocumentInfo> = {
     deadlineDays: 1,
     estimatedHours: 0.5,
   },
-  COIF_technical_docs: {
-    field: "COIF_technical_docs",
-    label: "COIF / Technical Data",
-    description: "Certificate of Initial Fitness and technical specifications",
-    priority: "high",
-    deadlineDays: 3,
-    estimatedHours: 1,
-  },
   vehicle_invoice_docs: {
     field: "vehicle_invoice_docs",
     label: "Vehicle Invoice",
@@ -237,16 +181,6 @@ const DOCUMENT_CONFIG: Record<string, DocumentInfo> = {
     priority: "medium",
     deadlineDays: 5,
     estimatedHours: 0.5,
-  },
-
-  // Step 2: Purchase & Service Documents
-  service_records_docs: {
-    field: "service_records_docs",
-    label: "Service Records",
-    description: "Previous service history and maintenance records",
-    priority: "medium",
-    deadlineDays: 7,
-    estimatedHours: 1,
   },
   pmi_inspection_docs: {
     field: "pmi_inspection_docs",
@@ -256,134 +190,57 @@ const DOCUMENT_CONFIG: Record<string, DocumentInfo> = {
     deadlineDays: 3,
     estimatedHours: 1.5,
   },
-
-  // Step 3: Expiry Date Documents
-  mot_expiry_docs: {
-    field: "mot_expiry_docs",
+  mot_check_docs: {
+    field: "mot_check_docs",
     label: "MOT Certificate",
     description: "Current MOT test certificate",
     priority: "urgent",
     deadlineDays: 1,
     estimatedHours: 0.5,
   },
-  insurance_expiry_docs: {
-    field: "insurance_expiry_docs",
+  insurance_docs: {
+    field: "insurance_docs",
     label: "Insurance Certificate",
     description: "Vehicle insurance certificate and policy",
     priority: "urgent",
     deadlineDays: 1,
     estimatedHours: 0.5,
   },
-  tax_expiry_docs: {
-    field: "tax_expiry_docs",
+  tax_docs: {
+    field: "tax_docs",
     label: "Tax Document",
     description: "Vehicle tax payment confirmation",
     priority: "urgent",
     deadlineDays: 1,
     estimatedHours: 0.5,
   },
-  last_pmi_date_docs: {
-    field: "last_pmi_date_docs",
-    label: "Last PMI Document",
-    description: "Documentation from last PMI inspection",
-    priority: "high",
-    deadlineDays: 3,
-    estimatedHours: 1,
-  },
-  tacho_calibration_expiry_docs: {
-    field: "tacho_calibration_expiry_docs",
-    label: "Tacho Calibration Certificate",
-    description: "Tachograph calibration certificate",
-    priority: "high",
-    deadlineDays: 3,
-    estimatedHours: 1,
-  },
-  last_tacho_download_date_docs: {
-    field: "last_tacho_download_date_docs",
-    label: "Tacho Download Report",
-    description: "Latest tachograph data download report",
-    priority: "medium",
-    deadlineDays: 5,
-    estimatedHours: 1,
-  },
-  loller_calibration_expiry_docs: {
-    field: "loller_calibration_expiry_docs",
-    label: "Loller Calibration Certificate",
-    description: "LOLER lifting equipment calibration certificate",
-    priority: "high",
-    deadlineDays: 3,
-    estimatedHours: 1,
-  },
-
-  // Optional Documents
-  mot_check_docs: {
-    field: "mot_check_docs",
-    label: "MOT History Check",
-    description: "MOT history and advisory notices",
-    priority: "low",
-    deadlineDays: 10,
-    estimatedHours: 0.5,
-  },
-  tacho_calibration_docs: {
-    field: "tacho_calibration_docs",
-    label: "Tacho Calibration Details",
-    description: "Detailed tachograph calibration records",
-    priority: "medium",
-    deadlineDays: 7,
-    estimatedHours: 1,
-  },
-  tax_docs: {
-    field: "tax_docs",
-    label: "Tax History",
-    description: "Vehicle tax payment history",
-    priority: "low",
-    deadlineDays: 10,
-    estimatedHours: 0.5,
-  },
-  loller_docs: {
-    field: "loller_docs",
-    label: "LOLER Documentation",
-    description: "Complete LOLER inspection records",
-    priority: "medium",
-    deadlineDays: 7,
-    estimatedHours: 1.5,
-  },
-  insurance_docs: {
-    field: "insurance_docs",
-    label: "Insurance Policy",
-    description: "Complete insurance policy document",
-    priority: "medium",
-    deadlineDays: 7,
-    estimatedHours: 1,
-  },
-  others_docs: {
-    field: "others_docs",
-    label: "Other Documents",
-    description: "Any other relevant vehicle documents",
-    priority: "low",
-    deadlineDays: 14,
-    estimatedHours: 1,
-  },
 }
 
 const initialState: VehicleState = {
   formData: {
-    vin: "",
+    // --- IDENTIFICATION ---
     registration_number: "",
-    make: "",
-    model: "",
+    vin: "",
     vehicles_type: 0,
-    site_allocated: [],
-    number_of_seats: null,
-    mileage_unit: "miles",
-    vehicle_picture: "",
-    notes: "",
+    
+    // --- LOGISTICS ---
+    site_allocated_ids: [],
+    vehicle_status: "available",
+    is_active: true,
 
-    // NEW FIELDS
-    current_mileage: null,
+    // --- MILEAGE & BASIC INFO ---
+    mileage_unit: "kms",
+    purchase_mileage: "",
+    last_mileage: "",
     is_tacho_fitted: false,
     is_wheelchair_lift_fitted: false,
+    number_of_seats: null,
+    make: "",
+    model: "",
+    notes: "",
+    vehicle_picture: "",
 
+    // --- PURCHASE INFO ---
     date_of_purchase: "",
     purchased_from: "",
     purchased_by: "",
@@ -391,80 +248,37 @@ const initialState: VehicleState = {
     has_vat: false,
     vat_amount: "",
 
-    // Expiry dates
-    last_pmi_date: "",
+    // --- COMPLIANCE DATES ---
     mot_expiry: "",
+    pmi_expiry_date: "",
     insurance_expiry: "",
     tax_expiry: "",
-    tacho_calibration_expiry: "",
-    last_tacho_download_date: "",
-    loller_calibration_expiry: "",
-
-    // Document fields for dates (initially empty)
-    last_pmi_date_docs: "",
-    mot_expiry_docs: "",
-    insurance_expiry_docs: "",
-    tax_expiry_docs: "",
-    tacho_calibration_expiry_docs: "",
-    last_tacho_download_date_docs: "",
-    loller_calibration_expiry_docs: "",
-
-    vehicle_status: "available",
-    vehicle_roadworthy_status: "no_defect",
-    is_roadworthy: true,
-    is_active: true,
     pmi_booked_date: "",
     pmi_cycle: null,
-    next_loller_test_date: "",
-    next_techo_calibration_book_date: "",
-    next_tacho_download_date: "",
-    tacho_notes: "",
-    last_tyre_maintenance_check_date: "",
-    next_tyre_maintenance_check_date: "",
-    last_valet_check_date: "",
-    next_valet_check_date: "",
-    last_equipment_check_date: "",
-    next_equipment_check_date: "",
+    last_pmi_date: "",
+    tacho_calibration_expiry: "",
+    loller_test_expiry_date: "",
 
-    // Tyre defaults (ALL 6 TYRES)
+    // --- TYRE EXPIRY ---
     tyre_expiry_front_driver: TYRE_DEFAULTS.expiry,
     tyre_expiry_front_passenger: TYRE_DEFAULTS.expiry,
-    tyre_expiry_rear_outer_driver: TYRE_DEFAULTS.expiry,
-    tyre_expiry_rear_outer_passenger: TYRE_DEFAULTS.expiry,
     tyre_expiry_rear_inner_driver: TYRE_DEFAULTS.expiry,
     tyre_expiry_rear_inner_passenger: TYRE_DEFAULTS.expiry,
+    tyre_expiry_rear_outer_driver: TYRE_DEFAULTS.expiry,
+    tyre_expiry_rear_outer_passenger: TYRE_DEFAULTS.expiry,
 
-    tyre_depth_front_driver: TYRE_DEFAULTS.depth,
-    tyre_depth_front_passenger: TYRE_DEFAULTS.depth,
-    tyre_depth_rear_outer_driver: TYRE_DEFAULTS.depth,
-    tyre_depth_rear_outer_passenger: TYRE_DEFAULTS.depth,
-    tyre_depth_rear_inner_driver: TYRE_DEFAULTS.depth,
-    tyre_depth_rear_inner_passenger: TYRE_DEFAULTS.depth,
+    // --- TYRE SPECS ---
+    tyre_pressure_front_driver: null,
+    tyre_depth_front_driver: "",
+    tyre_torque_front_driver: null,
 
-    tyre_pressure_front_driver: TYRE_DEFAULTS.frontPressure,
-    tyre_pressure_front_passenger: TYRE_DEFAULTS.frontPressure,
-    tyre_pressure_rear_outer_driver: TYRE_DEFAULTS.rearPressure,
-    tyre_pressure_rear_outer_passenger: TYRE_DEFAULTS.rearPressure,
-    tyre_pressure_rear_inner_driver: TYRE_DEFAULTS.rearPressure,
-    tyre_pressure_rear_inner_passenger: TYRE_DEFAULTS.rearPressure,
-
-    tyre_torque_front_driver: TYRE_DEFAULTS.torque,
-    tyre_torque_front_passenger: TYRE_DEFAULTS.torque,
-    tyre_torque_rear_outer_driver: TYRE_DEFAULTS.torque,
-    tyre_torque_rear_outer_passenger: TYRE_DEFAULTS.torque,
-
+    // --- DOCUMENTS ---
     vehicle_invoice_docs: "",
     mot_check_docs: "",
     pmi_inspection_docs: "",
-    others_docs: "",
-    tacho_calibration_docs: "",
-    tax_docs: "",
-    loller_docs: "",
     insurance_docs: "",
-    service_records_docs: "",
-    new_vehicle_checklist_docs: "",
+    tax_docs: "",
     logbook_docs: "",
-    COIF_technical_docs: "",
   },
   sites: [],
   vehicleTypes: [],
@@ -548,7 +362,7 @@ export type AppDispatch = typeof store.dispatch
 
 // Validation functions
 const validateTyreExpiry = (value: string): string | null => {
-  if (!value) return "Required"
+  if (!value) return null // Not required in new API
   const pattern = /^\d{4}$/
   if (!pattern.test(value)) {
     return "Must be exactly 4 digits in WWYY format (e.g., '0124')"
@@ -563,6 +377,9 @@ const validateTyreExpiry = (value: string): string | null => {
 const validateRegistrationNumber = (value: string): string | null => {
   if (!value.trim()) {
     return "Registration number is required"
+  }
+  if (value.length > 20) {
+    return "Registration number must be 20 characters or less"
   }
   return null
 }
@@ -592,7 +409,7 @@ const validateRequiredArray = (value: number[], fieldName: string): string | nul
 }
 
 const validateTyreDepth = (value: string, fieldName: string): string | null => {
-  if (!value) return `${fieldName} is required`
+  if (!value) return null // Not required in new API
 
   // Allow "NV" (case-insensitive) for null values
   if (value.toUpperCase() === "NV") return null
@@ -621,9 +438,32 @@ const validateDateFormat = (value: string, fieldName: string): string | null => 
   return null
 }
 
-const validateDateWithDocument = (dateValue: string, docValue: string, fieldName: string): string | null => {
-  if (dateValue && !docValue) {
-    return `${fieldName} requires document upload`
+const validateVin = (value: string): string | null => {
+  if (!value.trim()) {
+    return "VIN is required"
+  }
+  if (value.length > 30) {
+    return "VIN must be 30 characters or less"
+  }
+  return null
+}
+
+const validateMake = (value: string): string | null => {
+  if (!value.trim()) {
+    return "Make is required"
+  }
+  if (value.length > 40) {
+    return "Make must be 40 characters or less"
+  }
+  return null
+}
+
+const validateModel = (value: string): string | null => {
+  if (!value.trim()) {
+    return "Model is required"
+  }
+  if (value.length > 20) {
+    return "Model must be 20 characters or less"
   }
   return null
 }
@@ -634,33 +474,20 @@ const TYRE_SPECS = {
   torqueMax: 210,
   frontMin: 65,
   frontMax: 68,
-  rearMin: 56,
-  rearMax: 58,
 }
 
 // INDIVIDUAL VALIDATION FUNCTIONS
 const validateTyrePressure = (value: number | null, fieldLabel: string): string | null => {
-  if (value === null || value === undefined) return `${fieldLabel} is required.`
+  if (value === null || value === undefined) return null // Not required in new API
 
-  const lower = fieldLabel.toLowerCase()
-  const isFront = lower.includes("front")
-  const isRear = lower.includes("rear")
-
-  if (isFront) {
-    if (value < TYRE_SPECS.frontMin || value > TYRE_SPECS.frontMax)
-      return `${fieldLabel} must be ${TYRE_SPECS.frontMin}–${TYRE_SPECS.frontMax} PSI.`
-  }
-
-  if (isRear) {
-    if (value < TYRE_SPECS.rearMin || value > TYRE_SPECS.rearMax)
-      return `${fieldLabel} must be ${TYRE_SPECS.rearMin}–${TYRE_SPECS.rearMax} PSI.`
-  }
+  if (value < TYRE_SPECS.frontMin || value > TYRE_SPECS.frontMax)
+    return `${fieldLabel} must be ${TYRE_SPECS.frontMin}–${TYRE_SPECS.frontMax} PSI.`
 
   return null
 }
 
 const validateTyreTorque = (value: number | null, fieldLabel: string): string | null => {
-  if (value === null || value === undefined) return `${fieldLabel} is required.`
+  if (value === null || value === undefined) return null // Not required in new API
 
   if (value < TYRE_SPECS.torqueMin || value > TYRE_SPECS.torqueMax)
     return `${fieldLabel} must be ${TYRE_SPECS.torqueMin}–${TYRE_SPECS.torqueMax} Nm.`
@@ -694,30 +521,58 @@ function MultiSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between", error && "border-red-500")}
+          className={cn(
+            "w-full justify-between text-left transition-all duration-200 ease-in-out",
+            error ? "border-red-400 hover:border-red-500 focus:border-red-500 focus:ring-red-500/20" : 
+            selected.length > 0 ? "border-green-400 hover:border-green-500 focus:border-green-500 focus:ring-green-500/20" :
+            "border-slate-300 hover:border-slate-400 focus:border-blue-500 focus:ring-blue-500/20"
+          )}
         >
-          {selected.length > 0 ? `${selected.length} site${selected.length > 1 ? "s" : ""} selected` : placeholder}
+          <span className={cn(
+            "text-sm font-medium",
+            selected.length > 0 ? "text-green-700" : "text-slate-600"
+          )}>
+            {selected.length > 0 ? `${selected.length} site${selected.length > 1 ? "s" : ""} selected` : placeholder}
+          </span>
           <span className="ml-auto h-4 w-4 shrink-0 opacity-50">▼</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
+      <PopoverContent className="w-full p-0 shadow-lg">
         <Command>
-          <CommandInput placeholder="Search sites..." value={search} onValueChange={setSearch} />
-          <CommandList>
-            {filteredOptions.map((option) => (
-              <CommandItem
-                key={option.id}
-                onSelect={() => {
-                  const newSelected = selected.includes(option.id)
-                    ? selected.filter((id) => id !== option.id)
-                    : [...selected, option.id]
-                  onChange(newSelected)
-                }}
-              >
-                <Check className={cn("mr-2 h-4 w-4", selected.includes(option.id) ? "opacity-100" : "opacity-0")} />
-                {option.name}
-              </CommandItem>
-            ))}
+          <CommandInput 
+            placeholder="Search sites..." 
+            value={search} 
+            onValueChange={setSearch}
+            className="border-b border-slate-200/50"
+          />
+          <CommandList className="max-h-64">
+            {filteredOptions.length === 0 ? (
+              <div className="text-center py-4 text-sm text-slate-500">
+                No sites found
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <CommandItem
+                  key={option.id}
+                  onSelect={() => {
+                    const newSelected = selected.includes(option.id)
+                      ? selected.filter((id) => id !== option.id)
+                      : [...selected, option.id]
+                    onChange(newSelected)
+                  }}
+                  className={cn(
+                    "cursor-pointer transition-colors",
+                    selected.includes(option.id) ? "bg-green-50 text-green-900" : "hover:bg-slate-50"
+                  )}
+                >
+                  <Check className={cn(
+                    "mr-2 h-4 w-4 transition-all",
+                    selected.includes(option.id) ? "opacity-100 text-green-600" : "opacity-0"
+                  )} />
+                  {option.name}
+                </CommandItem>
+              ))
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -725,7 +580,7 @@ function MultiSelect({
   )
 }
 
-// Enhanced Date Input with File Upload Component
+// Date Input with File Upload Component
 function DateInputWithFileUpload({
   label,
   name,
@@ -752,24 +607,35 @@ function DateInputWithFileUpload({
   onTaskCreate?: () => void
 }) {
   const hasDateNoDoc = value && !docValue
+  const hasError = error || docError
+  const isComplete = value && docValue
 
   return (
     <div
-      className={cn("space-y-3 p-4 border rounded-lg", hasDateNoDoc ? "bg-amber-50 border-amber-200" : "bg-gray-50")}
+      className={cn(
+        "space-y-3 p-5 border rounded-lg transition-all duration-200 ease-in-out",
+        isComplete && "bg-green-50/50 border-green-200/60",
+        hasError && "bg-red-50/50 border-red-200/60",
+        hasDateNoDoc && "bg-amber-50/50 border-amber-200/60",
+        !isComplete && !hasError && !hasDateNoDoc && "bg-slate-50/50 border-slate-200/60"
+      )}
     >
-      <div className="flex justify-between items-center">
-        <Label htmlFor={name} className="text-sm font-medium">
-          {label} {required && <span className="text-red-500">*</span>}
-        </Label>
+      <div className="flex justify-between items-start gap-3">
+        <div className="flex-1">
+          <Label htmlFor={name} className="text-sm font-semibold text-slate-700">
+            {label} {required && <span className="text-red-500 ml-1">*</span>}
+          </Label>
+          {isComplete && <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Complete</p>}
+        </div>
         {hasDateNoDoc && onTaskCreate && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={onTaskCreate}
-            className="text-amber-600 hover:text-amber-800 hover:bg-amber-100 h-8 px-2"
+            className="text-amber-600 hover:text-amber-700 hover:bg-amber-100/60 h-8 px-3 text-xs font-medium transition-colors"
           >
-            <Plus className="h-3 w-3 mr-1" />
+            <Plus className="h-3.5 w-3.5 mr-1" />
             Create Task
           </Button>
         )}
@@ -777,38 +643,42 @@ function DateInputWithFileUpload({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Date</span>
           <Input
             id={name}
             name={name}
             type="date"
             value={value}
             onChange={onChange}
-            className={cn("", (error || hasDateNoDoc) && "border-amber-500")}
+            className={cn(
+              "text-sm transition-colors",
+              hasError && "border-red-400 focus:border-red-500 focus:ring-red-500/20",
+              hasDateNoDoc && !hasError && "border-amber-400 focus:border-amber-500 focus:ring-amber-500/20",
+              isComplete && "border-green-400 focus:border-green-500 focus:ring-green-500/20"
+            )}
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          {hasDateNoDoc && !error && <p className="text-sm text-amber-600">Document required for this date</p>}
+          {error && <p className="text-xs text-red-600 font-medium flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {error}</p>}
+          {hasDateNoDoc && !error && <p className="text-xs text-amber-600 flex items-center gap-1"><Clock className="h-3 w-3" /> Document required for this date</p>}
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm font-medium">
-            Upload Document {required && <span className="text-red-500">*</span>}
-          </Label>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Upload Document</span>
           <FileUploader onUploadSuccess={onFileUpload} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
           {docValue ? (
-            <div className="flex items-center gap-2 text-sm text-green-600">
-              <CheckCircle2 className="h-4 w-4" />
+            <div className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5" />
               Document uploaded
             </div>
           ) : docError ? (
-            <Alert variant="destructive" className="py-2">
+            <Alert variant="destructive" className="py-2 px-3 bg-red-50 border-red-200">
               <AlertCircle className="h-3 w-3" />
-              <AlertDescription className="text-xs">{docError}</AlertDescription>
+              <AlertDescription className="text-xs text-red-700 font-medium">{docError}</AlertDescription>
             </Alert>
           ) : value && !docValue ? (
-            <Alert className="bg-amber-50 border-amber-200 py-2">
+            <Alert className="bg-amber-50 border-amber-200 py-2 px-3">
               <AlertCircle className="h-3 w-3 text-amber-600" />
-              <AlertDescription className="text-xs text-amber-800">
-                <strong>Required:</strong> Upload document for this date to proceed
+              <AlertDescription className="text-xs text-amber-700">
+                <strong>Recommended:</strong> Upload document for this date
               </AlertDescription>
             </Alert>
           ) : null}
@@ -841,42 +711,50 @@ function DocumentUploadWithTask({
   description?: string
 }) {
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center">
-        <Label className="text-sm font-medium flex items-center gap-2">
-          <Icon className="h-4 w-4" />
-          {label} {required && <span className="text-red-500">*</span>}
-        </Label>
+    <div className={cn(
+      "space-y-3 p-4 rounded-lg border transition-all duration-200 ease-in-out",
+      value && "bg-green-50/50 border-green-200/60",
+      error && "bg-red-50/50 border-red-200/60",
+      !value && !error && "bg-slate-50/50 border-slate-200/60"
+    )}>
+      <div className="flex justify-between items-start gap-3">
+        <div className="flex-1">
+          <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <Icon className="h-4 w-4 text-slate-600" />
+            {label} {required && <span className="text-red-500">*</span>}
+          </Label>
+          {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
+          {value && <p className="text-xs text-green-600 mt-1 flex items-center gap-1 font-medium"><CheckCircle2 className="h-3 w-3" /> Uploaded</p>}
+        </div>
         {!value && onTaskCreate && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={onTaskCreate}
-            className="text-amber-600 hover:text-amber-800 hover:bg-amber-100 h-8 px-2"
+            className="text-amber-600 hover:text-amber-700 hover:bg-amber-100/60 h-8 px-3 text-xs font-medium transition-colors flex-shrink-0"
           >
-            <Plus className="h-3 w-3 mr-1" />
+            <Plus className="h-3.5 w-3.5 mr-1" />
             Create Task
           </Button>
         )}
       </div>
 
-      {description && <p className="text-xs text-muted-foreground">{description}</p>}
-
-      <FileUploader onUploadSuccess={onUploadSuccess} />
-      {value ? (
-        <p className="flex items-center gap-1.5 text-xs text-green-600">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Uploaded
-        </p>
-      ) : (
-        required &&
-        !value && (
-          <Alert variant="destructive" className="py-2">
-            <AlertCircle className="h-3 w-3" />
-            <AlertDescription className="text-xs">Required document missing</AlertDescription>
-          </Alert>
-        )
+      {!value && <FileUploader onUploadSuccess={onUploadSuccess} />}
+      
+      {error && (
+        <Alert variant="destructive" className="py-2 px-3 bg-red-50 border-red-200">
+          <AlertCircle className="h-3 w-3" />
+          <AlertDescription className="text-xs text-red-700 font-medium">{error}</AlertDescription>
+        </Alert>
+      )}
+      {required && !value && !error && (
+        <Alert className="py-2 px-3 bg-yellow-50/50 border-yellow-200/60">
+          <AlertCircle className="h-3 w-3 text-yellow-600" />
+          <AlertDescription className="text-xs text-yellow-700">
+            <strong>Required:</strong> Please upload this document
+          </AlertDescription>
+        </Alert>
       )}
     </div>
   )
@@ -893,7 +771,7 @@ function TyreCheckInput({
   step,
   placeholder,
   tooltip,
-  required = true,
+  required = false,
 }: {
   label: string
   name: string
@@ -906,16 +784,23 @@ function TyreCheckInput({
   tooltip?: string
   required?: boolean
 }) {
+  const hasValue = value !== null && value !== ""
+  
   return (
-    <div className="space-y-2">
-      <Label className="text-sm font-medium flex items-center gap-2">
+    <div className={cn(
+      "space-y-2 p-3 rounded-lg border transition-all duration-200 ease-in-out",
+      error && "bg-red-50/50 border-red-200/60",
+      !error && hasValue && "bg-green-50/50 border-green-200/60",
+      !error && !hasValue && "bg-slate-50/50 border-slate-200/60"
+    )}>
+      <Label className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-2">
         {label} {required && <span className="text-red-500">*</span>}
         {tooltip && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+              <Info className="h-3.5 w-3.5 text-slate-500 cursor-help hover:text-slate-700 transition-colors" />
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
+            <TooltipContent className="max-w-xs bg-slate-900 text-white">
               <p className="text-xs">{tooltip}</p>
             </TooltipContent>
           </Tooltip>
@@ -928,9 +813,14 @@ function TyreCheckInput({
         placeholder={placeholder}
         value={value || ""}
         onChange={onChange}
-        className={cn("", error && "border-red-500")}
+        className={cn(
+          "text-sm transition-colors",
+          error && "border-red-400 focus:border-red-500 focus:ring-red-500/20",
+          !error && hasValue && "border-green-400 focus:border-green-500 focus:ring-green-500/20",
+          !error && !hasValue && "border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+        )}
       />
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-600 font-medium flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {error}</p>}
     </div>
   )
 }
@@ -965,7 +855,6 @@ function AddVehicleStepperForm() {
       })
       const data = await response.json()
       if (data.success) {
-        // Map the API response to your VehicleType interface
         const apiVehicleTypes: VehicleType[] = data.data.map((item: any) => ({
           id: item.id,
           name: item.name,
@@ -974,7 +863,6 @@ function AddVehicleStepperForm() {
         dispatch(setVehicleTypes(apiVehicleTypes))
       } else {
         toast.error("Failed to load vehicle types.")
-        // Optionally set empty array or fallback
         dispatch(setVehicleTypes([]))
       }
     } catch (error) {
@@ -1025,12 +913,7 @@ function AddVehicleStepperForm() {
       dispatch(clearValidationError(key))
     }
   }
-React.useEffect(() => {
-  console.log("Price updated:", formData.price)
-  console.log("VAT amount:", formData.vat_amount)
-  console.log("Has VAT:", formData.has_vat)
-  console.log("Total:", Number.parseFloat(formData.price || "0") + Number.parseFloat(formData.vat_amount || "0"))
-}, [formData.price, formData.vat_amount, formData.has_vat])
+
   const handleCreateTaskForDocument = (documentField: string) => {
     const docConfig = DOCUMENT_CONFIG[documentField]
     if (!docConfig) return
@@ -1044,12 +927,12 @@ React.useEffect(() => {
     // Add specific instructions based on document type
     if (documentField.includes("pmi")) {
       description += "\n\nInclude: PMI inspection report, checklist, and any repair notes"
-    } else if (documentField.includes("service")) {
-      description += "\n\nInclude: Service history, maintenance records, repair invoices"
-    } else if (documentField.includes("tacho")) {
-      description += "\n\nInclude: Calibration certificate, download report, calibration date"
-    } else if (documentField.includes("loller")) {
-      description += "\n\nInclude: LOLER test certificate, inspection report"
+    } else if (documentField.includes("mot")) {
+      description += "\n\nInclude: MOT test certificate"
+    } else if (documentField.includes("insurance")) {
+      description += "\n\nInclude: Insurance certificate and policy document"
+    } else if (documentField.includes("tax")) {
+      description += "\n\nInclude: Vehicle tax payment confirmation"
     }
 
     const deadline = new Date(Date.now() + docConfig.deadlineDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
@@ -1080,10 +963,7 @@ React.useEffect(() => {
       // Basic required documents (always)
       if (
         [
-          "vehicle_picture",
-          "new_vehicle_checklist_docs",
           "logbook_docs",
-          "COIF_technical_docs",
           "vehicle_invoice_docs",
         ].includes(field)
       ) {
@@ -1091,29 +971,19 @@ React.useEffect(() => {
       }
 
       // PMI inspection report required if PMI date exists
-      if (field === "pmi_inspection_docs" && formData.last_pmi_date) {
+      if (field === "pmi_inspection_docs" && (formData.last_pmi_date || formData.pmi_expiry_date)) {
         isRequired = true
       }
 
-      // Date-based documents required if date exists
-      if (field.includes("_docs") && !field.includes("pmi_inspection_docs")) {
-        const dateField = field.replace("_docs", "")
-        if (dateField in formData && formData[dateField as keyof VehicleFormData]) {
-          isRequired = true
-        }
+      // MOT, Insurance, Tax documents required if dates exist
+      if (field === "mot_check_docs" && formData.mot_expiry) {
+        isRequired = true
       }
-
-      // Tacho documents only required if tacho is fitted
-      if (
-        (field === "tacho_calibration_expiry_docs" || field === "last_tacho_download_date_docs") &&
-        !formData.is_tacho_fitted
-      ) {
-        isRequired = false
+      if (field === "insurance_docs" && formData.insurance_expiry) {
+        isRequired = true
       }
-
-      // LOLER documents only required if wheelchair lift is fitted
-      if (field === "loller_calibration_expiry_docs" && !formData.is_wheelchair_lift_fitted) {
-        isRequired = false
+      if (field === "tax_docs" && formData.tax_expiry) {
+        isRequired = true
       }
 
       if (isRequired && !value) {
@@ -1125,44 +995,44 @@ React.useEffect(() => {
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-  const { name, value, type } = e.target
-  const isCheckbox = type === "checkbox"
-  const newValue: string | boolean = isCheckbox ? (e.target as HTMLInputElement).checked : value
+    const { name, value, type } = e.target
+    const isCheckbox = type === "checkbox"
+    const newValue: string | boolean = isCheckbox ? (e.target as HTMLInputElement).checked : value
 
-  // Create a copy of formData to update
-  const updated: any = { ...formData }
-  
-  // Update the field that changed
-  updated[name] = newValue
-
-  // Handle VAT recalculation when price changes OR when VAT switch is toggled
-  if (name === "price") {
-    // Update price (ensure it's a string for display)
-    updated.price = value
+    // Create a copy of formData to update
+    const updated: any = { ...formData }
     
-    // Recalculate VAT if has_vat is true
-    if (updated.has_vat) {
-      const numericPrice = Number.parseFloat(value) || 0
-      updated.vat_amount = (numericPrice * 0.2).toFixed(2)
+    // Update the field that changed
+    updated[name] = newValue
+
+    // Handle VAT recalculation when price changes OR when VAT switch is toggled
+    if (name === "price") {
+      // Update price (ensure it's a string for display)
+      updated.price = value
+      
+      // Recalculate VAT if has_vat is true
+      if (updated.has_vat) {
+        const numericPrice = Number.parseFloat(value) || 0
+        updated.vat_amount = (numericPrice * 0.2).toFixed(2)
+      }
+    }
+
+    // Handle VAT calculation when VAT switch toggles
+    if (name === "has_vat") {
+      if (newValue === true) {
+        const numericPrice = Number.parseFloat(formData.price || "0") || 0
+        updated.vat_amount = (numericPrice * 0.2).toFixed(2)
+      } else {
+        updated.vat_amount = ""
+      }
+    }
+
+    dispatch(setFormData(updated))
+
+    if (validationErrors[name]) {
+      dispatch(clearValidationError(name))
     }
   }
-
-  // Handle VAT calculation when VAT switch toggles
-  if (name === "has_vat") {
-    if (newValue === true) {
-      const numericPrice = Number.parseFloat(formData.price || "0") || 0
-      updated.vat_amount = (numericPrice * 0.2).toFixed(2)
-    } else {
-      updated.vat_amount = ""
-    }
-  }
-
-  dispatch(setFormData(updated))
-
-  if (validationErrors[name]) {
-    dispatch(clearValidationError(name))
-  }
-}
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -1234,24 +1104,16 @@ React.useEffect(() => {
   const areDateDocumentsUploaded = (): boolean => {
     // Check required expiry dates
     const requiredDateFields = [
-      { date: formData.mot_expiry, doc: formData.mot_expiry_docs },
-      { date: formData.insurance_expiry, doc: formData.insurance_expiry_docs },
-      { date: formData.tax_expiry, doc: formData.tax_expiry_docs },
+      { date: formData.mot_expiry, doc: formData.mot_check_docs },
+      { date: formData.insurance_expiry, doc: formData.insurance_docs },
+      { date: formData.tax_expiry, doc: formData.tax_docs },
+      { date: formData.last_pmi_date, doc: formData.pmi_inspection_docs },
+      { date: formData.pmi_expiry_date, doc: formData.pmi_inspection_docs },
     ]
 
     // If date is entered, document must exist
     for (const { date, doc } of requiredDateFields) {
       if (date && !doc) return false
-    }
-
-    // Check conditional dates
-    if (formData.is_tacho_fitted) {
-      if (formData.tacho_calibration_expiry && !formData.tacho_calibration_expiry_docs) return false
-      if (formData.last_tacho_download_date && !formData.last_tacho_download_date_docs) return false
-    }
-
-    if (formData.is_wheelchair_lift_fitted) {
-      if (formData.loller_calibration_expiry && !formData.loller_calibration_expiry_docs) return false
     }
 
     return true
@@ -1263,43 +1125,48 @@ React.useEffect(() => {
 
     // STEP 0 VALIDATION - Vehicle Details
     if (currentStep === 0) {
-      const vinError = validateRequiredString(formData.vin, "VIN")
+      const vinError = validateVin(formData.vin)
       if (vinError) errors.vin = vinError
 
       const regError = validateRegistrationNumber(formData.registration_number)
       if (regError) errors.registration_number = regError
 
-      const makeError = validateRequiredString(formData.make, "Make")
+      const makeError = validateMake(formData.make)
       if (makeError) errors.make = makeError
 
-      const modelError = validateRequiredString(formData.model, "Model")
+      const modelError = validateModel(formData.model)
       if (modelError) errors.model = modelError
 
       const typeError = formData.vehicles_type === 0 ? "Vehicle Type is required" : null
       if (typeError) errors.vehicles_type = typeError
 
-      const sitesError = validateRequiredArray(formData.site_allocated, "Allocated Site(s)")
-      if (sitesError) errors.site_allocated = sitesError
+      const sitesError = validateRequiredArray(formData.site_allocated_ids, "Allocated Site(s)")
+      if (sitesError) errors.site_allocated_ids = sitesError
 
-      // Validate current mileage
-      const mileageError = validatePositiveNumber(formData.current_mileage, "Current Mileage")
-      if (mileageError) errors.current_mileage = mileageError
+      // Validate last mileage
+      const mileageError = validateRequiredString(formData.last_mileage, "Last Mileage")
+      if (mileageError) errors.last_mileage = mileageError
+      
+      // Purchase date is required in new API
+      if (!formData.date_of_purchase) {
+        errors.date_of_purchase = "Date of purchase is required"
+      } else {
+        const dateError = validateDateFormat(formData.date_of_purchase, "Date of Purchase")
+        if (dateError) errors.date_of_purchase = dateError
+      }
     }
 
     // STEP 1 VALIDATION - Vehicle Purchase Details
     if (currentStep === 1) {
-      // No strict validation needed for purchase details
+      const purchaseMileageError = validateRequiredString(formData.purchase_mileage, "Purchase Mileage")
+      if (purchaseMileageError) errors.purchase_mileage = purchaseMileageError
     }
 
-    // STEP 2 VALIDATION - Vehicle Documents (STRICT: ALL DOCUMENTS REQUIRED)
+    // STEP 2 VALIDATION - Vehicle Documents
     if (currentStep === 2) {
       const requiredDocuments = [
         { field: "logbook_docs", label: "Logbook" },
         { field: "vehicle_invoice_docs", label: "Vehicle/Purchase Invoice" },
-        { field: "COIF_technical_docs", label: "COIF" },
-        { field: "service_records_docs", label: "Service Documents" },
-        { field: "new_vehicle_checklist_docs", label: "Vehicle Delivery Checklist" },
-        { field: "others_docs", label: "Other Documents" },
       ]
 
       requiredDocuments.forEach(({ field, label }) => {
@@ -1310,107 +1177,33 @@ React.useEffect(() => {
 
       // ADDITIONAL: Show warning if any document is missing
       if (!areAllDocumentsUploaded()) {
-        errors._documents = "All documents are required to proceed"
+        errors._documents = "All required documents must be uploaded to proceed"
       }
     }
 
-    // STEP 3 VALIDATION - Vehicle Compliance Documents & Expiry Dates (STRICT: DOCUMENTS REQUIRED FOR DATES)
+    // STEP 3 VALIDATION - Vehicle Compliance Documents & Expiry Dates
     if (currentStep === 3) {
-      // Validate date fields that are required
+      // Validate date fields that are entered
       const dateFields = [
-        { field: "last_pmi_date", docField: "last_pmi_date_docs", label: "Last PMI Date" },
-        { field: "mot_expiry", docField: "mot_expiry_docs", label: "MOT Expiry Date", required: true },
-        {
-          field: "insurance_expiry",
-          docField: "insurance_expiry_docs",
-          label: "Insurance Expiry Date",
-          required: true,
-        },
-        { field: "tax_expiry", docField: "tax_expiry_docs", label: "Tax Expiry Date", required: true },
+        { field: "last_pmi_date", label: "Last PMI Date" },
+        { field: "pmi_expiry_date", label: "PMI Expiry Date" },
+        { field: "mot_expiry", label: "MOT Expiry Date" },
+        { field: "insurance_expiry", label: "Insurance Expiry Date" },
+        { field: "tax_expiry", label: "Tax Expiry Date" },
+        { field: "pmi_booked_date", label: "PMI Booked Date" },
+        { field: "tacho_calibration_expiry", label: "Tacho Calibration Expiry" },
+        { field: "loller_test_expiry_date", label: "LOLER Test Expiry Date" },
       ]
 
-      dateFields.forEach(({ field, docField, label, required }) => {
-        const dateValue = formData[field as keyof VehicleFormData] as string
-        const docValue = formData[docField as keyof VehicleFormData] as string
-
-        if (required && !dateValue) {
-          errors[field] = `${label} is required`
-        } else if (dateValue) {
-          const dateError = validateDateFormat(dateValue, label)
-          if (dateError) {
-            errors[field] = dateError
-          } else {
-            // STRICT: Document is required if date is entered
-            const docError = validateDateWithDocument(dateValue, docValue, label)
-            if (docError) errors[docField] = docError
-          }
+      dateFields.forEach(({ field, label }) => {
+        const value = formData[field as keyof VehicleFormData] as string
+        if (value) {
+          const dateError = validateDateFormat(value, label)
+          if (dateError) errors[field] = dateError
         }
       })
 
-      // Validate tacho dates if tacho is fitted
-      if (formData.is_tacho_fitted) {
-        const tachoDateFields = [
-          {
-            field: "tacho_calibration_expiry",
-            docField: "tacho_calibration_expiry_docs",
-            label: "Tacho Calibration Expiry",
-          },
-          {
-            field: "last_tacho_download_date",
-            docField: "last_tacho_download_date_docs",
-            label: "Last Tacho Download Date",
-          },
-        ]
-
-        tachoDateFields.forEach(({ field, docField, label }) => {
-          const dateValue = formData[field as keyof VehicleFormData] as string
-          const docValue = formData[docField as keyof VehicleFormData] as string
-
-          if (dateValue) {
-            const dateError = validateDateFormat(dateValue, label)
-            if (dateError) {
-              errors[field] = dateError
-            } else {
-              // STRICT: Document is required if date is entered
-              const docError = validateDateWithDocument(dateValue, docValue, label)
-              if (docError) errors[docField] = docError
-            }
-          }
-        })
-      }
-
-      // Validate loller dates if wheelchair lift is fitted
-      if (formData.is_wheelchair_lift_fitted) {
-        const lollerField = {
-          field: "loller_calibration_expiry",
-          docField: "loller_calibration_expiry_docs",
-          label: "Loller Calibration Expiry",
-        }
-
-        const dateValue = formData[lollerField.field as keyof VehicleFormData] as string
-        const docValue = formData[lollerField.docField as keyof VehicleFormData] as string
-
-        if (dateValue) {
-          const dateError = validateDateFormat(dateValue, lollerField.label)
-          if (dateError) {
-            errors[lollerField.field] = dateError
-          } else {
-            // STRICT: Document is required if date is entered
-            const docError = validateDateWithDocument(dateValue, docValue, lollerField.label)
-            if (docError) errors[lollerField.docField] = docError
-          }
-        }
-      }
-
-      // ADDITIONAL: Show warning if dates exist without documents
-      if (!areDateDocumentsUploaded()) {
-        errors._dateDocuments = "Documents are required for all entered dates"
-      }
-    }
-
-    // STEP 4 TYRE VALIDATION (ALL 6 TYRES)
-    if (currentStep === 4) {
-      // Expiry fields (6 tyres)
+      // Validate tyre expiry fields
       const tyreExpiryFields = [
         "tyre_expiry_front_driver",
         "tyre_expiry_front_passenger",
@@ -1422,55 +1215,43 @@ React.useEffect(() => {
 
       tyreExpiryFields.forEach((field) => {
         const value = formData[field as keyof VehicleFormData] as string
-        const error = validateTyreExpiry(value)
-        if (error) errors[field] = error
+        if (value) {
+          const error = validateTyreExpiry(value)
+          if (error) errors[field] = error
+        }
       })
 
-      // Depth fields (6 tyres)
-      const tyreDepthFields = [
-        "tyre_depth_front_driver",
-        "tyre_depth_front_passenger",
-        "tyre_depth_rear_outer_driver",
-        "tyre_depth_rear_outer_passenger",
-        "tyre_depth_rear_inner_driver",
-        "tyre_depth_rear_inner_passenger",
-      ]
+      // ADDITIONAL: Show warning if dates exist without documents
+      if (!areDateDocumentsUploaded()) {
+        errors._dateDocuments = "Documents are required for all entered dates"
+      }
+    }
 
-      tyreDepthFields.forEach((field) => {
-        const value = formData[field as keyof VehicleFormData] as string
-        const error = validateTyreDepth(value, field.replace(/_/g, " "))
-        if (error) errors[field] = error
-      })
-
-      // Pressure fields (6 tyres)
-      const tyrePressureFields = [
-        "tyre_pressure_front_driver",
-        "tyre_pressure_front_passenger",
-        "tyre_pressure_rear_outer_driver",
-        "tyre_pressure_rear_outer_passenger",
-        "tyre_pressure_rear_inner_driver",
-        "tyre_pressure_rear_inner_passenger",
-      ]
-
-      tyrePressureFields.forEach((field) => {
-        const value = formData[field as keyof VehicleFormData] as number | null
-        const error = validateTyrePressure(value, field.replace(/_/g, " "))
-        if (error) errors[field] = error
-      })
-
-      // Torque fields (4 tyres only - outer tyres)
-      const tyreTorqueFields = [
-        "tyre_torque_front_driver",
-        "tyre_torque_front_passenger",
-        "tyre_torque_rear_outer_driver",
-        "tyre_torque_rear_outer_passenger",
-      ]
-
-      tyreTorqueFields.forEach((field) => {
-        const value = formData[field as keyof VehicleFormData] as number | null
-        const error = validateTyreTorque(value, field.replace(/_/g, " "))
-        if (error) errors[field] = error
-      })
+    // STEP 4 TYRE VALIDATION
+    if (currentStep === 4) {
+      // Tyre depth field
+      if (formData.tyre_depth_front_driver) {
+        const error = validateTyreDepth(formData.tyre_depth_front_driver, "Tyre Depth Front Driver")
+        if (error) errors.tyre_depth_front_driver = error
+      }
+      
+      // Tyre pressure field
+      if (formData.tyre_pressure_front_driver !== null) {
+        const error = validateTyrePressure(
+          formData.tyre_pressure_front_driver, 
+          "Tyre Pressure Front Driver"
+        )
+        if (error) errors.tyre_pressure_front_driver = error
+      }
+      
+      // Tyre torque field
+      if (formData.tyre_torque_front_driver !== null) {
+        const error = validateTyreTorque(
+          formData.tyre_torque_front_driver, 
+          "Tyre Torque Front Driver"
+        )
+        if (error) errors.tyre_torque_front_driver = error
+      }
     }
 
     // APPLY ERRORS
@@ -1491,77 +1272,81 @@ React.useEffect(() => {
 
     const token = cookies.get("access_token")
 
-    type Nullable<T> = T | null
-
-    const toInt = (v: unknown): Nullable<number> => {
+    const toInt = (v: unknown): number | null => {
       if (v === "" || v === null || v === undefined) return null
       const n = Number.parseInt(String(v), 10)
       return Number.isNaN(n) ? null : n
     }
 
-    const toFloat = (v: unknown): Nullable<number> => {
+    const toFloat = (v: unknown): string | null => {
       if (v === "" || v === null || v === undefined) return null
       const n = Number.parseFloat(String(v))
-      return Number.isNaN(n) ? null : n
+      return Number.isNaN(n) ? null : n.toFixed(2)
     }
 
-    const nvToNullFloat = (v: unknown): Nullable<number> => {
-      if (typeof v === "string" && v.trim().toUpperCase() === "NV") return null
-      return toFloat(v)
-    }
-
+    // Prepare data matching new API payload
     const submitData = {
-      ...formData,
+      // --- IDENTIFICATION ---
+      registration_number: formData.registration_number,
+      vin: formData.vin,
+      vehicles_type: formData.vehicles_type,
+      
+      // --- LOGISTICS ---
+      site_allocated_ids: formData.site_allocated_ids,
+      vehicle_status: formData.vehicle_status,
+      is_active: formData.is_active,
 
-      // ⚠️ Prefer booleans unless backend explicitly demands "Yes"/"No"
-      is_tacho_fitted: Boolean(formData.is_tacho_fitted),
-      is_wheelchair_lift_fitted: Boolean(formData.is_wheelchair_lift_fitted),
+      // --- MILEAGE & BASIC INFO ---
+      mileage_unit: formData.mileage_unit,
+      purchase_mileage: toFloat(formData.purchase_mileage),
+      last_mileage: toFloat(formData.last_mileage),
+      is_tacho_fitted: formData.is_tacho_fitted,
+      is_wheelchair_lift_fitted: formData.is_wheelchair_lift_fitted,
+      number_of_seats: toInt(formData.number_of_seats),
+      make: formData.make,
+      model: formData.model,
+      notes: formData.notes,
+      vehicle_picture: formData.vehicle_picture || null,
 
-      // --- TYRE DEPTHS (DECIMAL or NULL) ---
-      tyre_depth_front_driver: nvToNullFloat(formData.tyre_depth_front_driver),
-      tyre_depth_front_passenger: nvToNullFloat(formData.tyre_depth_front_passenger),
-      tyre_depth_rear_outer_driver: nvToNullFloat(formData.tyre_depth_rear_outer_driver),
-      tyre_depth_rear_outer_passenger: nvToNullFloat(formData.tyre_depth_rear_outer_passenger),
-      tyre_depth_rear_inner_driver: nvToNullFloat(formData.tyre_depth_rear_inner_driver),
-      tyre_depth_rear_inner_passenger: nvToNullFloat(formData.tyre_depth_rear_inner_passenger),
-
-      // --- TYRE PRESSURES (INTEGER ONLY) ---
-      tyre_pressure_front_driver: toInt(formData.tyre_pressure_front_driver),
-      tyre_pressure_front_passenger: toInt(formData.tyre_pressure_front_passenger),
-      tyre_pressure_rear_outer_driver: toInt(formData.tyre_pressure_rear_outer_driver),
-      tyre_pressure_rear_outer_passenger: toInt(formData.tyre_pressure_rear_outer_passenger),
-      tyre_pressure_rear_inner_driver: toInt(formData.tyre_pressure_rear_inner_driver),
-      tyre_pressure_rear_inner_passenger: toInt(formData.tyre_pressure_rear_inner_passenger),
-
-      // --- TORQUE (INTEGER) ---
-      tyre_torque_front_driver: toInt(formData.tyre_torque_front_driver),
-      tyre_torque_front_passenger: toInt(formData.tyre_torque_front_passenger),
-      tyre_torque_rear_outer_driver: toInt(formData.tyre_torque_rear_outer_driver),
-      tyre_torque_rear_outer_passenger: toInt(formData.tyre_torque_rear_outer_passenger),
-
-      // --- MONEY ---
+      // --- PURCHASE INFO ---
+      date_of_purchase: formData.date_of_purchase || null,
+      purchased_from: formData.purchased_from || null,
+      purchased_by: formData.purchased_by || null,
       price: toFloat(formData.price),
+      has_vat: formData.has_vat,
       vat_amount: toFloat(formData.vat_amount),
 
-      // --- DATES ---
-      date_of_purchase: formData.date_of_purchase || null,
-      last_pmi_date: formData.last_pmi_date || null,
-      pmi_booked_date: formData.pmi_booked_date || null,
+      // --- COMPLIANCE DATES ---
       mot_expiry: formData.mot_expiry || null,
+      pmi_expiry_date: formData.pmi_expiry_date || null,
       insurance_expiry: formData.insurance_expiry || null,
       tax_expiry: formData.tax_expiry || null,
-      loller_calibration_expiry: formData.loller_calibration_expiry || null,
-      next_loller_test_date: formData.next_loller_test_date || null,
+      pmi_booked_date: formData.pmi_booked_date || null,
+      pmi_cycle: toInt(formData.pmi_cycle),
+      last_pmi_date: formData.last_pmi_date || null,
       tacho_calibration_expiry: formData.tacho_calibration_expiry || null,
-      next_techo_calibration_book_date: formData.next_techo_calibration_book_date || null,
-      last_tacho_download_date: formData.last_tacho_download_date || null,
-      next_tacho_download_date: formData.next_tacho_download_date || null,
-      last_tyre_maintenance_check_date: formData.last_tyre_maintenance_check_date || null,
-      next_tyre_maintenance_check_date: formData.next_tyre_maintenance_check_date || null,
-      last_valet_check_date: formData.last_valet_check_date || null,
-      next_valet_check_date: formData.next_valet_check_date || null,
-      last_equipment_check_date: formData.last_equipment_check_date || null,
-      next_equipment_check_date: formData.next_equipment_check_date || null,
+      loller_test_expiry_date: formData.loller_test_expiry_date || null,
+
+      // --- TYRE EXPIRY ---
+      tyre_expiry_front_driver: formData.tyre_expiry_front_driver || null,
+      tyre_expiry_front_passenger: formData.tyre_expiry_front_passenger || null,
+      tyre_expiry_rear_inner_driver: formData.tyre_expiry_rear_inner_driver || null,
+      tyre_expiry_rear_inner_passenger: formData.tyre_expiry_rear_inner_passenger || null,
+      tyre_expiry_rear_outer_driver: formData.tyre_expiry_rear_outer_driver || null,
+      tyre_expiry_rear_outer_passenger: formData.tyre_expiry_rear_outer_passenger || null,
+
+      // --- TYRE SPECS ---
+      tyre_pressure_front_driver: toInt(formData.tyre_pressure_front_driver),
+      tyre_depth_front_driver: formData.tyre_depth_front_driver || null,
+      tyre_torque_front_driver: toInt(formData.tyre_torque_front_driver),
+
+      // --- DOCUMENTS ---
+      vehicle_invoice_docs: formData.vehicle_invoice_docs || null,
+      mot_check_docs: formData.mot_check_docs || null,
+      pmi_inspection_docs: formData.pmi_inspection_docs || null,
+      insurance_docs: formData.insurance_docs || null,
+      tax_docs: formData.tax_docs || null,
+      logbook_docs: formData.logbook_docs || null,
     }
 
     dispatch(setSubmitLoading(true))
@@ -1733,6 +1518,7 @@ React.useEffect(() => {
                       placeholder="e.g., Mercedes"
                       value={formData.make}
                       onChange={handleInputChange}
+                      maxLength={40}
                       className={cn(
                         "pl-11 h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300 focus:shadow-md",
                         validationErrors.make && "border-destructive focus-visible:ring-destructive",
@@ -1758,6 +1544,7 @@ React.useEffect(() => {
                       placeholder="e.g., Sprinter"
                       value={formData.model}
                       onChange={handleInputChange}
+                      maxLength={20}
                       className={cn(
                         "pl-11 h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300 focus:shadow-md",
                         validationErrors.model && "border-destructive focus-visible:ring-destructive",
@@ -1786,6 +1573,7 @@ React.useEffect(() => {
                       placeholder="e.g., AB12 CDE"
                       value={formData.registration_number}
                       onChange={handleInputChange}
+                      maxLength={20}
                       className={cn(
                         "pl-11 h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300 focus:shadow-md",
                         validationErrors.registration_number && "border-destructive focus-visible:ring-destructive",
@@ -1805,9 +1593,10 @@ React.useEffect(() => {
                     <Input
                       id="vin"
                       name="vin"
-                      placeholder="e.g., VF3ABC12345678901"
+                      placeholder="e.g., 1HGCM82633A123456"
                       value={formData.vin}
                       onChange={handleInputChange}
+                      maxLength={30}
                       className={cn(
                         "pl-11 h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300 focus:shadow-md",
                         validationErrors.vin && "border-destructive focus-visible:ring-destructive",
@@ -1819,30 +1608,9 @@ React.useEffect(() => {
               </div>
 
               {/* Status Toggles */}
-              <div className="grid grid-cols-2 gap-6 pt-2">
-                {/* Roadworthy Status */}
-                {/* <div className="space-y-3">
-                  <Label className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-                    Roadworthy Status
-                  </Label>
-                  <div className="flex items-center justify-between rounded-xl border border-border/60 p-4 bg-background/40 shadow-inner hover:shadow-md transition-all duration-300">
-                    <Label
-                      htmlFor="is_roadworthy"
-                      className="flex items-center gap-3 text-sm font-medium cursor-pointer"
-                    >
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Is Roadworthy
-                    </Label>
-                    <Switch
-                      id="is_roadworthy"
-                      checked={formData.is_roadworthy}
-                      onCheckedChange={(checked) => dispatch(setFormData({ is_roadworthy: checked }))}
-                    />
-                  </div>
-                </div> */}
-
+              <div className="grid grid-cols-3 gap-6 pt-2">
                 {/* Active Status */}
-                {/* <div className="space-y-3">
+                <div className="space-y-3">
                   <Label className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
                     Vehicle Status
                   </Label>
@@ -1857,7 +1625,43 @@ React.useEffect(() => {
                       onCheckedChange={(checked) => dispatch(setFormData({ is_active: checked }))}
                     />
                   </div>
-                </div> */}
+                </div>
+
+                {/* Tacho Fitted */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+                    Tacho Fitted
+                  </Label>
+                  <div className="flex items-center justify-between rounded-xl border border-border/60 p-4 bg-background/40 shadow-inner hover:shadow-md transition-all duration-300">
+                    <Label htmlFor="is_tacho_fitted" className="flex items-center gap-3 text-sm font-medium cursor-pointer">
+                      <Settings className="h-4 w-4 text-primary" />
+                      Tacho Fitted
+                    </Label>
+                    <Switch
+                      id="is_tacho_fitted"
+                      checked={formData.is_tacho_fitted}
+                      onCheckedChange={(checked) => dispatch(setFormData({ is_tacho_fitted: checked }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Wheelchair Lift Fitted */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+                    Wheelchair Lift
+                  </Label>
+                  <div className="flex items-center justify-between rounded-xl border border-border/60 p-4 bg-background/40 shadow-inner hover:shadow-md transition-all duration-300">
+                    <Label htmlFor="is_wheelchair_lift_fitted" className="flex items-center gap-3 text-sm font-medium cursor-pointer">
+                      <Car className="h-4 w-4 text-primary" />
+                      Wheelchair Lift
+                    </Label>
+                    <Switch
+                      id="is_wheelchair_lift_fitted"
+                      checked={formData.is_wheelchair_lift_fitted}
+                      onCheckedChange={(checked) => dispatch(setFormData({ is_wheelchair_lift_fitted: checked }))}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1942,28 +1746,26 @@ React.useEffect(() => {
               </div>
             </div>
 
-            {/* Latest Mileage */}
+            {/* Last Mileage */}
             <div className="space-y-3">
               <Label
-                htmlFor="current_mileage"
+                htmlFor="last_mileage"
                 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground"
               >
-                Latest Mileage <span className="text-destructive">*</span>
+                Last Mileage <span className="text-destructive">*</span>
               </Label>
               <div className="flex gap-3">
                 <div className="relative flex-1">
                   <Gauge className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                   <Input
-                    id="current_mileage"
-                    name="current_mileage"
-                    type="number"
-                    min="0"
+                    id="last_mileage"
+                    name="last_mileage"
                     placeholder="e.g., 50000"
-                    value={formData.current_mileage || ""}
-                    onChange={handleNumberInputChange}
+                    value={formData.last_mileage}
+                    onChange={handleInputChange}
                     className={cn(
                       "pl-11 h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300 focus:shadow-md",
-                      validationErrors.current_mileage && "border-destructive focus-visible:ring-destructive",
+                      validationErrors.last_mileage && "border-destructive focus-visible:ring-destructive",
                     )}
                   />
                 </div>
@@ -1980,7 +1782,7 @@ React.useEffect(() => {
                   </SelectContent>
                 </Select>
               </div>
-              <ErrorMessage field="current_mileage" />
+              <ErrorMessage field="last_mileage" />
             </div>
 
             {/* Vehicle Status */}
@@ -1999,52 +1801,64 @@ React.useEffect(() => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="available">
-                      <span className="px-2 py-1 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">Available</span>
-                    </SelectItem>
-                    <SelectItem value="unavailable">
-                      <span className="px-2 py-1 rounded border bg-slate-100 text-slate-700 border-slate-200">Unavailable</span>
-                    </SelectItem>
-                    <SelectItem value="assigned">
-                      <span className="px-2 py-1 rounded border bg-orange-50 text-orange-700 border-orange-200">Assigned</span>
-                    </SelectItem>
-             
-                    <SelectItem value="disabled">
-                      <span className="px-2 py-1 rounded border bg-gray-100 text-gray-700 border-gray-200">Disabled</span>
-                    </SelectItem>
-               
+                  <SelectItem value="available">
+                    <span className="px-2 py-1 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">Available</span>
+                  </SelectItem>
+                  <SelectItem value="unavailable">
+                    <span className="px-2 py-1 rounded border bg-slate-100 text-slate-700 border-slate-200">Unavailable</span>
+                  </SelectItem>
+                  <SelectItem value="assigned">
+                    <span className="px-2 py-1 rounded border bg-orange-50 text-orange-700 border-orange-200">Assigned</span>
+                  </SelectItem>
+                  <SelectItem value="disabled">
+                    <span className="px-2 py-1 rounded border bg-gray-100 text-gray-700 border-gray-200">Disabled</span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Roadworthy Status */}
+            {/* Purchase Date */}
             <div className="space-y-3">
               <Label
-                htmlFor="vehicle_roadworthy_status"
+                htmlFor="date_of_purchase"
                 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground"
               >
-                Roadworthy Status
+                Date of Purchase <span className="text-destructive">*</span>
               </Label>
-              <Select
-                value={formData.vehicle_roadworthy_status}
-                onValueChange={(value) => handleSelectChange("vehicle_roadworthy_status", value)}
-              >
-                <SelectTrigger className="w-full h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectContent>
-                    <SelectItem value="no_defect">No Defect</SelectItem>
-                    <SelectItem value="minor_defect_roadworthy">Minor Defect (Roadworthy)</SelectItem>
-                    <SelectItem value="minor_defect_not_roadworthy">Minor Defect (Not Roadworthy)</SelectItem>
-                    <SelectItem value="major_defect_not_roadworthy">Major Defect (Not Roadworthy)</SelectItem>
-                    
-                  </SelectContent>
-                </SelectContent>
-              </Select>
+              <Input
+                id="date_of_purchase"
+                name="date_of_purchase"
+                type="date"
+                value={formData.date_of_purchase}
+                onChange={handleDateChange}
+                className={cn(
+                  "h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300 focus:shadow-md",
+                  validationErrors.date_of_purchase && "border-destructive focus-visible:ring-destructive",
+                )}
+              />
+              <ErrorMessage field="date_of_purchase" />
             </div>
 
-            <div></div>
+            {/* Purchase Mileage */}
+            <div className="space-y-3">
+              <Label
+                htmlFor="purchase_mileage"
+                className="text-sm font-semibold tracking-wide uppercase text-muted-foreground"
+              >
+                Purchase Mileage
+              </Label>
+              <div className="relative">
+                <Gauge className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                <Input
+                  id="purchase_mileage"
+                  name="purchase_mileage"
+                  placeholder="e.g., 15000.00"
+                  value={formData.purchase_mileage}
+                  onChange={handleInputChange}
+                  className="pl-11 h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300 focus:shadow-md"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Allocated Sites */}
@@ -2054,12 +1868,12 @@ React.useEffect(() => {
             </Label>
             <MultiSelect
               options={sites}
-              selected={formData.site_allocated}
-              onChange={(values) => handleMultiSelectChange("site_allocated", values)}
+              selected={formData.site_allocated_ids}
+              onChange={(values) => handleMultiSelectChange("site_allocated_ids", values)}
               placeholder="Select one or more sites"
-              error={!!validationErrors.site_allocated}
+              error={!!validationErrors.site_allocated_ids}
             />
-            <ErrorMessage field="site_allocated" />
+            <ErrorMessage field="site_allocated_ids" />
           </div>
 
           {/* Notes */}
@@ -2093,19 +1907,6 @@ React.useEffect(() => {
             <h4 className="font-semibold text-blue-900">Purchase Details</h4>
 
             <div>
-              <Label htmlFor="date_of_purchase" className="text-sm font-medium">
-                Date of Purchase
-              </Label>
-              <Input
-                id="date_of_purchase"
-                name="date_of_purchase"
-                type="date"
-                value={formData.date_of_purchase}
-                onChange={handleDateChange}
-              />
-            </div>
-
-            <div>
               <Label htmlFor="purchased_from" className="text-sm font-medium">
                 Purchased From
               </Label>
@@ -2119,25 +1920,57 @@ React.useEffect(() => {
             </div>
 
             <div>
+              <Label htmlFor="purchased_by" className="text-sm font-medium">
+                Purchased By
+              </Label>
+              <Input
+                id="purchased_by"
+                name="purchased_by"
+                placeholder="e.g., Fleet Department"
+                value={formData.purchased_by}
+                onChange={handleInputChange}
+              />
+            </div>
+
+            <div>
               <Label htmlFor="price" className="text-sm font-medium">
                 Purchase Price
               </Label>
-  <Input
-  id="price"
-  name="price"
-  placeholder="0"
-  type="number"
-  step="0.01"
-  value={formData.price}
-  onChange={handleInputChange}
-  onKeyDown={(e) => {
-    // Allow digits, decimal point, and backspace
-    if (!/[0-9.]/.test(e.key) && 
-        !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) {
-      e.preventDefault()
-    }
-  }}
-/>
+              <Input
+                id="price"
+                name="price"
+                placeholder="0"
+                type="number"
+                step="0.01"
+                value={formData.price}
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  // Allow digits, decimal point, and backspace
+                  if (!/[0-9.]/.test(e.key) && 
+                      !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) {
+                    e.preventDefault()
+                  }
+                }}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="purchase_mileage" className="text-sm font-medium">
+                Purchase Mileage <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="purchase_mileage"
+                name="purchase_mileage"
+                placeholder="e.g., 12000.50"
+                value={formData.purchase_mileage}
+                onChange={handleInputChange}
+                className={cn(
+                  validationErrors.purchase_mileage && "border-destructive",
+                )}
+              />
+              {validationErrors.purchase_mileage && (
+                <p className="text-sm text-red-500 mt-1">{validationErrors.purchase_mileage}</p>
+              )}
             </div>
 
             <div className="flex items-center justify-between p-4 bg-white">
@@ -2169,27 +2002,26 @@ React.useEffect(() => {
               </div>
             )}
 
-{/* <div>
-  <Label htmlFor="total_price" className="text-sm font-medium">
-    Total Price – (Purchased price plus VAT amount)
-  </Label>
-  {(() => {
-    // Always use the latest values from formData at render time
-    const priceNum = parseFloat(formData.price || "0") || 0
-    const vatNum = parseFloat(formData.vat_amount || "0") || 0
-    const total = (priceNum + vatNum).toFixed(2)
+            <div>
+              <Label htmlFor="total_price" className="text-sm font-medium">
+                Total Price – (Purchased price plus VAT amount)
+              </Label>
+              {(() => {
+                const priceNum = parseFloat(formData.price || "0") || 0
+                const vatNum = parseFloat(formData.vat_amount || "0") || 0
+                const total = (priceNum + vatNum).toFixed(2)
 
-    return (
-      <Input
-        id="total_price"
-        value={`£${total}`}
-        readOnly
-        disabled
-        className="font-bold text-lg bg-green-50 border-green-300"
-      />
-    )
-  })()}
-</div> */}
+                return (
+                  <Input
+                    id="total_price"
+                    value={`£${total}`}
+                    readOnly
+                    disabled
+                    className="font-bold text-lg bg-green-50 border-green-300"
+                  />
+                )
+              })()}
+            </div>
           </div>
 
           {/* Document Upload for Purchase Invoice */}
@@ -2216,8 +2048,7 @@ React.useEffect(() => {
           <Alert className="bg-amber-50 border-amber-200 mb-6">
             <AlertCircle className="h-4 w-4 text-amber-600" />
             <AlertDescription className="text-amber-900">
-              <strong>All documents are required.</strong> You cannot proceed to the next step until all documents are
-              uploaded.
+              <strong>Required documents:</strong> Logbook and Vehicle Invoice are mandatory.
             </AlertDescription>
           </Alert>
 
@@ -2244,50 +2075,14 @@ React.useEffect(() => {
             />
 
             <DocumentUploadWithTask
-              field="COIF_technical_docs"
-              label="COIF"
+              field="vehicle_invoice_docs"
+              label="Vehicle Invoice"
               icon={FileText}
-              value={formData.COIF_technical_docs}
-              onUploadSuccess={handleFileUploadSuccess("COIF_technical_docs")}
-              error={validationErrors.COIF_technical_docs}
+              value={formData.vehicle_invoice_docs}
+              onUploadSuccess={handleFileUploadSuccess("vehicle_invoice_docs")}
+              error={validationErrors.vehicle_invoice_docs}
               required={true}
-              onTaskCreate={() => handleCreateTaskForDocument("COIF_technical_docs")}
-              description="Mandatory to attach a picture/file"
-            />
-
-            <DocumentUploadWithTask
-              field="service_records_docs"
-              label="Service Documents"
-              icon={FileText}
-              value={formData.service_records_docs}
-              onUploadSuccess={handleFileUploadSuccess("service_records_docs")}
-              error={validationErrors.service_records_docs}
-              required={true}
-              onTaskCreate={() => handleCreateTaskForDocument("service_records_docs")}
-              description="Mandatory to attach a picture/file"
-            />
-
-            <DocumentUploadWithTask
-              field="new_vehicle_checklist_docs"
-              label="Vehicle Delivery Checklist"
-              icon={FileCheck}
-              value={formData.new_vehicle_checklist_docs}
-              onUploadSuccess={handleFileUploadSuccess("new_vehicle_checklist_docs")}
-              error={validationErrors.new_vehicle_checklist_docs}
-              required={true}
-              onTaskCreate={() => handleCreateTaskForDocument("new_vehicle_checklist_docs")}
-              description="Mandatory to attach a picture/file"
-            />
-
-            <DocumentUploadWithTask
-              field="others_docs"
-              label="Other Documents"
-              icon={FileText}
-              value={formData.others_docs}
-              onUploadSuccess={handleFileUploadSuccess("others_docs")}
-              error={validationErrors.others_docs}
-              required={true}
-              onTaskCreate={() => handleCreateTaskForDocument("others_docs")}
+              onTaskCreate={() => handleCreateTaskForDocument("vehicle_invoice_docs")}
               description="Mandatory to attach a picture/file"
             />
           </div>
@@ -2321,8 +2116,7 @@ React.useEffect(() => {
           >
             <AlertCircle className={cn("h-4 w-4", areDateDocumentsUploaded() ? "text-green-600" : "text-amber-600")} />
             <AlertDescription className={areDateDocumentsUploaded() ? "text-green-900" : "text-amber-900"}>
-              <strong>Important:</strong> Document upload is mandatory for each date entered. You cannot proceed until
-              all documents are uploaded.
+              <strong>Important:</strong> Document upload is recommended for each date entered.
             </AlertDescription>
           </Alert>
 
@@ -2330,219 +2124,177 @@ React.useEffect(() => {
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                <strong>Missing Documents:</strong> You must upload documents for all entered dates to proceed.
+                <strong>Missing Documents:</strong> Documents are recommended for all entered dates.
               </AlertDescription>
             </Alert>
           )}
 
-          <div className="grid grid-cols-1 gap-4">
-            {/* Last PMI Date */}
-           <div className=" bg-gray-50  border rounded-2xl py-3 px-2">
-             <DateInputWithFileUpload
-              label="Last PMI Date"
-              name="last_pmi_date"
-              value={formData.last_pmi_date}
-              onChange={handleDateChange}
-              onFileUpload={handleFileUploadSuccess("last_pmi_date_docs")}
-              error={validationErrors.last_pmi_date}
-              required={true}
-              docFieldName="last_pmi_date_docs"
-              docValue={formData.last_pmi_date_docs}
-              docError={validationErrors.last_pmi_date_docs}
-              onTaskCreate={() => handleCreateTaskForDocument("last_pmi_date_docs")}
-            />
-
-            <div className="space-y-2">
-              <Label htmlFor="pmi_cycle" className="text-sm font-medium">
-                PMI Inspection Cycle – Select NA or insert a date
-              </Label>
-              <Input
-                id="pmi_cycle"
-                name="pmi_cycle"
-                type="text"
-                placeholder="e.g., NA or 90 days"
-                value={formData.pmi_cycle || ""}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  dispatch(setFormData({ pmi_cycle: val === "" ? null : Number(val) }));
-                }}
-              />
-            </div>
-           </div>
-
-            {/* MOT Expiry Date */}
-            <DateInputWithFileUpload
-              label="MOT Expiry Date"
-              name="mot_expiry"
-              value={formData.mot_expiry}
-              onChange={handleDateChange}
-              onFileUpload={handleFileUploadSuccess("mot_expiry_docs")}
-              error={validationErrors.mot_expiry}
-              required={true}
-              docFieldName="mot_expiry_docs"
-              docValue={formData.mot_expiry_docs}
-              docError={validationErrors.mot_expiry_docs}
-              onTaskCreate={() => handleCreateTaskForDocument("mot_expiry_docs")}
-            />
-
-            {/* Insurance Expiry Date */}
-            <DateInputWithFileUpload
-              label="Insurance Expiry Date"
-              name="insurance_expiry"
-              value={formData.insurance_expiry}
-              onChange={handleDateChange}
-              onFileUpload={handleFileUploadSuccess("insurance_expiry_docs")}
-              error={validationErrors.insurance_expiry}
-              required={true}
-              docFieldName="insurance_expiry_docs"
-              docValue={formData.insurance_expiry_docs}
-              docError={validationErrors.insurance_expiry_docs}
-              onTaskCreate={() => handleCreateTaskForDocument("insurance_expiry_docs")}
-            />
-
-            {/* Tax Expiry Date */}
-            <DateInputWithFileUpload
-              label="Tax Expiry Date"
-              name="tax_expiry"
-              value={formData.tax_expiry}
-              onChange={handleDateChange}
-              onFileUpload={handleFileUploadSuccess("tax_expiry_docs")}
-              error={validationErrors.tax_expiry}
-              required={true}
-              docFieldName="tax_expiry_docs"
-              docValue={formData.tax_expiry_docs}
-              docError={validationErrors.tax_expiry_docs}
-              onTaskCreate={() => handleCreateTaskForDocument("tax_expiry_docs")}
-            />
-
-            {/* Last Tyre Maintenance Check */}
-            <DateInputWithFileUpload
-              label=" Last Tyre Maintenance Check"
-              name="last_tyre_maintenance_check_date"
-              value={formData.last_tyre_maintenance_check_date}
-              onChange={handleDateChange}
-              onFileUpload={handleFileUploadSuccess("last_pmi_date_docs")} // Assuming this maps to a similar document type for now
-              error={validationErrors.last_tyre_maintenance_check_date}
-              required={true}
-              docFieldName="last_pmi_date_docs" // Assuming this maps to a similar document type for now
-              docValue={formData.last_pmi_date_docs} // Assuming this maps to a similar document type for now
-              docError={validationErrors.last_pmi_date_docs} // Assuming this maps to a similar document type for now
-              onTaskCreate={() => handleCreateTaskForDocument("last_pmi_date_docs")} // Assuming this maps to a similar document type for now
-            />
-
-            {/* Last Valet Check */}
-            <DateInputWithFileUpload
-              label=" Last Valet Check"
-              name="last_valet_check_date"
-              value={formData.last_valet_check_date}
-              onChange={handleDateChange}
-              onFileUpload={handleFileUploadSuccess("last_pmi_date_docs")} // Assuming this maps to a similar document type for now
-              error={validationErrors.last_valet_check_date}
-              required={true}
-              docFieldName="last_pmi_date_docs" // Assuming this maps to a similar document type for now
-              docValue={formData.last_pmi_date_docs} // Assuming this maps to a similar document type for now
-              docError={validationErrors.last_pmi_date_docs} // Assuming this maps to a similar document type for now
-              onTaskCreate={() => handleCreateTaskForDocument("last_pmi_date_docs")} // Assuming this maps to a similar document type for now
-            />
-
-            {/* Last Equipment Check */}
-            <DateInputWithFileUpload
-              label=" Last Equipment Check"
-              name="last_equipment_check_date"
-              value={formData.last_equipment_check_date}
-              onChange={handleDateChange}
-              onFileUpload={handleFileUploadSuccess("last_pmi_date_docs")} // Assuming this maps to a similar document type for now
-              error={validationErrors.last_equipment_check_date}
-              required={true}
-              docFieldName="last_pmi_date_docs" // Assuming this maps to a similar document type for now
-              docValue={formData.last_pmi_date_docs} // Assuming this maps to a similar document type for now
-              docError={validationErrors.last_pmi_date_docs} // Assuming this maps to a similar document type for now
-              onTaskCreate={() => handleCreateTaskForDocument("last_pmi_date_docs")} // Assuming this maps to a similar document type for now
-            />
-          </div>
-
-          {/* Tacho Calibration Expiry Date */}
-          <div className="space-y-2 mt-6">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <Label htmlFor="is_tacho_fitted" className="text-sm font-medium cursor-pointer">
-                Tacho Calibration Expiry Date (toggle button to say Fitted or Not)
-              </Label>
-              <Switch
-                id="is_tacho_fitted"
-                checked={formData.is_tacho_fitted}
-                onCheckedChange={(checked) => dispatch(setFormData({ is_tacho_fitted: checked }))}
-              />
-            </div>
-
-            {formData.is_tacho_fitted && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* MOT Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-semibold text-lg">MOT Details</h4>
+              
               <DateInputWithFileUpload
-                label="Tacho Calibration Expiry Date"
-                name="tacho_calibration_expiry"
-                value={formData.tacho_calibration_expiry}
+                label="MOT Expiry Date"
+                name="mot_expiry"
+                value={formData.mot_expiry}
                 onChange={handleDateChange}
-                onFileUpload={handleFileUploadSuccess("tacho_calibration_expiry_docs")}
-                error={validationErrors.tacho_calibration_expiry}
-                required={true}
-                docFieldName="tacho_calibration_expiry_docs"
-                docValue={formData.tacho_calibration_expiry_docs}
-                docError={validationErrors.tacho_calibration_expiry_docs}
-                onTaskCreate={() => handleCreateTaskForDocument("tacho_calibration_expiry_docs")}
+                onFileUpload={handleFileUploadSuccess("mot_check_docs")}
+                error={validationErrors.mot_expiry}
+                docFieldName="mot_check_docs"
+                docValue={formData.mot_check_docs}
+                docError={validationErrors.mot_check_docs}
+                onTaskCreate={() => handleCreateTaskForDocument("mot_check_docs")}
               />
-            )}
-          </div>
+            </div>
 
-          {/* Last Vehicle Tacho Download Date */}
-          {formData.is_tacho_fitted && (
-            <div className="space-y-2 mt-4">
-              <div className="p-4 border rounded-lg bg-blue-50">
-                <Label htmlFor="last_tacho_download_date" className="text-sm font-medium">
-                  Last Vehicle Tacho Download Date (If Yes ticked for &quot;Tacho Fitted&quot;)
-                </Label>
+            {/* Insurance Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-semibold text-lg">Insurance Details</h4>
+              
+              <DateInputWithFileUpload
+                label="Insurance Expiry Date"
+                name="insurance_expiry"
+                value={formData.insurance_expiry}
+                onChange={handleDateChange}
+                onFileUpload={handleFileUploadSuccess("insurance_docs")}
+                error={validationErrors.insurance_expiry}
+                docFieldName="insurance_docs"
+                docValue={formData.insurance_docs}
+                docError={validationErrors.insurance_docs}
+                onTaskCreate={() => handleCreateTaskForDocument("insurance_docs")}
+              />
+            </div>
+
+            {/* Tax Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-semibold text-lg">Tax Details</h4>
+              
+              <DateInputWithFileUpload
+                label="Tax Expiry Date"
+                name="tax_expiry"
+                value={formData.tax_expiry}
+                onChange={handleDateChange}
+                onFileUpload={handleFileUploadSuccess("tax_docs")}
+                error={validationErrors.tax_expiry}
+                docFieldName="tax_docs"
+                docValue={formData.tax_docs}
+                docError={validationErrors.tax_docs}
+                onTaskCreate={() => handleCreateTaskForDocument("tax_docs")}
+              />
+            </div>
+
+            {/* PMI Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-semibold text-lg">PMI Details</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="last_pmi_date" className="text-sm font-medium">
+                    Last PMI Date
+                  </Label>
+                  <Input
+                    id="last_pmi_date"
+                    name="last_pmi_date"
+                    type="date"
+                    value={formData.last_pmi_date}
+                    onChange={handleDateChange}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="pmi_expiry_date" className="text-sm font-medium">
+                    PMI Expiry Date
+                  </Label>
+                  <Input
+                    id="pmi_expiry_date"
+                    name="pmi_expiry_date"
+                    type="date"
+                    value={formData.pmi_expiry_date}
+                    onChange={handleDateChange}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="pmi_booked_date" className="text-sm font-medium">
+                    PMI Booked Date
+                  </Label>
+                  <Input
+                    id="pmi_booked_date"
+                    name="pmi_booked_date"
+                    type="date"
+                    value={formData.pmi_booked_date}
+                    onChange={handleDateChange}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="pmi_cycle" className="text-sm font-medium">
+                    PMI Cycle (weeks)
+                  </Label>
+                  <Input
+                    id="pmi_cycle"
+                    name="pmi_cycle"
+                    type="number"
+                    placeholder="e.g., 6"
+                    value={formData.pmi_cycle || ""}
+                    onChange={handleNumberInputChange}
+                  />
+                </div>
+
+                <DocumentUploadWithTask
+                  field="pmi_inspection_docs"
+                  label="PMI Inspection Report"
+                  icon={FileText}
+                  value={formData.pmi_inspection_docs}
+                  onUploadSuccess={handleFileUploadSuccess("pmi_inspection_docs")}
+                  error={validationErrors.pmi_inspection_docs}
+                  required={!!formData.last_pmi_date || !!formData.pmi_expiry_date}
+                  onTaskCreate={() => handleCreateTaskForDocument("pmi_inspection_docs")}
+                  description="Recommended when PMI dates are set"
+                />
               </div>
-              <DateInputWithFileUpload
-                label="Last Tacho Download Date"
-                name="last_tacho_download_date"
-                value={formData.last_tacho_download_date}
-                onChange={handleDateChange}
-                onFileUpload={handleFileUploadSuccess("last_tacho_download_date_docs")}
-                error={validationErrors.last_tacho_download_date}
-                required={true}
-                docFieldName="last_tacho_download_date_docs"
-                docValue={formData.last_tacho_download_date_docs}
-                docError={validationErrors.last_tacho_download_date_docs}
-                onTaskCreate={() => handleCreateTaskForDocument("last_tacho_download_date_docs")}
-              />
-            </div>
-          )}
-
-          {/* Loller Expiry Date */}
-          <div className="space-y-2 mt-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <Label htmlFor="is_wheelchair_lift_fitted" className="text-sm font-medium cursor-pointer">
-                Loller Expiry Date (toggle button to say Fitted or Not) (If Yes ticked for &quot;Loller&quot;)
-              </Label>
-              <Switch
-                id="is_wheelchair_lift_fitted"
-                checked={formData.is_wheelchair_lift_fitted}
-                onCheckedChange={(checked) => dispatch(setFormData({ is_wheelchair_lift_fitted: checked }))}
-              />
             </div>
 
-            {formData.is_wheelchair_lift_fitted && (
-              <DateInputWithFileUpload
-                label="Loller Expiry Date"
-                name="loller_calibration_expiry"
-                value={formData.loller_calibration_expiry}
-                onChange={handleDateChange}
-                onFileUpload={handleFileUploadSuccess("loller_calibration_expiry_docs")}
-                error={validationErrors.loller_calibration_expiry}
-                required={true}
-                docFieldName="loller_calibration_expiry_docs"
-                docValue={formData.loller_calibration_expiry_docs}
-                docError={validationErrors.loller_calibration_expiry_docs}
-                onTaskCreate={() => handleCreateTaskForDocument("loller_calibration_expiry_docs")}
-              />
-            )}
+            {/* Tachograph Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-semibold text-lg">Tachograph Details</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="tacho_calibration_expiry" className="text-sm font-medium">
+                    Tacho Calibration Expiry
+                  </Label>
+                  <Input
+                    id="tacho_calibration_expiry"
+                    name="tacho_calibration_expiry"
+                    type="date"
+                    value={formData.tacho_calibration_expiry}
+                    onChange={handleDateChange}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* LOLER Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-semibold text-lg">LOLER Details</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="loller_test_expiry_date" className="text-sm font-medium">
+                    LOLER Test Expiry Date
+                  </Label>
+                  <Input
+                    id="loller_test_expiry_date"
+                    name="loller_test_expiry_date"
+                    type="date"
+                    value={formData.loller_test_expiry_date}
+                    onChange={handleDateChange}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Create task button for missing documents */}
@@ -2569,272 +2321,145 @@ React.useEffect(() => {
           <Alert className="bg-amber-50 border-amber-200">
             <AlertCircle className="h-4 w-4 text-amber-600" />
             <AlertDescription className="text-amber-900">
-              <strong>All tyre fields are required.</strong>
+              <strong>Tyre information:</strong>
               Expiry format: WWYY (e.g., 0124 for week 1 of 2024). Depth ≥1.6mm or &quot;NV&quot; for Null Value, Front Pressure
-              65–68 PSI, Rear Pressure 56–58 PSI, Torque 200–210 Nm.
+              65–68 PSI, Torque 200–210 Nm.
             </AlertDescription>
           </Alert>
 
-          <div className="flex flex-col gap-6">
-            {/* Front Driver */}
-            <div className="flex justify-between gap-4">
-              <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-blue-50 to-white flex-1">
-                <h4 className="font-semibold mb-4 text-blue-900">Front Driver</h4>
-                <div className="space-y-4">
-                  <TyreCheckInput
-                    label="Expiry (WWYY)"
-                    name="tyre_expiry_front_driver"
-                    value={formData.tyre_expiry_front_driver}
-                    onChange={handleTyreExpiryChange}
-                    error={validationErrors.tyre_expiry_front_driver}
-                    placeholder="0124"
-                    tooltip="Week and year format: 0124 = Week 01 of 2024"
-                  />
-                  <TyreCheckInput
-                    label="Depth (mm)"
-                    name="tyre_depth_front_driver"
-                    value={formData.tyre_depth_front_driver}
-                    onChange={handleStringNumberInputChange}
-                    error={validationErrors.tyre_depth_front_driver}
-                    placeholder="3.5 or NV"
-                    tooltip="Minimum 1.6mm or 'NV' for Null Value"
-                  />
-                  <TyreCheckInput
-                    label="Pressure (PSI)"
-                    name="tyre_pressure_front_driver"
-                    value={formData.tyre_pressure_front_driver}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_pressure_front_driver}
-                    type="number"
-                    step="0.1"
-                    placeholder="66.5"
-                    tooltip="Front tyres: 65-68 PSI"
-                  />
-                  <TyreCheckInput
-                    label="Torque (Nm)"
-                    name="tyre_torque_front_driver"
-                    value={formData.tyre_torque_front_driver}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_torque_front_driver}
-                    type="number"
-                    step="0.1"
-                    placeholder="205"
-                    tooltip="Torque: 200-210 Nm"
-                  />
-                </div>
-              </div>
-
-              {/* Front Passenger */}
-              <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-green-50 to-white flex-1">
-                <h4 className="font-semibold mb-4 text-green-900">Front Passenger</h4>
-                <div className="space-y-4">
-                  <TyreCheckInput
-                    label="Expiry (WWYY)"
-                    name="tyre_expiry_front_passenger"
-                    value={formData.tyre_expiry_front_passenger}
-                    onChange={handleTyreExpiryChange}
-                    error={validationErrors.tyre_expiry_front_passenger}
-                    placeholder="0124"
-                    tooltip="Week and year format: 0124 = Week 01 of 2024"
-                  />
-                  <TyreCheckInput
-                    label="Depth (mm)"
-                    name="tyre_depth_front_passenger"
-                    value={formData.tyre_depth_front_passenger}
-                    onChange={handleStringNumberInputChange}
-                    error={validationErrors.tyre_depth_front_passenger}
-                    placeholder="3.5 or NV"
-                    tooltip="Minimum 1.6mm or 'NV' for Null Value"
-                  />
-                  <TyreCheckInput
-                    label="Pressure (PSI)"
-                    name="tyre_pressure_front_passenger"
-                    value={formData.tyre_pressure_front_passenger}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_pressure_front_passenger}
-                    type="number"
-                    step="0.1"
-                    placeholder="66.5"
-                    tooltip="Front tyres: 65-68 PSI"
-                  />
-                  <TyreCheckInput
-                    label="Torque (Nm)"
-                    name="tyre_torque_front_passenger"
-                    value={formData.tyre_torque_front_passenger}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_torque_front_passenger}
-                    type="number"
-                    step="0.1"
-                    placeholder="205"
-                    tooltip="Torque: 200-210 Nm"
-                  />
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Front Driver Tyre */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-blue-50 to-white">
+              <h4 className="font-semibold mb-4 text-blue-900">Front Driver Tyre</h4>
+              <div className="space-y-4">
+                <TyreCheckInput
+                  label="Expiry (WWYY)"
+                  name="tyre_expiry_front_driver"
+                  value={formData.tyre_expiry_front_driver}
+                  onChange={handleTyreExpiryChange}
+                  error={validationErrors.tyre_expiry_front_driver}
+                  placeholder="0124"
+                  tooltip="Week and year format: 0124 = Week 01 of 2024"
+                />
               </div>
             </div>
 
-            {/* Rear Outer Driver & Passenger */}
-            <div className="flex justify-between gap-4">
-              <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-purple-50 to-white flex-1">
-                <h4 className="font-semibold mb-4 text-purple-900">Rear Outer Driver</h4>
-                <div className="space-y-4">
-                  <TyreCheckInput
-                    label="Expiry (WWYY)"
-                    name="tyre_expiry_rear_outer_driver"
-                    value={formData.tyre_expiry_rear_outer_driver}
-                    onChange={handleTyreExpiryChange}
-                    error={validationErrors.tyre_expiry_rear_outer_driver}
-                    placeholder="0124"
-                    tooltip="Week and year format: 0124 = Week 01 of 2024"
-                  />
-                  <TyreCheckInput
-                    label="Depth (mm)"
-                    name="tyre_depth_rear_outer_driver"
-                    value={formData.tyre_depth_rear_outer_driver}
-                    onChange={handleStringNumberInputChange}
-                    error={validationErrors.tyre_depth_rear_outer_driver}
-                    placeholder="3.5 or NV"
-                    tooltip="Minimum 1.6mm or 'NV' for Null Value"
-                  />
-                  <TyreCheckInput
-                    label="Pressure (PSI)"
-                    name="tyre_pressure_rear_outer_driver"
-                    value={formData.tyre_pressure_rear_outer_driver}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_pressure_rear_outer_driver}
-                    type="number"
-                    step="0.1"
-                    placeholder="57.0"
-                    tooltip="Rear tyres: 56-58 PSI"
-                  />
-                  <TyreCheckInput
-                    label="Torque (Nm)"
-                    name="tyre_torque_rear_outer_driver"
-                    value={formData.tyre_torque_rear_outer_driver}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_torque_rear_outer_driver}
-                    type="number"
-                    step="0.1"
-                    placeholder="205"
-                    tooltip="Torque: 200-210 Nm"
-                  />
-                </div>
+            {/* Front Passenger Tyre */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-green-50 to-white">
+              <h4 className="font-semibold mb-4 text-green-900">Front Passenger Tyre</h4>
+              <div className="space-y-4">
+                <TyreCheckInput
+                  label="Expiry (WWYY)"
+                  name="tyre_expiry_front_passenger"
+                  value={formData.tyre_expiry_front_passenger}
+                  onChange={handleTyreExpiryChange}
+                  error={validationErrors.tyre_expiry_front_passenger}
+                  placeholder="0124"
+                  tooltip="Week and year format: 0124 = Week 01 of 2024"
+                />
               </div>
+            </div>
 
-              <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-red-50 to-white flex-1">
-                <h4 className="font-semibold mb-4 text-red-900">Rear Inner Driver</h4>
-                <div className="space-y-4">
-                  <TyreCheckInput
-                    label="Expiry (WWYY)"
-                    name="tyre_expiry_rear_inner_driver"
-                    value={formData.tyre_expiry_rear_inner_driver}
-                    onChange={handleTyreExpiryChange}
-                    error={validationErrors.tyre_expiry_rear_inner_driver}
-                    placeholder="0124"
-                    tooltip="Week and year format: 0124 = Week 01 of 2024"
-                  />
-                  <TyreCheckInput
-                    label="Depth (mm)"
-                    name="tyre_depth_rear_inner_driver"
-                    value={formData.tyre_depth_rear_inner_driver}
-                    onChange={handleStringNumberInputChange}
-                    error={validationErrors.tyre_depth_rear_inner_driver}
-                    placeholder="3.5 or NV"
-                    tooltip="Minimum 1.6mm or 'NV' for Null Value"
-                  />
-                  <TyreCheckInput
-                    label="Pressure (PSI)"
-                    name="tyre_pressure_rear_inner_driver"
-                    value={formData.tyre_pressure_rear_inner_driver}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_pressure_rear_inner_driver}
-                    type="number"
-                    step="0.1"
-                    placeholder="57.0"
-                    tooltip="Rear tyres: 56-58 PSI"
-                  />
-                </div>
+            {/* Rear Outer Driver Tyre */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-purple-50 to-white">
+              <h4 className="font-semibold mb-4 text-purple-900">Rear Outer Driver Tyre</h4>
+              <div className="space-y-4">
+                <TyreCheckInput
+                  label="Expiry (WWYY)"
+                  name="tyre_expiry_rear_outer_driver"
+                  value={formData.tyre_expiry_rear_outer_driver}
+                  onChange={handleTyreExpiryChange}
+                  error={validationErrors.tyre_expiry_rear_outer_driver}
+                  placeholder="0124"
+                  tooltip="Week and year format: 0124 = Week 01 of 2024"
+                />
               </div>
+            </div>
 
-              <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-yellow-50 to-white flex-1">
-                <h4 className="font-semibold mb-4 text-yellow-900">Rear Inner Passenger</h4>
-                <div className="space-y-4">
-                  <TyreCheckInput
-                    label="Expiry (WWYY)"
-                    name="tyre_expiry_rear_inner_passenger"
-                    value={formData.tyre_expiry_rear_inner_passenger}
-                    onChange={handleTyreExpiryChange}
-                    error={validationErrors.tyre_expiry_rear_inner_passenger}
-                    placeholder="0124"
-                    tooltip="Week and year format: 0124 = Week 01 of 2024"
-                  />
-                  <TyreCheckInput
-                    label="Depth (mm)"
-                    name="tyre_depth_rear_inner_passenger"
-                    value={formData.tyre_depth_rear_inner_passenger}
-                    onChange={handleStringNumberInputChange}
-                    error={validationErrors.tyre_depth_rear_inner_passenger}
-                    placeholder="3.5 or NV"
-                    tooltip="Minimum 1.6mm or 'NV' for Null Value"
-                  />
-                  <TyreCheckInput
-                    label="Pressure (PSI)"
-                    name="tyre_pressure_rear_inner_passenger"
-                    value={formData.tyre_pressure_rear_inner_passenger}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_pressure_rear_inner_passenger}
-                    type="number"
-                    step="0.1"
-                    placeholder="57.0"
-                    tooltip="Rear tyres: 56-58 PSI"
-                  />
-                </div>
+            {/* Rear Outer Passenger Tyre */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-orange-50 to-white">
+              <h4 className="font-semibold mb-4 text-orange-900">Rear Outer Passenger Tyre</h4>
+              <div className="space-y-4">
+                <TyreCheckInput
+                  label="Expiry (WWYY)"
+                  name="tyre_expiry_rear_outer_passenger"
+                  value={formData.tyre_expiry_rear_outer_passenger}
+                  onChange={handleTyreExpiryChange}
+                  error={validationErrors.tyre_expiry_rear_outer_passenger}
+                  placeholder="0124"
+                  tooltip="Week and year format: 0124 = Week 01 of 2024"
+                />
               </div>
+            </div>
 
-              <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-orange-50 to-white flex-1">
-                <h4 className="font-semibold mb-4 text-orange-900">Rear Outer Passenger</h4>
-                <div className="space-y-4">
-                  <TyreCheckInput
-                    label="Expiry (WWYY)"
-                    name="tyre_expiry_rear_outer_passenger"
-                    value={formData.tyre_expiry_rear_outer_passenger}
-                    onChange={handleTyreExpiryChange}
-                    error={validationErrors.tyre_expiry_rear_outer_passenger}
-                    placeholder="0124"
-                    tooltip="Week and year format: 0124 = Week 01 of 2024"
-                  />
-                  <TyreCheckInput
-                    label="Depth (mm)"
-                    name="tyre_depth_rear_outer_passenger"
-                    value={formData.tyre_depth_rear_outer_passenger}
-                    onChange={handleStringNumberInputChange}
-                    error={validationErrors.tyre_depth_rear_outer_passenger}
-                    placeholder="3.5 or NV"
-                    tooltip="Minimum 1.6mm or 'NV' for Null Value"
-                  />
-                  <TyreCheckInput
-                    label="Pressure (PSI)"
-                    name="tyre_pressure_rear_outer_passenger"
-                    value={formData.tyre_pressure_rear_outer_passenger}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_pressure_rear_outer_passenger}
-                    type="number"
-                    step="0.1"
-                    placeholder="57.0"
-                    tooltip="Rear tyres: 56-58 PSI"
-                  />
-                  <TyreCheckInput
-                    label="Torque (Nm)"
-                    name="tyre_torque_rear_outer_passenger"
-                    value={formData.tyre_torque_rear_outer_passenger}
-                    onChange={handleNumberInputChange}
-                    error={validationErrors.tyre_torque_rear_outer_passenger}
-                    type="number"
-                    step="0.1"
-                    placeholder="205"
-                    tooltip="Torque: 200-210 Nm"
-                  />
-                </div>
+            {/* Rear Inner Driver Tyre */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-red-50 to-white">
+              <h4 className="font-semibold mb-4 text-red-900">Rear Inner Driver Tyre</h4>
+              <div className="space-y-4">
+                <TyreCheckInput
+                  label="Expiry (WWYY)"
+                  name="tyre_expiry_rear_inner_driver"
+                  value={formData.tyre_expiry_rear_inner_driver}
+                  onChange={handleTyreExpiryChange}
+                  error={validationErrors.tyre_expiry_rear_inner_driver}
+                  placeholder="0124"
+                  tooltip="Week and year format: 0124 = Week 01 of 2024"
+                />
               </div>
+            </div>
+
+            {/* Rear Inner Passenger Tyre */}
+            <div className="p-4 border-2 rounded-lg bg-gradient-to-br from-yellow-50 to-white">
+              <h4 className="font-semibold mb-4 text-yellow-900">Rear Inner Passenger Tyre</h4>
+              <div className="space-y-4">
+                <TyreCheckInput
+                  label="Expiry (WWYY)"
+                  name="tyre_expiry_rear_inner_passenger"
+                  value={formData.tyre_expiry_rear_inner_passenger}
+                  onChange={handleTyreExpiryChange}
+                  error={validationErrors.tyre_expiry_rear_inner_passenger}
+                  placeholder="0124"
+                  tooltip="Week and year format: 0124 = Week 01 of 2024"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Front Driver Tyre Specs */}
+          <div className="mt-8 p-6 border-2 rounded-lg bg-gradient-to-br from-blue-50 to-white">
+            <h4 className="font-semibold mb-4 text-blue-900">Front Driver Tyre Specifications</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <TyreCheckInput
+                label="Depth (mm)"
+                name="tyre_depth_front_driver"
+                value={formData.tyre_depth_front_driver}
+                onChange={handleStringNumberInputChange}
+                error={validationErrors.tyre_depth_front_driver}
+                placeholder="3.5 or NV"
+                tooltip="Minimum 1.6mm or 'NV' for Null Value"
+              />
+              <TyreCheckInput
+                label="Pressure (PSI)"
+                name="tyre_pressure_front_driver"
+                value={formData.tyre_pressure_front_driver}
+                onChange={handleNumberInputChange}
+                error={validationErrors.tyre_pressure_front_driver}
+                type="number"
+                step="0.1"
+                placeholder="66.5"
+                tooltip="Front tyres: 65-68 PSI"
+              />
+              <TyreCheckInput
+                label="Torque (Nm)"
+                name="tyre_torque_front_driver"
+                value={formData.tyre_torque_front_driver}
+                onChange={handleNumberInputChange}
+                error={validationErrors.tyre_torque_front_driver}
+                type="number"
+                step="0.1"
+                placeholder="205"
+                tooltip="Torque: 200-210 Nm"
+              />
             </div>
           </div>
         </div>
@@ -2858,20 +2483,16 @@ React.useEffect(() => {
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">VIN:</span>
-                  <span className="font-medium">{formData.vin || "N/A"}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-muted-foreground">Registration:</span>
                   <span className="font-medium">{formData.registration_number || "N/A"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Make:</span>
-                  <span className="font-medium">{formData.make || "N/A"}</span>
+                  <span className="text-muted-foreground">VIN:</span>
+                  <span className="font-medium">{formData.vin || "N/A"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Model:</span>
-                  <span className="font-medium">{formData.model || "N/A"}</span>
+                  <span className="text-muted-foreground">Make/Model:</span>
+                  <span className="font-medium">{formData.make} {formData.model}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Type:</span>
@@ -2880,10 +2501,12 @@ React.useEffect(() => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Latest Mileage:</span>
-                  <span className="font-medium">
-                    {formData.current_mileage || "0"} {formData.mileage_unit}
-                  </span>
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className="font-medium capitalize">{formData.vehicle_status}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Active:</span>
+                  <span className="font-medium">{formData.is_active ? "Yes" : "No"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tacho Fitted:</span>
@@ -2908,6 +2531,10 @@ React.useEffect(() => {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Price:</span>
                   <span className="font-medium">{formData.price ? `£${formData.price}` : "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Purchase Mileage:</span>
+                  <span className="font-medium">{formData.purchase_mileage || "N/A"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">VAT:</span>
@@ -2944,22 +2571,24 @@ React.useEffect(() => {
                   <span className="text-muted-foreground">Tax:</span>
                   <span className="font-medium">{formData.tax_expiry || "N/A"}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Last PMI:</span>
+                  <span className="font-medium">{formData.last_pmi_date || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">PMI Expiry:</span>
+                  <span className="font-medium">{formData.pmi_expiry_date || "N/A"}</span>
+                </div>
                 {formData.is_tacho_fitted && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tacho Calibration:</span>
-                      <span className="font-medium">{formData.tacho_calibration_expiry || "N/A"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Last Tacho Download:</span>
-                      <span className="font-medium">{formData.last_tacho_download_date || "N/A"}</span>
-                    </div>
-                  </>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tacho Calibration:</span>
+                    <span className="font-medium">{formData.tacho_calibration_expiry || "N/A"}</span>
+                  </div>
                 )}
                 {formData.is_wheelchair_lift_fitted && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Loller Calibration:</span>
-                    <span className="font-medium">{formData.loller_calibration_expiry || "N/A"}</span>
+                    <span className="text-muted-foreground">LOLER Test Expiry:</span>
+                    <span className="font-medium">{formData.loller_test_expiry_date || "N/A"}</span>
                   </div>
                 )}
               </CardContent>
@@ -2967,11 +2596,15 @@ React.useEffect(() => {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Tyre Status (ALL 6)</CardTitle>
+                <CardTitle className="text-base">Tyre Status</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Front Driver:</span>
+                  <span className="text-muted-foreground">Front Driver Expiry:</span>
+                  <span className="font-medium">{formData.tyre_expiry_front_driver || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Front Driver Depth:</span>
                   <span className="font-medium">
                     {formData.tyre_depth_front_driver
                       ? formData.tyre_depth_front_driver.toUpperCase() === "NV"
@@ -2981,54 +2614,20 @@ React.useEffect(() => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Front Pass:</span>
+                  <span className="text-muted-foreground">Front Driver Pressure:</span>
                   <span className="font-medium">
-                    {formData.tyre_depth_front_passenger
-                      ? formData.tyre_depth_front_passenger.toUpperCase() === "NV"
-                        ? "NV"
-                        : `${formData.tyre_depth_front_passenger}mm`
-                      : "N/A"}
+                    {formData.tyre_pressure_front_driver ? `${formData.tyre_pressure_front_driver} PSI` : "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rear Outer Driver:</span>
+                  <span className="text-muted-foreground">Front Driver Torque:</span>
                   <span className="font-medium">
-                    {formData.tyre_depth_rear_outer_driver
-                      ? formData.tyre_depth_rear_outer_driver.toUpperCase() === "NV"
-                        ? "NV"
-                        : `${formData.tyre_depth_rear_outer_driver}mm`
-                      : "N/A"}
+                    {formData.tyre_torque_front_driver ? `${formData.tyre_torque_front_driver} Nm` : "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rear Outer Pass:</span>
-                  <span className="font-medium">
-                    {formData.tyre_depth_rear_outer_passenger
-                      ? formData.tyre_depth_rear_outer_passenger.toUpperCase() === "NV"
-                        ? "NV"
-                        : `${formData.tyre_depth_rear_outer_passenger}mm`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rear Inner Driver:</span>
-                  <span className="font-medium">
-                    {formData.tyre_depth_rear_inner_driver
-                      ? formData.tyre_depth_rear_inner_driver.toUpperCase() === "NV"
-                        ? "NV"
-                        : `${formData.tyre_depth_rear_inner_driver}mm`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rear Inner Pass:</span>
-                  <span className="font-medium">
-                    {formData.tyre_depth_rear_inner_passenger
-                      ? formData.tyre_depth_rear_inner_passenger.toUpperCase() === "NV"
-                        ? "NV"
-                        : `${formData.tyre_depth_rear_inner_passenger}mm`
-                      : "N/A"}
-                  </span>
+                  <span className="text-muted-foreground">Other Tyres Expiry:</span>
+                  <span className="font-medium">All set</span>
                 </div>
               </CardContent>
             </Card>
@@ -3061,29 +2660,19 @@ React.useEffect(() => {
                       )}
                       {currentStep === 2 && (
                         <Badge variant="destructive" className="shadow-sm">
-                          All Documents Required
-                        </Badge>
-                      )}
-                      {currentStep === 3 && (
-                        <Badge variant="destructive" className="shadow-sm">
-                          Documents Required for Dates
-                        </Badge>
-                      )}
-                      {currentStep === 4 && (
-                        <Badge variant="destructive" className="shadow-sm">
-                          All Tyre Fields Required
+                          Required Documents
                         </Badge>
                       )}
                     </CardTitle>
                     <CardDescription className="text-base leading-relaxed mt-2">
                       {index === 0 &&
-                        "Enter vehicle information including vehicle photo, make, model, registration, type, seats, VIN, latest mileage, status, and allocated sites."}
+                        "Enter vehicle information including vehicle photo, make, model, registration, type, seats, VIN, last mileage, status, and allocated sites."}
                       {index === 1 &&
-                        "Record purchase details including date, purchased from, price, VAT, and total price."}
+                        "Record purchase details including date, purchased from, price, purchase mileage, VAT, and total price."}
                       {index === 2 &&
-                        "Upload all mandatory documents: Logbook, COIF, Service Documents, Vehicle Delivery Checklist, and Other Documents."}
-                      {index === 3 && "Track compliance dates with mandatory document uploads for each date entered."}
-                      {index === 4 && "Complete all tyre checks (6 tyres) with required safety metrics."}
+                        "Upload mandatory documents: Logbook and Vehicle Invoice."}
+                      {index === 3 && "Track compliance dates with recommended document uploads."}
+                      {index === 4 && "Complete tyre checks with expiry dates and front driver specifications."}
                       {index === 5 && "Review all information and submit the vehicle registration."}
                     </CardDescription>
                   </CardHeader>
@@ -3149,13 +2738,6 @@ React.useEffect(() => {
                     if (currentStep === 2 && !areAllDocumentsUploaded()) {
                       toast.error("Cannot proceed", {
                         description: "All required documents must be uploaded before proceeding.",
-                      })
-                      return
-                    }
-
-                    if (currentStep === 3 && !areDateDocumentsUploaded()) {
-                      toast.error("Cannot proceed", {
-                        description: "Documents must be uploaded for all entered dates before proceeding.",
                       })
                       return
                     }

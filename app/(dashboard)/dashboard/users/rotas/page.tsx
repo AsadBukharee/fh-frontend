@@ -3,6 +3,7 @@
 import ChangeShifts from "@/components/Rota/ChangeShifts"
 import { ShiftTable } from "@/components/Rota/ChildTab"
 import ParentTab from "@/components/Rota/ParentTab"
+import Reporting from "@/components/Rota/Reporting"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 export default function Rota() {
@@ -56,7 +57,7 @@ export default function Rota() {
           <ChangeShifts/>
         </TabsContent>
              <TabsContent value="child3">
-          <ChangeShifts/>
+          <Reporting/>
         </TabsContent>
       </Tabs>
     </div>
