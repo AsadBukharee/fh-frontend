@@ -66,7 +66,7 @@ const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => 
             <SignedAgreements
               driverId={driverId}
               userId={userId}
-              onOpenchange={onOpenChange}
+              // onOpenchange={onOpenChange}
             />
           </StepperContent>
 
