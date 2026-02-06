@@ -775,13 +775,11 @@ function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: Documen
 interface SignedAgreementsProps {
     driverId?: number;
     userId?: number;
-    onOpenchange?: (open: boolean) => void;
 }
 
 export default function SignedAgreements({
     driverId,
     userId,
-    onOpenchange,
 }: SignedAgreementsProps) {
     const cookies = useCookies();
     const token = cookies.get("access_token") ?? "";
@@ -794,8 +792,6 @@ export default function SignedAgreements({
         open: false,
         key: null,
     });
-
-    const [showCompletionDialog, setShowCompletionDialog] = useState(false);
 
     const [uploadDialog, setUploadDialog] = useState<{
         open: boolean;
@@ -819,7 +815,7 @@ export default function SignedAgreements({
     const openTaskDialog = (title: string, key: DocumentKey) => {
         // Add this document to tasks created set
         setTasksCreated(prev => new Set([...prev, key]));
-
+        
         setTaskDialog({
             open: true,
             title: `Upload ${title} (Driver #${userId})`,
@@ -835,18 +831,18 @@ export default function SignedAgreements({
         for (const [key] of Object.entries(docConfig)) {
             const k = key as DocumentKey;
             const doc = docs[k];
-
+            
             // Skip validation if document is marked as not applicable
             if (!doc.isApplicable) {
                 continue;
             }
-
+            
             // If applicable and no document is uploaded AND no task created for it, user cannot proceed
             if (!doc.link && !tasksCreated.has(k)) {
                 return false;
             }
         }
-
+        
         return true;
     }, [docs, tasksCreated]);
 
@@ -1033,19 +1029,10 @@ export default function SignedAgreements({
             setValidationError("Please upload all applicable documents or create tasks for missing documents before proceeding.");
             return;
         }
-
+        
         // Clear any previous error
         setValidationError(null);
-
-        // Since this is now the last step, show completion dialog
-        setShowCompletionDialog(true);
-    };
-
-    const handleCompleteAll = () => {
-        if (onOpenchange) {
-            onOpenchange(false);
-        }
-        setShowCompletionDialog(false);
+        goToNextStep();
     };
 
     if (docsLoading || namesLoading) {
@@ -1080,7 +1067,7 @@ export default function SignedAgreements({
                         For each applicable document, you must either:
                         <ul className="list-disc ml-5 mt-1 space-y-1">
                             <li>Upload the document, OR</li>
-                            <li>Click "Later" to create a task for it</li>
+                            <li>Click &quot;Later&quot; to create a task for it</li>
                         </ul>
                     </div>
                 </div>
@@ -1329,7 +1316,7 @@ export default function SignedAgreements({
                     setTaskDialog({ ...taskDialog, open: false });
                 }}
             />
-
+            
             {/* Navigation Buttons */}
             <div className="grid grid-cols-2 gap-3 w-full">
                 {/* Previous */}
@@ -1344,7 +1331,7 @@ export default function SignedAgreements({
                     Previous
                 </Button>
 
-                {/* Save & Next (now Save & Finish) */}
+                {/* Save & Next */}
                 <Button
                     type="button"
                     variant="outline"
@@ -1352,43 +1339,10 @@ export default function SignedAgreements({
                     onClick={handleNext}
                     disabled={!canProceedToNextStep()}
                 >
-                    Save & Finish
-                    <CheckCircle2 className="ml-2 h-4 w-4" />
+                    Save & Next
+                    <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
             </div>
-
-            {/* Completion Dialog */}
-            <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                            <CheckCircle2 className="h-7 w-7 text-green-600" />
-                            All Steps Completed!
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-600 text-base">
-                            The driver registration process is now complete. All information and signed agreements have been saved.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="py-6 flex flex-col items-center justify-center space-y-4">
-                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                            <CheckCircle2 className="h-12 w-12 text-green-600" />
-                        </div>
-                        <p className="text-center font-medium text-gray-700">
-                            The driver is now ready for compliance management.
-                        </p>
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            className="w-full bg-[#e53339] hover:bg-red-700 text-white h-12 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all"
-                            onClick={handleCompleteAll}
-                        >
-                            Finish & Close
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }
