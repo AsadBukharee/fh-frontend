@@ -64,19 +64,73 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import ExportButton from "@/app/utils/ExportButton"
 import { Label } from "@/components/ui/label"
 
+interface VehicleType {
+  id: number
+  name: string
+  description?: string
+  number_of_seats?: number | null
+  created_at?: string
+  updated_at?: string
+}
+
+interface Driver {
+  id: number
+  email: string
+  full_name: string
+  display_name: string
+  parent_rota_completed: boolean
+  child_rota_completed: boolean
+  contract_signing_date: string
+  rota_start_date: string
+  paid_holidays: number
+  is_active: boolean
+  contract: {
+    id: number
+    name: string
+    description: string
+  }
+  role: string
+  site: Array<{
+    id: number
+    name: string
+    status: string
+    image: string
+  }>
+  shifts_count: number
+  avatar: string | null
+}
+
+interface Site {
+  id: number
+  name: string
+  status: string
+  image: string
+}
+
 interface Vehicle {
   id: number
   registration_number: string
-  vehicles_type: { name: string }
+  vehicle_type: VehicleType
   vehicle_status: string
   is_roadworthy: boolean
   vehicle_roadworthy_status: string
-  current_mileage: string
-  assignee_driver: { full_name: string } | null
+  current_mileage: string | null
+  assignee_driver: Driver | null
   walkaround_count: number | null
   vehicle_picture: string
   warnings: string[]
-  status_indicators: any
+  status_indicators: {
+    mot_expiring?: boolean
+    tax_expiring?: boolean
+    insurance_expiring?: boolean
+    inspection_due?: boolean | null
+  }
+  // Additional fields from API that might be needed
+  vehicle_type_name?: string
+  assignee_driver_name?: string
+  last_mileage?: string | null
+  mileage_in_miles?: number | null
+  mileage_in_km?: number | null
 }
 
 export default function VehiclesPage() {
@@ -130,16 +184,21 @@ export default function VehiclesPage() {
         const mapped = json.data.map((v: any) => ({
           id: v.id,
           registration_number: v.registration_number,
-          vehicles_type: { name: v.vehicles_type.name },
+          vehicle_type: v.vehicle_type,
           vehicle_status: v.vehicle_status,
           is_roadworthy: v.is_roadworthy,
           vehicle_roadworthy_status: v.vehicle_roadworthy_status || "no_defect",
-          current_mileage: v.current_mileage || "0.00",
+          current_mileage: v.last_mileage || v.current_mileage || "0.00",
           assignee_driver: v.assignee_driver,
           walkaround_count: v.walkaround_count,
           vehicle_picture: v.vehicle_picture || "",
           warnings: v.warnings || [],
           status_indicators: v.status_indicators || {},
+          vehicle_type_name: v.vehicle_type_name || v.vehicle_type?.name,
+          assignee_driver_name: v.assignee_driver_name || v.assignee_driver?.full_name,
+          last_mileage: v.last_mileage,
+          mileage_in_miles: v.mileage_in_miles,
+          mileage_in_km: v.mileage_in_km,
         }))
         setVehicles(mapped)
         setFilteredVehicles(mapped)
@@ -172,7 +231,9 @@ export default function VehiclesPage() {
       result = result.filter((v) => v.is_roadworthy === val)
     }
     if (filters.vehicleType) {
-      result = result.filter((v) => v.vehicles_type.name === filters.vehicleType)
+      result = result.filter((v) => 
+        (v.vehicle_type_name || v.vehicle_type.name) === filters.vehicleType
+      )
     }
 
     setFilteredVehicles(result)
@@ -186,10 +247,14 @@ export default function VehiclesPage() {
 
   const totalPages = Math.ceil(filteredVehicles.length / perPage) || 1
 
-  const uniqueVehicleTypes = Array.from(new Set(vehicles.map((v) => v.vehicles_type.name)))
+  const uniqueVehicleTypes = Array.from(new Set(
+    vehicles.map((v) => v.vehicle_type_name || v.vehicle_type.name)
+  ))
 
-  const formatMileage = (mileage: string) => {
-    return parseFloat(mileage).toLocaleString("en-GB")
+  const formatMileage = (mileage: string | null) => {
+    if (!mileage || mileage === "null" || mileage === "undefined") return "0"
+    const num = parseFloat(mileage)
+    return isNaN(num) ? "0" : num.toLocaleString("en-GB")
   }
 
   const getRoadworthyBadge = (vehicle: Vehicle) => {
@@ -454,12 +519,16 @@ export default function VehiclesPage() {
                         <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 text-gray-600 font-medium">{index}</td>
                           <td className="px-6 py-4 font-medium text-gray-900">{vehicle.registration_number}</td>
-                          <td className="px-6 py-4 text-gray-700">{vehicle.vehicles_type.name}</td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {vehicle.vehicle_type_name || vehicle.vehicle_type.name}
+                          </td>
                           <td className="px-6 py-4">{getStatusBadge(vehicle.vehicle_status)}</td>
                           <td className="px-6 py-4">{getRoadworthyBadge(vehicle)}</td>
-                          <td className="px-6 py-4 text-gray-700">{formatMileage(vehicle.current_mileage)} KMS</td>
                           <td className="px-6 py-4 text-gray-700">
-                            {vehicle.assignee_driver?.full_name || "Not Assigned"}
+                            {formatMileage(vehicle.current_mileage)} KMS
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {vehicle.assignee_driver_name || vehicle.assignee_driver?.full_name || "Not Assigned"}
                           </td>
                           <td className="px-6 py-4 text-center">{getWalkaroundBadge(vehicle.walkaround_count)}</td>
 

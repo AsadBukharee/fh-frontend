@@ -136,16 +136,18 @@ export default function VehicleDetailPage() {
         const typesData = await typesRes.json();
 
         if (vehicleData.success) {
-          setVehicle(vehicleData.data);
-          const formattedData = {
+          // Fix: Map vehicle_type to vehicles_type for consistency
+          const fixedVehicleData = {
             ...vehicleData.data,
-            is_wheelchair_lift_fitted: vehicleData.data.is_wheelchair_lift_fitted === "Yes",
+            vehicles_type: vehicleData.data.vehicle_type // Map the field
           };
-          setEditVehicle(formattedData);
+          
+          setVehicle(fixedVehicleData);
+          setEditVehicle(fixedVehicleData);
 
           // Set selected sites from vehicle data
-          if (vehicleData.data.site_allocated) {
-            const siteIds = vehicleData.data.site_allocated.map((site: any) => site.id);
+          if (fixedVehicleData.site_allocated) {
+            const siteIds = fixedVehicleData.site_allocated.map((site: any) => site.id);
             setSelectedSites(siteIds);
           }
         } else {
@@ -175,10 +177,7 @@ export default function VehicleDetailPage() {
 
   const handleEditToggle = () => {
     if (isEditing) {
-      setEditVehicle({
-        ...vehicle,
-        is_wheelchair_lift_fitted: vehicle.is_wheelchair_lift_fitted === "Yes",
-      });
+      setEditVehicle(vehicle);
       // Reset selected sites to current vehicle sites
       if (vehicle?.site_allocated) {
         const siteIds = vehicle.site_allocated.map((site: any) => site.id);
@@ -213,7 +212,7 @@ export default function VehicleDetailPage() {
         mileage_unit: editVehicle.mileage_unit,
         notes: editVehicle.notes,
         is_tacho_fitted: editVehicle.is_tacho_fitted,
-        is_wheelchair_lift_fitted: editVehicle.is_wheelchair_lift_fitted ? "Yes" : "No",
+        is_wheelchair_lift_fitted: editVehicle.is_wheelchair_lift_fitted,
         date_of_purchase: editVehicle.date_of_purchase,
         purchased_from: editVehicle.purchased_from,
         purchased_by: editVehicle.purchased_by,
@@ -225,7 +224,6 @@ export default function VehicleDetailPage() {
         mot_expiry: editVehicle.mot_expiry,
         tax_expiry: editVehicle.tax_expiry,
         insurance_expiry: editVehicle.insurance_expiry,
-        pmi_expiry: editVehicle.pmi_expiry,
         loller_test_expiry_date: editVehicle.loller_test_expiry_date,
         tacho_calibration_expiry: editVehicle.tacho_calibration_expiry,
         last_pmi_date: editVehicle.last_pmi_date,
@@ -252,7 +250,7 @@ export default function VehicleDetailPage() {
         is_roadworthy: editVehicle.is_roadworthy,
         is_active: editVehicle.is_active,
         site_allocated: selectedSites,
-        vehicles_type: editVehicle.vehicles_type, // Add vehicle type to payload
+        vehicles_type: editVehicle.vehicles_type?.id || editVehicle.vehicle_type?.id,
       };
 
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
@@ -266,12 +264,13 @@ export default function VehicleDetailPage() {
       const updatedData = await res.json();
 
       if (res.ok && updatedData.success) {
-        const formattedData = {
+        // Fix: Map vehicle_type to vehicles_type for consistency
+        const fixedUpdatedData = {
           ...updatedData.data,
-          is_wheelchair_lift_fitted: updatedData.data.is_wheelchair_lift_fitted === "Yes",
+          vehicles_type: updatedData.data.vehicle_type
         };
-        setVehicle(updatedData.data);
-        setEditVehicle(formattedData);
+        setVehicle(fixedUpdatedData);
+        setEditVehicle(fixedUpdatedData);
         setIsEditing(false);
         toast.success("Vehicle updated successfully");
       } else {
@@ -313,11 +312,13 @@ export default function VehicleDetailPage() {
       if (res.ok) {
         const updatedData = await res.json();
         if (updatedData.success) {
-          setVehicle(updatedData.data);
-          setEditVehicle({
+          // Fix: Map vehicle_type to vehicles_type for consistency
+          const fixedUpdatedData = {
             ...updatedData.data,
-            is_wheelchair_lift_fitted: updatedData.data.is_wheelchair_lift_fitted === "Yes",
-          });
+            vehicles_type: updatedData.data.vehicle_type
+          };
+          setVehicle(fixedUpdatedData);
+          setEditVehicle(fixedUpdatedData);
           toast.success("Vehicle image updated");
         }
       }
@@ -341,11 +342,13 @@ export default function VehicleDetailPage() {
       if (res.ok) {
         const updatedData = await res.json();
         if (updatedData.success) {
-          setVehicle(updatedData.data);
-          setEditVehicle({
+          // Fix: Map vehicle_type to vehicles_type for consistency
+          const fixedUpdatedData = {
             ...updatedData.data,
-            is_wheelchair_lift_fitted: updatedData.data.is_wheelchair_lift_fitted === "Yes",
-          });
+            vehicles_type: updatedData.data.vehicle_type
+          };
+          setVehicle(fixedUpdatedData);
+          setEditVehicle(fixedUpdatedData);
           toast.success("Document uploaded successfully");
         }
       }
@@ -366,11 +369,10 @@ export default function VehicleDetailPage() {
         mot_expiry: "mot_check_docs",
         tax_expiry: "tax_docs",
         insurance_expiry: "insurance_docs",
-        pmi_expiry: "pmi_inspection_docs",
+        last_pmi_date: "pmi_inspection_docs",
         loller_test_expiry_date: "loller_docs",
         tacho_calibration_expiry: "tacho_calibration_docs",
         next_loller_test_date: "loller_docs",
-        last_pmi_date: "pmi_inspection_docs",
       };
       const docField = dateToDocMap[editDateField];
       if (docField && documentUrl) {
@@ -388,11 +390,13 @@ export default function VehicleDetailPage() {
       const updatedData = await res.json();
 
       if (res.ok && updatedData.success) {
-        setVehicle(updatedData.data);
-        setEditVehicle({
+        // Fix: Map vehicle_type to vehicles_type for consistency
+        const fixedUpdatedData = {
           ...updatedData.data,
-          is_wheelchair_lift_fitted: updatedData.data.is_wheelchair_lift_fitted === "Yes",
-        });
+          vehicles_type: updatedData.data.vehicle_type
+        };
+        setVehicle(fixedUpdatedData);
+        setEditVehicle(fixedUpdatedData);
         setEditDateField(null);
         setTempDate("");
         setUploadedDoc("");
@@ -420,7 +424,7 @@ export default function VehicleDetailPage() {
       setMotDialogOpen(true);
       return;
     }
-    if (field === "pmi_expiry") {
+    if (field === "last_pmi_date") {
       setPmiDialogOpen(true);
       return;
     }
@@ -430,15 +434,6 @@ export default function VehicleDetailPage() {
     setSkipUpload(false);
     setDocumentError(null);
   };
-
-  /* const formatDate = (dateString: string) => {
-    if (!dateString) return "Not set";
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
-  }; */
 
   const formatDate = (dateString: string) => formatToDDMMYYYY(dateString);
 
@@ -519,6 +514,7 @@ export default function VehicleDetailPage() {
       default: return status;
     }
   };
+  
   function StaticRow({ label, value }: { label: string; value: string | number }) {
     return (
       <div className="flex justify-between">
@@ -527,6 +523,7 @@ export default function VehicleDetailPage() {
       </div>
     );
   }
+  
   type TyreRowProps = {
     label: string;
     unit: string;
@@ -536,7 +533,7 @@ export default function VehicleDetailPage() {
   };
 
   function TyreRow({ label, unit, valueKey, type = "text", highlight }: TyreRowProps) {
-    const value = isEditing ? editVehicle[valueKey] : vehicle[valueKey];
+    const value = isEditing ? editVehicle?.[valueKey] : vehicle?.[valueKey];
 
     return (
       <div className="flex justify-between items-center">
@@ -582,7 +579,7 @@ export default function VehicleDetailPage() {
     { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docField: "mot_check_docs", color: "orange", hasDialog: true },
     { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docField: "insurance_docs", color: "purple" },
     { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docField: "tax_docs", color: "green" },
-    { key: "pmi", label: "PMI Inspection", icon: Wrench, dateField: "pmi_expiry", docField: "pmi_inspection_docs", color: "orange", hasDialog: true },
+    { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docField: "pmi_inspection_docs", color: "orange", hasDialog: true },
     { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docField: "loller_docs", color: "pink", requiredForWheelchair: true },
     { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docField: "tacho_calibration_docs", color: "indigo", requiredForTacho: true },
   ];
@@ -593,8 +590,9 @@ export default function VehicleDetailPage() {
     { key: "new_vehicle_checklist_docs", label: "New Vehicle Checklist", icon: FileCheck },
     { key: "logbook_docs", label: "Log Book / V5C", icon: FileText },
     { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText },
-    { key: "others_docs", label: "Other Documents", icon: FileText },
+    { key: "other_docs", label: "Other Documents", icon: FileText },
   ];
+  
   function TyreCard({ title, pos }: { title: string; pos: string }) {
     return (
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm">
@@ -636,7 +634,7 @@ export default function VehicleDetailPage() {
     if (item.key === "loller") {
       return isEditing
         ? editVehicle?.is_wheelchair_lift_fitted
-        : vehicle?.is_wheelchair_lift_fitted === "Yes";
+        : vehicle?.is_wheelchair_lift_fitted;
     }
     return true;
   };
@@ -711,7 +709,7 @@ export default function VehicleDetailPage() {
             <h1 className="text-3xl font-bold text-slate-900">
               {vehicle.registration_number} - {vehicle.make} {vehicle.model}
             </h1>
-            <p className="text-slate-600">{vehicle.vehicles_type?.name}</p>
+            <p className="text-slate-600">{vehicle.vehicles_type?.name || vehicle.vehicle_type?.name}</p>
           </div>
           <div className="flex items-center gap-3">
             <Badge className={`${getStatusBadgeColor(vehicle.vehicle_status)} px-3 py-1`}>
@@ -847,7 +845,7 @@ export default function VehicleDetailPage() {
                     <p className="text-xs text-slate-500">Vehicle Type</p>
                     {isEditing ? (
                       <Select
-                        value={editVehicle.vehicles_type?.toString() || ""}
+                        value={editVehicle.vehicles_type?.id?.toString() || editVehicle.vehicle_type?.id?.toString() || ""}
                         onValueChange={(value) => handleInputChange("vehicles_type", Number(value))}
                       >
                         <SelectTrigger className="h-9 text-sm">
@@ -863,7 +861,7 @@ export default function VehicleDetailPage() {
                       </Select>
                     ) : (
                       <Badge className="bg-orange-100 text-orange-600">
-                        {vehicle?.vehicles_type?.name || "No type assigned"}
+                        {vehicle?.vehicles_type?.name || vehicle?.vehicle_type?.name || "No type assigned"}
                       </Badge>
                     )}
                   </div>
@@ -1169,8 +1167,8 @@ export default function VehicleDetailPage() {
                     {isEditing ? (
                       <Switch checked={editVehicle.is_wheelchair_lift_fitted} onCheckedChange={(c) => handleInputChange("is_wheelchair_lift_fitted", c)} />
                     ) : (
-                      <Badge className={vehicle.is_wheelchair_lift_fitted === "Yes" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-700 border-slate-200"}>
-                        {vehicle.is_wheelchair_lift_fitted}
+                      <Badge className={vehicle.is_wheelchair_lift_fitted ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-700 border-slate-200"}>
+                        {vehicle.is_wheelchair_lift_fitted ? "Yes" : "No"}
                       </Badge>
                     )}
                   </div>
@@ -1191,7 +1189,7 @@ export default function VehicleDetailPage() {
 
                 const isRequired =
                   (item.requiredForTacho && (isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted)) ||
-                  (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted === "Yes"));
+                  (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted));
 
                 return (
                   <div
@@ -1213,7 +1211,7 @@ export default function VehicleDetailPage() {
                           </div>
                         </div>
                         {item.hasDialog && (
-                          <Button size="sm" variant="ghost" onClick={() => item.key === "pmi" ? setPmiDialogOpen(true) : setMotDialogOpen(true)}>
+                          <Button size="sm" variant="ghost" onClick={() => item.key === "last_pmi" ? setPmiDialogOpen(true) : setMotDialogOpen(true)}>
                             <Settings className="w-4 h-4" />
                           </Button>
                         )}
@@ -1225,7 +1223,9 @@ export default function VehicleDetailPage() {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <Calendar className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm font-medium text-slate-600">Expiry Date</span>
+                            <span className="text-sm font-medium text-slate-600">
+                              {item.key === "last_pmi" ? "Last PMI Date" : "Expiry Date"}
+                            </span>
                           </div>
                           <p className="text-sm font-semibold ml-6">{dateValue ? formatDate(dateValue) : "Not set"}</p>
                         </div>
@@ -1261,7 +1261,7 @@ export default function VehicleDetailPage() {
 
                       <Button variant="outline" size="sm" onClick={() => openEditDateDialog(item.dateField, dateValue)} className="w-full">
                         <Calendar className="w-4 h-4 mr-2" />
-                        Update Date
+                        {item.key === "last_pmi" ? "Update Last PMI Date" : "Update Date"}
                       </Button>
                     </div>
                   </div>
@@ -1306,7 +1306,7 @@ export default function VehicleDetailPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label>Expiry Date *</Label>
+                <Label>{editDateField === "last_pmi_date" ? "Last PMI Date *" : "Expiry Date *"}</Label>
                 <Input type="date" value={tempDate} onChange={(e) => setTempDate(e.target.value)} />
               </div>
               <div>
@@ -1341,8 +1341,24 @@ export default function VehicleDetailPage() {
         </Dialog>
 
         {/* Other Dialogs & Preview */}
-        <InspectionDialog open={pmiDialogOpen} onClose={() => setPmiDialogOpen(false)} lastPMIDate={vehicle.last_pmi_date} vehicleId={vehicleId} vehicleRegistration={vehicle.registration_number} username={cookies.get("username") || "User"} onUpdateSuccess={() => location.reload()} />
-        <MOTDialog open={motDialogOpen} onClose={() => setMotDialogOpen(false)} currentMOTDate={vehicle.mot_expiry} vehicleId={vehicleId} vehicleRegistration={vehicle.registration_number} username={cookies.get("username") || "User"} onUpdateSuccess={() => location.reload()} />
+        <InspectionDialog 
+          open={pmiDialogOpen} 
+          onClose={() => setPmiDialogOpen(false)} 
+          lastPMIDate={vehicle.last_pmi_date} 
+          vehicleId={vehicleId} 
+          vehicleRegistration={vehicle.registration_number} 
+          username={cookies.get("username") || "User"} 
+          onUpdateSuccess={() => location.reload()} 
+        />
+        <MOTDialog 
+          open={motDialogOpen} 
+          onClose={() => setMotDialogOpen(false)} 
+          currentMOTDate={vehicle.mot_expiry} 
+          vehicleId={vehicleId} 
+          vehicleRegistration={vehicle.registration_number} 
+          username={cookies.get("username") || "User"} 
+          onUpdateSuccess={() => location.reload()} 
+        />
 
         {previewDoc && (
           <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setPreviewDoc(null)}>

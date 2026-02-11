@@ -73,7 +73,7 @@ interface DocumentInfo {
 interface VehicleFormData {
   // ===== IDENTIFICATION =====
   vin: string
-  vehicles_type: number
+  vehicle_type: number
   site_allocated: number[]
 
   // ===== BASIC INFO =====
@@ -96,16 +96,8 @@ interface VehicleFormData {
   has_vat: boolean
   vat_amount: string
 
-  // ===== COMPLIANCE / ALERT DATES =====
-  next_mot_to_be_booked_from: string
-  book_next_pmi_from: string
-  next_tacho_download_date: string
-  next_tyre_maintenance_check_date: string
-
   // ===== PMI =====
-  pmi_expiry_date: string
   last_pmi_date: string
-  pmi_booked_date: string
   pmi_cycle: number | null
 
   // ===== STATUS =====
@@ -114,32 +106,28 @@ interface VehicleFormData {
   is_roadworthy: boolean
   is_active: boolean
   is_assigned: boolean
-  assignee_driver: number | null
-  walkaround_count: number | null
   last_mileage: string
 
   // ===== MOT / INSURANCE / TAX =====
   mot_expiry: string
-  mot_booked_date: string
-  mot_booked_time: string
   insurance_expiry: string
   tax_expiry: string
+  last_tyre_maintenance_check_date: string
 
   // ===== LOLLER =====
   loller_test_expiry_date: string
-  next_loller_test_date: string
+  loller_docs: string
 
   // ===== TACHOGRAPH =====
   tacho_calibration_expiry: string
-  next_techo_calibration_book_date: string
   last_tacho_download_date: string
-  tacho_notes: string
+  last_tacho_download_docs: string
 
   // ===== OTHER CHECKS =====
   last_valet_check_date: string
-  next_valet_check_date: string
+  last_valet_check_docs: string
   last_equipment_check_date: string
-  next_equipment_check_date: string
+  equipment_docs: string
 
   // ===== TYRE EXPIRY (WWYY format) =====
   tyre_expiry_front_driver: string
@@ -149,14 +137,6 @@ interface VehicleFormData {
   tyre_expiry_rear_outer_driver: string
   tyre_expiry_rear_outer_passenger: string
 
-  // ===== TYRE PRESSURE (PSI) =====
-  tyre_pressure_front_driver: number | null
-  tyre_pressure_front_passenger: number | null
-  tyre_pressure_rear_inner_driver: number | null
-  tyre_pressure_rear_inner_passenger: number | null
-  tyre_pressure_rear_outer_driver: number | null
-  tyre_pressure_rear_outer_passenger: number | null
-
   // ===== TYRE DEPTH (MM) =====
   tyre_depth_front_driver: string
   tyre_depth_front_passenger: string
@@ -164,6 +144,14 @@ interface VehicleFormData {
   tyre_depth_rear_inner_passenger: string
   tyre_depth_rear_outer_driver: string
   tyre_depth_rear_outer_passenger: string
+
+  // ===== TYRE PRESSURE (PSI) =====
+  tyre_pressure_front_driver: number | null
+  tyre_pressure_front_passenger: number | null
+  tyre_pressure_rear_inner_driver: number | null
+  tyre_pressure_rear_inner_passenger: number | null
+  tyre_pressure_rear_outer_driver: number | null
+  tyre_pressure_rear_outer_passenger: number | null
 
   // ===== TYRE TORQUE (Nm) =====
   tyre_torque_front_driver: number | null
@@ -178,7 +166,6 @@ interface VehicleFormData {
   others_docs: string
   tacho_calibration_docs: string
   tax_docs: string
-  loller_docs: string
   insurance_docs: string
   service_records_docs: string
   new_vehicle_checklist_docs: string
@@ -314,13 +301,37 @@ const DOCUMENT_CONFIG: Record<string, DocumentInfo> = {
     deadlineDays: 14,
     estimatedHours: 1,
   },
+  last_tacho_download_docs: {
+    field: "last_tacho_download_docs",
+    label: "Last Tacho Download Documents",
+    description: "Tachograph download records and reports",
+    priority: "medium",
+    deadlineDays: 5,
+    estimatedHours: 1,
+  },
+  last_valet_check_docs: {
+    field: "last_valet_check_docs",
+    label: "Valet Check Documents",
+    description: "Valet check reports and records",
+    priority: "low",
+    deadlineDays: 7,
+    estimatedHours: 0.5,
+  },
+  equipment_docs: {
+    field: "equipment_docs",
+    label: "Equipment Check Documents",
+    description: "Equipment inspection reports",
+    priority: "medium",
+    deadlineDays: 5,
+    estimatedHours: 1,
+  },
 }
 
 const initialState: VehicleState = {
   formData: {
     // ===== IDENTIFICATION =====
     vin: "",
-    vehicles_type: 0,
+    vehicle_type: 0,
     site_allocated: [],
 
     // ===== BASIC INFO =====
@@ -343,16 +354,8 @@ const initialState: VehicleState = {
     has_vat: false,
     vat_amount: "",
 
-    // ===== COMPLIANCE / ALERT DATES =====
-    next_mot_to_be_booked_from: "",
-    book_next_pmi_from: "",
-    next_tacho_download_date: "",
-    next_tyre_maintenance_check_date: "",
-
     // ===== PMI =====
-    pmi_expiry_date: "",
     last_pmi_date: "",
-    pmi_booked_date: "",
     pmi_cycle: null,
 
     // ===== STATUS =====
@@ -361,32 +364,28 @@ const initialState: VehicleState = {
     is_roadworthy: true,
     is_active: true,
     is_assigned: false,
-    assignee_driver: null,
-    walkaround_count: null,
     last_mileage: "",
 
     // ===== MOT / INSURANCE / TAX =====
     mot_expiry: "",
-    mot_booked_date: "",
-    mot_booked_time: "",
     insurance_expiry: "",
     tax_expiry: "",
+    last_tyre_maintenance_check_date: "",
 
     // ===== LOLLER =====
     loller_test_expiry_date: "",
-    next_loller_test_date: "",
+    loller_docs: "",
 
     // ===== TACHOGRAPH =====
     tacho_calibration_expiry: "",
-    next_techo_calibration_book_date: "",
     last_tacho_download_date: "",
-    tacho_notes: "",
+    last_tacho_download_docs: "",
 
     // ===== OTHER CHECKS =====
     last_valet_check_date: "",
-    next_valet_check_date: "",
+    last_valet_check_docs: "",
     last_equipment_check_date: "",
-    next_equipment_check_date: "",
+    equipment_docs: "",
 
     // ===== TYRE EXPIRY =====
     tyre_expiry_front_driver: TYRE_DEFAULTS.expiry,
@@ -425,7 +424,6 @@ const initialState: VehicleState = {
     others_docs: "",
     tacho_calibration_docs: "",
     tax_docs: "",
-    loller_docs: "",
     insurance_docs: "",
     service_records_docs: "",
     new_vehicle_checklist_docs: "",
@@ -1117,7 +1115,7 @@ function AddVehicleStepperForm() {
       }
 
       // PMI inspection report required if PMI date exists
-      if (field === "pmi_inspection_docs" && (formData.last_pmi_date || formData.pmi_expiry_date)) {
+      if (field === "pmi_inspection_docs" && formData.last_pmi_date) {
         isRequired = true
       }
 
@@ -1136,9 +1134,22 @@ function AddVehicleStepperForm() {
       if (field === "tacho_calibration_docs" && formData.is_tacho_fitted && formData.tacho_calibration_expiry) {
         isRequired = true
       }
+      if (field === "last_tacho_download_docs" && formData.is_tacho_fitted && formData.last_tacho_download_date) {
+        isRequired = true
+      }
 
       // LOLER documents only required if wheelchair lift is fitted and dates exist
       if (field === "loller_docs" && formData.is_wheelchair_lift_fitted && formData.loller_test_expiry_date) {
+        isRequired = true
+      }
+
+      // Valet check documents
+      if (field === "last_valet_check_docs" && formData.last_valet_check_date) {
+        isRequired = true
+      }
+
+      // Equipment check documents
+      if (field === "equipment_docs" && formData.last_equipment_check_date) {
         isRequired = true
       }
 
@@ -1222,7 +1233,7 @@ function AddVehicleStepperForm() {
   }
 
   const handleSelectChange = (name: string, value: string) => {
-    dispatch(setFormData({ [name]: name === "vehicles_type" ? Number(value) : value }))
+    dispatch(setFormData({ [name]: name === "vehicle_type" ? Number(value) : value }))
     if (validationErrors[name]) {
       dispatch(clearValidationError(name))
     }
@@ -1272,7 +1283,6 @@ function AddVehicleStepperForm() {
       { date: formData.insurance_expiry, doc: formData.insurance_docs },
       { date: formData.tax_expiry, doc: formData.tax_docs },
       { date: formData.last_pmi_date, doc: formData.pmi_inspection_docs },
-      { date: formData.pmi_expiry_date, doc: formData.pmi_inspection_docs },
     ]
 
     // If date is entered, document must exist
@@ -1283,11 +1293,16 @@ function AddVehicleStepperForm() {
     // Check conditional dates
     if (formData.is_tacho_fitted) {
       if (formData.tacho_calibration_expiry && !formData.tacho_calibration_docs) return false
+      if (formData.last_tacho_download_date && !formData.last_tacho_download_docs) return false
     }
 
     if (formData.is_wheelchair_lift_fitted) {
       if (formData.loller_test_expiry_date && !formData.loller_docs) return false
     }
+
+    // Check other dates
+    if (formData.last_valet_check_date && !formData.last_valet_check_docs) return false
+    if (formData.last_equipment_check_date && !formData.equipment_docs) return false
 
     return true
   }
@@ -1310,8 +1325,8 @@ function AddVehicleStepperForm() {
       const modelError = validateRequiredString(formData.model, "Model")
       if (modelError) errors.model = modelError
 
-      const typeError = formData.vehicles_type === 0 ? "Vehicle Type is required" : null
-      if (typeError) errors.vehicles_type = typeError
+      const typeError = formData.vehicle_type === 0 ? "Vehicle Type is required" : null
+      if (typeError) errors.vehicle_type = typeError
 
       const sitesError = validateRequiredArray(formData.site_allocated, "Allocated Site(s)")
       if (sitesError) errors.site_allocated = sitesError
@@ -1355,25 +1370,15 @@ function AddVehicleStepperForm() {
       // Validate date fields that are required
       const dateFields = [
         { field: "last_pmi_date", label: "Last PMI Date" },
-        { field: "pmi_expiry_date", label: "PMI Expiry Date" },
         { field: "mot_expiry", label: "MOT Expiry Date", required: true },
         { field: "insurance_expiry", label: "Insurance Expiry Date", required: true },
         { field: "tax_expiry", label: "Tax Expiry Date", required: true },
-        { field: "mot_booked_date", label: "MOT Booked Date" },
-        { field: "mot_booked_time", label: "MOT Booked Time" },
-        { field: "next_mot_to_be_booked_from", label: "Next MOT To Be Booked From" },
-        { field: "book_next_pmi_from", label: "Book Next PMI From" },
-        { field: "next_tacho_download_date", label: "Next Tacho Download Date" },
-        { field: "next_tyre_maintenance_check_date", label: "Next Tyre Maintenance Check Date" },
+        { field: "last_tyre_maintenance_check_date", label: "Last Tyre Maintenance Check Date" },
         { field: "loller_test_expiry_date", label: "LOLER Test Expiry Date" },
-        { field: "next_loller_test_date", label: "Next LOLER Test Date" },
         { field: "tacho_calibration_expiry", label: "Tacho Calibration Expiry" },
-        { field: "next_techo_calibration_book_date", label: "Next Tacho Calibration Book Date" },
         { field: "last_tacho_download_date", label: "Last Tacho Download Date" },
         { field: "last_valet_check_date", label: "Last Valet Check Date" },
-        { field: "next_valet_check_date", label: "Next Valet Check Date" },
         { field: "last_equipment_check_date", label: "Last Equipment Check Date" },
-        { field: "next_equipment_check_date", label: "Next Equipment Check Date" },
       ]
 
       dateFields.forEach(({ field, label, required }) => {
@@ -1382,13 +1387,8 @@ function AddVehicleStepperForm() {
         if (required && !value) {
           errors[field] = `${label} is required`
         } else if (value) {
-          if (field === "mot_booked_time") {
-            const timeError = validateTimeFormat(value, label)
-            if (timeError) errors[field] = timeError
-          } else {
-            const dateError = validateDateFormat(value, label)
-            if (dateError) errors[field] = dateError
-          }
+          const dateError = validateDateFormat(value, label)
+          if (dateError) errors[field] = dateError
         }
       })
 
@@ -1407,7 +1407,7 @@ function AddVehicleStepperForm() {
 
       // Validate loller dates if wheelchair lift is fitted
       if (formData.is_wheelchair_lift_fitted) {
-        const lollerFields = ["loller_test_expiry_date", "next_loller_test_date"]
+        const lollerFields = ["loller_test_expiry_date"]
         lollerFields.forEach((field) => {
           const value = formData[field as keyof VehicleFormData] as string
           const label = field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
@@ -1526,11 +1526,11 @@ function AddVehicleStepperForm() {
       return toFloat(v)
     }
 
-    // Map frontend field names to backend field names
+    // Map frontend field names to backend field names according to the new structure
     const submitData = {
       // ===== IDENTIFICATION =====
       vin: formData.vin,
-      vehicles_type: formData.vehicles_type,
+      vehicle_type: formData.vehicle_type,
       site_allocated: formData.site_allocated,
 
       // ===== BASIC INFO =====
@@ -1542,7 +1542,7 @@ function AddVehicleStepperForm() {
       mileage_unit: formData.mileage_unit,
       notes: formData.notes,
       is_tacho_fitted: Boolean(formData.is_tacho_fitted),
-      is_wheelchair_lift_fitted: Boolean(formData.is_wheelchair_lift_fitted),
+  is_wheelchair_lift_fitted: Boolean(formData.is_wheelchair_lift_fitted),
 
       // ===== PURCHASE INFO =====
       date_of_purchase: formData.date_of_purchase || null,
@@ -1553,16 +1553,8 @@ function AddVehicleStepperForm() {
       has_vat: Boolean(formData.has_vat),
       vat_amount: formData.vat_amount,
 
-      // ===== COMPLIANCE / ALERT DATES =====
-      next_mot_to_be_booked_from: formData.next_mot_to_be_booked_from || null,
-      book_next_pmi_from: formData.book_next_pmi_from || null,
-      next_tacho_download_date: formData.next_tacho_download_date || null,
-      next_tyre_maintenance_check_date: formData.next_tyre_maintenance_check_date || null,
-
       // ===== PMI =====
-      pmi_expiry_date: formData.pmi_expiry_date || null,
       last_pmi_date: formData.last_pmi_date || null,
-      pmi_booked_date: formData.pmi_booked_date || null,
       pmi_cycle: toInt(formData.pmi_cycle),
 
       // ===== STATUS =====
@@ -1571,32 +1563,28 @@ function AddVehicleStepperForm() {
       is_roadworthy: Boolean(formData.is_roadworthy),
       is_active: Boolean(formData.is_active),
       is_assigned: Boolean(formData.is_assigned),
-      assignee_driver: toInt(formData.assignee_driver),
-      walkaround_count: toInt(formData.walkaround_count),
       last_mileage: formData.last_mileage,
 
       // ===== MOT / INSURANCE / TAX =====
       mot_expiry: formData.mot_expiry || null,
-      mot_booked_date: formData.mot_booked_date || null,
-      mot_booked_time: formData.mot_booked_time || null,
       insurance_expiry: formData.insurance_expiry || null,
       tax_expiry: formData.tax_expiry || null,
+      last_tyre_maintenance_check_date: formData.last_tyre_maintenance_check_date || null,
 
       // ===== LOLLER =====
       loller_test_expiry_date: formData.loller_test_expiry_date || null,
-      next_loller_test_date: formData.next_loller_test_date || null,
+      loller_docs: formData.loller_docs || null,
 
       // ===== TACHOGRAPH =====
       tacho_calibration_expiry: formData.tacho_calibration_expiry || null,
-      next_techo_calibration_book_date: formData.next_techo_calibration_book_date || null,
       last_tacho_download_date: formData.last_tacho_download_date || null,
-      tacho_notes: formData.tacho_notes || null,
+      last_tacho_download_docs: formData.last_tacho_download_docs || null,
 
       // ===== OTHER CHECKS =====
       last_valet_check_date: formData.last_valet_check_date || null,
-      next_valet_check_date: formData.next_valet_check_date || null,
+      last_valet_check_docs: formData.last_valet_check_docs || null,
       last_equipment_check_date: formData.last_equipment_check_date || null,
-      next_equipment_check_date: formData.next_equipment_check_date || null,
+      equipment_docs: formData.equipment_docs || null,
 
       // ===== TYRE EXPIRY =====
       tyre_expiry_front_driver: formData.tyre_expiry_front_driver,
@@ -1635,7 +1623,6 @@ function AddVehicleStepperForm() {
       others_docs: formData.others_docs || null,
       tacho_calibration_docs: formData.tacho_calibration_docs || null,
       tax_docs: formData.tax_docs || null,
-      loller_docs: formData.loller_docs || null,
       insurance_docs: formData.insurance_docs || null,
       service_records_docs: formData.service_records_docs || null,
       new_vehicle_checklist_docs: formData.new_vehicle_checklist_docs || null,
@@ -1897,47 +1884,7 @@ function AddVehicleStepperForm() {
                 </div>
               </div>
 
-              {/* Status Toggles */}
-              <div className="grid grid-cols-2 gap-6 pt-2">
-                {/* Roadworthy Status */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-                    Roadworthy Status
-                  </Label>
-                  <div className="flex items-center justify-between rounded-xl border border-border/60 p-4 bg-background/40 shadow-inner hover:shadow-md transition-all duration-300">
-                    <Label
-                      htmlFor="is_roadworthy"
-                      className="flex items-center gap-3 text-sm font-medium cursor-pointer"
-                    >
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Is Roadworthy
-                    </Label>
-                    <Switch
-                      id="is_roadworthy"
-                      checked={formData.is_roadworthy}
-                      onCheckedChange={(checked) => dispatch(setFormData({ is_roadworthy: checked }))}
-                    />
-                  </div>
-                </div>
-
-                {/* Active Status */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-                    Vehicle Status
-                  </Label>
-                  <div className="flex items-center justify-between rounded-xl border border-border/60 p-4 bg-background/40 shadow-inner hover:shadow-md transition-all duration-300">
-                    <Label htmlFor="is_active" className="flex items-center gap-3 text-sm font-medium cursor-pointer">
-                      <Activity className="h-4 w-4 text-primary" />
-                      Is Active
-                    </Label>
-                    <Switch
-                      id="is_active"
-                      checked={formData.is_active}
-                      onCheckedChange={(checked) => dispatch(setFormData({ is_active: checked }))}
-                    />
-                  </div>
-                </div>
-              </div>
+         
             </div>
           </div>
 
@@ -1946,20 +1893,20 @@ function AddVehicleStepperForm() {
             {/* Vehicle Type - From API */}
             <div className="space-y-3">
               <Label
-                htmlFor="vehicles_type"
+                htmlFor="vehicle_type"
                 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground"
               >
                 Vehicle Type <span className="text-destructive">*</span>
               </Label>
               <Select
-                value={formData.vehicles_type.toString()}
-                onValueChange={(value) => handleSelectChange("vehicles_type", value)}
+                value={formData.vehicle_type.toString()}
+                onValueChange={(value) => handleSelectChange("vehicle_type", value)}
                 disabled={vehicleTypesLoading}
               >
                 <SelectTrigger
                   className={cn(
                     "w-full h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300",
-                    validationErrors.vehicles_type && "border-destructive",
+                    validationErrors.vehicle_type && "border-destructive",
                   )}
                 >
                   <SelectValue placeholder={vehicleTypesLoading ? "Loading vehicle types..." : "Select vehicle type"} />
@@ -1981,7 +1928,7 @@ function AddVehicleStepperForm() {
                   ))}
                 </SelectContent>
               </Select>
-              <ErrorMessage field="vehicles_type" />
+              <ErrorMessage field="vehicle_type" />
               {vehicleTypesLoading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -1997,7 +1944,11 @@ function AddVehicleStepperForm() {
                 </Alert>
               )}
             </div>
-
+<Alert className="mt-4">
+  <AlertDescription>
+    Debug: is_wheelchair_lift_fitted = {formData.is_wheelchair_lift_fitted ? "true" : "false"}
+  </AlertDescription>
+</Alert>
             {/* Number of Seats */}
             <div className="space-y-3">
               <Label
@@ -2116,25 +2067,7 @@ function AddVehicleStepperForm() {
               </Select>
             </div>
 
-            {/* Walkaround Count */}
-            <div className="space-y-3">
-              <Label
-                htmlFor="walkaround_count"
-                className="text-sm font-semibold tracking-wide uppercase text-muted-foreground"
-              >
-                Walkaround Count
-              </Label>
-              <Input
-                id="walkaround_count"
-                name="walkaround_count"
-                type="number"
-                min="0"
-                placeholder="e.g., 12"
-                value={formData.walkaround_count || ""}
-                onChange={handleNumberInputChange}
-                className="h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300 focus:shadow-md"
-              />
-            </div>
+           
           </div>
 
           {/* Allocated Sites */}
@@ -2480,45 +2413,6 @@ function AddVehicleStepperForm() {
                 )}
               </div>
 
-              <div>
-                <Label htmlFor="mot_booked_date" className="text-sm font-medium">
-                  MOT Booked Date
-                </Label>
-                <Input
-                  id="mot_booked_date"
-                  name="mot_booked_date"
-                  type="date"
-                  value={formData.mot_booked_date}
-                  onChange={handleDateChange}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="mot_booked_time" className="text-sm font-medium">
-                  MOT Booked Time
-                </Label>
-                <Input
-                  id="mot_booked_time"
-                  name="mot_booked_time"
-                  type="time"
-                  value={formData.mot_booked_time}
-                  onChange={handleTimeChange}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="next_mot_to_be_booked_from" className="text-sm font-medium">
-                  Next MOT To Be Booked From
-                </Label>
-                <Input
-                  id="next_mot_to_be_booked_from"
-                  name="next_mot_to_be_booked_from"
-                  type="date"
-                  value={formData.next_mot_to_be_booked_from}
-                  onChange={handleDateChange}
-                />
-              </div>
-
               <DocumentUploadWithTask
                 field="mot_check_docs"
                 label="MOT Certificate"
@@ -2622,45 +2516,6 @@ function AddVehicleStepperForm() {
               </div>
 
               <div>
-                <Label htmlFor="pmi_expiry_date" className="text-sm font-medium">
-                  PMI Expiry Date
-                </Label>
-                <Input
-                  id="pmi_expiry_date"
-                  name="pmi_expiry_date"
-                  type="date"
-                  value={formData.pmi_expiry_date}
-                  onChange={handleDateChange}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="pmi_booked_date" className="text-sm font-medium">
-                  PMI Booked Date
-                </Label>
-                <Input
-                  id="pmi_booked_date"
-                  name="pmi_booked_date"
-                  type="date"
-                  value={formData.pmi_booked_date}
-                  onChange={handleDateChange}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="book_next_pmi_from" className="text-sm font-medium">
-                  Book Next PMI From
-                </Label>
-                <Input
-                  id="book_next_pmi_from"
-                  name="book_next_pmi_from"
-                  type="date"
-                  value={formData.book_next_pmi_from}
-                  onChange={handleDateChange}
-                />
-              </div>
-
-              <div>
                 <Label htmlFor="pmi_cycle" className="text-sm font-medium">
                   PMI Cycle (days)
                 </Label>
@@ -2681,9 +2536,9 @@ function AddVehicleStepperForm() {
                 value={formData.pmi_inspection_docs}
                 onUploadSuccess={handleFileUploadSuccess("pmi_inspection_docs")}
                 error={validationErrors.pmi_inspection_docs}
-                required={!!formData.last_pmi_date || !!formData.pmi_expiry_date}
+                required={!!formData.last_pmi_date}
                 onTaskCreate={() => handleCreateTaskForDocument("pmi_inspection_docs")}
-                description="Required when PMI dates are set"
+                description="Required when PMI date is set"
               />
             </div>
 
@@ -2718,19 +2573,6 @@ function AddVehicleStepperForm() {
                   </div>
 
                   <div>
-                    <Label htmlFor="next_techo_calibration_book_date" className="text-sm font-medium">
-                      Next Tacho Calibration Book Date
-                    </Label>
-                    <Input
-                      id="next_techo_calibration_book_date"
-                      name="next_techo_calibration_book_date"
-                      type="date"
-                      value={formData.next_techo_calibration_book_date}
-                      onChange={handleDateChange}
-                    />
-                  </div>
-
-                  <div>
                     <Label htmlFor="last_tacho_download_date" className="text-sm font-medium">
                       Last Tacho Download Date
                     </Label>
@@ -2740,33 +2582,6 @@ function AddVehicleStepperForm() {
                       type="date"
                       value={formData.last_tacho_download_date}
                       onChange={handleDateChange}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="next_tacho_download_date" className="text-sm font-medium">
-                      Next Tacho Download Date
-                    </Label>
-                    <Input
-                      id="next_tacho_download_date"
-                      name="next_tacho_download_date"
-                      type="date"
-                      value={formData.next_tacho_download_date}
-                      onChange={handleDateChange}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="tacho_notes" className="text-sm font-medium">
-                      Tacho Notes
-                    </Label>
-                    <Textarea
-                      id="tacho_notes"
-                      name="tacho_notes"
-                      placeholder="Enter tachograph notes..."
-                      value={formData.tacho_notes}
-                      onChange={handleInputChange}
-                      rows={2}
                     />
                   </div>
 
@@ -2781,6 +2596,18 @@ function AddVehicleStepperForm() {
                     onTaskCreate={() => handleCreateTaskForDocument("tacho_calibration_docs")}
                     description="Required when tacho calibration expiry is set"
                   />
+
+                  <DocumentUploadWithTask
+                    field="last_tacho_download_docs"
+                    label="Last Tacho Download Documents"
+                    icon={FileText}
+                    value={formData.last_tacho_download_docs}
+                    onUploadSuccess={handleFileUploadSuccess("last_tacho_download_docs")}
+                    error={validationErrors.last_tacho_download_docs}
+                    required={!!formData.last_tacho_download_date}
+                    onTaskCreate={() => handleCreateTaskForDocument("last_tacho_download_docs")}
+                    description="Required when last tacho download date is set"
+                  />
                 </>
               )}
             </div>
@@ -2793,11 +2620,11 @@ function AddVehicleStepperForm() {
                 <Label htmlFor="is_wheelchair_lift_fitted" className="text-sm font-medium cursor-pointer">
                   Wheelchair Lift Fitted (LOLER)
                 </Label>
-                <Switch
-                  id="is_wheelchair_lift_fitted"
-                  checked={formData.is_wheelchair_lift_fitted}
-                  onCheckedChange={(checked) => dispatch(setFormData({ is_wheelchair_lift_fitted: checked }))}
-                />
+             <Switch
+  id="is_wheelchair_lift_fitted"
+  checked={formData.is_wheelchair_lift_fitted}
+  onCheckedChange={(checked) => dispatch(setFormData({ is_wheelchair_lift_fitted: checked }))}
+/>
               </div>
 
               {formData.is_wheelchair_lift_fitted && (
@@ -2811,19 +2638,6 @@ function AddVehicleStepperForm() {
                       name="loller_test_expiry_date"
                       type="date"
                       value={formData.loller_test_expiry_date}
-                      onChange={handleDateChange}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="next_loller_test_date" className="text-sm font-medium">
-                      Next LOLER Test Date
-                    </Label>
-                    <Input
-                      id="next_loller_test_date"
-                      name="next_loller_test_date"
-                      type="date"
-                      value={formData.next_loller_test_date}
                       onChange={handleDateChange}
                     />
                   </div>
@@ -2848,14 +2662,14 @@ function AddVehicleStepperForm() {
               <h4 className="font-semibold text-lg">Other Checks</h4>
               
               <div>
-                <Label htmlFor="next_tyre_maintenance_check_date" className="text-sm font-medium">
-                  Next Tyre Maintenance Check Date
+                <Label htmlFor="last_tyre_maintenance_check_date" className="text-sm font-medium">
+                  Last Tyre Maintenance Check Date
                 </Label>
                 <Input
-                  id="next_tyre_maintenance_check_date"
-                  name="next_tyre_maintenance_check_date"
+                  id="last_tyre_maintenance_check_date"
+                  name="last_tyre_maintenance_check_date"
                   type="date"
-                  value={formData.next_tyre_maintenance_check_date}
+                  value={formData.last_tyre_maintenance_check_date}
                   onChange={handleDateChange}
                 />
               </div>
@@ -2873,18 +2687,17 @@ function AddVehicleStepperForm() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="next_valet_check_date" className="text-sm font-medium">
-                  Next Valet Check Date
-                </Label>
-                <Input
-                  id="next_valet_check_date"
-                  name="next_valet_check_date"
-                  type="date"
-                  value={formData.next_valet_check_date}
-                  onChange={handleDateChange}
-                />
-              </div>
+              <DocumentUploadWithTask
+                field="last_valet_check_docs"
+                label="Valet Check Documents"
+                icon={FileText}
+                value={formData.last_valet_check_docs}
+                onUploadSuccess={handleFileUploadSuccess("last_valet_check_docs")}
+                error={validationErrors.last_valet_check_docs}
+                required={!!formData.last_valet_check_date}
+                onTaskCreate={() => handleCreateTaskForDocument("last_valet_check_docs")}
+                description="Required when valet check date is set"
+              />
 
               <div>
                 <Label htmlFor="last_equipment_check_date" className="text-sm font-medium">
@@ -2899,18 +2712,17 @@ function AddVehicleStepperForm() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="next_equipment_check_date" className="text-sm font-medium">
-                  Next Equipment Check Date
-                </Label>
-                <Input
-                  id="next_equipment_check_date"
-                  name="next_equipment_check_date"
-                  type="date"
-                  value={formData.next_equipment_check_date}
-                  onChange={handleDateChange}
-                />
-              </div>
+              <DocumentUploadWithTask
+                field="equipment_docs"
+                label="Equipment Check Documents"
+                icon={FileText}
+                value={formData.equipment_docs}
+                onUploadSuccess={handleFileUploadSuccess("equipment_docs")}
+                error={validationErrors.equipment_docs}
+                required={!!formData.last_equipment_check_date}
+                onTaskCreate={() => handleCreateTaskForDocument("equipment_docs")}
+                description="Required when equipment check date is set"
+              />
             </div>
           </div>
 
@@ -3245,7 +3057,7 @@ function AddVehicleStepperForm() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Type:</span>
                   <span className="font-medium">
-                    {vehicleTypes.find((t) => t.id === formData.vehicles_type)?.name || "N/A"}
+                    {vehicleTypes.find((t) => t.id === formData.vehicle_type)?.name || "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -3321,10 +3133,6 @@ function AddVehicleStepperForm() {
                   <span className="text-muted-foreground">Last PMI:</span>
                   <span className="font-medium">{formData.last_pmi_date || "N/A"}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">PMI Expiry:</span>
-                  <span className="font-medium">{formData.pmi_expiry_date || "N/A"}</span>
-                </div>
                 {formData.is_tacho_fitted && (
                   <>
                     <div className="flex justify-between">
@@ -3343,6 +3151,18 @@ function AddVehicleStepperForm() {
                     <span className="font-medium">{formData.loller_test_expiry_date || "N/A"}</span>
                   </div>
                 )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Last Tyre Check:</span>
+                  <span className="font-medium">{formData.last_tyre_maintenance_check_date || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Last Valet Check:</span>
+                  <span className="font-medium">{formData.last_valet_check_date || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Last Equipment Check:</span>
+                  <span className="font-medium">{formData.last_equipment_check_date || "N/A"}</span>
+                </div>
               </CardContent>
             </Card>
 

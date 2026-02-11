@@ -1,14 +1,14 @@
-
 "use client"
 import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Edit, X, Loader2, ChevronDown} from "lucide-react";
+import { Edit, X, Loader2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import StartRota from "./StartRota";
@@ -105,6 +105,7 @@ interface Employee {
   id: number;
   name: string;
   status?: string;
+  parent_rota_completed: boolean;
   shifts: (EmployeeShift | "dropdown" | null)[];
   allWeeksShifts: {
     week1: (EmployeeShift | "dropdown" | null)[];
@@ -210,7 +211,6 @@ const DayStatsPopover = memo(({
         <div className="text-center cursor-pointer hover:bg-gray-50 rounded px-2 py-1 transition-colors">
           <div className="text-sm font-medium flex items-center justify-center gap-1">
             {day.day.slice(0, 3)}
-            {/* <BarChart3 className="w-3 h-3 opacity-50" /> */}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
             {day.date}
@@ -259,8 +259,6 @@ const DayStatsPopover = memo(({
                   <span className="text-gray-600">Night (N):</span>
                   <span className="font-medium">{stats.N}</span>
                 </div>
-              
-              
               </div>
               
               {stats.Total > 0 && (
@@ -297,7 +295,7 @@ const DayStatsPopover = memo(({
 });
 DayStatsPopover.displayName = "DayStatsPopover";
 
-// ShiftCell component (unchanged)
+// ShiftCell component
 const ShiftCell = memo(({
   shift,
   isOpen,
@@ -426,7 +424,7 @@ const ShiftCell = memo(({
 });
 ShiftCell.displayName = "ShiftCell";
 
-// EmployeeRow component (unchanged)
+// EmployeeRow component
 const EmployeeRow = memo(
   ({
     employee,
@@ -479,7 +477,9 @@ const EmployeeRow = memo(
               {employee.status && (
                 <Badge
                   className={`text-xs px-2 py-0.5 mt-1 ${
-                    employee.status === "Completed" ? "text-green-600 bg-green-100" : "text-orange-600 bg-orange-100"
+                    employee.parent_rota_completed 
+                      ? "text-green-600 bg-green-100" 
+                      : "text-orange-600 bg-orange-100"
                   }`}
                 >
                   {employee.status}
@@ -521,7 +521,7 @@ const EmployeeRow = memo(
 );
 EmployeeRow.displayName = "EmployeeRow";
 
-// Debounce hook (unchanged)
+// Debounce hook
 const useDebounce = (value: string, delay: number): string => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -535,6 +535,7 @@ const useDebounce = (value: string, delay: number): string => {
   return debouncedValue;
 };
 
+// Main Component with Tabs
 const ParentTab: React.FC = () => {
   const [selectedWeek, setSelectedWeek] = useState<string>("week1");
   const [cachedApiData, setCachedApiData] = useState<UserRota[]>([]);
@@ -560,6 +561,7 @@ const ParentTab: React.FC = () => {
     colors: "#FFFFFF",
   });
   const [editShiftLoading, setEditShiftLoading] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>("completed");
 
   const cookies = useCookies();
   const token = cookies.get("access_token");
@@ -611,6 +613,7 @@ const ParentTab: React.FC = () => {
   const employees = useMemo(() => {
     if (cachedApiData?.length === 0) return [];
     const days = getWeekDates(selectedWeek);
+    
     return cachedApiData.map((userRota: UserRota) => {
       const availableShifts = convertUserShiftsToEmployeeShifts(userRota.user.shifts);
       const allWeeksShifts = {
@@ -675,6 +678,7 @@ const ParentTab: React.FC = () => {
           };
         }),
       };
+      
       const weekData = userRota[selectedWeek as keyof UserRota] as Week;
       const shifts: (EmployeeShift | "dropdown" | null)[] = days.map((day, index) => {
         const tempShift = tempShiftSelections[userRota.user.id]?.[selectedWeek]?.[index];
@@ -691,10 +695,12 @@ const ParentTab: React.FC = () => {
           shift_note: shift.shift_detail.shift_note,
         };
       });
+      
       return {
         id: userRota.user.id,
         name: userRota.user.display_name || "Unknown User",
         status: userRota.user.parent_rota_completed ? "Completed" : "Incomplete",
+        parent_rota_completed: userRota.user.parent_rota_completed,
         shifts,
         allWeeksShifts,
         availableShifts,
@@ -702,10 +708,26 @@ const ParentTab: React.FC = () => {
     });
   }, [cachedApiData, selectedWeek, tempShiftSelections, getWeekDates, convertUserShiftsToEmployeeShifts]);
 
+  // Filter employees based on tab and search
   const filteredEmployees = useMemo(() => {
-    if (!debouncedSearchQuery) return employees;
-    return employees.filter((employee: Employee) => employee.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
-  }, [employees, debouncedSearchQuery]);
+    let filtered = employees;
+    
+    // Filter by tab
+    if (activeTab === "completed") {
+      filtered = filtered.filter(emp => emp.parent_rota_completed === true);
+    } else {
+      filtered = filtered.filter(emp => emp.parent_rota_completed === false);
+    }
+    
+    // Filter by search query
+    if (debouncedSearchQuery) {
+      filtered = filtered.filter(employee => 
+        employee.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  }, [employees, activeTab, debouncedSearchQuery]);
 
   const days = useMemo(() => getWeekDates(selectedWeek), [selectedWeek, getWeekDates]);
   const currentWeek = useMemo(() => getCurrentWeek(), [getCurrentWeek]);
@@ -744,9 +766,6 @@ const ParentTab: React.FC = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: ApiResponse = await response.json();
-      // if (!data?.users?.length) {
-      //   throw new Error("No users found in the response");
-      // }
       setCachedApiData(data?.users);
       setRotaGenerated({});
     } catch (error) {
@@ -1059,84 +1078,198 @@ const ParentTab: React.FC = () => {
   return (
     <div className="p-4 bg-white min-h-screen font-sans">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center justify-between space-x-1">
-          <StartRota users={uniqueUsers}/>
+        <div className="flex items-center justify-center space-x-4">
+          <StartRota users={uniqueUsers} />
+          <div className="relative">
+            <Input
+              type="search"
+              placeholder="Search employees..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-64 pl-10"
+            />
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearSearch}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-medium text-gray-900 mb-1">Pattern 1 - Weekly Schedule</h2>
-          <p className="text-sm text-gray-500">User-specific shifts only</p>
+      
+      {/* Tabs Section */}
+      <Tabs defaultValue="completed" value={activeTab} onValueChange={setActiveTab} className="mb-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-medium text-gray-900 mb-1">Pattern 1 - Weekly Schedule</h2>
+            <p className="text-sm text-gray-500">User-specific shifts only</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <TabsList>
+              <TabsTrigger value="completed" className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700">
+                <div className="flex items-center space-x-2">
+                  <span>Completed</span>
+                  <Badge variant="secondary" className="bg-green-200 text-green-800">
+                    {employees.filter(emp => emp.parent_rota_completed).length}
+                  </Badge>
+                </div>
+              </TabsTrigger>
+              <TabsTrigger value="incomplete" className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700">
+                <div className="flex items-center space-x-2">
+                  <span>Incomplete</span>
+                  <Badge variant="secondary" className="bg-orange-200 text-orange-800">
+                    {employees.filter(emp => !emp.parent_rota_completed).length}
+                  </Badge>
+                </div>
+              </TabsTrigger>
+            </TabsList>
+            
+            <div className="flex space-x-2">
+              {["week1", "week2", "week3", "week4"].map((week) => (
+                <Badge
+                  key={week}
+                  variant={selectedWeek === week ? "default" : "outline"}
+                  className={`cursor-pointer px-3 py-1 text-sm flex items-center space-x-1 ${
+                    selectedWeek === week
+                      ? "bg-rose-700 border text-white"
+                      : week === currentWeek
+                      ? "bg-green-100 text-green-700 hover:bg-green-200"
+                      : "bg-white text-gray-500 hover:bg-gray-100"
+                  }`}
+                  onClick={() => setSelectedWeek(week)}
+                  aria-label={`Select Week ${week.slice(-1)}${week === currentWeek ? " (Current Week)" : ""}`}
+                >
+                  <span>Week {week.slice(-1)}</span>
+                  {week === currentWeek && <span className="w-2 h-2 bg-green-500 rounded-full" aria-label="Current week" />}
+                </Badge>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          <ExportButton data={days} />
-          {["week1", "week2", "week3", "week4"].map((week) => (
-            <Badge
-              key={week}
-              variant={selectedWeek === week ? "default" : "outline"}
-              className={`cursor-pointer px-3 py-1 text-sm flex items-center space-x-1 ${
-                selectedWeek === week
-                  ? "bg-rose-700 border text-white"
-                  : week === currentWeek
-                  ? "bg-green-100 text-green-700 hover:bg-green-200"
-                  : "bg-white text-gray-500 hover:bg-gray-100"
-              }`}
-              onClick={() => setSelectedWeek(week)}
-              aria-label={`Select Week ${week.slice(-1)}${week === currentWeek ? " (Current Week)" : ""}`}
-            >
-              <span>Week {week.slice(-1)}</span>
-              {week === currentWeek && <span className="w-2 h-2 bg-green-500 rounded-full" aria-label="Current week" />}
-            </Badge>
-          ))}
-        </div>
-      </div>
-      <div className="border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
-                {days.map((day, index) => (
-                  <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
-                    <DayStatsPopover 
-                      day={day} 
-                      weekNumber={parseInt(selectedWeek.slice(-1))} 
-                      token={token ?? ""} 
-                    />
-                  </TableHead>
-                ))}
-                <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredEmployees.length > 0 ? (
-                filteredEmployees.map((employee: Employee, userIndex: number) => (
-                  <EmployeeRow
-                    key={employee.id}
-                    employee={employee}
-                    userIndex={userIndex}
-                    openShiftIndex={openShiftIndex}
-                    onToggleShift={toggleShiftSelection}
-                    onSelectShift={selectShift}
-                    onClearShift={clearShift}
-                    onEditShift={openEditShiftModal}
-                    onStartRota={handleStartRota}
-                  />
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center text-gray-600 py-8">
-                    No matching users found.{" "}
-                    <Button variant="link" onClick={clearSearch} className="text-blue-600 p-0">
-                      Clear search
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+        
+        <TabsContent value="completed" className="mt-0">
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
+                    {days.map((day, index) => (
+                      <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
+                        <DayStatsPopover 
+                          day={day} 
+                          weekNumber={parseInt(selectedWeek.slice(-1))} 
+                          token={token ?? ""} 
+                        />
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEmployees.length > 0 ? (
+                    filteredEmployees.map((employee: Employee, userIndex: number) => (
+                      <EmployeeRow
+                        key={employee.id}
+                        employee={employee}
+                        userIndex={userIndex}
+                        openShiftIndex={openShiftIndex}
+                        onToggleShift={toggleShiftSelection}
+                        onSelectShift={selectShift}
+                        onClearShift={clearShift}
+                        onEditShift={openEditShiftModal}
+                        onStartRota={handleStartRota}
+                      />
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center text-gray-600 py-8">
+                        {debouncedSearchQuery ? (
+                          <>
+                            No matching completed users found.{" "}
+                            <Button variant="link" onClick={clearSearch} className="text-blue-600 p-0">
+                              Clear search
+                            </Button>
+                          </>
+                        ) : (
+                          "No completed users found"
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="incomplete" className="mt-0">
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
+                    {days.map((day, index) => (
+                      <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
+                        <DayStatsPopover 
+                          day={day} 
+                          weekNumber={parseInt(selectedWeek.slice(-1))} 
+                          token={token ?? ""} 
+                        />
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEmployees.length > 0 ? (
+                    filteredEmployees.map((employee: Employee, userIndex: number) => (
+                      <EmployeeRow
+                        key={employee.id}
+                        employee={employee}
+                        userIndex={userIndex}
+                        openShiftIndex={openShiftIndex}
+                        onToggleShift={toggleShiftSelection}
+                        onSelectShift={selectShift}
+                        onClearShift={clearShift}
+                        onEditShift={openEditShiftModal}
+                        onStartRota={handleStartRota}
+                      />
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center text-gray-600 py-8">
+                        {debouncedSearchQuery ? (
+                          <>
+                            No matching incomplete users found.{" "}
+                            <Button variant="link" onClick={clearSearch} className="text-blue-600 p-0">
+                              Clear search
+                            </Button>
+                          </>
+                        ) : (
+                          "No incomplete users found"
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+      
       <Dialog open={showRotaModal} onOpenChange={setShowRotaModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1189,6 +1322,7 @@ const ParentTab: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
       <Dialog open={showEditShiftModal} onOpenChange={setShowEditShiftModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1306,4 +1440,5 @@ const ParentTab: React.FC = () => {
     </div>
   );
 };
+
 export default ParentTab;
