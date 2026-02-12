@@ -135,14 +135,12 @@ interface Vehicle {
 
 export default function VehiclesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
   const [vehicleToUpdate, setVehicleToUpdate] = useState<Vehicle | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
@@ -336,31 +334,7 @@ export default function VehiclesPage() {
     return <Badge className={`${variant} text-xs font-medium px-2 py-0.5`}>{display}</Badge>
   }
 
-  const handleDeleteVehicle = async () => {
-    if (!vehicleToDelete) return
-
-    try {
-      const res = await fetch(`${API_URL}/api/vehicles/${vehicleToDelete.id}/`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-      })
-
-      if (res.ok) {
-        showToast(`Vehicle ${vehicleToDelete.registration_number} deleted successfully`, "success")
-        fetchVehicles()
-      } else {
-        const data = await res.json()
-        showToast(data.message || "Failed to delete vehicle", "error")
-      }
-    } catch {
-      showToast("An error occurred while deleting the vehicle", "error")
-    } finally {
-      setIsDeleteDialogOpen(false)
-      setVehicleToDelete(null)
-    }
-  }
+ 
 
   const clearFilters = () => {
     setFilters({ vehicleStatus: "", isRoadworthy: "", vehicleType: "" })
@@ -564,16 +538,6 @@ export default function VehiclesPage() {
                                     Update Status
                                   </DropdownMenuItem>
 
-                                  <DropdownMenuItem
-                                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                    onClick={() => {
-                                      setVehicleToDelete(vehicle)
-                                      setIsDeleteDialogOpen(true)
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete Vehicle
-                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -823,29 +787,7 @@ export default function VehiclesPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation */}
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500" />
-                Delete Vehicle
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete vehicle{" "}
-                <strong>{vehicleToDelete?.registration_number}</strong>?
-                <br />
-                This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteVehicle} className="bg-red-600 hover:bg-red-700">
-                Delete Vehicle
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+       
       </div>
     </TooltipProvider>
   )

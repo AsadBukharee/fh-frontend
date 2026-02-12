@@ -20,6 +20,7 @@ import {
   Check,
   X,
   Play,
+  MapPin,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -74,6 +75,7 @@ interface ApiResponse {
       next_mot_booked_time: string;
       mot_status: string;
       mot_status_color: string;
+      mot_location: string;
     }>;
     pmi: Array<{
       vehicle: number;
@@ -85,6 +87,7 @@ interface ApiResponse {
       hover: Record<string, string>;
       pmi_status: string;
       pmi_status_color: string;
+      pmi_location: string;
     }>;
     tacho: Array<{
       vehicle: number;
@@ -139,12 +142,49 @@ type EditableField = {
   type:
   | "mot_date"
   | "mot_time"
+  | "mot_location"
   | "pmi_date"
+  | "pmi_location"
   | "tacho_calib_date"
   | "loller_calib_date";
   vehicleId: number;
   originalValue: string;
 };
+
+// ============ HELPER FUNCTIONS ============
+
+// Convert DD/MM/YYYY to YYYY-MM-DD for input fields
+const apiDateToInputFormat = (dateStr: string | null | undefined): string => {
+  if (!dateStr || dateStr === "TBC" || dateStr === "") return "";
+  const parts = dateStr.split("/");
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  // If already in YYYY-MM-DD or other format, return as is
+  return dateStr;
+};
+
+// Convert YYYY-MM-DD to YYYY-MM-DD (no change needed for API if it expects ISO)
+const inputDateToApiFormat = (dateStr: string): string => {
+  if (!dateStr) return "";
+  // The API expects YYYY-MM-DD, which is what the input returns.
+  // We return it as is.
+  return dateStr;
+};
+
+// Format time for display
+const formatTime = (time: string | null | undefined): string => {
+  if (!time || time === "TBC" || time === "") return "TBC";
+  return time;
+};
+
+// Format location for display
+const formatLocation = (location: string | null | undefined): string => {
+  if (!location || location === "") return "—";
+  return location;
+};
+
+// ==========================================
 
 export default function VehicleDashboard() {
   const [fullApiData, setFullApiData] = useState<ApiResponse | null>(null);
@@ -162,15 +202,29 @@ export default function VehicleDashboard() {
   const [editValue, setEditValue] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const [timeDialogOpen, setTimeDialogOpen] = useState(false);
-  const [pendingDateUpdate, setPendingDateUpdate] = useState<{
+  // MOT Date Update Dialog (Time + Location)
+  const [motUpdateDialogOpen, setMotUpdateDialogOpen] = useState(false);
+  const [pendingMotUpdate, setPendingMotUpdate] = useState<{
     vehicleId: number;
     newDate: string;
     vehicleReg: string;
     currentTime?: string;
+    currentLocation?: string;
     isFirstTime: boolean;
   } | null>(null);
-  const [newTimeValue, setNewTimeValue] = useState("09:00");
+  const [newMotTimeValue, setNewMotTimeValue] = useState("09:00");
+  const [newMotLocationValue, setNewMotLocationValue] = useState("");
+
+  // PMI Date Update Dialog (Location only)
+  const [pmiUpdateDialogOpen, setPmiUpdateDialogOpen] = useState(false);
+  const [pendingPmiUpdate, setPendingPmiUpdate] = useState<{
+    vehicleId: number;
+    newDate: string;
+    vehicleReg: string;
+    currentLocation?: string;
+    isFirstTime: boolean;
+  } | null>(null);
+  const [newPmiLocationValue, setNewPmiLocationValue] = useState("");
 
   const [sweepDialogOpen, setSweepDialogOpen] = useState(false);
   const [isSweeping, setIsSweeping] = useState(false);
@@ -189,7 +243,6 @@ export default function VehicleDashboard() {
         </span>
       );
 
-    // Use the color from API if provided
     if (color) {
       const colorClasses = {
         red: "bg-red-100 text-red-800",
@@ -199,37 +252,21 @@ export default function VehicleDashboard() {
         yellow: "bg-yellow-100 text-yellow-800",
         blue: "bg-blue-100 text-blue-800",
         purple: "bg-purple-100 text-purple-800",
-        gray: "bg-gray-100 text-gray-800"
+        gray: "bg-gray-100 text-gray-800",
       };
 
-      const bgColor = colorClasses[color as keyof typeof colorClasses] || colorClasses.gray;
+      const bgColor =
+        colorClasses[color as keyof typeof colorClasses] || colorClasses.gray;
 
       return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bgColor}`}>
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bgColor}`}
+        >
           {text}
         </span>
       );
     }
 
-    // Fallback to old logic if no color provided
-    if (text.includes("Expired") || text.includes("Expires today"))
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          {text}
-        </span>
-      );
-    if (text.includes("Expiring in") || text.includes("days left"))
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-          {text}
-        </span>
-      );
-    if (text === "Booked")
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          {text}
-        </span>
-      );
     return <span className="text-gray-700 text-sm">{text}</span>;
   };
 
@@ -348,13 +385,184 @@ export default function VehicleDashboard() {
         originalValue: currentValue,
       });
       setEditValue(currentValue || "");
-    } else {
+    } else if (fieldType === "mot_location") {
       setEditingField({
         type: fieldType,
         vehicleId,
         originalValue: currentValue,
       });
       setEditValue(currentValue || "");
+    } else if (fieldType === "pmi_location") {
+      setEditingField({
+        type: fieldType,
+        vehicleId,
+        originalValue: currentValue,
+      });
+      setEditValue(currentValue || "");
+    } else {
+      setEditingField({
+        type: fieldType,
+        vehicleId,
+        originalValue: currentValue,
+      });
+      // Convert API date format to input format when editing dates
+      if (fieldType.includes("date")) {
+        setEditValue(apiDateToInputFormat(currentValue));
+      } else {
+        setEditValue(currentValue || "");
+      }
+    }
+  };
+
+  const saveMotDateWithTimeAndLocation = async (
+    vehicleId: number,
+    date: string,
+    time: string | null,
+    location: string | null,
+  ) => {
+    setIsUpdating(true);
+    try {
+      const payload: any = {
+        mot_booked_date: inputDateToApiFormat(date),
+      };
+
+      if (time) {
+        payload.mot_booked_time = time.includes(":") ? time : `${time}:00`;
+      } else {
+        payload.mot_booked_time = null;
+      }
+
+      if (location !== null) {
+        payload.mot_location = location;
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/vehicles/${vehicleId}/`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Update failed");
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        const successMessage = time && location
+          ? "Date, time and location updated successfully"
+          : time
+            ? "Date and time updated successfully"
+            : location
+              ? "Date and location updated successfully"
+              : "Date updated successfully";
+        toast.success(successMessage);
+
+        if (fullApiData) {
+          const updatedData = { ...fullApiData };
+          const motIndex = updatedData.data.mot.findIndex(
+            (m) => m.vehicle === vehicleId,
+          );
+          if (motIndex !== -1) {
+            updatedData.data.mot[motIndex].next_mot_booked_date =
+              inputDateToApiFormat(date);
+            if (time !== null) {
+              updatedData.data.mot[motIndex].next_mot_booked_time = time;
+            }
+            if (location !== null) {
+              updatedData.data.mot[motIndex].mot_location = location;
+            }
+            setFullApiData(updatedData);
+          }
+        }
+
+        setEditingField(null);
+        setMotUpdateDialogOpen(false);
+        setPendingMotUpdate(null);
+      } else {
+        throw new Error(result.message || "Update failed");
+      }
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const savePmiDateWithLocation = async (
+    vehicleId: number,
+    date: string,
+    location: string | null,
+  ) => {
+    setIsUpdating(true);
+    try {
+      const payload: any = {
+        next_pmi_book_date: inputDateToApiFormat(date),
+      };
+
+      if (location !== null) {
+        payload.pmi_location = location;
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/vehicles/${vehicleId}/`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cookies.get("access_token")}`,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Update failed");
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        const successMessage = location
+          ? "Date and location updated successfully"
+          : "Date updated successfully";
+        toast.success(successMessage);
+
+        if (fullApiData) {
+          const updatedData = { ...fullApiData };
+          const pmiIndex = updatedData.data.pmi.findIndex(
+            (p) => p.vehicle === vehicleId,
+          );
+          if (pmiIndex !== -1) {
+            updatedData.data.pmi[pmiIndex].next_pmi_book_date =
+              inputDateToApiFormat(date);
+            if (location !== null) {
+              updatedData.data.pmi[pmiIndex].pmi_location = location;
+            }
+            setFullApiData(updatedData);
+          }
+        }
+
+        setEditingField(null);
+        setPmiUpdateDialogOpen(false);
+        setPendingPmiUpdate(null);
+      } else {
+        throw new Error(result.message || "Update failed");
+      }
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -376,22 +584,25 @@ export default function VehicleDashboard() {
           const hasExistingTime =
             motItem?.next_mot_booked_time &&
             !shouldShowTBC(motItem.next_mot_booked_time);
+          const hasExistingLocation = motItem?.mot_location && motItem.mot_location !== "";
 
-          setPendingDateUpdate({
+          setPendingMotUpdate({
             vehicleId: editingField.vehicleId,
             newDate: editValue,
             vehicleReg: motItem?.vehicle_reg || "Unknown",
             currentTime: motItem?.next_mot_booked_time,
-            isFirstTime: !hasExistingTime,
+            currentLocation: motItem?.mot_location,
+            isFirstTime: !hasExistingTime || !hasExistingLocation,
           });
 
           if (hasExistingTime) {
-            setNewTimeValue(motItem.next_mot_booked_time);
+            setNewMotTimeValue(motItem.next_mot_booked_time);
           } else {
-            setNewTimeValue("09:00");
+            setNewMotTimeValue("09:00");
           }
 
-          setTimeDialogOpen(true);
+          setNewMotLocationValue(motItem?.mot_location || "");
+          setMotUpdateDialogOpen(true);
           setIsUpdating(false);
           return;
 
@@ -399,7 +610,9 @@ export default function VehicleDashboard() {
           const motItemForTime = fullApiData?.data.mot.find(
             (m) => m.vehicle === editingField.vehicleId,
           );
-          if (shouldShowTBC(motItemForTime?.next_mot_booked_date, "booking")) {
+          if (
+            shouldShowTBC(motItemForTime?.next_mot_booked_date, "booking")
+          ) {
             toast.error("Please set a date first before setting time");
             setIsUpdating(false);
             return;
@@ -409,20 +622,48 @@ export default function VehicleDashboard() {
             : `${editValue}:00`;
           break;
 
+        case "mot_location":
+          payload.mot_location = editValue;
+          break;
+
         case "pmi_date":
-          payload.next_pmi_book_date = editValue;
+          const pmiItem = fullApiData?.data.pmi.find(
+            (p) => p.vehicle === editingField.vehicleId,
+          );
+          const hasExistingPmiLocation = pmiItem?.pmi_location && pmiItem.pmi_location !== "";
+
+          setPendingPmiUpdate({
+            vehicleId: editingField.vehicleId,
+            newDate: editValue,
+            vehicleReg: pmiItem?.vehicle_reg || "Unknown",
+            currentLocation: pmiItem?.pmi_location,
+            isFirstTime: !hasExistingPmiLocation,
+          });
+
+          setNewPmiLocationValue(pmiItem?.pmi_location || "");
+          setPmiUpdateDialogOpen(true);
+          setIsUpdating(false);
+          return;
+
+        case "pmi_location":
+          payload.pmi_location = editValue;
           break;
+
         case "tacho_calib_date":
-          payload.next_tacho_calibration_book_date = editValue;
+          payload.next_tacho_calibration_book_date = inputDateToApiFormat(
+            editValue,
+          );
           break;
+
         case "loller_calib_date":
-          payload.next_loller_test_date = editValue;
+          payload.next_loller_test_date = inputDateToApiFormat(editValue);
           break;
       }
 
       if (
         editingField.type === "mot_time" ||
-        editingField.type === "pmi_date" ||
+        editingField.type === "mot_location" ||
+        editingField.type === "pmi_location" ||
         editingField.type === "tacho_calib_date" ||
         editingField.type === "loller_calib_date"
       ) {
@@ -447,7 +688,13 @@ export default function VehicleDashboard() {
 
         if (result.success) {
           toast.success(result.message || "Updated successfully");
-          updateLocalData(editingField.vehicleId, editingField.type, editValue);
+          updateLocalData(
+            editingField.vehicleId,
+            editingField.type,
+            editingField.type.includes("date")
+              ? inputDateToApiFormat(editValue)
+              : editValue,
+          );
           setEditingField(null);
         } else {
           throw new Error(result.message || "Update failed");
@@ -462,99 +709,84 @@ export default function VehicleDashboard() {
     }
   };
 
-  const saveDateAndTime = async (
-    vehicleId: number,
-    date: string,
-    time: string | null,
-  ) => {
-    setIsUpdating(true);
-    try {
-      const payload: any = {
-        mot_booked_date: date,
-      };
-
-      if (time) {
-        payload.mot_booked_time = time.includes(":") ? time : `${time}:00`;
-      } else {
-        payload.mot_booked_time = null;
+  const handleMotUpdateDialogSave = () => {
+    if (pendingMotUpdate) {
+      if (!newMotTimeValue) {
+        toast.error("Please select a time for the booking");
+        return;
       }
-
-      const response = await fetch(`${API_URL}/api/vehicles/${vehicleId}/`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Update failed");
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        const successMessage = time
-          ? "Date and time updated successfully"
-          : "Date updated successfully (time cleared)";
-        toast.success(successMessage);
-
-        if (fullApiData) {
-          const updatedData = { ...fullApiData };
-          const motIndex = updatedData.data.mot.findIndex(
-            (m) => m.vehicle === vehicleId,
-          );
-          if (motIndex !== -1) {
-            updatedData.data.mot[motIndex].next_mot_booked_date = date;
-            updatedData.data.mot[motIndex].next_mot_booked_time = time || "";
-            setFullApiData(updatedData);
-          }
-        }
-
-        setEditingField(null);
-        setTimeDialogOpen(false);
-        setPendingDateUpdate(null);
-      } else {
-        throw new Error(result.message || "Update failed");
-      }
-    } catch (error) {
-      console.error("Update error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to update.");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleTimeDialogSave = () => {
-    if (pendingDateUpdate) {
-      saveDateAndTime(
-        pendingDateUpdate.vehicleId,
-        pendingDateUpdate.newDate,
-        newTimeValue,
-      );
-    }
-  };
-
-  const handleTimeDialogSkip = () => {
-    if (pendingDateUpdate) {
-      if (pendingDateUpdate.isFirstTime) {
-        toast.error("Please set a time for the booking");
+      if (!newMotLocationValue || newMotLocationValue.trim() === "") {
+        toast.error("Please enter a location for the booking");
         return;
       }
 
-      saveDateAndTime(
-        pendingDateUpdate.vehicleId,
-        pendingDateUpdate.newDate,
-        null,
+      saveMotDateWithTimeAndLocation(
+        pendingMotUpdate.vehicleId,
+        pendingMotUpdate.newDate,
+        newMotTimeValue,
+        newMotLocationValue,
       );
     }
   };
 
-  const handleTimeDialogCancel = () => {
-    setTimeDialogOpen(false);
-    setPendingDateUpdate(null);
+  const handleMotUpdateDialogSkip = () => {
+    if (pendingMotUpdate) {
+      if (pendingMotUpdate.isFirstTime) {
+        toast.error("Please set both time and location for the booking");
+        return;
+      }
+
+      // Allow updating date while keeping existing time and location
+      saveMotDateWithTimeAndLocation(
+        pendingMotUpdate.vehicleId,
+        pendingMotUpdate.newDate,
+        pendingMotUpdate.currentTime || null,
+        pendingMotUpdate.currentLocation || null,
+      );
+    }
+  };
+
+  const handleMotUpdateDialogCancel = () => {
+    setMotUpdateDialogOpen(false);
+    setPendingMotUpdate(null);
+    setEditingField(null);
+    toast.info("Date change cancelled");
+  };
+
+  const handlePmiUpdateDialogSave = () => {
+    if (pendingPmiUpdate) {
+      if (!newPmiLocationValue || newPmiLocationValue.trim() === "") {
+        toast.error("Please enter a location for the booking");
+        return;
+      }
+
+      savePmiDateWithLocation(
+        pendingPmiUpdate.vehicleId,
+        pendingPmiUpdate.newDate,
+        newPmiLocationValue,
+      );
+    }
+  };
+
+  const handlePmiUpdateDialogSkip = () => {
+    if (pendingPmiUpdate) {
+      if (pendingPmiUpdate.isFirstTime) {
+        toast.error("Please set a location for the booking");
+        return;
+      }
+
+      // Allow updating date while keeping existing location
+      savePmiDateWithLocation(
+        pendingPmiUpdate.vehicleId,
+        pendingPmiUpdate.newDate,
+        pendingPmiUpdate.currentLocation || null,
+      );
+    }
+  };
+
+  const handlePmiUpdateDialogCancel = () => {
+    setPmiUpdateDialogOpen(false);
+    setPendingPmiUpdate(null);
     setEditingField(null);
     toast.info("Date change cancelled");
   };
@@ -584,12 +816,28 @@ export default function VehicleDashboard() {
         updatedData.data.mot[motIndex].next_mot_booked_time = value;
         setFullApiData(updatedData);
       }
+    } else if (fieldType === "mot_location") {
+      const motIndex = updatedData.data.mot.findIndex(
+        (m) => m.vehicle === vehicleId,
+      );
+      if (motIndex !== -1) {
+        updatedData.data.mot[motIndex].mot_location = value;
+        setFullApiData(updatedData);
+      }
     } else if (fieldType === "pmi_date") {
       const pmiIndex = updatedData.data.pmi.findIndex(
         (p) => p.vehicle === vehicleId,
       );
       if (pmiIndex !== -1) {
         updatedData.data.pmi[pmiIndex].next_pmi_book_date = value;
+        setFullApiData(updatedData);
+      }
+    } else if (fieldType === "pmi_location") {
+      const pmiIndex = updatedData.data.pmi.findIndex(
+        (p) => p.vehicle === vehicleId,
+      );
+      if (pmiIndex !== -1) {
+        updatedData.data.pmi[pmiIndex].pmi_location = value;
         setFullApiData(updatedData);
       }
     } else if (fieldType === "tacho_calib_date") {
@@ -639,7 +887,7 @@ export default function VehicleDashboard() {
     "third_planned",
     "fourth_planned",
     "fifth_planned",
-    "sixth_planned"
+    "sixth_planned",
   ];
 
   const renderMOTBookedDate = (row: VehicleRow) => {
@@ -730,7 +978,7 @@ export default function VehicleDashboard() {
       );
     }
 
-    const displayValue = shouldShowTBC(value) ? "TBC" : value || "NA";
+    const displayValue = formatTime(value);
 
     if (isEditing) {
       return (
@@ -786,6 +1034,65 @@ export default function VehicleDashboard() {
     );
   };
 
+  const renderMOTLocation = (row: VehicleRow) => {
+    const isEditing =
+      editingField?.type === "mot_location" &&
+      editingField?.vehicleId === row.vehicle;
+    const value = row.mot?.mot_location;
+    const displayValue = formatLocation(value);
+
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1 min-w-[150px]">
+          <Input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="h-8 text-sm px-2 py-1"
+            placeholder="Enter location"
+            autoFocus
+            disabled={isUpdating}
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSaveEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
+            <Check className="h-4 w-4 text-green-600" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCancelEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4 text-red-600" />
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="px-3 py-4 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded min-h-[44px] flex items-center gap-1"
+        onDoubleClick={() =>
+          handleDoubleClick(
+            row.vehicle,
+            "mot_location",
+            row.mot?.mot_location || "",
+          )
+        }
+        title="Double-click to edit location"
+      >
+        {displayValue !== "—" && <MapPin className="w-3 h-3 text-gray-400" />}
+        {displayValue}
+      </div>
+    );
+  };
+
   const renderPMIBookedDate = (row: VehicleRow) => {
     const isEditing =
       editingField?.type === "pmi_date" &&
@@ -829,7 +1136,6 @@ export default function VehicleDashboard() {
       );
     }
 
-    // Show popover for non-PMI tabs or when hover data exists
     if (row.pmi?.hover && Object.keys(row.pmi.hover).length > 0) {
       return (
         <Popover>
@@ -871,7 +1177,9 @@ export default function VehicleDashboard() {
               <div className="text-xs">
                 <div className="grid grid-cols-2 gap-1 mb-2 pb-2 border-b border-gray-200">
                   <div className="font-semibold text-gray-700">Period</div>
-                  <div className="font-semibold text-gray-700">Planned Date</div>
+                  <div className="font-semibold text-gray-700">
+                    Planned Date
+                  </div>
                 </div>
                 {Object.entries(row.pmi.hover).map(([key, value]) => (
                   <div
@@ -905,11 +1213,72 @@ export default function VehicleDashboard() {
         isEditable={true}
         showTBC={true}
         fieldType="booking"
-        showBookedText={!shouldShowTBC(row.pmi?.next_pmi_book_date, "booking")}
+        showBookedText={
+          !shouldShowTBC(row.pmi?.next_pmi_book_date, "booking")
+        }
         isBooking={!shouldShowTBC(row.pmi?.next_pmi_book_date, "booking")}
       >
         {displayValue}
       </DateDisplay>
+    );
+  };
+
+  const renderPMILocation = (row: VehicleRow) => {
+    const isEditing =
+      editingField?.type === "pmi_location" &&
+      editingField?.vehicleId === row.vehicle;
+    const value = row.pmi?.pmi_location;
+    const displayValue = formatLocation(value);
+
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1 min-w-[150px]">
+          <Input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="h-8 text-sm px-2 py-1"
+            placeholder="Enter location"
+            autoFocus
+            disabled={isUpdating}
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSaveEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
+            <Check className="h-4 w-4 text-green-600" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCancelEdit}
+            disabled={isUpdating}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4 text-red-600" />
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="px-3 py-4 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded min-h-[44px] flex items-center gap-1"
+        onDoubleClick={() =>
+          handleDoubleClick(
+            row.vehicle,
+            "pmi_location",
+            row.pmi?.pmi_location || "",
+          )
+        }
+        title="Double-click to edit location"
+      >
+        {displayValue !== "—" && <MapPin className="w-3 h-3 text-gray-400" />}
+        {displayValue}
+      </div>
     );
   };
 
@@ -1154,88 +1523,96 @@ export default function VehicleDashboard() {
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-6">
-      <AlertDialog open={timeDialogOpen} onOpenChange={setTimeDialogOpen}>
-        <AlertDialogContent>
+      {/* MOT Update Dialog - Time & Location */}
+      <AlertDialog open={motUpdateDialogOpen} onOpenChange={setMotUpdateDialogOpen}>
+        <AlertDialogContent className="sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pendingDateUpdate?.isFirstTime
-                ? "Set Booking Time"
-                : "Update Booking Time"}
+              {pendingMotUpdate?.isFirstTime
+                ? "Set MOT Booking Details"
+                : "Update MOT Booking Details"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingDateUpdate?.isFirstTime ? (
+              {pendingMotUpdate?.isFirstTime ? (
                 <>
                   You&apos;re setting a new MOT date for{" "}
                   <span className="font-semibold text-orange-600">
-                    {pendingDateUpdate?.vehicleReg}
+                    {pendingMotUpdate?.vehicleReg}
                   </span>
-                  . Please select a booking time for{" "}
-                  {pendingDateUpdate?.newDate}.
+                  . Please select a booking time and location for{" "}
+                  {formatDate(pendingMotUpdate?.newDate, false)}.
                 </>
               ) : (
                 <>
                   You&apos;ve changed the MOT date for{" "}
                   <span className="font-semibold text-orange-600">
-                    {pendingDateUpdate?.vehicleReg}
+                    {pendingMotUpdate?.vehicleReg}
                   </span>
-                  . Please update the booking time for{" "}
-                  {pendingDateUpdate?.newDate}.
-                  {pendingDateUpdate?.currentTime && (
-                    <div className="mt-2 text-sm">
-                      Current time:{" "}
-                      <span className="font-medium">
-                        {pendingDateUpdate.currentTime}
-                      </span>
-                    </div>
-                  )}
+                  . Please update the booking details for{" "}
+                  {formatDate(pendingMotUpdate?.newDate, false)}.
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <div className="py-4">
-            <Label htmlFor="time-input" className="block mb-2">
-              {pendingDateUpdate?.isFirstTime
-                ? "Booking Time"
-                : "New Booking Time"}
-              <span className="text-red-500 ml-1">*</span>
-            </Label>
-            <Input
-              id="time-input"
-              type="time"
-              value={newTimeValue}
-              onChange={(e) => setNewTimeValue(e.target.value)}
-              className="w-full"
-              disabled={isUpdating}
-              required
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Select the time for the MOT appointment on{" "}
-              {pendingDateUpdate?.newDate}
+          <div className="py-4 space-y-4">
+            <div>
+              <Label htmlFor="mot-time-input" className="block mb-2">
+                Booking Time <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="mot-time-input"
+                type="time"
+                value={newMotTimeValue}
+                onChange={(e) => setNewMotTimeValue(e.target.value)}
+                className="w-full"
+                disabled={isUpdating}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="mot-location-input" className="block mb-2">
+                Booking Location <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="mot-location-input"
+                type="text"
+                value={newMotLocationValue}
+                onChange={(e) => setNewMotLocationValue(e.target.value)}
+                className="w-full"
+                placeholder="Enter garage or test center location"
+                disabled={isUpdating}
+                required
+              />
+            </div>
+
+            <p className="text-xs text-gray-500">
+              Both time and location are required for MOT bookings.
             </p>
           </div>
 
           <AlertDialogFooter>
-            {!pendingDateUpdate?.isFirstTime && (
+            {!pendingMotUpdate?.isFirstTime && (
               <AlertDialogCancel
-                onClick={handleTimeDialogCancel}
+                onClick={handleMotUpdateDialogCancel}
                 disabled={isUpdating}
               >
                 Cancel
               </AlertDialogCancel>
             )}
-            {pendingDateUpdate?.isFirstTime ? (
+            {pendingMotUpdate?.isFirstTime ? (
               <div className="flex gap-2 w-full">
                 <AlertDialogCancel
-                  onClick={handleTimeDialogCancel}
+                  onClick={handleMotUpdateDialogCancel}
                   disabled={isUpdating}
                   className="flex-1"
                 >
                   Cancel
                 </AlertDialogCancel>
                 <Button
-                  onClick={handleTimeDialogSave}
-                  disabled={isUpdating || !newTimeValue}
+                  onClick={handleMotUpdateDialogSave}
+                  disabled={isUpdating || !newMotTimeValue || !newMotLocationValue.trim()}
                   className="flex-1"
                 >
                   {isUpdating ? (
@@ -1244,7 +1621,7 @@ export default function VehicleDashboard() {
                       Saving...
                     </>
                   ) : (
-                    "Save Date & Time"
+                    "Save Date, Time & Location"
                   )}
                 </Button>
               </div>
@@ -1252,15 +1629,15 @@ export default function VehicleDashboard() {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={handleTimeDialogSkip}
+                  onClick={handleMotUpdateDialogSkip}
                   disabled={isUpdating}
-                  className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                  className="text-gray-600"
                 >
-                  Clear Time
+                  Keep Existing Details
                 </Button>
                 <Button
-                  onClick={handleTimeDialogSave}
-                  disabled={isUpdating || !newTimeValue}
+                  onClick={handleMotUpdateDialogSave}
+                  disabled={isUpdating || !newMotTimeValue || !newMotLocationValue.trim()}
                 >
                   {isUpdating ? (
                     <>
@@ -1268,7 +1645,120 @@ export default function VehicleDashboard() {
                       Updating...
                     </>
                   ) : (
-                    "Update Time"
+                    "Update All"
+                  )}
+                </Button>
+              </div>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* PMI Update Dialog - Location only */}
+      <AlertDialog open={pmiUpdateDialogOpen} onOpenChange={setPmiUpdateDialogOpen}>
+        <AlertDialogContent className="sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingPmiUpdate?.isFirstTime
+                ? "Set PMI Booking Location"
+                : "Update PMI Booking Location"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingPmiUpdate?.isFirstTime ? (
+                <>
+                  You&apos;re setting a new PMI date for{" "}
+                  <span className="font-semibold text-rose-600">
+                    {pendingPmiUpdate?.vehicleReg}
+                  </span>
+                  . Please enter a booking location for{" "}
+                  {formatDate(pendingPmiUpdate?.newDate, false)}.
+                </>
+              ) : (
+                <>
+                  You&apos;ve changed the PMI date for{" "}
+                  <span className="font-semibold text-rose-600">
+                    {pendingPmiUpdate?.vehicleReg}
+                  </span>
+                  . Please update the booking location for{" "}
+                  {formatDate(pendingPmiUpdate?.newDate, false)}.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-4">
+            <Label htmlFor="pmi-location-input" className="block mb-2">
+              Booking Location <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="pmi-location-input"
+              type="text"
+              value={newPmiLocationValue}
+              onChange={(e) => setNewPmiLocationValue(e.target.value)}
+              className="w-full"
+              placeholder="Enter service center location"
+              disabled={isUpdating}
+              required
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Location is required for PMI bookings.
+            </p>
+          </div>
+
+          <AlertDialogFooter>
+            {!pendingPmiUpdate?.isFirstTime && (
+              <AlertDialogCancel
+                onClick={handlePmiUpdateDialogCancel}
+                disabled={isUpdating}
+              >
+                Cancel
+              </AlertDialogCancel>
+            )}
+            {pendingPmiUpdate?.isFirstTime ? (
+              <div className="flex gap-2 w-full">
+                <AlertDialogCancel
+                  onClick={handlePmiUpdateDialogCancel}
+                  disabled={isUpdating}
+                  className="flex-1"
+                >
+                  Cancel
+                </AlertDialogCancel>
+                <Button
+                  onClick={handlePmiUpdateDialogSave}
+                  disabled={isUpdating || !newPmiLocationValue.trim()}
+                  className="flex-1"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Date & Location"
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handlePmiUpdateDialogSkip}
+                  disabled={isUpdating}
+                  className="text-gray-600"
+                >
+                  Keep Existing Location
+                </Button>
+                <Button
+                  onClick={handlePmiUpdateDialogSave}
+                  disabled={isUpdating || !newPmiLocationValue.trim()}
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Location"
                   )}
                 </Button>
               </div>
@@ -1286,12 +1776,8 @@ export default function VehicleDashboard() {
             <p className="text-sm text-gray-600 mt-1">
               Monitor and manage vehicle maintenance schedules
             </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Double-click on MOT/PMI booked dates to edit
-            </p>
-            <p className="text-xs text-orange-500 mt-1">
-              ⚠️ Time selection required when setting/updating MOT dates
-            </p>
+
+
           </div>
 
           <div className="flex gap-3">
@@ -1304,7 +1790,8 @@ export default function VehicleDashboard() {
                   size="sm"
                 >
                   <Play
-                    className={`w-4 h-4 mr-2 ${isSweeping ? "animate-spin" : ""}`}
+                    className={`w-4 h-4 mr-2 ${isSweeping ? "animate-spin" : ""
+                      }`}
                   />
                   Sweep Audit
                 </Button>
@@ -1376,7 +1863,8 @@ export default function VehicleDashboard() {
               size="sm"
             >
               <RefreshCw
-                className={`w-4 h-4 mr-2 ${loading || isUpdating || isSweeping ? "animate-spin" : ""}`}
+                className={`w-4 h-4 mr-2 ${loading || isUpdating || isSweeping ? "animate-spin" : ""
+                  }`}
               />
               Refresh
             </Button>
@@ -1490,7 +1978,7 @@ export default function VehicleDashboard() {
 
                       {visibleColumns.showMOT && (
                         <th
-                          colSpan={5}
+                          colSpan={6}
                           className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-orange-500 bg-orange-100 border-x border-gray-200 sticky top-0 z-40"
                         >
                           <div className="flex items-center justify-center gap-2">
@@ -1502,7 +1990,9 @@ export default function VehicleDashboard() {
 
                       {visibleColumns.showPMI && (
                         <th
-                          colSpan={activeFilter === "PMI Inspection" ? 10 : 4}
+                          colSpan={
+                            activeFilter === "PMI Inspection" ? 11 : 5
+                          }
                           className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200 sticky top-0 z-40"
                         >
                           <div className="flex items-center justify-center gap-2">
@@ -1576,8 +2066,14 @@ export default function VehicleDashboard() {
                           <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                             Next MOT Booked Date
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-orange-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                             Time
+                          </th>
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-orange-50/30 sticky top-[61px]">
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              Location
+                            </div>
                           </th>
                         </>
                       )}
@@ -1593,11 +2089,16 @@ export default function VehicleDashboard() {
                           <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
                             PMI Expiry Date
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-rose-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
                             Next PMI Booked Date
                           </th>
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-rose-50/30 sticky top-[61px]">
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              Location
+                            </div>
+                          </th>
 
-                          {/* Planned Dates Columns - Only show when PMI tab is active */}
                           {activeFilter === "PMI Inspection" && (
                             <>
                               {plannedDateKeys.map((key, index) => (
@@ -1605,7 +2106,9 @@ export default function VehicleDashboard() {
                                   key={key}
                                   className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]"
                                 >
-                                  {key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                  {key
+                                    .replace("_", " ")
+                                    .replace(/\b\w/g, (l) => l.toUpperCase())}
                                 </th>
                               ))}
                             </>
@@ -1668,7 +2171,8 @@ export default function VehicleDashboard() {
                     {paginated.map((row, idx) => (
                       <tr
                         key={row.vehicle}
-                        className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}
+                        className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                          }`}
                       >
                         <td className="p-4 font-semibold text-gray-900 sticky left-0 bg-inherit z-30 border-r-2 border-gray-200">
                           <Link
@@ -1683,7 +2187,7 @@ export default function VehicleDashboard() {
                             <td className="px-3 py-4 border-l border-gray-200">
                               {getStatusBadge(
                                 row.mot?.mot_status || "",
-                                row.mot?.mot_status_color
+                                row.mot?.mot_status_color,
                               )}
                             </td>
                             <td className="px-3 py-4 text-sm text-black border-l border-gray-200">
@@ -1701,8 +2205,11 @@ export default function VehicleDashboard() {
                             <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                               {renderMOTBookedDate(row)}
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-x border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                               {renderMOTBookedTime(row)}
+                            </td>
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-x border-gray-200">
+                              {renderMOTLocation(row)}
                             </td>
                           </>
                         )}
@@ -1712,7 +2219,7 @@ export default function VehicleDashboard() {
                             <td className="px-3 py-4 text-sm border-l border-gray-200">
                               {getStatusBadge(
                                 row.pmi?.pmi_status || "",
-                                row.pmi?.pmi_status_color
+                                row.pmi?.pmi_status_color,
                               )}
                             </td>
                             <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
@@ -1734,11 +2241,13 @@ export default function VehicleDashboard() {
                                 {formatDate(row.pmi?.pmi_expiry, false)}
                               </DateDisplay>
                             </td>
-                            <td className="px-3 py-4 text-sm border-l border-x border-gray-200">
+                            <td className="px-3 py-4 text-sm border-l border-gray-200">
                               {renderPMIBookedDate(row)}
                             </td>
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-x border-gray-200">
+                              {renderPMILocation(row)}
+                            </td>
 
-                            {/* Planned Dates Cells - Only show when PMI tab is active */}
                             {activeFilter === "PMI Inspection" && (
                               <>
                                 {plannedDateKeys.map((key) => (
@@ -1804,7 +2313,9 @@ export default function VehicleDashboard() {
                                 showBookedText={
                                   !shouldShowTBC(row.tyre?.next_check)
                                 }
-                                isBooking={!shouldShowTBC(row.tyre?.next_check)}
+                                isBooking={
+                                  !shouldShowTBC(row.tyre?.next_check)
+                                }
                               >
                                 {formatDate(row.tyre?.next_check, false)}
                               </DateDisplay>
@@ -1844,8 +2355,9 @@ export default function VehicleDashboard() {
                                 showExpiryText={true}
                                 hoverText={
                                   row.insurance?.tax_expiry
-                                    ? getDateStatus(row.insurance.tax_expiry) ===
-                                      "red"
+                                    ? getDateStatus(
+                                      row.insurance.tax_expiry,
+                                    ) === "red"
                                       ? "Tax expired"
                                       : "5 days to tax expiry"
                                     : "No expiry date"
@@ -1879,7 +2391,8 @@ export default function VehicleDashboard() {
                             <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
                               <DateDisplay
                                 date={
-                                  row.calibration?.loller_test_expiry_date ?? null
+                                  row.calibration?.loller_test_expiry_date ??
+                                  null
                                 }
                                 isBlackText={true}
                               >
@@ -1937,7 +2450,8 @@ export default function VehicleDashboard() {
                     let pageNum = i + 1;
                     if (totalPages > 5 && currentPage > 3) {
                       pageNum = currentPage - 2 + i;
-                      if (pageNum > totalPages) pageNum = totalPages - (4 - i);
+                      if (pageNum > totalPages)
+                        pageNum = totalPages - (4 - i);
                     }
                     return (
                       <Button
@@ -1947,7 +2461,10 @@ export default function VehicleDashboard() {
                         }
                         size="sm"
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 ${currentPage === pageNum ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white" : ""}`}
+                        className={`w-10 ${currentPage === pageNum
+                          ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
+                          : ""
+                          }`}
                       >
                         {pageNum}
                       </Button>
