@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { format, differenceInDays, isPast, parseISO, isBefore, isAfter, addDays } from 'date-fns';
+import { format, differenceInDays, isPast, parseISO, isBefore, isAfter, addDays, startOfDay, differenceInCalendarDays } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import ExportButton from '@/app/utils/ExportButton';
 import API_URL from '@/app/utils/ENV';
@@ -285,8 +285,10 @@ const DriverManagementPage = () => {
 
     try {
       const date = parseISO(dateString);
-      const today = new Date();
-      const daysUntilExpiry = differenceInDays(date, today);
+  const today = startOfDay(new Date());
+const expiryDate = startOfDay(parseISO(dateString));
+
+const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
 
       // Check if expired
       if (isPast(date)) {

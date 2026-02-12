@@ -429,7 +429,6 @@ interface DriverActionMenuProps {
   onApprove: () => void;
   onDisapprove: () => void;
   onResendActivation: () => void;
-  onDelete: () => void;
 }
 
 const DriverActionMenu = React.memo(({ 
@@ -439,7 +438,6 @@ const DriverActionMenu = React.memo(({
   onApprove, 
   onDisapprove,
   onResendActivation, 
-  onDelete 
 }: DriverActionMenuProps) => {
   const isApproved = driver.profile_status?.toLowerCase() === "approved";
 
@@ -507,15 +505,8 @@ const DriverActionMenu = React.memo(({
           </DropdownMenuItem>
         )}
 
-        <DropdownMenuSeparator />
 
-        <DropdownMenuItem 
-          onClick={onDelete}
-          className="text-red-600 focus:text-red-600 focus:bg-red-50 gap-2"
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete Driver
-        </DropdownMenuItem>
+       
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -543,7 +534,6 @@ export default function DriversPage() {
   const [sitesLoading, setSitesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
@@ -849,27 +839,7 @@ export default function DriversPage() {
     }
   };
 
-  const handleDeleteDriver = async () => {
-    if (!driverToDelete) return;
-    try {
-      const res = await fetch(`${API_URL}/api/profiles/driver/${driverToDelete.id}/`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${cookies.get("access_token")}` },
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        showToast(`${driverToDelete.user.full_name} deleted`, "success");
-        await fetchDrivers();
-      } else {
-        showToast(json.message ?? "Failed", "error");
-      }
-    } catch {
-      showToast("Network error", "error");
-    } finally {
-      setIsDeleteDialogOpen(false);
-      setDriverToDelete(null);
-    }
-  };
+ 
 
   const handleResendActivation = async (userId: number) => {
     try {
@@ -1160,10 +1130,7 @@ export default function DriversPage() {
         setIsDisapproveDialogOpen(true);
       }}
       onResendActivation={() => handleResendActivation(driver.user.id)}
-      onDelete={() => {
-        setDriverToDelete(driver);
-        setIsDeleteDialogOpen(true);
-      }}
+     
     />
                         </div>
                       </td>
@@ -1257,26 +1224,7 @@ export default function DriversPage() {
         />
       )}
 
-      {/* Delete Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-red-600" />
-              Delete Driver
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete <span className="font-semibold">{driverToDelete?.user.full_name}</span>? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteDriver} className="bg-red-600 hover:bg-red-700">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+     
     </div>
   );
 }
