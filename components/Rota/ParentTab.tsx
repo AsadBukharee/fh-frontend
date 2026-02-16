@@ -165,11 +165,11 @@ const DayStatsPopover = memo(({
 
   const fetchDayStats = useCallback(async () => {
     if (!isOpen) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch(`${API_URL}/api/rota/stats/${weekNumber}`, {
         method: "GET",
         headers: {
@@ -222,7 +222,7 @@ const DayStatsPopover = memo(({
           <div className="text-sm font-semibold text-gray-900 border-b pb-2">
             {day.day} Stats
           </div>
-          
+
           {loading ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-4 w-4 animate-spin text-gray-500 mr-2" />
@@ -260,7 +260,7 @@ const DayStatsPopover = memo(({
                   <span className="font-medium">{stats.N}</span>
                 </div>
               </div>
-              
+
               {stats.Total > 0 && (
                 <div className="mt-3 pt-2 border-t">
                   <div className="text-xs text-gray-500 mb-1">Shift Distribution:</div>
@@ -271,7 +271,7 @@ const DayStatsPopover = memo(({
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{count}</span>
                           <div className="w-12 bg-gray-200 rounded-full h-1">
-                            <div 
+                            <div
                               className="bg-blue-500 h-1 rounded-full transition-all duration-300"
                               style={{ width: `${((count as number) / stats.Total) * 100}%` }}
                             />
@@ -320,11 +320,10 @@ const ShiftCell = memo(({
           {shift === "dropdown" || shift === null ? (
             <Badge
               variant="outline"
-              className={`w-full max-w-[110px] h-12 text-xs flex items-center justify-center cursor-pointer ${
-                shift === "dropdown"
-                  ? "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-                  : "border-dashed border-gray-300 text-gray-400 hover:border-gray-400"
-              }`}
+              className={`w-full max-w-[110px] h-12 text-xs flex items-center justify-center cursor-pointer ${shift === "dropdown"
+                ? "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+                : "border-dashed border-gray-300 text-gray-400 hover:border-gray-400"
+                }`}
             >
               {shift === "dropdown" ? (
                 <span>RD</span>
@@ -387,11 +386,10 @@ const ShiftCell = memo(({
                 <Button
                   key={optionIndex}
                   variant="ghost"
-                  className={`w-full text-left text-xs px-2 py-2 hover:bg-gray-100 h-auto ${
-                    shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId
-                      ? "bg-blue-50 border border-blue-200"
-                      : ""
-                  }`}
+                  className={`w-full text-left text-xs px-2 py-2 hover:bg-gray-100 h-auto ${shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId
+                    ? "bg-blue-50 border border-blue-200"
+                    : ""
+                    }`}
                   onClick={() => onSelect(option)}
                 >
                   <div className="flex items-center justify-between w-full">
@@ -476,11 +474,10 @@ const EmployeeRow = memo(
               </div>
               {employee.status && (
                 <Badge
-                  className={`text-xs px-2 py-0.5 mt-1 ${
-                    employee.parent_rota_completed 
-                      ? "text-green-600 bg-green-100" 
-                      : "text-orange-600 bg-orange-100"
-                  }`}
+                  className={`text-xs px-2 py-0.5 mt-1 ${employee.parent_rota_completed
+                    ? "text-green-600 bg-green-100"
+                    : "text-orange-600 bg-orange-100"
+                    }`}
                 >
                   {employee.status}
                 </Badge>
@@ -536,7 +533,7 @@ const useDebounce = (value: string, delay: number): string => {
 };
 
 // Main Component with Tabs
-const ParentTab: React.FC = () => {
+const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
   const [selectedWeek, setSelectedWeek] = useState<string>("week1");
   const [cachedApiData, setCachedApiData] = useState<UserRota[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -613,7 +610,7 @@ const ParentTab: React.FC = () => {
   const employees = useMemo(() => {
     if (cachedApiData?.length === 0) return [];
     const days = getWeekDates(selectedWeek);
-    
+
     return cachedApiData.map((userRota: UserRota) => {
       const availableShifts = convertUserShiftsToEmployeeShifts(userRota.user.shifts);
       const allWeeksShifts = {
@@ -678,7 +675,7 @@ const ParentTab: React.FC = () => {
           };
         }),
       };
-      
+
       const weekData = userRota[selectedWeek as keyof UserRota] as Week;
       const shifts: (EmployeeShift | "dropdown" | null)[] = days.map((day, index) => {
         const tempShift = tempShiftSelections[userRota.user.id]?.[selectedWeek]?.[index];
@@ -695,7 +692,7 @@ const ParentTab: React.FC = () => {
           shift_note: shift.shift_detail.shift_note,
         };
       });
-      
+
       return {
         id: userRota.user.id,
         name: userRota.user.display_name || "Unknown User",
@@ -711,21 +708,21 @@ const ParentTab: React.FC = () => {
   // Filter employees based on tab and search
   const filteredEmployees = useMemo(() => {
     let filtered = employees;
-    
+
     // Filter by tab
     if (activeTab === "completed") {
       filtered = filtered.filter(emp => emp.parent_rota_completed === true);
     } else {
       filtered = filtered.filter(emp => emp.parent_rota_completed === false);
     }
-    
+
     // Filter by search query
     if (debouncedSearchQuery) {
-      filtered = filtered.filter(employee => 
+      filtered = filtered.filter(employee =>
         employee.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
       );
     }
-    
+
     return filtered;
   }, [employees, activeTab, debouncedSearchQuery]);
 
@@ -1002,15 +999,15 @@ const ParentTab: React.FC = () => {
       };
       const updatedSelections = selectedWeekForApply === "all"
         ? {
-            week1: [...sourceWeekShifts],
-            week2: [...sourceWeekShifts],
-            week3: [...sourceWeekShifts],
-            week4: [...sourceWeekShifts],
-          }
+          week1: [...sourceWeekShifts],
+          week2: [...sourceWeekShifts],
+          week3: [...sourceWeekShifts],
+          week4: [...sourceWeekShifts],
+        }
         : {
-            ...employeeSelections,
-            [selectedWeekForApply]: [...sourceWeekShifts],
-          };
+          ...employeeSelections,
+          [selectedWeekForApply]: [...sourceWeekShifts],
+        };
       return {
         ...prev,
         [selectedEmployeeId]: updatedSelections,
@@ -1021,15 +1018,15 @@ const ParentTab: React.FC = () => {
       ...employee,
       allWeeksShifts: selectedWeekForApply === "all"
         ? {
-            week1: [...sourceWeekShifts],
-            week2: [...sourceWeekShifts],
-            week3: [...sourceWeekShifts],
-            week4: [...sourceWeekShifts],
-          }
+          week1: [...sourceWeekShifts],
+          week2: [...sourceWeekShifts],
+          week3: [...sourceWeekShifts],
+          week4: [...sourceWeekShifts],
+        }
         : {
-            ...employee.allWeeksShifts,
-            [selectedWeekForApply]: [...sourceWeekShifts],
-          },
+          ...employee.allWeeksShifts,
+          [selectedWeekForApply]: [...sourceWeekShifts],
+        },
     };
 
     setShowRotaModal(false);
@@ -1048,7 +1045,7 @@ const ParentTab: React.FC = () => {
       setError("Authentication token not found.");
       setLoading(false);
     }
-  }, [token, fetchRota]);
+  }, [token, fetchRota, refreshKey]);
 
   const uniqueUsers = useMemo(() => {
     const userMap = new Map<number, User>();
@@ -1106,7 +1103,7 @@ const ParentTab: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Tabs Section */}
       <Tabs defaultValue="completed" value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <div className="flex items-start justify-between mb-4">
@@ -1133,19 +1130,18 @@ const ParentTab: React.FC = () => {
                 </div>
               </TabsTrigger>
             </TabsList>
-            
+
             <div className="flex space-x-2">
               {["week1", "week2", "week3", "week4"].map((week) => (
                 <Badge
                   key={week}
                   variant={selectedWeek === week ? "default" : "outline"}
-                  className={`cursor-pointer px-3 py-1 text-sm flex items-center space-x-1 ${
-                    selectedWeek === week
-                      ? "bg-rose-700 border text-white"
-                      : week === currentWeek
+                  className={`cursor-pointer px-3 py-1 text-sm flex items-center space-x-1 ${selectedWeek === week
+                    ? "bg-rose-700 border text-white"
+                    : week === currentWeek
                       ? "bg-green-100 text-green-700 hover:bg-green-200"
                       : "bg-white text-gray-500 hover:bg-gray-100"
-                  }`}
+                    }`}
                   onClick={() => setSelectedWeek(week)}
                   aria-label={`Select Week ${week.slice(-1)}${week === currentWeek ? " (Current Week)" : ""}`}
                 >
@@ -1156,7 +1152,7 @@ const ParentTab: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <TabsContent value="completed" className="mt-0">
           <div className="border rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
@@ -1166,10 +1162,10 @@ const ParentTab: React.FC = () => {
                     <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
                     {days.map((day, index) => (
                       <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
-                        <DayStatsPopover 
-                          day={day} 
-                          weekNumber={parseInt(selectedWeek.slice(-1))} 
-                          token={token ?? ""} 
+                        <DayStatsPopover
+                          day={day}
+                          weekNumber={parseInt(selectedWeek.slice(-1))}
+                          token={token ?? ""}
                         />
                       </TableHead>
                     ))}
@@ -1212,7 +1208,7 @@ const ParentTab: React.FC = () => {
             </div>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="incomplete" className="mt-0">
           <div className="border rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
@@ -1222,10 +1218,10 @@ const ParentTab: React.FC = () => {
                     <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
                     {days.map((day, index) => (
                       <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
-                        <DayStatsPopover 
-                          day={day} 
-                          weekNumber={parseInt(selectedWeek.slice(-1))} 
-                          token={token ?? ""} 
+                        <DayStatsPopover
+                          day={day}
+                          weekNumber={parseInt(selectedWeek.slice(-1))}
+                          token={token ?? ""}
                         />
                       </TableHead>
                     ))}
@@ -1269,7 +1265,7 @@ const ParentTab: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
-      
+
       <Dialog open={showRotaModal} onOpenChange={setShowRotaModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1286,11 +1282,10 @@ const ParentTab: React.FC = () => {
                   <Badge
                     key={week}
                     variant={selectedWeekForApply === week ? "default" : "outline"}
-                    className={`cursor-pointer px-3 py-1 text-sm ${
-                      selectedWeekForApply === week
-                        ? "bg-orange-100 border-orange border text-orange"
-                        : "bg-white text-gray-500 hover:bg-gray-100"
-                    }`}
+                    className={`cursor-pointer px-3 py-1 text-sm ${selectedWeekForApply === week
+                      ? "bg-orange-100 border-orange border text-orange"
+                      : "bg-white text-gray-500 hover:bg-gray-100"
+                      }`}
                     onClick={() => setSelectedWeekForApply(week)}
                   >
                     {week === "all" ? "Select All" : `Week ${week.slice(-1)}`}
@@ -1322,7 +1317,7 @@ const ParentTab: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       <Dialog open={showEditShiftModal} onOpenChange={setShowEditShiftModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

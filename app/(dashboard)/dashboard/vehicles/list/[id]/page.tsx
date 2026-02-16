@@ -136,18 +136,21 @@ export default function VehicleDetailPage() {
         const typesData = await typesRes.json();
 
         if (vehicleData.success) {
-          // Fix: Map vehicle_type to vehicles_type for consistency
-          const fixedVehicleData = {
+          // Don't map vehicle_type - use it as is from API
+          const vehicleDataWithType = {
             ...vehicleData.data,
-            vehicles_type: vehicleData.data.vehicle_type // Map the field
+            // Keep both for backward compatibility
+            vehicle_type: vehicleData.data.vehicle_type,
+            // For components expecting vehicles_type
+            vehicles_type: vehicleData.data.vehicle_type
           };
-          
-          setVehicle(fixedVehicleData);
-          setEditVehicle(fixedVehicleData);
+
+          setVehicle(vehicleDataWithType);
+          setEditVehicle(vehicleDataWithType);
 
           // Set selected sites from vehicle data
-          if (fixedVehicleData.site_allocated) {
-            const siteIds = fixedVehicleData.site_allocated.map((site: any) => site.id);
+          if (vehicleDataWithType.site_allocated) {
+            const siteIds = vehicleDataWithType.site_allocated.map((site: any) => site.id);
             setSelectedSites(siteIds);
           }
         } else {
@@ -190,11 +193,13 @@ export default function VehicleDetailPage() {
   const handleSave = async () => {
     if (!editVehicle || !token) return;
 
+    // Validation for tacho
     if (editVehicle.is_tacho_fitted && !editVehicle.tacho_calibration_expiry) {
       toast.error("Tacho calibration expiry date is required when tacho is fitted");
       return;
     }
 
+    // Validation for wheelchair lift
     if (editVehicle.is_wheelchair_lift_fitted && !editVehicle.loller_test_expiry_date) {
       toast.error("LOLER test expiry date is required when wheelchair lift is fitted");
       return;
@@ -203,6 +208,7 @@ export default function VehicleDetailPage() {
     setSaving(true);
 
     try {
+      // Prepare data for API - use vehicle_type not vehicles_type
       const vehicleData = {
         registration_number: editVehicle.registration_number,
         vin: editVehicle.vin,
@@ -220,6 +226,7 @@ export default function VehicleDetailPage() {
         purchase_mileage: editVehicle.purchase_mileage,
         next_mot_to_be_booked_from: editVehicle.next_mot_to_be_booked_from,
         has_vat: editVehicle.has_vat,
+        vat_amount: editVehicle.vat_amount, // Add VAT amount
         last_mileage: editVehicle.last_mileage,
         mot_expiry: editVehicle.mot_expiry,
         tax_expiry: editVehicle.tax_expiry,
@@ -250,7 +257,7 @@ export default function VehicleDetailPage() {
         is_roadworthy: editVehicle.is_roadworthy,
         is_active: editVehicle.is_active,
         site_allocated: selectedSites,
-        vehicles_type: editVehicle.vehicles_type?.id || editVehicle.vehicle_type?.id,
+        vehicle_type: editVehicle.vehicle_type?.id || editVehicle.vehicles_type?.id, // Use vehicle_type
       };
 
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
@@ -264,9 +271,10 @@ export default function VehicleDetailPage() {
       const updatedData = await res.json();
 
       if (res.ok && updatedData.success) {
-        // Fix: Map vehicle_type to vehicles_type for consistency
+        // Update state with response - maintain both fields for compatibility
         const fixedUpdatedData = {
           ...updatedData.data,
+          vehicle_type: updatedData.data.vehicle_type,
           vehicles_type: updatedData.data.vehicle_type
         };
         setVehicle(fixedUpdatedData);
@@ -285,7 +293,18 @@ export default function VehicleDetailPage() {
   };
 
   const handleInputChange = (field: string, value: any) => {
-    setEditVehicle((prev: any) => (prev ? { ...prev, [field]: value } : prev));
+    setEditVehicle((prev: any) => {
+      if (!prev) return prev;
+
+      const updated = { ...prev, [field]: value };
+
+      // Auto-calculate total if price or vat changes
+      if (field === 'price' || field === 'vat_amount') {
+        // You could add auto-calculation logic here if needed
+      }
+
+      return updated;
+    });
   };
 
   const handleStatusChange = (field: string, value: any) => {
@@ -312,9 +331,10 @@ export default function VehicleDetailPage() {
       if (res.ok) {
         const updatedData = await res.json();
         if (updatedData.success) {
-          // Fix: Map vehicle_type to vehicles_type for consistency
+          // Update both fields for compatibility
           const fixedUpdatedData = {
             ...updatedData.data,
+            vehicle_type: updatedData.data.vehicle_type,
             vehicles_type: updatedData.data.vehicle_type
           };
           setVehicle(fixedUpdatedData);
@@ -331,20 +351,30 @@ export default function VehicleDetailPage() {
   const handleDocumentUpload = async (docType: string, fileUrl: string) => {
     if (!token) return;
     try {
+      const payload: any = { [docType]: fileUrl };
+
+      if (docType === "tacho_calibration_docs") {
+        payload.is_tacho_fitted = isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted;
+      }
+      if (docType === "loller_docs") {
+        payload.is_wheelchair_lift_fitted = isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted;
+      }
+
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ [docType]: fileUrl }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const updatedData = await res.json();
         if (updatedData.success) {
-          // Fix: Map vehicle_type to vehicles_type for consistency
+          // Update both fields for compatibility
           const fixedUpdatedData = {
             ...updatedData.data,
+            vehicle_type: updatedData.data.vehicle_type,
             vehicles_type: updatedData.data.vehicle_type
           };
           setVehicle(fixedUpdatedData);
@@ -379,6 +409,13 @@ export default function VehicleDetailPage() {
         updateData[docField] = documentUrl;
       }
 
+      if (editDateField === "tacho_calibration_expiry") {
+        updateData.is_tacho_fitted = isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted;
+      }
+      if (editDateField === "loller_test_expiry_date" || editDateField === "next_loller_test_date") {
+        updateData.is_wheelchair_lift_fitted = isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted;
+      }
+
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PATCH",
         headers: {
@@ -390,9 +427,10 @@ export default function VehicleDetailPage() {
       const updatedData = await res.json();
 
       if (res.ok && updatedData.success) {
-        // Fix: Map vehicle_type to vehicles_type for consistency
+        // Update both fields for compatibility
         const fixedUpdatedData = {
           ...updatedData.data,
+          vehicle_type: updatedData.data.vehicle_type,
           vehicles_type: updatedData.data.vehicle_type
         };
         setVehicle(fixedUpdatedData);
@@ -435,7 +473,10 @@ export default function VehicleDetailPage() {
     setDocumentError(null);
   };
 
-  const formatDate = (dateString: string) => formatToDDMMYYYY(dateString);
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+    return formatToDDMMYYYY(dateString);
+  };
 
   const Field = ({
     label,
@@ -514,7 +555,7 @@ export default function VehicleDetailPage() {
       default: return status;
     }
   };
-  
+
   function StaticRow({ label, value }: { label: string; value: string | number }) {
     return (
       <div className="flex justify-between">
@@ -523,7 +564,7 @@ export default function VehicleDetailPage() {
       </div>
     );
   }
-  
+
   type TyreRowProps = {
     label: string;
     unit: string;
@@ -554,8 +595,8 @@ export default function VehicleDetailPage() {
         ) : (
           <span
             className={`font-semibold ${highlight
-                ? "text-green-600 bg-green-100 px-2 rounded-md"
-                : "text-slate-900"
+              ? "text-green-600 bg-green-100 px-2 rounded-md"
+              : "text-slate-900"
               }`}
           >
             {value ?? "N/A"} {unit}
@@ -592,7 +633,7 @@ export default function VehicleDetailPage() {
     { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText },
     { key: "other_docs", label: "Other Documents", icon: FileText },
   ];
-  
+
   function TyreCard({ title, pos }: { title: string; pos: string }) {
     return (
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm">
@@ -617,9 +658,8 @@ export default function VehicleDetailPage() {
             label="Torque"
             unit="NM"
             valueKey={`tyre_torque_${pos}`}
-            type="number" highlight={undefined} />
-
-          <StaticRow label="Tyre Age" value="" />
+            type="number"
+          />
         </div>
       </div>
     );
@@ -709,7 +749,7 @@ export default function VehicleDetailPage() {
             <h1 className="text-3xl font-bold text-slate-900">
               {vehicle.registration_number} - {vehicle.make} {vehicle.model}
             </h1>
-            <p className="text-slate-600">{vehicle.vehicles_type?.name || vehicle.vehicle_type?.name}</p>
+            <p className="text-slate-600">{vehicle.vehicle_type?.name || vehicle.vehicles_type?.name}</p>
           </div>
           <div className="flex items-center gap-3">
             <Badge className={`${getStatusBadgeColor(vehicle.vehicle_status)} px-3 py-1`}>
@@ -721,7 +761,7 @@ export default function VehicleDetailPage() {
           </div>
         </div>
 
-        {/* Driver Assignment Banner */}
+        {/* Driver Assignment Banner - Commented out as in original */}
         {/* {vehicle.assignee_driver && (
           <div className="bg-gradient-to-r from-orange-50 to-orange-100/50 border border-orange-200 rounded-2xl p-4">
             <div className="flex items-center justify-between">
@@ -820,9 +860,23 @@ export default function VehicleDetailPage() {
 
                   <div className="space-y-1">
                     <p className="text-xs text-slate-500">Latest Mileage</p>
-                    <p className="text-sm font-medium text-slate-900">
-                      {getCurrentMileage()}
-                    </p>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          value={editVehicle.last_mileage || ""}
+                          onChange={(e) => handleInputChange("last_mileage", Number(e.target.value))}
+                          className="h-9 text-sm"
+                        />
+                        <span className="text-sm text-slate-500">
+                          {editVehicle.mileage_unit === "miles" ? "mi" : "km"}
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-medium text-slate-900">
+                        {getCurrentMileage()}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-1">
@@ -845,8 +899,8 @@ export default function VehicleDetailPage() {
                     <p className="text-xs text-slate-500">Vehicle Type</p>
                     {isEditing ? (
                       <Select
-                        value={editVehicle.vehicles_type?.id?.toString() || editVehicle.vehicle_type?.id?.toString() || ""}
-                        onValueChange={(value) => handleInputChange("vehicles_type", Number(value))}
+                        value={editVehicle.vehicle_type?.id?.toString() || editVehicle.vehicles_type?.id?.toString() || ""}
+                        onValueChange={(value) => handleInputChange("vehicle_type", { id: Number(value) })}
                       >
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="Select vehicle type" />
@@ -861,7 +915,7 @@ export default function VehicleDetailPage() {
                       </Select>
                     ) : (
                       <Badge className="bg-orange-100 text-orange-600">
-                        {vehicle?.vehicles_type?.name || vehicle?.vehicle_type?.name || "No type assigned"}
+                        {vehicle.vehicle_type?.name || vehicle.vehicles_type?.name || "No type assigned"}
                       </Badge>
                     )}
                   </div>
@@ -955,14 +1009,14 @@ export default function VehicleDetailPage() {
                     />
                   ) : (
                     <Badge className="bg-red-100 text-red-600">
-                      {vehicle.purchased_from}
+                      {vehicle.purchased_from || "-"}
                     </Badge>
                   )}
                 </div>
 
                 <Field
                   label="Purchase Mileage"
-                  value={`${vehicle.purchase_mileage || "-"} km`}
+                  value={vehicle.purchase_mileage ? `${vehicle.purchase_mileage} km` : "-"}
                 />
 
                 <div className="space-y-1">
@@ -988,21 +1042,34 @@ export default function VehicleDetailPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="space-y-1 flex-1">
-                    <p className="text-xs text-slate-500">VAT Amount</p>
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500">VAT Amount</p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={editVehicle.vat_amount || ""}
+                      onChange={(e) => handleInputChange("vat_amount", e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  ) : (
                     <p className="text-sm font-medium text-slate-900">
                       £{Number(vehicle.vat_amount || 0).toLocaleString()}
                     </p>
-                  </div>
-                  {isEditing ? (
-                    <Switch
-                      checked={editVehicle.has_vat}
-                      onCheckedChange={(c) => handleInputChange("has_vat", c)}
-                    />
-                  ) : (
-                    <Switch checked={vehicle.has_vat} disabled />
                   )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="space-y-1 flex-1">
+                    <p className="text-xs text-slate-500">Has VAT</p>
+                    {isEditing ? (
+                      <Switch
+                        checked={editVehicle.has_vat}
+                        onCheckedChange={(c) => handleInputChange("has_vat", c)}
+                      />
+                    ) : (
+                      <Switch checked={vehicle.has_vat} disabled />
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -1013,6 +1080,9 @@ export default function VehicleDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* ================= EQUIPMENT STATUS & COMPLIANCE (MOVED FROM COMPLIANCE TAB) ================= */}
+
 
           </TabsContent>
 
@@ -1068,6 +1138,7 @@ export default function VehicleDetailPage() {
               </div>
             </div>
           </TabsContent>
+
           <TabsContent value="maintenance" className="mt-6">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
 
@@ -1081,8 +1152,6 @@ export default function VehicleDetailPage() {
                     Tyre Management
                   </h3>
                 </div>
-
-
               </div>
 
               {/* Main Layout */}
@@ -1119,40 +1188,21 @@ export default function VehicleDetailPage() {
             </div>
           </TabsContent>
 
-
-
           {/* Compliance Tab */}
           <TabsContent value="compliance" className="space-y-6 mt-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                  <Settings className="w-5 h-5 text-indigo-600" />
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <Settings className="w-4 h-4 text-indigo-600" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Equipment Status</h3>
+                <h3 className="font-semibold text-slate-900">Equipment Status</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/30 rounded-xl p-5 border border-indigo-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                        <Gauge className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold">Tacho Fitted</h4>
-                        <p className="text-xs text-slate-600">Digital tachograph</p>
-                      </div>
-                    </div>
-                    {isEditing ? (
-                      <Switch checked={editVehicle.is_tacho_fitted} onCheckedChange={(c) => handleInputChange("is_tacho_fitted", c)} />
-                    ) : (
-                      <Badge className={vehicle.is_tacho_fitted ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-700 border-slate-200"}>
-                        {vehicle.is_tacho_fitted ? "Yes" : "No"}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+                {/* Tacho Switch */}
 
+
+                {/* Wheelchair Switch */}
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100/30 rounded-xl p-5 border border-blue-200">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -1173,12 +1223,129 @@ export default function VehicleDetailPage() {
                     )}
                   </div>
                 </div>
+                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/30 rounded-xl p-5 border border-indigo-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <Gauge className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">Tacho Fitted</h4>
+                        <p className="text-xs text-slate-600">Digital tachograph</p>
+                      </div>
+                    </div>
+                    {isEditing ? (
+                      <Switch checked={editVehicle.is_tacho_fitted} onCheckedChange={(c) => handleInputChange("is_tacho_fitted", c)} />
+                    ) : (
+                      <Badge className={vehicle.is_tacho_fitted ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-700 border-slate-200"}>
+                        {vehicle.is_tacho_fitted ? "Yes" : "No"}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Conditional Compliance Cards in Compliance */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                {complianceItems
+                  .filter(item => item.key === 'tacho' || item.key === 'loller')
+                  .map((item) => {
+                    if (!shouldShowComplianceItem(item)) return null;
+
+                    const dateValue = vehicle[item.dateField as keyof typeof vehicle] as string;
+                    const docValue = vehicle[item.docField as keyof typeof vehicle] as string;
+                    const status = getExpiryStatus(dateValue);
+                    const hasDoc = hasDocument(docValue);
+                    const Icon = item.icon;
+                    const StatusIcon = status.icon;
+
+                    const isRequired =
+                      (item.requiredForTacho && (isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted)) ||
+                      (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted));
+
+                    return (
+                      <div
+                        key={`overview-${item.key}`}
+                        className={`bg-white rounded-xl shadow-sm border ${isRequired && !dateValue ? "border-red-400 ring-2 ring-red-200" : "border-slate-200"} overflow-hidden`}
+                      >
+                        <div className={`bg-gradient-to-r from-${item.color}-50 to-${item.color}-100/50 p-4 border-b ${isRequired && !dateValue ? "border-red-200" : `border-${item.color}-200`}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 bg-${item.color}-100 rounded-xl flex items-center justify-center`}>
+                                <Icon className={`w-5 h-5 text-${item.color}-600`} />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-semibold">{item.label}</h4>
+                                  {isRequired && <Badge className="bg-red-100 text-red-700 text-xs">Required</Badge>}
+                                </div>
+                                <p className="text-xs text-slate-600">Expiry & Documentation</p>
+                              </div>
+                            </div>
+                            {item.hasDialog && (
+                              <Button size="sm" variant="ghost" onClick={() => item.key === "last_pmi" ? setPmiDialogOpen(true) : setMotDialogOpen(true)}>
+                                <Settings className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <Calendar className="w-4 h-4 text-slate-400" />
+                                <span className="text-sm font-medium text-slate-600">
+                                  {item.key === "last_pmi" ? "Last PMI Date" : "Expiry Date"}
+                                </span>
+                              </div>
+                              <p className="text-sm font-semibold ml-6">{dateValue ? formatDate(dateValue) : "Not set"}</p>
+                            </div>
+                            <Badge className={`${status.color} border`}>
+                              <StatusIcon className="w-3 h-3 mr-1" />
+                              {status.text}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-3 border-t">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <FileText className="w-4 h-4 text-slate-400" />
+                                <span className="text-sm font-medium text-slate-600">Document</span>
+                              </div>
+                              <p className="text-sm font-semibold ml-6">{hasDoc ? "Uploaded" : "Not uploaded"}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {hasDoc ? (
+                                <>
+                                  <Button variant="ghost" size="sm" onClick={() => setPreviewDoc(docValue)}>
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" onClick={() => window.open(docValue, "_blank")}>
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <FileUploader onUploadSuccess={(url) => handleDocumentUpload(item.docField, url)} />
+                              )}
+                            </div>
+                          </div>
+
+                          <Button variant="outline" size="sm" onClick={() => openEditDateDialog(item.dateField, dateValue)} className="w-full">
+                            <Calendar className="w-4 h-4 mr-2" />
+                            {item.key === "last_pmi" ? "Update Last PMI Date" : "Update Date"}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {complianceItems.map((item) => {
                 if (!shouldShowComplianceItem(item)) return null;
+                if (item.key === "tacho" || item.key === "loller") return null;
 
                 const dateValue = vehicle[item.dateField as keyof typeof vehicle] as string;
                 const docValue = vehicle[item.docField as keyof typeof vehicle] as string;
@@ -1268,6 +1435,7 @@ export default function VehicleDetailPage() {
                 );
               })}
             </div>
+
           </TabsContent>
         </Tabs>
 
@@ -1341,23 +1509,23 @@ export default function VehicleDetailPage() {
         </Dialog>
 
         {/* Other Dialogs & Preview */}
-        <InspectionDialog 
-          open={pmiDialogOpen} 
-          onClose={() => setPmiDialogOpen(false)} 
-          lastPMIDate={vehicle.last_pmi_date} 
-          vehicleId={vehicleId} 
-          vehicleRegistration={vehicle.registration_number} 
-          username={cookies.get("username") || "User"} 
-          onUpdateSuccess={() => location.reload()} 
+        <InspectionDialog
+          open={pmiDialogOpen}
+          onClose={() => setPmiDialogOpen(false)}
+          lastPMIDate={vehicle.last_pmi_date}
+          vehicleId={vehicleId}
+          vehicleRegistration={vehicle.registration_number}
+          username={cookies.get("username") || "User"}
+          onUpdateSuccess={() => location.reload()}
         />
-        <MOTDialog 
-          open={motDialogOpen} 
-          onClose={() => setMotDialogOpen(false)} 
-          currentMOTDate={vehicle.mot_expiry} 
-          vehicleId={vehicleId} 
-          vehicleRegistration={vehicle.registration_number} 
-          username={cookies.get("username") || "User"} 
-          onUpdateSuccess={() => location.reload()} 
+        <MOTDialog
+          open={motDialogOpen}
+          onClose={() => setMotDialogOpen(false)}
+          currentMOTDate={vehicle.mot_expiry}
+          vehicleId={vehicleId}
+          vehicleRegistration={vehicle.registration_number}
+          username={cookies.get("username") || "User"}
+          onUpdateSuccess={() => location.reload()}
         />
 
         {previewDoc && (

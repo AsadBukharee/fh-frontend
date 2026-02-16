@@ -32,7 +32,7 @@ interface ShiftDecision {
   approval: 'approved' | 'rejected';
 }
 
-const ChangeShifts: React.FC = () => {
+const ChangeShifts: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
   const [requests, setRequests] = useState<ChangeShiftRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ const ChangeShifts: React.FC = () => {
 
   useEffect(() => {
     fetchShiftRequests();
-  }, []);
+  }, [refreshKey]);
 
   const fetchShiftRequests = async () => {
     try {
@@ -215,8 +215,8 @@ const ChangeShifts: React.FC = () => {
               key={key}
               onClick={() => setFilterStatus(key)}
               className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${filterStatus === key
-                  ? 'bg-orange-600 text-white shadow-md shadow-orange-200'
-                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                ? 'bg-orange-600 text-white shadow-md shadow-orange-200'
+                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
                 }`}
             >
               {label}

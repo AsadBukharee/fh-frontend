@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { PencilLine } from "lucide-react";
+import { PencilLine, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -87,6 +87,10 @@ export function ShiftCard({
   const [newHours, setNewHours] = useState<number>(total_hours);
   const [hoursError, setHoursError] = useState<string | null>(null);
 
+  // Inline editing state
+  const [isEditingHours, setIsEditingHours] = useState(false);
+  const [inlineHours, setInlineHours] = useState<number>(total_hours);
+
   const cookies = useCookies();
   const role = cookies.get("role");
 
@@ -104,24 +108,83 @@ export function ShiftCard({
     return true;
   };
 
-  // Handle hours input change with validation
-  const handleHoursChange = (value: string) => {
-    const hoursValue = parseFloat(value);
-    if (isNaN(hoursValue)) {
-      setNewHours(0);
-      setHoursError("Please enter a valid number");
-    } else {
-      setNewHours(hoursValue);
-      validateHours(hoursValue);
+
+
+  // Inline editing handlers
+  const handleDoubleClickHours = () => {
+    setIsEditingHours(true);
+    setInlineHours(total_hours);
+  };
+
+  const handleInlineHoursSave = async () => {
+    console.log("🔵 handleInlineHoursSave called", { inlineHours, total_hours });
+
+    if (inlineHours <= 0 || inlineHours > 24) {
+      alert("Hours must be between 1 and 24");
+      console.log("❌ Validation failed: hours out of range");
+      setIsEditingHours(false);
+      setInlineHours(total_hours);
+      return;
+    }
+
+    // Don't make API call if value hasn't changed
+    if (inlineHours === total_hours) {
+      console.log("⚠️ No changes detected, skipping API call");
+      setIsEditingHours(false);
+      return;
+    }
+
+    console.log("🚀 Making API call to update hours");
+    setIsLoading(true);
+    try {
+      const token = cookies.get("access_token");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const response = await fetch(
+        `${API_URL}/api/rota/child-rota/${shift_cell_id}/`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            daily_hours: inlineHours,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || "Failed to update hours");
+        throw new Error("Failed to update hours");
+      }
+
+      console.log("✅ Hours updated successfully");
+      onShiftUpdate();
+    } catch (err) {
+      console.error("❌ Error updating hours:", err);
+      setInlineHours(total_hours); // Revert on error
+    } finally {
+      setIsLoading(false);
+      setIsEditingHours(false);
+    }
+  };
+
+  const handleHoursBlur = () => {
+    handleInlineHoursSave();
+  };
+
+  const handleHoursKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleInlineHoursSave();
+    } else if (e.key === "Escape") {
+      setInlineHours(total_hours);
+      setIsEditingHours(false);
     }
   };
 
   const handleSaveAll = async () => {
-    // Validate hours before saving
-    if (!validateHours(newHours)) {
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
     try {
@@ -131,19 +194,8 @@ export function ShiftCard({
         Authorization: `Bearer ${token}`,
       };
 
-      // API calls
-      const updateHours = fetch(
-        `${API_URL}/api/rota/child-rota/${shift_cell_id}/`,
-        {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({
-            daily_hours: newHours,
-          }),
-        }
-      );
-
-      const updateSalary = fetch(
+      // Update shift type only
+      const response = await fetch(
         `${API_URL}/api/rota/child-rota/${shift_cell_id}/`,
         {
           method: "PUT",
@@ -154,20 +206,17 @@ export function ShiftCard({
         }
       );
 
-      // Run both in parallel
-      const [hoursRes, salaryRes] = await Promise.all([updateHours, updateSalary]);
-
-      // Check responses
-      if (!hoursRes.ok || !salaryRes.ok) {
-        throw new Error("One or more updates failed");
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || "Failed to update shift type");
+        throw new Error("Failed to update shift type");
       }
 
-      console.log("✅ Shift & Salary updated successfully");
+      console.log("✅ Shift type updated successfully");
       onShiftUpdate();
       setOpen(false);
     } catch (err) {
-      console.error("❌ Error updating:", err);
-      setError("Failed to update. Please try again.");
+      console.error("❌ Error updating shift type:", err);
     } finally {
       setIsLoading(false);
     }
@@ -254,29 +303,6 @@ export function ShiftCard({
                   ))}
                 </select>
               </div>
-              
-              {/* Hours Input with Validation */}
-              <div>
-                <label className="text-sm font-medium">Update Hours (Max: 24)</label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  max="24"
-                  value={newHours || 0}
-                  onChange={(e) => handleHoursChange(e.target.value)}
-                  onBlur={() => validateHours(newHours)}
-                  disabled={isLoading}
-                  className={hoursError ? "border-red-500 focus-visible:ring-red-500" : ""}
-                  placeholder="Enter hours (0.5 - 24)"
-                />
-                {hoursError && (
-                  <p className="text-red-500 text-xs mt-1">{hoursError}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Enter a value between 0.5 and 24 hours
-                </p>
-              </div>
             </div>
 
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
@@ -284,11 +310,9 @@ export function ShiftCard({
             <DialogFooter>
               <Button
                 onClick={handleSaveAll}
-                disabled={isLoading || !!hoursError}
+                disabled={isLoading}
                 style={{
-                  background: hoursError
-                    ? "#ccc"
-                    : "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+                  background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
                   width: "auto",
                   height: "auto",
                 }}
@@ -305,7 +329,35 @@ export function ShiftCard({
         {role === "superadmin" ? (
           <span className="cursor-pointer">Daily Pay: ({formatPrice(shift_daily_salary)})</span>
         ) : null}
-        <span>{total_hours} Hr</span>
+        {isEditingHours ? (
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              step="0.5"
+              min="0.5"
+              max="24"
+              value={inlineHours}
+              onChange={(e) => setInlineHours(parseFloat(e.target.value) || 0)}
+              onKeyDown={handleHoursKeyDown}
+              className="w-14 h-6 text-xs p-1 border rounded"
+              autoFocus
+              disabled={isLoading}
+            />
+            <Check
+              className={`h-4 w-4 cursor-pointer ${isLoading ? 'text-gray-400 animate-pulse' : 'text-green-600 hover:text-green-800'}`}
+              onClick={isLoading ? undefined : handleInlineHoursSave}
+              style={{ pointerEvents: isLoading ? 'none' : 'auto' }}
+            />
+          </div>
+        ) : (
+          <span
+            onDoubleClick={handleDoubleClickHours}
+            className="cursor-pointer hover:bg-gray-100 px-1 rounded transition-colors"
+            title="Double-click to edit hours"
+          >
+            {total_hours} Hr
+          </span>
+        )}
       </div>
     </div>
   );

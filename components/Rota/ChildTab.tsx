@@ -133,6 +133,7 @@ interface ApiResponse {
 interface ShiftTableProps {
   year: number;
   month: number;
+  refreshKey?: number;
 }
 
 // Constants
@@ -195,7 +196,7 @@ const normalizeDate = (dateStr: string): string => {
 };
 
 // Main component
-export function ShiftTable({ year, month }: ShiftTableProps) {
+export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
   const [childRotaUsers, setChildRotaUsers] = useState<User[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
@@ -326,7 +327,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
 
   useEffect(() => {
     fetchData();
-  }, [selectedMonth, selectedUser, cookies]);
+  }, [selectedMonth, selectedUser, cookies, refreshKey]);
 
   const filteredUsers = childRotaUsers.filter((user) => {
     const matchesSearch =
@@ -358,7 +359,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
     averageHoursPerDay:
       filteredShifts.length > 0
         ? filteredShifts.reduce((sum, shift) => sum + shift.daily_hours, 0) /
-          filteredShifts.length
+        filteredShifts.length
         : 0,
   };
 
@@ -485,7 +486,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
             weekLabel: `Week ${currentWeekNumber}`,
             weekColor:
               WEEK_COLORS[
-                `Week ${currentWeekNumber}` as keyof typeof WEEK_COLORS
+              `Week ${currentWeekNumber}` as keyof typeof WEEK_COLORS
               ] || "#3b82f6",
           });
         }
@@ -499,7 +500,7 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
           weekLabel: `Week ${currentWeekNumber}`,
           weekColor:
             WEEK_COLORS[
-              `Week ${currentWeekNumber}` as keyof typeof WEEK_COLORS
+            `Week ${currentWeekNumber}` as keyof typeof WEEK_COLORS
             ] || "#3b82f6",
         });
       }
@@ -835,133 +836,132 @@ export function ShiftTable({ year, month }: ShiftTableProps) {
         </CardContent>
       </Card>
 
-     <Card>
-  <CardHeader className="flex justify-between flex-row w-full items-center">
-    <div>
-      <CardTitle className="text-lg">Shift Schedule</CardTitle>
-      <CardDescription>
-        {selectedUser
-          ? `Showing shifts for ${
-              childRotaUsers.find((u) => u.id === selectedUser)?.full_name
-            } - ${currentMonthData.label}`
-          : `Showing all shifts for ${currentMonthData.label}`}
-      </CardDescription>
-    </div>
-  </CardHeader>
+      <Card>
+        <CardHeader className="flex justify-between flex-row w-full items-center">
+          <div>
+            <CardTitle className="text-lg">Shift Schedule</CardTitle>
+            <CardDescription>
+              {selectedUser
+                ? `Showing shifts for ${childRotaUsers.find((u) => u.id === selectedUser)?.full_name
+                } - ${currentMonthData.label}`
+                : `Showing all shifts for ${currentMonthData.label}`}
+            </CardDescription>
+          </div>
+        </CardHeader>
 
-<CardContent className="p-0">
-  <div className="relative max-h-[70vh] overflow-auto rounded-lg border">
-    <table className="w-full border-collapse text-sm text-center">
-      <thead className="[&_tr]:border-b border-gray-300">
-        <tr>
-          {/* Day column - sticky top-left */}
-          <th
-            className="sticky top-0 left-0 z-30 py-3 bg-gray-50 border border-gray-300"
-            style={{ minWidth: "120px" }}
-          >
-            Day
-          </th>
-
-          {/* User columns - sticky top */}
-          {(selectedUser ? childRotaUsers.filter(u => u.id === selectedUser) : filteredUsers).map(user => (
-            <th
-              key={user.id}
-              className="sticky top-0 z-20 bg-gray-50 border border-gray-300"
-              style={{ minWidth: "200px", maxWidth: "200px" }}
-            >
-              {user.full_name}
-            </th>
-          ))}
-        </tr>
-      </thead>
-
-      <tbody className="[&_tr:last-child]:border-0">
-        {weeks.map((week, weekIndex) => (
-          <React.Fragment key={weekIndex}>
-            {/* Week label row */}
-            <tr className="bg-gray-100 ">
-              <td
-                colSpan={(selectedUser ? 1 : filteredUsers.length) + 1}
-                className="font-semibold p-2 text-left"
-                style={{ backgroundColor: week.weekColor, color: "#fff" }}
-              >
-                {week.weekLabel}
-              </td>
-            </tr>
-
-            {/* Daily rows */}
-            {week.days.map((dayData, dayIndex) => {
-              const dayStr = format(dayData, "yyyy-MM-dd");
-              return (
-                <tr
-                  key={dayStr}
-                  className={dayIndex % 2 === 0 ? "bg-white" : "bg-[#FFF4F4]/40"}
-                >
-                  {/* Day cell - sticky left */}
-                  <td
-                    className="sticky left-0 z-10 m-2 font-medium whitespace-nowrap border border-gray-300"
-                    style={{ minWidth: "120px", color: getWeekColor(dayData), backgroundColor: "#fff" }}
+        <CardContent className="p-0">
+          <div className="relative max-h-[70vh] overflow-auto rounded-lg border">
+            <table className="w-full border-collapse text-sm text-center">
+              <thead className="[&_tr]:border-b border-gray-300">
+                <tr>
+                  {/* Day column - sticky top-left */}
+                  <th
+                    className="sticky top-0 left-0 z-30 py-3 bg-gray-50 border border-gray-300"
+                    style={{ minWidth: "120px" }}
                   >
-                    <div>
-                      <div className="font-semibold">{getDayName(dayData)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(dayData, "dd/MM/yyyy")}
-                      </div>
-                    </div>
-                  </td>
+                    Day
+                  </th>
 
-                  {/* User shift cells */}
-                  {(selectedUser ? childRotaUsers.filter(u => u.id === selectedUser) : filteredUsers).map(user => {
-                    const userShift = filteredShifts.find(
-                      shift => shift.date === dayStr && shift.user?.id === user.id
-                    );
-
-                    return (
-                      <td key={user.id} className="p-2" style={{ minWidth: "200px", border: "1px solid #D1D5DB" }}>
-                        {userShift ? (
-                          <ShiftCard
-                            shiftType={userShift.shift_detail.name}
-                            shift_cell_id={userShift.id}
-                            onShiftUpdate={fetchData}
-                            shift_id={userShift.shift_detail.id}
-                            shift_list={userShift?.user?.shifts ?? []}
-                            shift_daily_salary={userShift.daily_salary}
-                            color={userShift.shift_detail.colors || DEFAULT_SHIFT_COLOR}
-                            rate={userShift.shift_detail.rate_per_hours}
-                            total_hours={userShift.daily_hours}
-                            staffName={user.full_name}
-                            date={userShift.date}
-                            showHourlyRate={role === "superadmin" || role === "admin"}
-                          />
-                        ) : (
-                          <div className="h-16 w-full rounded-md bg-gray-100/50 border-dashed border border-gray-300 flex items-center justify-center text-xs text-gray-400">
-                            No shift
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
+                  {/* User columns - sticky top */}
+                  {(selectedUser ? childRotaUsers.filter(u => u.id === selectedUser) : filteredUsers).map(user => (
+                    <th
+                      key={user.id}
+                      className="sticky top-0 z-20 bg-gray-50 border border-gray-300"
+                      style={{ minWidth: "200px", maxWidth: "200px" }}
+                    >
+                      {user.full_name}
+                    </th>
+                  ))}
                 </tr>
-              );
-            })}
+              </thead>
 
-            {/* Spacer row */}
-            {weekIndex < weeks.length - 1 && (
-              <tr className="h-2 bg-gray-200">
-                <td colSpan={(selectedUser ? 1 : filteredUsers.length) + 1} />
-              </tr>
-            )}
-          </React.Fragment>
-        ))}
-      </tbody>
-    </table>
-  </div>
-</CardContent>
+              <tbody className="[&_tr:last-child]:border-0">
+                {weeks.map((week, weekIndex) => (
+                  <React.Fragment key={weekIndex}>
+                    {/* Week label row */}
+                    <tr className="bg-gray-100 ">
+                      <td
+                        colSpan={(selectedUser ? 1 : filteredUsers.length) + 1}
+                        className="font-semibold p-2 text-left"
+                        style={{ backgroundColor: week.weekColor, color: "#fff" }}
+                      >
+                        {week.weekLabel}
+                      </td>
+                    </tr>
+
+                    {/* Daily rows */}
+                    {week.days.map((dayData, dayIndex) => {
+                      const dayStr = format(dayData, "yyyy-MM-dd");
+                      return (
+                        <tr
+                          key={dayStr}
+                          className={dayIndex % 2 === 0 ? "bg-white" : "bg-[#FFF4F4]/40"}
+                        >
+                          {/* Day cell - sticky left */}
+                          <td
+                            className="sticky left-0 z-10 m-2 font-medium whitespace-nowrap border border-gray-300"
+                            style={{ minWidth: "120px", color: getWeekColor(dayData), backgroundColor: "#fff" }}
+                          >
+                            <div>
+                              <div className="font-semibold">{getDayName(dayData)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(dayData, "dd/MM/yyyy")}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* User shift cells */}
+                          {(selectedUser ? childRotaUsers.filter(u => u.id === selectedUser) : filteredUsers).map(user => {
+                            const userShift = filteredShifts.find(
+                              shift => shift.date === dayStr && shift.user?.id === user.id
+                            );
+
+                            return (
+                              <td key={user.id} className="p-2" style={{ minWidth: "200px", border: "1px solid #D1D5DB" }}>
+                                {userShift ? (
+                                  <ShiftCard
+                                    shiftType={userShift.shift_detail.name}
+                                    shift_cell_id={userShift.id}
+                                    onShiftUpdate={fetchData}
+                                    shift_id={userShift.shift_detail.id}
+                                    shift_list={userShift?.user?.shifts ?? []}
+                                    shift_daily_salary={userShift.daily_salary}
+                                    color={userShift.shift_detail.colors || DEFAULT_SHIFT_COLOR}
+                                    rate={userShift.shift_detail.rate_per_hours}
+                                    total_hours={userShift.daily_hours}
+                                    staffName={user.full_name}
+                                    date={userShift.date}
+                                    showHourlyRate={role === "superadmin" || role === "admin"}
+                                  />
+                                ) : (
+                                  <div className="h-16 w-full rounded-md bg-gray-100/50 border-dashed border border-gray-300 flex items-center justify-center text-xs text-gray-400">
+                                    No shift
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+
+                    {/* Spacer row */}
+                    {weekIndex < weeks.length - 1 && (
+                      <tr className="h-2 bg-gray-200">
+                        <td colSpan={(selectedUser ? 1 : filteredUsers.length) + 1} />
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
 
 
 
 
-</Card>
+      </Card>
 
     </div>
   );

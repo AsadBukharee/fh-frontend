@@ -1036,7 +1036,7 @@ export default function EnhancedCompetencyModal({
             <div className="p-2 bg-white/20 rounded-lg">
               <BookOpen className="h-6 w-6" />
             </div>
-            Training Modules
+           Current Modules
             <Badge className="ml-auto bg-white/20 text-white border-white/30 text-lg px-4 py-1">
               {modalState.editData.modules.length} {modalState.editData.modules.length === 1 ? "Module" : "Modules"}
             </Badge>
