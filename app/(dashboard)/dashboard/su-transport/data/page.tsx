@@ -18,14 +18,14 @@ export default function SUScreen() {
             value="parent"
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 "
           >
-           SU Data Today Screen
+          Live Transport Data
           </TabsTrigger>
           <TabsTrigger
             value="child"
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 "
 
           >
-            SU Data Screen History
+            Historical Transport Data
           </TabsTrigger>
         </TabsList>
 
