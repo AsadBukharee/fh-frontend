@@ -389,7 +389,7 @@ const tabToRunType: Record<TimeSlotId, string> = {
       <div className="flex items-center mb-6 justify-between">
         <div className="items-center gap-4">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900">SU Today Reporting</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Live Transport Data</h1>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-500">Last updated {new Date().toLocaleTimeString()}</span>

@@ -20,14 +20,19 @@ import {
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { CalendarIcon, ChevronLeft, ChevronRight, Loader2, GraduationCap, Calendar, Info } from 'lucide-react';
 import { format, differenceInDays, isPast, parseISO, isBefore, isAfter, addDays, startOfDay, differenceInCalendarDays } from 'date-fns';
-import { Calendar } from '@/components/ui/calendar';
 import ExportButton from '@/app/utils/ExportButton';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import Link from 'next/link';
-import { ExportChartButton } from '@/app/utils/ExportChartButton';
 
 interface Driver {
   id: number;
@@ -45,6 +50,16 @@ interface Driver {
     last_driver_license_check_code_date: string | null;
     next_driver_check_code_due: string | null;
     cpc_card_expiry: string | null;
+    cpc_modules?: Array<{
+      id: number;
+      module_name: string;
+      description: string;
+      expiry_date: string | null;
+    }>;
+    cpc_next_five_modules?: Array<{
+      module_name: string;
+      module_number: number;
+    }>;
     d_d1_expiry: string | null;
     tacho_expiry: string | null;
     last_driver_tacho_download: string | null;
@@ -115,6 +130,82 @@ const FIELD_CONFIG = {
 // Sticky header and name column styles
 const stickyHeaderClass = "sticky top-0 bg-white z-10";
 const stickyNameClass = "sticky left-0 bg-white z-20 border-r border-gray-200";
+
+// CPC Modules Dialog Component
+const CPCModulesDialog = ({ driver }: { driver: Driver }) => {
+  const currentModules = driver.driver_compliance.cpc_modules || [];
+  const nextFiveModules = driver.driver_compliance.cpc_next_five_modules || [];
+  const hasModules = currentModules.length > 0 || nextFiveModules.length > 0;
+
+  // Helper to get status for future modules
+  const getModuleStatus = (expiryDate: string | null) => {
+    if (!expiryDate) return { status: 'NA', color: 'text-gray-500', bg: 'bg-gray-50' };
+    const today = new Date('2026-02-12'); // Current date from context
+    const expiry = new Date(expiryDate);
+    const daysLeft = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft > 90) return { status: `${daysLeft} days left to complete module`, color: 'text-green-700', bg: 'bg-green-50' };
+    if (daysLeft > 45) return { status: `${daysLeft} days left to complete module`, color: 'text-amber-700', bg: 'bg-amber-50' };
+    if (daysLeft > 0) return { status: `${daysLeft} days left to complete module`, color: 'text-red-700', bg: 'bg-red-50' };
+    if (daysLeft === 0) return { status: 'Module completion due today', color: 'text-red-700', bg: 'bg-red-100' };
+    return { status: `CPC overdue by ${Math.abs(daysLeft)} days`, color: 'text-red-700', bg: 'bg-red-200' };
+  };
+
+  if (!hasModules) {
+    return null;
+  }
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button className="ml-2 inline-flex items-center justify-center text-blue-600 hover:text-blue-800 focus:outline-none transition-colors">
+          <GraduationCap className="h-4 w-4" />
+          <span className="sr-only">View CPC modules</span>
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            CPC Modules - {driver.user.full_name}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="mt-4">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border text-sm text-center">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border px-2 py-1 text-center">No</th>
+                  <th className="border px-2 py-1 text-center">Current Module Name</th>
+                  <th className="border px-2 py-1 text-center">Expiry Date</th>
+                  <th className="border px-2 py-1 text-center">Future Module Name</th>
+                  <th className="border px-2 py-1 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[0,1,2,3,4].map(i => {
+                  const current = currentModules[i];
+                  const future = nextFiveModules[i];
+                  const expiryDate = current ? current.expiry_date : null;
+                  const statusObj = getModuleStatus(expiryDate);
+                  return (
+                    <tr key={i} className={future ? statusObj.bg : 'bg-white'}>
+                      <td className="border px-2 py-1 text-center">{i+1}</td>
+                      <td className="border px-2 py-1 text-center">{current ? current.module_name : ''}</td>
+                      <td className="border px-2 py-1 text-center">{current && current.expiry_date ? new Date(current.expiry_date).toLocaleDateString('en-GB') : ''}</td>
+                      <td className="border px-2 py-1 text-center">{future ? future.module_name : ''}</td>
+                      <td className={`border px-2 py-1 text-center ${statusObj.color}`}>{future ? statusObj.status : ''}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="mt-2 text-xs text-gray-500">These dates are linked to the expiry dates of current CPC modules</div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const DriverManagementPage = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -285,10 +376,9 @@ const DriverManagementPage = () => {
 
     try {
       const date = parseISO(dateString);
-  const today = startOfDay(new Date());
-const expiryDate = startOfDay(parseISO(dateString));
-
-const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
+      const today = startOfDay(new Date());
+      const expiryDate = startOfDay(parseISO(dateString));
+      const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
 
       // Check if expired
       if (isPast(date)) {
@@ -486,7 +576,7 @@ const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
         }
       }
 
-      // Last Tacho Download: Black background
+      // Last Tacho Download: Light gray background
       if (field === 'last_driver_tacho_download') {
         const daysAgo = Math.abs(daysUntilExpiry);
         return {
@@ -496,7 +586,7 @@ const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
         };
       }
 
-      // Last Driver Check Code: Black background
+      // Last Driver Check Code: Light gray background
       if (field === 'last_driver_license_check_code_date') {
         const daysAgo = Math.abs(daysUntilExpiry);
         return {
@@ -557,7 +647,7 @@ const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
 
     const { colorClass, label, hoverText } = getDateStatus(value, field);
 
-    // Special handling for Last Tacho Download and Last Driver Check (always show in black/gray)
+    // Special handling for Last Tacho Download and Last Driver Check (always show in gray)
     if (field === FIELD_CONFIG.LAST_TACHO_DOWNLOAD || field === FIELD_CONFIG.LAST_DRIVER_CHECK) {
       return (
         <TableCell className="bg-gray-50 text-gray-900 whitespace-nowrap">
@@ -577,13 +667,46 @@ const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
       );
     }
 
+    // Special handling for CPC Card Expiry - Add icon and dialog
+    if (field === 'cpc_card_expiry') {
+      return (
+        <TableCell className={`whitespace-nowrap ${colorClass}`}>
+          <div className="flex items-center">
+            <Popover>
+              <PopoverTrigger asChild>
+                <span className="cursor-pointer hover:underline flex items-center">
+                  {displayValue}
+                </span>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 text-sm">
+                <div className="space-y-2">
+                  <div className="font-medium">{hoverText || `${displayValue}`}</div>
+                  
+                  {/* Show rules for CPC card */}
+                  <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
+                    <strong>CPC Card Rules:</strong>
+                    <br />- 90+ days: Green
+                    <br />- 60-89 days: Amber
+                    <br />- 30-59 days: Red
+                    <br />- Under 30 days: Dark Red
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            {/* Add CPC Modules Dialog */}
+            <CPCModulesDialog driver={driver} />
+          </div>
+        </TableCell>
+      );
+    }
+
     return (
       <TableCell className={`whitespace-nowrap ${colorClass}`}>
         <Popover>
           <PopoverTrigger asChild>
             <span className="cursor-pointer hover:underline flex items-center">
               {displayValue}
-              
             </span>
           </PopoverTrigger>
           <PopoverContent className="w-80 text-sm">
@@ -597,48 +720,42 @@ const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
                     <strong>License Rules:</strong>
                     <br />- 90+ days: Green
                     <br />- 60-89 days: Amber
-                    <br />- Under 45 days: Red
+                    <br />- Under 60 days: Red
                   </>
                 ) : field === 'next_driver_check_code_due' ? (
                   <>
                     <strong>Check Code Rules:</strong>
                     <br />- 15+ days: Green
-                    <br />- Under 15 days: Amber
+                    <br />- 3-14 days: Amber
                     <br />- Under 3 days: Red
-                  </>
-                ) : field === 'cpc_card_expiry' ? (
-                  <>
-                    <strong>CPC Card Rules:</strong>
-                    <br />- 90+ days: Green
-                    <br />- Under 60 days: Amber
-                    <br />- Under 30 days: Red
                   </>
                 ) : field === 'tacho_expiry' ? (
                   <>
                     <strong>Tacho Rules:</strong>
                     <br />- 60+ days: Green
-                    <br />- Under 30 days: Amber
-                    <br />- Under 10 days: Red
+                    <br />- 30-59 days: Amber
+                    <br />- 10-29 days: Red
+                    <br />- Under 10 days: Dark Red
                   </>
                 ) : field === 'next_driver_tacho_download' ? (
                   <>
                     <strong>Next Tacho DL Rules:</strong>
                     <br />- 10+ days: Green
-                    <br />- Under 10 days: Amber
+                    <br />- 2-9 days: Amber
                     <br />- Under 2 days: Red
                   </>
                 ) : field === 'dbs_expiry_date' ? (
                   <>
                     <strong>DBS Rules:</strong>
                     <br />- 120+ days: Green
-                    <br />- Under 120 days: Amber
+                    <br />- 60-119 days: Amber
                     <br />- Under 60 days: Red
                   </>
                 ) : field === 'night_worker_assessment_expiry' ? (
                   <>
                     <strong>Night Worker Rules:</strong>
                     <br />- 10+ days: Green
-                    <br />- Under 10 days: Amber
+                    <br />- 2-9 days: Amber
                     <br />- Under 2 days: Red
                   </>
                 ) : null}
@@ -777,8 +894,8 @@ const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
         </div>
       </div>
 
-      {/* Filters Panel - Always Visible */}
-      <div className=" ">
+      {/* Filters Panel - Search and Profile Status always visible, Expiry Status in Dialog */}
+      <div className="mb-6">
         <div className="grid gap-6">
           <section>
             <div className="grid sm:grid-cols-2 gap-4">
@@ -807,23 +924,32 @@ const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
 
           <Separator />
 
+          {/* Expiry Status Filters in Dialog */}
           <section>
-            <h3 className="font-semibold mb-4">Filter by Expiry Status</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {renderExpiryFilter("Driving Licence", "driver_licence_expiry_filter")}
-              {renderExpiryFilter("D/D1 Expiry", "d_d1_expiry_filter")}
-              {renderExpiryFilter("Next Driver Check", "next_driver_check_filter")}
-              {renderExpiryFilter("CPC Card", "cpc_card_expiry_filter")}
-              {renderExpiryFilter("Tacho Expiry", "tacho_expiry_filter")}
-              {renderExpiryFilter("Next Tacho DL", "next_tacho_dl_filter")}
-              {renderExpiryFilter("DBS Expiry", "dbs_expiry_date_filter")}
-              {renderExpiryFilter("Night Worker", "night_worker_filter")}
-            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="mb-2">Filter by Expiry Status</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Filter by Expiry Status</DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                  {renderExpiryFilter("Driving Licence", "driver_licence_expiry_filter")}
+                  {renderExpiryFilter("D/D1 Expiry", "d_d1_expiry_filter")}
+                  {renderExpiryFilter("Next Driver Check", "next_driver_check_filter")}
+                  {renderExpiryFilter("CPC Card", "cpc_card_expiry_filter")}
+                  {renderExpiryFilter("Tacho Expiry", "tacho_expiry_filter")}
+                  {renderExpiryFilter("Next Tacho DL", "next_tacho_dl_filter")}
+                  {renderExpiryFilter("DBS Expiry", "dbs_expiry_date_filter")}
+                  {renderExpiryFilter("Night Worker", "night_worker_filter")}
+                </div>
+                <div className="flex justify-end items-center pt-4 border-t mt-4">
+                  <Button variant="outline" size="sm" onClick={clearFilters}>Clear All Filters</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </section>
-
-          <div className="flex justify-end items-center pt-4 border-t">
-            <Button variant="outline" size="sm" onClick={clearFilters}>Clear All Filters</Button>
-          </div>
         </div>
       </div>
 
@@ -833,40 +959,38 @@ const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
       </div>
 
       {/* Table Container with Horizontal Scroll */}
-      <div className="border border-gray-100 rounded-lg overflow-hidden">
+      <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
         <div
           ref={tableContainerRef}
-          className="overflow-x-hidden"
+          className="overflow-auto"
           style={{
-            maxHeight: 'calc(100vh - 300px)',
+            maxHeight: 'calc(100vh - 350px)',
             position: 'relative'
           }}
         >
-          <Table ref={tableRef}>
+          <Table ref={tableRef} className="border-collapse text-center">
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-gray-50">
                 {/* Fixed Header Cells */}
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} ${stickyNameClass}`}>
-                  Driver Name
-                </TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>License No.</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>License Expiry</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>D/D1 Expiry</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Last Driver Check Code</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Next Driver Check Code Due</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>CPC Card Expiry</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Tacho Expiry</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Last Tacho DL</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Next Tacho DL</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>DBS Expiry</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass}`}>Night Worker Assessment</TableHead>
+                <TableHead className={`min-w-[200px] ${stickyHeaderClass} ${stickyNameClass} font-semibold text-center`}>Driver Name</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>License No.</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>License Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>D/D1 Expiry</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-center`}>Last Driver Check Code</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-center`}>Next Driver Check Code Due</TableHead>
+                <TableHead className={`min-w-[200px] ${stickyHeaderClass} font-semibold text-center`}>CPC Card Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>Tacho Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>Last Tacho DL</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>Next Tacho DL</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>DBS Expiry</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-center`}>Night Worker Assessment</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={13} className="text-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
                   </TableCell>
                 </TableRow>
               ) : drivers.length === 0 ? (
@@ -877,19 +1001,21 @@ const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
                 </TableRow>
               ) : (
                 drivers.map((driver) => (
-                  <TableRow key={driver.id}>
+                  <TableRow key={driver.id} className="hover:bg-gray-50 text-center">
                     {/* Fixed Driver Name Column */}
-                    <TableCell className={`font-medium ${stickyNameClass}`}>
+                    <TableCell className={`font-medium ${stickyNameClass} bg-white text-center`}>
                       <Link
                         href={`/dashboard/compliance-management/driver-management/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`}
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
                       >
                         {driver.user.full_name}
                       </Link>
                     </TableCell>
 
                     {/* Regular Cells */}
-                    <TableCell>{driver.user.license_number || "NA"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-center">
+                      {driver.user.license_number || "NA"}
+                    </TableCell>
                     {renderDateCell('driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                     {renderDateCell('d_d1_expiry', driver.driver_compliance.d_d1_expiry, driver)}
                     {renderDateCell('last_driver_license_check_code_date', driver.driver_compliance.last_driver_license_check_code_date, driver)}

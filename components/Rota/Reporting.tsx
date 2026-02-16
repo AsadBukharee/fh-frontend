@@ -33,7 +33,7 @@ interface ReportingData {
   grand_totals: { [key: string]: number };
 }
 
-export default function Reporting() {
+export default function Reporting({ refreshKey }: { refreshKey?: number }) {
   const [filters, setFilters] = useState({
     contractType: 'ALL',
     driver: 'ALL',
@@ -151,73 +151,73 @@ export default function Reporting() {
   }, [token, user_id]);
 
   // Fetch reporting data
-// Fetch reporting data
-useEffect(() => {
-  const fetchData = async () => {
-    if (!token) {
-      setError('Authentication token not found');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    try {
-      // Get shift name from the selected shift ID
-      let shiftName = '';
-      if (filters.shiftType !== 'ALL') {
-        const selectedShift = shifts.find(shift => 
-          String(shift.id) === filters.shiftType
+  // Fetch reporting data
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) {
+        setError('Authentication token not found');
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        // Get shift name from the selected shift ID
+        let shiftName = '';
+        if (filters.shiftType !== 'ALL') {
+          const selectedShift = shifts.find(shift =>
+            String(shift.id) === filters.shiftType
+          );
+          if (selectedShift) {
+            shiftName = selectedShift.name;
+          }
+        }
+
+        const params = new URLSearchParams({
+          date_from: filters.dateFrom,
+          date_to: filters.dateTo,
+          display_type: filters.displayType,
+          contract_id: filters.contractType === 'ALL' ? '' : filters.contractType,
+          driver_id: filters.driver === 'ALL' ? '' : filters.driver,
+          shift_type: filters.shiftType === 'ALL' ? '' : filters.shiftType, // Now this is the name
+
+          status: 'ALL',
+          page: '1',
+          page_size: '25',
+        });
+
+        const response = await fetch(
+          `${API_URL}/api/rota/child-rota/reporting/?${params}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        }
         );
-        if (selectedShift) {
-          shiftName = selectedShift.name;
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Authentication failed. Please log in again.');
+          }
+          throw new Error(`Failed to fetch reporting data: ${response.status} ${response.statusText}`);
         }
+
+        const data: ReportingData = await response.json();
+        setApiData(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Error fetching reporting data:', err);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const params = new URLSearchParams({
-        date_from: filters.dateFrom,
-        date_to: filters.dateTo,
-        display_type: filters.displayType,
-        contract_id: filters.contractType === 'ALL' ? '' : filters.contractType,
-        driver_id: filters.driver === 'ALL' ? '' : filters.driver,
-    shift_type: filters.shiftType === 'ALL' ? '' : filters.shiftType, // Now this is the name
-
-        status: 'ALL',
-        page: '1',
-        page_size: '25',
-      });
-
-      const response = await fetch(
-        `${API_URL}/api/rota/child-rota/reporting/?${params}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      }
-      );
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
-        }
-        throw new Error(`Failed to fetch reporting data: ${response.status} ${response.statusText}`);
-      }
-
-      const data: ReportingData = await response.json();
-      setApiData(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching reporting data:', err);
-    } finally {
-      setLoading(false);
+    if (token) {
+      fetchData();
     }
-  };
-
-  if (token) {
-    fetchData();
-  }
-}, [filters, token, shifts]); // Added 'shifts' to dependencies
+  }, [filters, token, shifts, refreshKey]); // Added 'shifts' and 'refreshKey' to dependencies
   const handleReset = () => {
     setFilters({
       contractType: 'ALL',
@@ -553,7 +553,7 @@ useEffect(() => {
 
       // Column headers
       const headers = ['Driver Name', ...apiData.columns.map(col => shiftNames[col] || col)];
-      
+
       // Add header row
       const headerRow = worksheet.getRow(4);
       headers.forEach((header, index) => {
@@ -565,10 +565,10 @@ useEffect(() => {
           pattern: 'solid',
           fgColor: { argb: 'FFDC2626' } // red-600
         };
-        cell.alignment = { 
-          horizontal: index === 0 ? 'left' : 'center', 
+        cell.alignment = {
+          horizontal: index === 0 ? 'left' : 'center',
           vertical: 'middle',
-          wrapText: true 
+          wrapText: true
         };
         cell.border = {
           top: { style: 'thin', color: { argb: 'FFB91C1C' } },
@@ -582,20 +582,20 @@ useEffect(() => {
       apiData.rows.forEach((row, rowIndex) => {
         const dataRow = worksheet.getRow(rowIndex + 5);
         const values = [row.driver.name, ...apiData.columns.map(col => row.values[col] || 0)];
-        
+
         values.forEach((value, colIndex) => {
           const cell = dataRow.getCell(colIndex + 1);
           cell.value = value;
-          cell.font = { 
-            size: 9, 
+          cell.font = {
+            size: 9,
             color: { argb: colIndex === 0 ? 'FF1E293B' : 'FF334155' },
             bold: colIndex === 0
           };
-          cell.alignment = { 
-            horizontal: colIndex === 0 ? 'left' : 'center', 
-            vertical: 'middle' 
+          cell.alignment = {
+            horizontal: colIndex === 0 ? 'left' : 'center',
+            vertical: 'middle'
           };
-          
+
           // Alternate row colors
           if (rowIndex % 2 === 0) {
             cell.fill = {
@@ -604,7 +604,7 @@ useEffect(() => {
               fgColor: { argb: 'FFF8FAFC' } // slate-50
             };
           }
-          
+
           cell.border = {
             top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
             left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
@@ -618,23 +618,23 @@ useEffect(() => {
       const totalsRowIndex = apiData.rows.length + 5;
       const totalsRow = worksheet.getRow(totalsRowIndex);
       const totalsValues = ['TOTALS', ...apiData.columns.map(col => apiData.grand_totals[col] || 0)];
-      
+
       totalsValues.forEach((value, colIndex) => {
         const cell = totalsRow.getCell(colIndex + 1);
         cell.value = value;
-        cell.font = { 
-          bold: true, 
-          size: 10, 
-          color: { argb: 'FF1E293B' } 
+        cell.font = {
+          bold: true,
+          size: 10,
+          color: { argb: 'FF1E293B' }
         };
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFFED7AA' } // orange-200
         };
-        cell.alignment = { 
-          horizontal: colIndex === 0 ? 'left' : 'center', 
-          vertical: 'middle' 
+        cell.alignment = {
+          horizontal: colIndex === 0 ? 'left' : 'center',
+          vertical: 'middle'
         };
         cell.border = {
           top: { style: 'medium', color: { argb: 'FFFB923C' } },
@@ -648,7 +648,7 @@ useEffect(() => {
       const summaryRowIndex = totalsRowIndex + 2;
       const summaryStartCol = 1;
       const summaryEndCol = 4;
-      
+
       worksheet.mergeCells(summaryRowIndex, summaryStartCol, summaryRowIndex, summaryEndCol);
       const summaryTitle = worksheet.getCell(summaryRowIndex, summaryStartCol);
       summaryTitle.value = 'Summary Metrics';
@@ -675,14 +675,14 @@ useEffect(() => {
         const metricRowIndex = summaryRowIndex + index + 1;
         const labelCell = worksheet.getCell(metricRowIndex, summaryStartCol);
         const valueCell = worksheet.getCell(metricRowIndex, summaryStartCol + 1);
-        
+
         labelCell.value = metric.label;
         labelCell.font = { size: 10, color: { argb: 'FF475569' } };
-        
+
         valueCell.value = metric.value;
         valueCell.font = { size: 10, bold: true, color: { argb: 'FF1E293B' } };
         valueCell.numFmt = '#,##0';
-        
+
         if (index % 2 === 0) {
           labelCell.fill = valueCell.fill = {
             type: 'pattern',
@@ -711,10 +711,10 @@ useEffect(() => {
 
       // Generate Excel file
       const buffer = await workbook.xlsx.writeBuffer();
-      
+
       // Create download link
-      const blob = new Blob([buffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -833,7 +833,7 @@ useEffect(() => {
             <h1 className="text-4xl font-bold text-slate-900 mb-2">Driver Shift Reports</h1>
             <p className="text-slate-600">Track hours, days, and salary by shift type</p>
           </div>
-          
+
           {/* Download Buttons */}
           <div className="flex flex-col gap-2">
             <div className="flex gap-2">
@@ -875,7 +875,7 @@ useEffect(() => {
                 )}
               </Button>
             </div>
-            
+
             <p className="text-xs text-slate-500 text-center">
               Export reports in PDF or Excel format
             </p>
@@ -915,15 +915,15 @@ useEffect(() => {
                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-700 text-sm"
               />
             </div>
-<FilterDropdown
-  label="Shift Type"
-  value={filters.shiftType}
-  onChange={(val) => handleFilterChange('shiftType', val)}
-  options={[
-    { id: 'ALL', name: 'All' },
-    ...shifts.map(shift => ({ id: shift.name, name: shift.name }))
-  ]}
-/>
+            <FilterDropdown
+              label="Shift Type"
+              value={filters.shiftType}
+              onChange={(val) => handleFilterChange('shiftType', val)}
+              options={[
+                { id: 'ALL', name: 'All' },
+                ...shifts.map(shift => ({ id: shift.name, name: shift.name }))
+              ]}
+            />
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-slate-700">Display Type</label>
               <div className="flex items-center gap-2">
@@ -988,11 +988,10 @@ useEffect(() => {
                     setViewType(type.label);
                     handleFilterChange('displayType', type.value);
                   }}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
-                    viewType === type.label
+                  className={`px-4 py-2 rounded-full text-sm font-semibold transition ${viewType === type.label
                       ? 'bg-red-500 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+                    }`}
                 >
                   {type.label}
                 </Button>
@@ -1069,9 +1068,8 @@ useEffect(() => {
                     {apiData.rows.map((row, idx) => (
                       <tr
                         key={`driver-${row.driver.id}-${idx}`}
-                        className={`border-b border-slate-200 hover:bg-slate-50 transition ${
-                          idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
-                        }`}
+                        className={`border-b border-slate-200 hover:bg-slate-50 transition ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                          }`}
                       >
                         <td className="px-6 py-4 font-semibold text-slate-900">
                           {row.driver.name}
