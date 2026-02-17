@@ -10,11 +10,12 @@ import {
   FileText, Shield, Truck, CheckSquare, XCircle, ArrowUpRight,
   ArrowDownLeft, UserCheck, UserX, Info, ChevronRight,
   FileWarning, CarFront, Settings, Activity,
-  ToolCase
+  ToolCase, RefreshCw
 } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
+import { useRouter } from 'next/navigation';
 
 // Import ShadCN Tooltip Components
 import {
@@ -26,8 +27,16 @@ import {
 
 // Types
 type HoverDetailItem = {
+  id?: number | string;
   title?: string;
   deadline?: string;
+  registration_number?: string;
+  vehicle__id?: number | string;
+  vehicle__registration_number?: string;
+  user__id?: number | string;
+  user__full_name?: string;
+  mechanic__id?: number | string;
+  mechanic__full_name?: string;
 } | string;
 
 interface Card {
@@ -110,6 +119,8 @@ const HoverDetailsContent: React.FC<{
   details: HoverDetailItem[];
   title: string;
 }> = ({ details, title }) => {
+  const router = useRouter();
+
   if (!details || details.length === 0) {
     return (
       <div className="p-3">
@@ -122,37 +133,64 @@ const HoverDetailsContent: React.FC<{
     );
   }
 
-  // Check if the first item is an object (has title/deadline) or a string
-  const hasObjectDetails = details.length > 0 && typeof details[0] === 'object' && 'title' in (details[0] as any);
+  const handleItemClick = (item: HoverDetailItem) => {
+    if (typeof item === 'string') return;
+
+    const id = item.id || item.vehicle__id || item.user__id || item.mechanic__id;
+    if (!id) return;
+
+    const lowerTitle = title.toLowerCase();
+
+    // Navigation logic based on title or item properties
+    if (lowerTitle.includes('vehicle') || lowerTitle.includes('pmi') || lowerTitle.includes('mot') || item.vehicle__id || item.registration_number) {
+      router.push(`/dashboard/compliance-management/vehicle-management/${id}`);
+    } else if (lowerTitle.includes('staff') || lowerTitle.includes('driver') || item.user__id) {
+      router.push(`/dashboard/users/driver-profiles/${id}`);
+    } else if (lowerTitle.includes('mechanic') || item.mechanic__id) {
+      router.push(`/dashboard/users/all-other-staff/${id}`);
+    } else if (lowerTitle.includes('task')) {
+      // Default tasks to vehicle management if they have IDs that match the dashboard items
+      router.push(`/dashboard/tasks/task-management/${id}`);
+    }
+  };
+
+  // Check if the first item is an object or a string
+  const hasObjectDetails = details.length > 0 && typeof details[0] === 'object';
 
   const renderContent = () => {
     if (hasObjectDetails) {
-      // Render object details (for tasks, etc.)
       return (
         <div>
           <h4 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide border-b pb-1">
             Items ({details.length})
           </h4>
           <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-            {(details as Array<{ title: string, deadline?: string }>).map((item, index) => (
-              <div key={index} className="flex flex-col gap-1 p-2 rounded hover:bg-gray-50 transition-colors group">
-                <div className="flex items-start gap-2">
-                  <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0 group-hover:bg-blue-500 transition-colors" />
-                  <span className="text-sm text-gray-700 truncate">{item.title}</span>
-                </div>
-                {item.deadline && (
-                  <div className="flex items-center gap-1 text-xs text-gray-500 ml-3">
-                    <Calendar className="w-3 h-3" />
-                    <span>Due: {formatToDDMMYYYY(item.deadline)}</span>
+            {(details as any[]).map((item, index) => {
+              const itemTitle = item.title || item.registration_number || item.vehicle__registration_number || item.user__full_name || item.mechanic__full_name || "Detail item";
+
+              return (
+                <div
+                  key={index}
+                  onClick={() => handleItemClick(item)}
+                  className="flex flex-col gap-1 p-2 rounded hover:bg-orange-50 cursor-pointer transition-colors group active:scale-[0.98]"
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0 group-hover:bg-orange-500 transition-colors" />
+                    <span className="text-sm text-gray-700 truncate group-hover:text-orange-700 font-medium">{itemTitle}</span>
                   </div>
-                )}
-              </div>
-            ))}
+                  {item.deadline && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500 ml-3">
+                      <Calendar className="w-3 h-3" />
+                      <span>Due: {formatToDDMMYYYY(item.deadline)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       );
     } else {
-      // Render string details (for vehicles, etc.)
       return (
         <div>
           <h4 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide border-b pb-1">
@@ -185,7 +223,7 @@ const HoverDetailsContent: React.FC<{
         {renderContent()}
       </div>
       <div className="mt-3 pt-2 border-t text-xs text-gray-400">
-        Hover over card for details
+        Click items to view details
       </div>
     </div>
   );
@@ -240,8 +278,8 @@ const StatCard: React.FC<{
         <TooltipTrigger asChild>
           <div
             className={`relative w-[300px] rounded-xl p-4 border border-gray-200 transition-all duration-200 ${index === 0
-                ? 'bg-white border-orange-300 shadow-orange-300 shadow hover:shadow-lg'
-                : 'bg-white hover:shadow-md'
+              ? 'bg-white border-orange-300 shadow-orange-300 shadow hover:shadow-lg'
+              : 'bg-white hover:shadow-md'
               } ${hasHoverDetails ? 'cursor-pointer hover:border-blue-300 active:scale-[0.98]' : ''}`}
           >
             <div className="flex items-start justify-between">
@@ -431,15 +469,35 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number>(30);
   const cookies = useCookies().get("access_token");
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(false);
+
+    // Set up a single interval for both countdown and auto-refresh
+    const intervalId = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          fetchDashboardData(true); // Trigger refresh when countdown hits 0
+          return 30; // Reset countdown
+        }
+        return prev - 1;
+      });
+    }, 1000); // Run every 1 second
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (isAutoRefresh: boolean = false) => {
     try {
-      setLoading(true);
+      if (isAutoRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const response = await fetch(`${API_URL}/dashboard-new/`, {
         headers: {
           "Content-Type": "application/json",
@@ -454,7 +512,11 @@ export default function Dashboard() {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching dashboard data:', err);
     } finally {
-      setLoading(false);
+      if (isAutoRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -477,7 +539,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Dashboard</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={fetchDashboardData}
+            onClick={() => fetchDashboardData(false)}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
           >
             Retry
@@ -496,8 +558,38 @@ export default function Dashboard() {
         <div className="min-h-screen bg-white p-5">
           <div className="max-w-[1600px] mx-auto">
             {/* Header */}
-            <div className="mb-5">
+            <div className="mb-5 flex items-center justify-between">
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+              <div className="flex items-center gap-3">
+                {/* Countdown Timer */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-gray-600">Next refresh in:</span>
+                  </div>
+                  <span className="text-sm font-bold text-gray-900 min-w-[3ch] text-center">
+                    {countdown}s
+                  </span>
+                </div>
+
+                {isRefreshing && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Refreshing...</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    fetchDashboardData(true);
+                    setCountdown(30); // Reset countdown on manual refresh
+                  }}
+                  disabled={isRefreshing}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                  title="Refresh dashboard data"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
             </div>
 
             {/* Stats Cards Grid */}
@@ -707,8 +799,8 @@ export default function Dashboard() {
                     {dashboardData.taskActivity.map((task) => (
                       <div key={task.id} className="flex gap-3">
                         <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${task.color === 'orange' ? 'bg-orange-500' :
-                            task.color === 'yellow' ? 'bg-yellow-400' :
-                              'bg-gray-800'
+                          task.color === 'yellow' ? 'bg-yellow-400' :
+                            'bg-gray-800'
                           }`} />
                         <div>
                           <p className="text-[10px] text-gray-400 mb-1">{task.time}</p>

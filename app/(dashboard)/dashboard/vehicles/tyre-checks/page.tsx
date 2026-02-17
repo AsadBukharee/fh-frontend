@@ -85,7 +85,7 @@ const AddTyreCheckDialog: FC<AddTyreCheckDialogProps> = ({
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       vehicles: formData.vehicles || 0,
-      vehicle_type: vehicles.find((v) => v.id === formData.vehicles)?.vehicles_type.id || 0,
+      vehicle_type: vehicles.find((v) => v.id === formData.vehicles)?.vehicle_type.id || 0,
       assignee: null,
       assignee_name: null,
       registration_number: vehicles.find((v) => v.id === formData.vehicles)?.registration_number || "",
@@ -218,7 +218,7 @@ interface Vehicle {
   tyre_expiry_front_passenger: string | null;
   tyre_expiry_rear_outer_driver: string | null;
   tyre_expiry_rear_outer_passenger: string | null;
-  vehicles_type: { id: number; name: string };
+  vehicle_type: { id: number; name: string };
   assignee_driver: { id: number; name: string } | null;
   last_tyre_maintenance_check: string | null;
 }
@@ -570,7 +570,7 @@ const TyreCheck: FC = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         vehicles: vehicle.id,
-        vehicle_type: vehicle.vehicles_type.id,
+        vehicle_type: vehicle.vehicle_type.id,
         assignee: vehicle.assignee_driver?.id || null,
         assignee_name: vehicle.assignee_driver?.name || null,
         registration_number: vehicle.registration_number,
@@ -755,7 +755,7 @@ const TyreCheck: FC = () => {
 
       const matchesTyreType =
         selectedTyreType === "" ||
-        vehicles.find((v) => v.id === item.vehicles)?.vehicles_type.name === selectedTyreType;
+        vehicles.find((v) => v.id === item.vehicles)?.vehicle_type.name === selectedTyreType;
 
       const matchesStatus =
         selectedStatus === "" ||
@@ -979,7 +979,7 @@ const TyreCheck: FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Tyre Types</SelectItem>
-                    {[...new Set(vehicles.map((v) => v.vehicles_type.name))].map((type) => (
+                    {[...new Set(vehicles.map((v) => v.vehicle_type.name))].map((type) => (
                       <SelectItem key={type} value={type}>
                         {type}
                       </SelectItem>
