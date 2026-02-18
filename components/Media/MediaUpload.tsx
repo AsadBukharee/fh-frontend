@@ -2,8 +2,8 @@
 
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import React, { useState, ChangeEvent } from "react";
-import { CheckCircle, Eye } from "lucide-react";
+import React, { useState, ChangeEvent, DragEvent } from "react";
+import { CheckCircle, Eye, Upload, File } from "lucide-react";
 import {
   Dialog,
   DialogTrigger,
@@ -26,14 +26,14 @@ interface UploadResponse {
 interface Props {
   onUploadSuccess: (url: string) => void;
   accept?: string;
-  maxSize?: number;
+  maxSize?: number;       // in bytes
   id?: string;
 }
 
 export default function FileUploader({
   onUploadSuccess,
   accept = "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx",
-  maxSize = 5 * 1024 * 1024,
+  maxSize = 5 * 1024 * 1024, // 5MB default
   id = "file-upload",
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -41,28 +41,33 @@ export default function FileUploader({
   const [error, setError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
 
   const cookies = useCookies();
   const token = cookies.get("access_token");
 
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFile = (file: File | null) => {
     if (!file) return;
 
+    // Size validation
     if (maxSize && file.size > maxSize) {
-      setError(`File size exceeds ${(maxSize / (1024 * 1024)).toFixed(1)}MB limit.`);
+      setError(`File too large. Maximum size is ${(maxSize / (1024 * 1024)).toFixed(1)} MB`);
       return;
     }
 
     setSelectedFile(file);
     setError(null);
     setUploadSuccess(false);
-    await handleUpload(file);
+    handleUpload(file);
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    handleFile(e.target.files?.[0] ?? null);
   };
 
   const handleUpload = async (file: File) => {
     if (!token) {
-      setError("Authentication token missing. Please log in.");
+      setError("Authentication required. Please log in.");
       return;
     }
 
@@ -79,7 +84,7 @@ export default function FileUploader({
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const result: UploadResponse = await res.json();
 
@@ -87,89 +92,161 @@ export default function FileUploader({
         setUploadedUrl(result.data.url);
         onUploadSuccess(result.data.url);
         setUploadSuccess(true);
-        setSelectedFile(null);
+        // We keep selectedFile so we can show the name
       } else {
-        setError(result.message || "Upload failed. Try again.");
+        setError(result.message || "Upload failed");
       }
     } catch (err) {
-      setError("An error occurred during upload.");
+      console.error(err);
+      setError("Upload error. Please try again.");
     } finally {
       setUploading(false);
     }
   };
 
-  const isImage = uploadedUrl?.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
+  // ── Drag & Drop ───────────────────────────────────────
+  const handleDrag = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(e.type === "dragenter" || e.type === "dragover");
+  };
 
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files?.[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const openFilePicker = () => {
+    if (!uploading && token) {
+      document.getElementById(id)?.click();
+    }
+  };
+
+  const isImage = uploadedUrl?.match(/\.(jpe?g|png|gif|webp|svg)$/i);
   const googleViewerUrl = uploadedUrl
-    ? `https://docs.google.com/gview?url=${uploadedUrl}&embedded=true`
+    ? `https://docs.google.com/gview?url=${encodeURIComponent(uploadedUrl)}&embedded=true`
     : "";
 
+  const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(1);
+
   return (
-    <div className="space-y-4 w-full max-w-md">
-      <div className="relative">
+    <div className="w-full max-w-md space-y-4">
+      {/* Drop Zone */}
+      <div
+        className={`
+          border-2 border-dashed rounded-xl p-8 text-center
+          transition-all duration-200 cursor-pointer
+          ${dragActive
+            ? "border-blue-500 bg-blue-50/60 scale-[1.01]"
+            : "border-gray-300 hover:border-blue-400 bg-gray-50/70 hover:bg-blue-50/30"
+          }
+          ${uploading || !token ? "opacity-60 cursor-not-allowed" : ""}
+        `}
+        onClick={openFilePicker}
+        onDragEnter={handleDrag}
+        onDragOver={handleDrag}
+        onDragLeave={handleDrag}
+        onDrop={handleDrop}
+      >
         <input
           id={id}
           type="file"
           accept={accept}
           onChange={handleFileChange}
-          className="block w-full text-sm text-gray-500
-            file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0
-            file:text-sm file:font-semibold file:bg-orange-50
-            file:text-orange-700 hover:file:bg-orange-100
-            disabled:opacity-50 disabled:cursor-not-allowed
-            focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className="hidden"
           disabled={uploading || !token}
         />
+
+        <div className="flex flex-col items-center gap-3">
+          {uploading ? (
+            <div className="text-gray-600 font-medium">Uploading...</div>
+          ) : dragActive ? (
+            <div className="text-blue-600 font-semibold text-lg">
+              Drop file here
+            </div>
+          ) : uploadSuccess && selectedFile ? (
+            <>
+              <CheckCircle className="h-12 w-12 text-green-500" />
+              <div className="text-sm font-medium text-gray-800 break-all px-4">
+                {selectedFile.name}
+              </div>
+            </>
+          ) : (
+            <>
+              <Upload className="h-10 w-10 text-gray-400" />
+              <div className="space-y-1.5">
+                <p className="text-base font-medium text-gray-700">
+                  Click or drag & drop your file
+                </p>
+                <p className="text-xs text-gray-500">
+                  {accept.includes("image") ? "Images, " : ""}
+                  PDF, Word, Excel, PowerPoint • max {maxSizeMB} MB
+                </p>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Status messages and icons at the bottom */}
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          {uploading && <span className="text-sm text-gray-700">Uploading...</span>}
-          {error && <p className="text-sm text-red-500">{error}</p>}
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-700">
+          {error}
         </div>
-        
-        {/* Icons container */}
-        {uploadSuccess && uploadedUrl && (
-          <div className="flex items-center space-x-3 ml-4">
-            {/* Tick icon for success */}
-            <div className="flex items-center space-x-1">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              {/* <span className="text-sm text-green-600">Uploaded</span> */}
-            </div>
+      )}
 
-            {/* Eye icon for preview */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <button className="flex items-center space-x-1 text-blue-600 hover:text-blue-800">
-                  <Eye className="h-5 w-5" />
-                  {/* <span className="text-sm">Preview</span> */}
-                </button>
-              </DialogTrigger>
+      {/* Success + Preview button */}
+      {uploadSuccess && uploadedUrl && (
+        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <span className="text-sm font-medium text-green-800">File uploaded</span>
+          </div>
 
-              <DialogContent className="max-w-4xl h-[85vh] overflow-auto">
-                <DialogHeader>
-                  <DialogTitle>Preview</DialogTitle>
-                </DialogHeader>
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+              >
+                <Eye className="h-4 w-4" />
+                <span>Preview</span>
+              </button>
+            </DialogTrigger>
 
+            <DialogContent className="max-w-5xl h-[90vh] p-6">
+              <DialogHeader>
+                <DialogTitle>File Preview</DialogTitle>
+              </DialogHeader>
+
+              <div className="flex-1 flex flex-col items-center justify-center py-8 gap-6">
                 {isImage ? (
                   <img
                     src={uploadedUrl}
                     alt="Preview"
-                    className="rounded-md border w-full h-full object-contain"
+                    className="max-w-full max-h-[70vh] rounded-lg border shadow-md object-contain"
                   />
                 ) : (
                   <iframe
                     src={googleViewerUrl}
-                    className="w-full h-[80vh] border rounded"
-                    title="Document Preview"
+                    className="w-full h-[75vh] rounded-lg border shadow-sm"
+                    title="Document preview"
                   />
                 )}
-              </DialogContent>
-            </Dialog>
-          </div>
-        )}
-      </div>
+
+                <div className="text-sm text-gray-600 text-center break-all max-w-2xl">
+                  {uploadedUrl}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
     </div>
   );
 }

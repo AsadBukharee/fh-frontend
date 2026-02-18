@@ -2,8 +2,8 @@
 
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import React, { useState, ChangeEvent } from "react";
-import { CheckCircle, Eye } from "lucide-react";
+import React, { useState, ChangeEvent, DragEvent } from "react";
+import { CheckCircle, Eye, Upload } from "lucide-react";
 import {
   Dialog,
   DialogTrigger,
@@ -33,17 +33,23 @@ export default function FileUploader({ onUploadSuccess }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
   const cookies = useCookies();
   const inputId = "file-upload";
 
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (file: File | null) => {
+    if (!file) return;
+
+    setSelectedFile(file);
+    setError(null);
+    setUploadSuccess(false);
+    handleUpload(file);
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setError(null);
-      setUploadSuccess(false);
-      await handleUpload(file);
-    }
+    handleFile(file ?? null);
   };
 
   const handleUpload = async (file: File) => {
@@ -83,88 +89,146 @@ export default function FileUploader({ onUploadSuccess }: Props) {
     }
   };
 
+  // Drag & Drop handlers
+  const handleDrag = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleClick = () => {
+    if (!uploading) {
+      document.getElementById(inputId)?.click();
+    }
+  };
+
   const isImage = uploadedUrl?.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
   const googleViewerUrl = uploadedUrl
-    ? `https://docs.google.com/gview?url=${uploadedUrl}&embedded=true`
+    ? `https://docs.google.com/gview?url=${encodeURIComponent(uploadedUrl)}&embedded=true`
     : "";
 
   return (
-    <div className="space-y-4 w-full max-w-md">
-      <div className="relative">
+    <div className="w-full max-w-md space-y-4">
+      {/* Drop Zone */}
+      <div
+        className={`
+          relative border-2 border-dashed rounded-lg p-8 text-center
+          transition-colors duration-200 ease-in-out cursor-pointer
+          ${dragActive
+            ? "border-blue-500 bg-blue-50"
+            : "border-gray-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/30"
+          }
+          ${uploading ? "opacity-60 cursor-not-allowed" : ""}
+        `}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        onClick={handleClick}
+      >
         <input
           id={inputId}
           type="file"
           onChange={handleFileChange}
-          className="block w-full text-sm text-gray-500
-            file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0
-            file:text-sm file:font-semibold file:bg-orange-50
-            file:text-orange-700 hover:file:bg-orange-100
-            disabled:opacity-50 disabled:cursor-not-allowed
-            focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className="hidden"
           disabled={uploading}
-          aria-describedby={error ? "error-message" : undefined}
         />
-      </div>
 
-      {/* Status messages and icons at the bottom */}
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          {uploading && <span className="text-sm text-gray-700">Uploading...</span>}
-          {error && (
-            <p
-              id="error-message"
-              className="text-sm text-red-500"
-              role="alert"
-            >
-              {error}
-            </p>
+        <div className="flex flex-col items-center justify-center space-y-3">
+          {uploading ? (
+            <div className="text-gray-600">Uploading…</div>
+          ) : dragActive ? (
+            <div className="text-blue-600 font-medium">Drop file here</div>
+          ) : uploadSuccess && selectedFile ? (
+            <>
+              <CheckCircle className="h-10 w-10 text-green-500" />
+              <p className="text-sm font-medium text-gray-800 break-all">
+                {selectedFile.name}
+              </p>
+            </>
+          ) : (
+            <>
+              <Upload className="h-10 w-10 text-gray-400" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-700">
+                  Click or drag & drop your file here
+                </p>
+                <p className="text-xs text-gray-500">
+                  Any file type • Max size depends on your server
+                </p>
+              </div>
+            </>
           )}
         </div>
-        
-        {/* Icons container - Only show when upload is successful */}
-        {uploadSuccess && uploadedUrl && (
-          <div className="flex items-center space-x-3 ml-4">
-            {/* Tick icon for success */}
-            <div className="flex items-center space-x-1">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              <span className="text-sm text-green-600">Uploaded</span>
-            </div>
+      </div>
 
-            {/* Eye icon for preview - Only show if there's a URL to preview */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <button 
-                  className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
-                  type="button"
-                >
-                  <Eye className="h-5 w-5" />
-                  <span className="text-sm">Preview</span>
-                </button>
-              </DialogTrigger>
+      {/* Error */}
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded border border-red-200">
+          {error}
+        </p>
+      )}
 
-              <DialogContent className="max-w-4xl h-[85vh] overflow-auto">
-                <DialogHeader>
-                  <DialogTitle>Preview</DialogTitle>
-                </DialogHeader>
+      {/* Success + Preview */}
+      {uploadSuccess && uploadedUrl && (
+        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <span className="text-sm font-medium text-green-800">Uploaded successfully</span>
+          </div>
 
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                <Eye className="h-4 w-4" />
+                <span>Preview</span>
+              </button>
+            </DialogTrigger>
+
+            <DialogContent className="max-w-5xl h-[90vh] overflow-auto p-6">
+              <DialogHeader>
+                <DialogTitle>File Preview</DialogTitle>
+              </DialogHeader>
+
+              <div className="flex flex-col items-center justify-center py-6 h-full">
                 {isImage ? (
                   <img
                     src={uploadedUrl}
                     alt="Preview"
-                    className="rounded-md border w-full h-full object-contain"
+                    className="max-w-full max-h-[75vh] rounded-lg border shadow-sm object-contain"
                   />
                 ) : (
                   <iframe
                     src={googleViewerUrl}
-                    className="w-full h-[80vh] border rounded"
-                    title="Document Preview"
+                    className="w-full h-[80vh] border rounded-lg shadow-sm"
+                    title="File Preview"
                   />
                 )}
-              </DialogContent>
-            </Dialog>
-          </div>
-        )}
-      </div>
+                <p className="mt-6 text-sm text-gray-600 break-all text-center">
+                  URL: {uploadedUrl}
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
     </div>
   );
 }
