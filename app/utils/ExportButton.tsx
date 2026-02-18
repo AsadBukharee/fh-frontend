@@ -167,7 +167,7 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
     yAxisKeys.push('traveled_mileage');
   }
 
-  const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const colors = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444"];
 
   const handleExportExcel = async () => {
     try {
@@ -186,16 +186,119 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
       }
 
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet("Data");
+      workbook.creator = "Foster Hartley";
+      workbook.lastModifiedBy = "Foster Hartley Reporting System";
+      workbook.created = new Date();
+      workbook.modified = new Date();
+
+      const worksheet = workbook.addWorksheet("Data", {
+        pageSetup: {
+          orientation: 'landscape',
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+        },
+        views: [{ state: 'frozen', ySplit: 3 }] // Freeze first 3 rows
+      });
 
       const headers = Object.keys(flattenedData[0]);
-      worksheet.columns = headers.map(header => ({
-        header,
-        key: header,
-        width: Math.max(header.length, ...flattenedData.map(row => String(row[header] || "").length)) + 2,
-      }));
 
-      flattenedData.forEach(row => worksheet.addRow(row));
+      // Title rows (Row 1)
+      worksheet.mergeCells(1, 1, 1, headers.length);
+      const titleRow = worksheet.getCell('A1');
+      titleRow.value = `Foster Hartley - ${fileName.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())} Report`;
+      titleRow.font = { size: 16, bold: true, color: { argb: 'FF1E293B' } };
+      titleRow.alignment = { horizontal: 'center', vertical: 'middle' };
+      titleRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF1F5F9' }
+      };
+
+      // Generation Date (Row 2)
+      worksheet.mergeCells(2, 1, 2, headers.length);
+      const dateRow = worksheet.getCell('A2');
+      dateRow.value = `Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+      dateRow.font = { size: 10, italic: true, color: { argb: 'FF94A3B8' } };
+      dateRow.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      // Empty separator row (Row 3)
+      worksheet.getRow(3).height = 10;
+
+      // Header row (Row 4)
+      const headerRow = worksheet.getRow(4);
+      headers.forEach((header, index) => {
+        const cell = headerRow.getCell(index + 1);
+        cell.value = header;
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFDC2626' } // red-600
+        };
+        cell.alignment = {
+          horizontal: index === 0 ? 'left' : 'center',
+          vertical: 'middle',
+          wrapText: true
+        };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFB91C1C' } },
+          left: { style: 'thin', color: { argb: 'FFB91C1C' } },
+          bottom: { style: 'thin', color: { argb: 'FFB91C1C' } },
+          right: { style: 'thin', color: { argb: 'FFB91C1C' } }
+        };
+      });
+
+      // Add data rows starting from Row 5
+      flattenedData.forEach((row, rowIndex) => {
+        const dataRow = worksheet.getRow(rowIndex + 5);
+        headers.forEach((header, colIndex) => {
+          const cell = dataRow.getCell(colIndex + 1);
+          cell.value = row[header];
+          cell.font = {
+            size: 9,
+            color: { argb: colIndex === 0 ? 'FF1E293B' : 'FF334155' },
+            bold: colIndex === 0
+          };
+          cell.alignment = {
+            horizontal: colIndex === 0 ? 'left' : 'center',
+            vertical: 'middle'
+          };
+
+          // Alternate row colors
+          if (rowIndex % 2 === 0) {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFF8FAFC' } // slate-50
+            };
+          }
+
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+          };
+        });
+      });
+
+      // Add footer note
+      const footerRowIndex = flattenedData.length + 7;
+      worksheet.mergeCells(footerRowIndex, 1, footerRowIndex, headers.length);
+      const footerCell = worksheet.getCell(footerRowIndex, 1);
+      footerCell.value = 'Confidential - Foster Hartley Internal Use Only';
+      footerCell.font = { size: 9, italic: true, color: { argb: 'FF94A3B8' } };
+      footerCell.alignment = { horizontal: 'center' };
+
+      // Auto-fit columns
+      headers.forEach((header, index) => {
+        const maxWidth = Math.max(
+          header.length,
+          ...flattenedData.map(row => String(row[header] || "").length)
+        );
+        worksheet.getColumn(index + 1).width = Math.min(Math.max(maxWidth + 2, 10), 40);
+      });
 
       // Use the correct method to write buffer
       const buffer = await workbook.xlsx.writeBuffer();
@@ -281,26 +384,71 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
       });
 
       const canvas = document.createElement("canvas");
-      canvas.width = htmlImg.width * 2;
-      canvas.height = htmlImg.height * 2;
+      // Increase resolution for better PDF quality (3x)
+      const scaleFactor = 3;
+      canvas.width = htmlImg.width * scaleFactor;
+      canvas.height = htmlImg.height * scaleFactor;
       const ctx = canvas.getContext("2d");
 
       if (ctx) {
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Use better image smoothing
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
         ctx.drawImage(htmlImg, 0, 0, canvas.width, canvas.height);
 
-        const chartImage = canvas.toDataURL("image/png");
+        const chartImage = canvas.toDataURL("image/png", 1.0);
 
         // Create PDF document
         const styles = StyleSheet.create({
-          page: { padding: 30, backgroundColor: "#ffffff" },
-          title: { fontSize: 24, marginBottom: 20, fontWeight: "bold" },
-          image: { width: "100%", height: "auto", marginBottom: 20 },
-          table: { width: "100%", marginTop: 20 },
-          tableRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
-          tableHeader: { flex: 1, padding: 8, fontWeight: "bold" },
-          tableCell: { flex: 1, padding: 8 }
+          page: { padding: 40, backgroundColor: "#ffffff", fontFamily: 'Helvetica' },
+          header: {
+            marginBottom: 20,
+            borderBottomWidth: 2,
+            borderBottomColor: "#dc2626",
+            paddingBottom: 10,
+            flexDirection: 'column',
+            alignItems: 'center'
+          },
+          title: { fontSize: 24, fontWeight: "bold", color: "#1e293b", marginBottom: 4 },
+          subtitle: { fontSize: 12, color: "#64748b", marginBottom: 8 },
+          metaInfo: { fontSize: 10, color: "#475569" },
+
+          infoSection: {
+            backgroundColor: "#f8fafc",
+            padding: 15,
+            marginBottom: 20,
+            borderLeftWidth: 4,
+            borderLeftColor: "#dc2626",
+          },
+          sectionTitle: { fontSize: 14, fontWeight: "bold", color: "#1e293b", marginBottom: 10 },
+          infoGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+          infoItem: { width: '50%', fontSize: 10, color: "#475569", marginBottom: 4 },
+
+          image: { width: "100%", height: "auto", marginBottom: 20, borderRadius: 4, border: '1px solid #e5e7eb' },
+
+          table: { width: "100%", marginTop: 10 },
+          tableRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", minHeight: 25, alignItems: 'center' },
+          tableHeaderRow: { flexDirection: "row", backgroundColor: "#dc2626", borderBottomWidth: 1, borderBottomColor: "#b91c1c", minHeight: 30, alignItems: 'center' },
+          tableHeader: { flex: 1, padding: 5, color: "#ffffff", fontSize: 10, fontWeight: "bold", textAlign: 'center' },
+          tableCell: { flex: 1, padding: 5, fontSize: 9, color: "#334155", textAlign: 'center' },
+          tableCellFirst: { flex: 1, padding: 5, fontSize: 9, color: "#1e293b", fontWeight: 'bold', textAlign: 'left' },
+
+          footer: {
+            position: 'absolute',
+            bottom: 30,
+            left: 40,
+            right: 40,
+            borderTopWidth: 1,
+            borderTopColor: "#e2e8f0",
+            paddingTop: 10,
+            textAlign: 'center',
+            fontSize: 9,
+            color: "#94A3B8"
+          }
         });
 
         // Create a simple data table for the PDF using cleaned data
@@ -310,34 +458,54 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
         const ChartDocument = () => (
           <Document>
             <Page size="A4" style={styles.page}>
-              <Text style={styles.title}>{fileName} Report</Text>
+              <View style={styles.header}>
+                <Text style={styles.title}>Foster Hartley Reports</Text>
+                <Text style={styles.subtitle}>Professional Fleet Management System</Text>
+                <Text style={styles.metaInfo}>Report: {fileName.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.sectionTitle}>Report Summary</Text>
+                <View style={styles.infoGrid}>
+                  <Text style={styles.infoItem}>• Generated: {new Date().toLocaleDateString()}</Text>
+                  <Text style={styles.infoItem}>• Time: {new Date().toLocaleTimeString()}</Text>
+                  <Text style={styles.infoItem}>• Records: {cleanedData.length}</Text>
+                  <Text style={styles.infoItem}>• Format: PDF Document</Text>
+                </View>
+              </View>
+
               <Image src={chartImage} style={styles.image} />
 
               {cleanedData.length > 0 && (
                 <View style={styles.table}>
-                  <View style={styles.tableRow}>
+                  <View style={styles.tableHeaderRow}>
                     {tableHeaders.slice(0, 5).map((header, index) => (
                       <Text key={index} style={styles.tableHeader}>
                         {header.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                       </Text>
                     ))}
                   </View>
-                  {cleanedData.slice(0, 10).map((row, rowIndex) => (
-                    <View key={rowIndex} style={styles.tableRow}>
+                  {cleanedData.slice(0, 15).map((row, rowIndex) => (
+                    <View key={rowIndex} style={[styles.tableRow, rowIndex % 2 === 0 ? { backgroundColor: '#f8fafc' } : {}]}>
                       {tableHeaders.slice(0, 5).map((header, cellIndex) => (
-                        <Text key={cellIndex} style={styles.tableCell}>
+                        <Text key={cellIndex} style={cellIndex === 0 ? styles.tableCellFirst : styles.tableCell}>
                           {String(row[header] || "")}
                         </Text>
                       ))}
                     </View>
                   ))}
-                  {cleanedData.length > 10 && (
-                    <Text style={{ marginTop: 10 }}>
-                      ... and {cleanedData.length - 10} more records
+                  {cleanedData.length > 15 && (
+                    <Text style={{ marginTop: 10, fontSize: 9, color: '#64748b', textAlign: 'center' }}>
+                      ... and {cleanedData.length - 15} more records (View Excel for full details)
                     </Text>
                   )}
                 </View>
               )}
+
+              <Text style={styles.footer}>
+                Confidential - Foster Hartley Internal Use Only{"\n"}
+                This report was automatically generated on {new Date().toLocaleDateString()}
+              </Text>
             </Page>
           </Document>
         );
@@ -402,25 +570,42 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis
                   dataKey={xAxisKey}
                   tickFormatter={formatXAxisValue}
-                  stroke="#6b7280"
+                  stroke="#9ca3af"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
                 />
-                <YAxis stroke="#6b7280" />
+                <YAxis
+                  stroke="#9ca3af"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `${value.toLocaleString()}`}
+                />
                 <Tooltip
                   labelFormatter={formatXAxisValue}
-                  contentStyle={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb" }}
+                  contentStyle={{
+                    backgroundColor: "#ffffff",
+                    border: "none",
+                    borderRadius: "8px",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)"
+                  }}
+                  cursor={{ fill: '#f9fafb' }}
                 />
-                <Legend />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                 {yAxisKeys.map((key, index) => (
                   <Bar
                     key={key}
                     dataKey={key}
                     fill={colors[index % colors.length]}
                     name={key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                    radius={[4, 4, 0, 0]}
+                    barSize={40}
                   />
                 ))}
               </BarChart>
