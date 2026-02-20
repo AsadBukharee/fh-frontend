@@ -1,7 +1,7 @@
 import { useState, useMemo, memo } from "react"
 import { Input } from "@/components/ui/input"
 import { AuditItem } from "../types"
-import { useVehicleAttributes, VehicleAttribute } from "../hooks/useVehicleAttributes"
+import { useDriverAttributes, DriverAttribute } from "../hooks/useDriverAttributes"
 import {
     Table,
     TableBody,
@@ -46,7 +46,7 @@ const ReferenceSelect = ({
 }: {
     value: string
     onChange: (value: string) => void
-    attributes: VehicleAttribute[]
+    attributes: DriverAttribute[]
     disabled?: boolean
 }) => {
     const [open, setOpen] = useState(false)
@@ -58,7 +58,7 @@ const ReferenceSelect = ({
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
-                    className="w-full justify-between h-8 text-xs font-mono bg-white border-blue-200"
+                    className="w-full justify-between h-8 text-xs font-mono bg-white border-green-200"
                     disabled={disabled}
                 >
                     {value || "Select attribute..."}
@@ -87,7 +87,7 @@ const ReferenceSelect = ({
                                             value === attr.name ? "opacity-100" : "opacity-0"
                                         )}
                                     />
-                                    {attr.name}
+                                    {attr.name} <span className="text-gray-400 ml-1 text-[10px]">({attr.type})</span>
                                 </CommandItem>
                             ))}
                         </CommandGroup>
@@ -98,7 +98,7 @@ const ReferenceSelect = ({
     )
 }
 
-// Memoized individual item component to prevent unnecessary re-renders
+// Memoized individual item component
 const ComplianceItem = memo(({
     item,
     editingField,
@@ -115,7 +115,7 @@ const ComplianceItem = memo(({
     updateField: (id: string, field: keyof AuditItem, value: any) => void,
     loading: boolean,
     saving: boolean,
-    attributes: VehicleAttribute[],
+    attributes: DriverAttribute[],
     attributesLoading: boolean
 }) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -207,7 +207,7 @@ const ComplianceItem = memo(({
                     >
                         <span className="truncate">{item.fieldReference || "-"}</span>
                         <Pencil
-                            className="w-3 h-3 text-gray-400 opacity-50 group-hover:opacity-100 transition-opacity inline cursor-pointer hover:text-blue-600 flex-shrink-0"
+                            className="w-3 h-3 text-gray-400 opacity-50 group-hover:opacity-100 transition-opacity inline cursor-pointer hover:text-green-600 flex-shrink-0"
                             onClick={(e) => {
                                 e.stopPropagation()
                                 if (!loading && !saving) setEditingField({ id: item.id, field: "fieldReference" })
@@ -258,7 +258,7 @@ ComplianceItem.displayName = "ComplianceItem"
 
 export function ComplianceList({ items, setItems, loading, saving, onUpdateItem, onCreateItem, type }: ComplianceListProps) {
     const [editingField, setEditingField] = useState<{ id: string, field: string } | null>(null)
-    const { attributes, loading: attributesLoading } = useVehicleAttributes()
+    const { attributes, loading: attributesLoading } = useDriverAttributes()
 
     // Create Mode State
     const [isCreating, setIsCreating] = useState(false)
@@ -268,7 +268,7 @@ export function ComplianceList({ items, setItems, loading, saving, onUpdateItem,
         fieldReference: string
         days: number
         status: "before" | "after"
-        fieldName: string
+        fieldName: string // Only relevant for dates
     }>({
         title: "",
         subtitle: "",
@@ -278,15 +278,17 @@ export function ComplianceList({ items, setItems, loading, saving, onUpdateItem,
         fieldName: ""
     })
 
-    // Memoize the attributes list to avoid unnecessary re-renders
+    // Memoize the attributes list
     const memoizedAttributes = useMemo(() => attributes, [attributes])
 
     const updateField = (id: string, field: keyof AuditItem, value: any) => {
         setItems(prev => {
             const newItems = prev.map(i => i.id === id ? { ...i, [field]: value } : i)
-            if (onUpdateItem && field === "fieldReference") {
+            if (onUpdateItem) {
                 const updatedItem = newItems.find(i => i.id === id)
-                if (updatedItem) onUpdateItem(updatedItem)
+                if (updatedItem && (field === "fieldReference" || field === "days" || field === "status")) {
+                    onUpdateItem(updatedItem)
+                }
             }
             return newItems
         })
@@ -361,7 +363,7 @@ export function ComplianceList({ items, setItems, loading, saving, onUpdateItem,
                                     />
                                     {type === "date" && (
                                         <Input
-                                            placeholder="Field ID (e.g. vehicle_mot_expiry)"
+                                            placeholder="Field ID (e.g. driver_cpc_expiry)"
                                             value={newItem.fieldName}
                                             onChange={(e) => setNewItem({ ...newItem, fieldName: e.target.value })}
                                             className="h-8 text-xs font-mono bg-white/50"

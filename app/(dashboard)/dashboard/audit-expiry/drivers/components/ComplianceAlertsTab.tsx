@@ -5,14 +5,14 @@ import { useCookies } from "next-client-cookies"
 import { Button } from "@/components/ui/button"
 import API_URL from "@/app/utils/ENV"
 import { ComplianceList } from "./ComplianceList"
-import { AuditItem } from "../types"
+import { AuditItem, ApiAlertItem } from "../types"
 import { toStatusAndDays, toApiValue } from "../utils"
 import { toast } from "sonner"
 
 const HOST = API_URL
 
-export function ComplianceDatesTab() {
-    const [dates, setDates] = useState<AuditItem[]>([])
+export function ComplianceAlertsTab() {
+    const [alerts, setAlerts] = useState<AuditItem[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -31,30 +31,29 @@ export function ComplianceDatesTab() {
             setLoading(true)
             setError(null)
 
-            const res = await fetch(`${HOST}/activity/vehicle-compliance-dates/`, {
+            const res = await fetch(`${HOST}/activity/driver-compliance-alerts/`, {
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`
                 }
             })
 
-            if (!res.ok) throw new Error("Failed to fetch compliance dates")
+            if (!res.ok) throw new Error("Failed to fetch compliance alerts")
 
             const json = await res.json()
             if (!json.success) throw new Error(json.message || "API error")
 
             // Map the dynamic array response
-            const items: AuditItem[] = json.data.map((item: any, index: number) => ({
-                id: `date-${item.id}-${index}`,
+            const items: AuditItem[] = json.data.map((item: ApiAlertItem, index: number) => ({
+                id: `alert-${item.id}-${index}`,
                 dbId: item.id,
                 title: item.display_name,
                 subtitle: item.field_description,
-                fieldName: item.field_name,
                 fieldReference: item.field_reference,
-                ...toStatusAndDays(item.field_value, item.field_value)
+                ...toStatusAndDays(item.field_value)
             }))
 
-            setDates(items)
+            setAlerts(items)
         } catch (err: any) {
             setError(err.message || "Unknown error")
             console.error(err)
@@ -75,7 +74,7 @@ export function ComplianceDatesTab() {
 
         setSaving(true)
         try {
-            const payload = dates.map(item => ({
+            const payload = alerts.map(item => ({
                 id: item.dbId,
                 display_name: item.title,
                 field_description: item.subtitle,
@@ -83,7 +82,8 @@ export function ComplianceDatesTab() {
                 field_value: toApiValue(item)
             }))
 
-            const res = await fetch(`${HOST}/activity/vehicle-compliance-dates/bulk_update/`, {
+            // Try bulk update endpoint first
+            const res = await fetch(`${HOST}/activity/driver-compliance-alerts/bulk_update/`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -93,19 +93,27 @@ export function ComplianceDatesTab() {
             })
 
             if (!res.ok) {
-                // Fallback to the original endpoint if bulk_update doesn't exist
-                const fallbackRes = await fetch(`${HOST}/activity/vehicle-compliance-dates/1/`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload)
-                })
-                if (!fallbackRes.ok) throw new Error("Failed to save settings")
+                // Fallback to individual updates if bulk_update doesn't exist
+                const updatePromises = payload.map(item =>
+                    fetch(`${HOST}/activity/driver-compliance-alerts/${item.id}/`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify(item)
+                    })
+                )
+
+                const results = await Promise.all(updatePromises)
+                const failed = results.filter(r => !r.ok)
+
+                if (failed.length > 0) {
+                    throw new Error(`Failed to update ${failed.length} items`)
+                }
             }
 
-            toast.success("Compliance dates saved successfully!")
+            toast.success("Compliance alerts saved successfully!")
         } catch (err: any) {
             console.error(err)
             toast.error("Failed to save: " + (err.message || "Unknown error"))
@@ -126,7 +134,7 @@ export function ComplianceDatesTab() {
                 field_value: toApiValue(updatedItem)
             }
 
-            const res = await fetch(`${HOST}/activity/vehicle-compliance-dates/${updatedItem.dbId}/`, {
+            const res = await fetch(`${HOST}/activity/driver-compliance-alerts/${updatedItem.dbId}/`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -151,16 +159,14 @@ export function ComplianceDatesTab() {
         }
 
         try {
-            // Construct payload based on user requirement
             const payload = {
                 display_name: newItem.title,
-                field_name: newItem.fieldName || newItem.title.toLowerCase().replace(/\s+/g, "_"),
                 field_description: newItem.subtitle,
                 field_reference: newItem.fieldReference,
                 field_value: toApiValue(newItem),
             }
 
-            const res = await fetch(`${HOST}/activity/vehicle-compliance-dates/`, {
+            const res = await fetch(`${HOST}/activity/driver-compliance-alerts/`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -175,7 +181,6 @@ export function ComplianceDatesTab() {
             }
 
             toast.success(`${newItem.title} created successfully`)
-            // Refresh list
             fetchData()
         } catch (err: any) {
             console.error(err)
@@ -189,9 +194,9 @@ export function ComplianceDatesTab() {
     return (
         <div className="mt-6">
             <ComplianceList
-                type="date"
-                items={dates}
-                setItems={setDates}
+                type="alert"
+                items={alerts}
+                setItems={setAlerts}
                 loading={loading}
                 saving={saving}
                 onUpdateItem={handleUpdateItem}
@@ -204,7 +209,7 @@ export function ComplianceDatesTab() {
                     className="bg-pink-500 w-full hover:bg-pink-600 text-white py-6 text-lg font-medium"
                     disabled={loading || saving}
                 >
-                    {saving ? "Saving Changes..." : "Save Compliance Dates"}
+                    {saving ? "Saving Changes..." : "Save Compliance Alerts"}
                 </Button>
             </div>
         </div>
