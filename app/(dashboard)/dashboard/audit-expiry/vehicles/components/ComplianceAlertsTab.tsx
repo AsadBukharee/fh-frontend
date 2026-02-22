@@ -20,50 +20,50 @@ export function ComplianceAlertsTab() {
     const cookies = useCookies()
     const token = cookies.get("access_token")
 
-    useEffect(() => {
-        const fetchData = async () => {
-            if (!token) {
-                setError("Authentication token missing")
-                setLoading(false)
-                return
-            }
-
-            try {
-                setLoading(true)
-                setError(null)
-
-                const res = await fetch(`${HOST}/activity/vehicle-compliance-alerts/`, {
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    }
-                })
-
-                if (!res.ok) throw new Error("Failed to fetch compliance alerts")
-
-                const json = await res.json()
-                if (!json.success) throw new Error(json.message || "API error")
-
-                // Map the dynamic array response
-                const items: AuditItem[] = json.data.map((item: any, index: number) => ({
-                    id: `alert-${item.id}-${index}`,
-                    dbId: item.id,
-                    title: item.display_name,
-                    subtitle: item.field_description,
-                    fieldName: item.field_name,
-                    fieldReference: item.field_reference,
-                    ...toStatusAndDays(item.field_value, item.field_value)
-                }))
-
-                setAlerts(items)
-            } catch (err: any) {
-                setError(err.message || "Unknown error")
-                console.error(err)
-            } finally {
-                setLoading(false)
-            }
+    const fetchData = async () => {
+        if (!token) {
+            setError("Authentication token missing")
+            setLoading(false)
+            return
         }
 
+        try {
+            setLoading(true)
+            setError(null)
+
+            const res = await fetch(`${HOST}/activity/vehicle-compliance-alerts/`, {
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                }
+            })
+
+            if (!res.ok) throw new Error("Failed to fetch compliance alerts")
+
+            const json = await res.json()
+            if (!json.success) throw new Error(json.message || "API error")
+
+            // Map the dynamic array response
+            const items: AuditItem[] = json.data.map((item: any, index: number) => ({
+                id: `alert-${item.id}-${index}`,
+                dbId: item.id,
+                title: item.display_name,
+                subtitle: item.field_description,
+                fieldName: item.field_name,
+                fieldReference: item.field_reference,
+                ...toStatusAndDays(item.field_value, item.field_value)
+            }))
+
+            setAlerts(items)
+        } catch (err: any) {
+            setError(err.message || "Unknown error")
+            console.error(err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
         fetchData()
     }, [token])
 
@@ -144,23 +144,58 @@ export function ComplianceAlertsTab() {
         }
     }
 
+    const handleCreateItem = async (newItem: Omit<AuditItem, "id" | "dbId">) => {
+        if (!token) {
+            toast.error("Not authenticated")
+            return
+        }
+
+        try {
+            // Construct payload based on user requirement
+            const payload = {
+                display_name: newItem.title,
+                // Alert doesn't have field_name in the example payload
+                field_description: newItem.subtitle,
+                field_reference: newItem.fieldReference,
+                field_value: toApiValue(newItem),
+            }
+
+            const res = await fetch(`${HOST}/activity/vehicle-compliance-alerts/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            })
+
+            if (!res.ok) {
+                const errorData = await res.json()
+                throw new Error(errorData.message || "Failed to create item")
+            }
+
+            toast.success(`${newItem.title} created successfully`)
+            // Refresh list
+            fetchData()
+        } catch (err: any) {
+            console.error(err)
+            toast.error("Failed to create: " + (err.message || "Unknown error"))
+            throw err
+        }
+    }
+
     if (error) return <div className="p-4 text-red-500 bg-red-50 rounded mt-4">{error}</div>
 
     return (
         <div className="mt-6">
-            <div className="grid grid-cols-12 gap-4 py-6 px-2 border-b bg-gray-100 border-gray-200">
-                <div className="col-span-6 text-sm font-medium text-gray-500 uppercase tracking-wide">Audit Item</div>
-                <div className="col-span-2 text-sm font-medium text-gray-500 uppercase tracking-wide">Reference</div>
-                <div className="col-span-2 text-sm font-medium text-gray-500 uppercase tracking-wide text-center">Days</div>
-                <div className="col-span-2 text-sm font-medium text-gray-500 uppercase tracking-wide text-center">Trigger</div>
-            </div>
-
             <ComplianceList
+                type="alert"
                 items={alerts}
                 setItems={setAlerts}
                 loading={loading}
                 saving={saving}
                 onUpdateItem={handleUpdateItem}
+                onCreateItem={handleCreateItem}
             />
 
             <div className="mt-8 pt-6 border-t border-gray-200 px-2">

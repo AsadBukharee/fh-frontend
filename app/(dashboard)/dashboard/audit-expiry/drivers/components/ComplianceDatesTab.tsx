@@ -5,7 +5,7 @@ import { useCookies } from "next-client-cookies"
 import { Button } from "@/components/ui/button"
 import API_URL from "@/app/utils/ENV"
 import { ComplianceList } from "./ComplianceList"
-import { AuditItem } from "../types"
+import { AuditItem, ApiDateItem } from "../types"
 import { toStatusAndDays, toApiValue } from "../utils"
 import { toast } from "sonner"
 
@@ -31,7 +31,7 @@ export function ComplianceDatesTab() {
             setLoading(true)
             setError(null)
 
-            const res = await fetch(`${HOST}/activity/vehicle-compliance-dates/`, {
+            const res = await fetch(`${HOST}/activity/driver-compliance-dates/`, {
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`
@@ -44,14 +44,14 @@ export function ComplianceDatesTab() {
             if (!json.success) throw new Error(json.message || "API error")
 
             // Map the dynamic array response
-            const items: AuditItem[] = json.data.map((item: any, index: number) => ({
+            const items: AuditItem[] = json.data.map((item: ApiDateItem, index: number) => ({
                 id: `date-${item.id}-${index}`,
                 dbId: item.id,
                 title: item.display_name,
                 subtitle: item.field_description,
                 fieldName: item.field_name,
                 fieldReference: item.field_reference,
-                ...toStatusAndDays(item.field_value, item.field_value)
+                ...toStatusAndDays(item.field_value)
             }))
 
             setDates(items)
@@ -78,12 +78,14 @@ export function ComplianceDatesTab() {
             const payload = dates.map(item => ({
                 id: item.dbId,
                 display_name: item.title,
+                field_name: item.fieldName,
                 field_description: item.subtitle,
                 field_reference: item.fieldReference,
                 field_value: toApiValue(item)
             }))
 
-            const res = await fetch(`${HOST}/activity/vehicle-compliance-dates/bulk_update/`, {
+            // Try bulk update endpoint first
+            const res = await fetch(`${HOST}/activity/driver-compliance-dates/bulk_update/`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -93,16 +95,24 @@ export function ComplianceDatesTab() {
             })
 
             if (!res.ok) {
-                // Fallback to the original endpoint if bulk_update doesn't exist
-                const fallbackRes = await fetch(`${HOST}/activity/vehicle-compliance-dates/1/`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload)
-                })
-                if (!fallbackRes.ok) throw new Error("Failed to save settings")
+                // Fallback to individual updates
+                const updatePromises = payload.map(item =>
+                    fetch(`${HOST}/activity/driver-compliance-dates/${item.id}/`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify(item)
+                    })
+                )
+
+                const results = await Promise.all(updatePromises)
+                const failed = results.filter(r => !r.ok)
+
+                if (failed.length > 0) {
+                    throw new Error(`Failed to update ${failed.length} items`)
+                }
             }
 
             toast.success("Compliance dates saved successfully!")
@@ -121,12 +131,13 @@ export function ComplianceDatesTab() {
             const payload = {
                 id: updatedItem.dbId,
                 display_name: updatedItem.title,
+                field_name: updatedItem.fieldName,
                 field_description: updatedItem.subtitle,
                 field_reference: updatedItem.fieldReference,
                 field_value: toApiValue(updatedItem)
             }
 
-            const res = await fetch(`${HOST}/activity/vehicle-compliance-dates/${updatedItem.dbId}/`, {
+            const res = await fetch(`${HOST}/activity/driver-compliance-dates/${updatedItem.dbId}/`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -151,7 +162,6 @@ export function ComplianceDatesTab() {
         }
 
         try {
-            // Construct payload based on user requirement
             const payload = {
                 display_name: newItem.title,
                 field_name: newItem.fieldName || newItem.title.toLowerCase().replace(/\s+/g, "_"),
@@ -160,7 +170,7 @@ export function ComplianceDatesTab() {
                 field_value: toApiValue(newItem),
             }
 
-            const res = await fetch(`${HOST}/activity/vehicle-compliance-dates/`, {
+            const res = await fetch(`${HOST}/activity/driver-compliance-dates/`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -175,7 +185,6 @@ export function ComplianceDatesTab() {
             }
 
             toast.success(`${newItem.title} created successfully`)
-            // Refresh list
             fetchData()
         } catch (err: any) {
             console.error(err)

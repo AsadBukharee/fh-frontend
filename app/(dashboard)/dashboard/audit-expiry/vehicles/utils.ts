@@ -16,6 +16,6 @@ export const toStatusAndDays = (value: number | null | undefined, fallback: numb
 /**
  * Convert UI representation to API value.
  */
-export const toApiValue = (item: AuditItem): number => {
+export const toApiValue = (item: Pick<AuditItem, "status" | "days">): number => {
     return item.status === "before" ? -item.days : item.days
 }
