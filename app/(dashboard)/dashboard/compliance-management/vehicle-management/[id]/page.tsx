@@ -11,18 +11,18 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Save,
+
   Edit,
   X,
-  Info,
+
   FileText,
   Gauge,
   Clock,
-  Users,
+
   Camera,
   Download,
   Eye,
-  Upload,
+
   CheckCircle,
   AlertTriangle,
   Calendar,
@@ -30,16 +30,15 @@ import {
   Wrench,
   TestTube,
   AlertCircle,
-  FileWarning,
+
   Shield,
   FileCheck,
   Activity,
-  Settings,
+
   ShipWheelIcon,
   Car,
   CreditCard,
-  Home,
-  User,
+ 
   MapPin,
 } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
@@ -49,8 +48,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import FileUploader from "@/components/Media/MediaUpload";
 import {
   Select,
@@ -104,6 +108,8 @@ export default function VehicleDetailPage() {
   const [selectedSites, setSelectedSites] = useState<number[]>([]);
   const [sitesOpen, setSitesOpen] = useState(false);
   const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
+  const [tyreMaintenanceDialogOpen, setTyreMaintenanceDialogOpen] = useState(false);
+  const [tyreExpiryDialogOpen, setTyreExpiryDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -193,23 +199,11 @@ export default function VehicleDetailPage() {
   const handleSave = async () => {
     if (!editVehicle || !token) return;
 
-    // Validation for tacho
-    if (editVehicle.is_tacho_fitted && !editVehicle.tacho_calibration_expiry) {
-      toast.error("Tacho calibration expiry date is required when tacho is fitted");
-      return;
-    }
-
-    // Validation for wheelchair lift
-    if (editVehicle.is_wheelchair_lift_fitted && !editVehicle.loller_test_expiry_date) {
-      toast.error("LOLER test expiry date is required when wheelchair lift is fitted");
-      return;
-    }
-
     setSaving(true);
 
     try {
       // Prepare data for API - use vehicle_type not vehicles_type
-      const vehicleData = {
+      const vehicleData: any = {
         registration_number: editVehicle.registration_number,
         vin: editVehicle.vin,
         make: editVehicle.make,
@@ -226,7 +220,7 @@ export default function VehicleDetailPage() {
         purchase_mileage: editVehicle.purchase_mileage,
         next_mot_to_be_booked_from: editVehicle.next_mot_to_be_booked_from,
         has_vat: editVehicle.has_vat,
-        vat_amount: editVehicle.vat_amount, // Add VAT amount
+        vat_amount: editVehicle.vat_amount,
         last_mileage: editVehicle.last_mileage,
         mot_expiry: editVehicle.mot_expiry,
         tax_expiry: editVehicle.tax_expiry,
@@ -236,18 +230,33 @@ export default function VehicleDetailPage() {
         last_pmi_date: editVehicle.last_pmi_date,
         pmi_booked_date: editVehicle.pmi_booked_date,
         next_loller_test_date: editVehicle.next_loller_test_date,
+        // Tyre maintenance fields
+        last_tyre_maintenance_check_date: editVehicle.last_tyre_maintenance_check_date,
+        tyre_expiry_date: editVehicle.tyre_expiry_date,
+        tyre_maintenance_docs: editVehicle.tyre_maintenance_docs,
+        tyre_expiry_docs: editVehicle.tyre_expiry_docs,
+        // Tyre age fields
+        tyre_expiry_front_driver: editVehicle.tyre_expiry_front_driver,
+        tyre_expiry_front_passenger: editVehicle.tyre_expiry_front_passenger,
+        tyre_expiry_rear_outer_driver: editVehicle.tyre_expiry_rear_outer_driver,
+        tyre_expiry_rear_outer_passenger: editVehicle.tyre_expiry_rear_outer_passenger,
+        tyre_expiry_rear_inner_driver: editVehicle.tyre_expiry_rear_inner_driver,
+        tyre_expiry_rear_inner_passenger: editVehicle.tyre_expiry_rear_inner_passenger,
+        // Tyre pressure fields
         tyre_pressure_front_driver: editVehicle.tyre_pressure_front_driver,
         tyre_pressure_front_passenger: editVehicle.tyre_pressure_front_passenger,
         tyre_pressure_rear_outer_driver: editVehicle.tyre_pressure_rear_outer_driver,
         tyre_pressure_rear_outer_passenger: editVehicle.tyre_pressure_rear_outer_passenger,
         tyre_pressure_rear_inner_driver: editVehicle.tyre_pressure_rear_inner_driver,
         tyre_pressure_rear_inner_passenger: editVehicle.tyre_pressure_rear_inner_passenger,
+        // Tyre depth fields
         tyre_depth_front_driver: editVehicle.tyre_depth_front_driver,
         tyre_depth_front_passenger: editVehicle.tyre_depth_front_passenger,
         tyre_depth_rear_outer_driver: editVehicle.tyre_depth_rear_outer_driver,
         tyre_depth_rear_outer_passenger: editVehicle.tyre_depth_rear_outer_passenger,
         tyre_depth_rear_inner_driver: editVehicle.tyre_depth_rear_inner_driver,
         tyre_depth_rear_inner_passenger: editVehicle.tyre_depth_rear_inner_passenger,
+        // Tyre torque fields
         tyre_torque_front_driver: editVehicle.tyre_torque_front_driver,
         tyre_torque_front_passenger: editVehicle.tyre_torque_front_passenger,
         tyre_torque_rear_outer_driver: editVehicle.tyre_torque_rear_outer_driver,
@@ -257,8 +266,26 @@ export default function VehicleDetailPage() {
         is_roadworthy: editVehicle.is_roadworthy,
         is_active: editVehicle.is_active,
         site_allocated: selectedSites,
-        vehicle_type: editVehicle.vehicle_type?.id || editVehicle.vehicles_type?.id, // Use vehicle_type
+        vehicle_type: editVehicle.vehicle_type?.id || editVehicle.vehicles_type?.id,
       };
+
+      // If tacho fitted and tacho_calibration_expiry is empty, send tacho_calibration_expiry and tacho_calibration_docs as null
+      if (
+        editVehicle.is_tacho_fitted &&
+        (!editVehicle.tacho_calibration_expiry || editVehicle.tacho_calibration_expiry === "")
+      ) {
+        vehicleData.tacho_calibration_expiry = null;
+        vehicleData.tacho_calibration_docs = null;
+      }
+
+      // If wheelchair lift fitted and loller_test_expiry_date is empty, send loller_test_expiry_date and loller_docs as null
+      if (
+        editVehicle.is_wheelchair_lift_fitted &&
+        (!editVehicle.loller_test_expiry_date || editVehicle.loller_test_expiry_date === "")
+      ) {
+        vehicleData.loller_test_expiry_date = null;
+        vehicleData.loller_docs = null;
+      }
 
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PUT",
@@ -307,14 +334,6 @@ export default function VehicleDetailPage() {
     });
   };
 
-  const handleStatusChange = (field: string, value: any) => {
-    const newEditVehicle = { ...editVehicle, [field]: value };
-    if (field === "vehicle_roadworthy_status") {
-      newEditVehicle.is_roadworthy =
-        value === "no_defect" || value === "minor_defect_roadworthy";
-    }
-    setEditVehicle(newEditVehicle);
-  };
 
   const handleImageUpload = async (imageUrl: string) => {
     if (!token) return;
@@ -403,6 +422,9 @@ export default function VehicleDetailPage() {
         loller_test_expiry_date: "loller_docs",
         tacho_calibration_expiry: "tacho_calibration_docs",
         next_loller_test_date: "loller_docs",
+        // Tyre maintenance mappings
+        last_tyre_maintenance_check_date: "tyre_maintenance_docs",
+        tyre_expiry_date: "tyre_expiry_docs",
       };
       const docField = dateToDocMap[editDateField];
       if (docField && documentUrl) {
@@ -464,6 +486,14 @@ export default function VehicleDetailPage() {
     }
     if (field === "last_pmi_date") {
       setPmiDialogOpen(true);
+      return;
+    }
+    if (field === "last_tyre_maintenance_check_date") {
+      setTyreMaintenanceDialogOpen(true);
+      return;
+    }
+    if (field === "tyre_expiry_date") {
+      setTyreExpiryDialogOpen(true);
       return;
     }
     setEditDateField(field);
@@ -556,14 +586,6 @@ export default function VehicleDetailPage() {
     }
   };
 
-  function StaticRow({ label, value }: { label: string; value: string | number }) {
-    return (
-      <div className="flex justify-between">
-        <span className="text-slate-600">{label}</span>
-        <span className="font-semibold text-slate-900">{value}</span>
-      </div>
-    );
-  }
 
   type TyreRowProps = {
     label: string;
@@ -573,38 +595,70 @@ export default function VehicleDetailPage() {
     highlight?: boolean;
   };
 
-  function TyreRow({ label, unit, valueKey, type = "text", highlight }: TyreRowProps) {
-    const value = isEditing ? editVehicle?.[valueKey] : vehicle?.[valueKey];
+  function TyreRow({
+  label,
+  unit,
+  valueKey,
+  type = "text",
+  highlight,
+}: TyreRowProps) {
+  const value = isEditing ? editVehicle?.[valueKey] : vehicle?.[valueKey];
 
-    return (
-      <div className="flex justify-between items-center">
-        <span className="text-slate-600">{label}</span>
+  const displayValue =
+    value !== null && value !== undefined && value !== ""
+      ? `${value}${unit ? ` ${unit}` : ""}`
+      : "N/A";
 
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+      {/* Label */}
+      <div className="flex flex-col">
+        <span className="text-sm text-slate-500">{label}</span>
+        {unit && !isEditing && (
+          <span className="text-xs text-slate-400">{unit}</span>
+        )}
+      </div>
+
+      {/* Value / Input */}
+      <div className="min-w-[90px] text-right">
         {isEditing ? (
-          <Input
-            type={type}
-            value={value ?? ""}
-            onChange={(e) =>
-              handleInputChange(
-                valueKey,
-                type === "number" ? Number(e.target.value) : e.target.value
-              )
-            }
-            className="w-20 h-7 text-xs"
-          />
+          <div className="relative">
+            <Input
+              type={type}
+              value={value ?? ""}
+              onChange={(e) =>
+                handleInputChange(
+                  valueKey,
+                  type === "number"
+                    ? e.target.value === ""
+                      ? ""
+                      : Number(e.target.value)
+                    : e.target.value
+                )
+              }
+              className="h-8 text-sm pr-20 text-right focus:ring-2 focus:ring-blue-500"
+            />
+            {unit && (
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                {unit}
+              </span>
+            )}
+          </div>
         ) : (
           <span
-            className={`font-semibold ${highlight
-              ? "text-green-600 bg-green-100 px-2 rounded-md"
-              : "text-slate-900"
-              }`}
+            className={`text-sm font-semibold ${
+              highlight
+                ? "text-green-700 bg-green-50 px-2 py-1 rounded-md"
+                : "text-slate-900"
+            }`}
           >
-            {value ?? "N/A"} {unit}
+            {displayValue}
           </span>
         )}
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   const getRoadworthyDisplayText = (status: string) => {
     switch (status) {
@@ -616,11 +670,23 @@ export default function VehicleDetailPage() {
     }
   };
 
+  // Updated complianceItems with tyre maintenance and tyre expiry
   const complianceItems = [
     { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docField: "mot_check_docs", color: "orange", hasDialog: true },
     { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docField: "insurance_docs", color: "purple" },
     { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docField: "tax_docs", color: "green" },
     { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docField: "pmi_inspection_docs", color: "orange", hasDialog: true },
+    // Tyre Maintenance Check
+    { 
+      key: "tyre_maintenance", 
+      label: "Tyre Maintenance Check", 
+      icon: ShipWheelIcon, 
+      dateField: "last_tyre_maintenance_check_date", 
+      docField: "tyre_maintenance_docs", 
+      color: "blue",
+      description: "Last tyre inspection and maintenance date"
+    },
+   
     { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docField: "loller_docs", color: "pink", requiredForWheelchair: true },
     { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docField: "tacho_calibration_docs", color: "indigo", requiredForTacho: true },
   ];
@@ -634,7 +700,7 @@ export default function VehicleDetailPage() {
     { key: "other_docs", label: "Other Documents", icon: FileText },
   ];
 
-  function TyreCard({ title, pos }: { title: string; pos: string }) {
+  function TyreCard({ title, pos, ageKey }: { title: string; pos: string; ageKey: string }) {
     return (
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm">
         <p className="font-medium text-slate-900 mb-3">{title}</p>
@@ -660,6 +726,13 @@ export default function VehicleDetailPage() {
             valueKey={`tyre_torque_${pos}`}
             type="number"
           />
+
+          <TyreRow
+            label="Tyre Age"
+            unit=""
+            valueKey={ageKey}
+            type="text"
+          />
         </div>
       </div>
     );
@@ -675,6 +748,10 @@ export default function VehicleDetailPage() {
       return isEditing
         ? editVehicle?.is_wheelchair_lift_fitted
         : vehicle?.is_wheelchair_lift_fitted;
+    }
+    // Always show tyre maintenance and expiry items
+    if (item.key === "tyre_maintenance" || item.key === "tyre_expiry") {
+      return true;
     }
     return true;
   };
@@ -702,14 +779,6 @@ export default function VehicleDetailPage() {
         return [...prev, siteId];
       }
     });
-  };
-
-  // Get selected site names
-  const getSelectedSiteNames = () => {
-    return selectedSites
-      .map(id => sites.find(site => site.id === id)?.name)
-      .filter(Boolean)
-      .join(", ");
   };
 
   if (loading) {
@@ -761,33 +830,6 @@ export default function VehicleDetailPage() {
           </div>
         </div>
 
-        {/* Driver Assignment Banner - Commented out as in original */}
-        {/* {vehicle.assignee_driver && (
-          <div className="bg-gradient-to-r from-orange-50 to-orange-100/50 border border-orange-200 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-white">
-                  {vehicle.assignee_driver.avatar ? (
-                    <img src={vehicle.assignee_driver.avatar} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-orange-100">
-                      <User className="w-6 h-6 text-orange-600" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="font-semibold">Assigned to Driver</p>
-                  <p className="text-orange-700">{vehicle.assignee_driver.full_name}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-slate-600">Site</p>
-                <p className="font-semibold">{vehicle.assignee_driver.site?.[0]?.name || "No site"}</p>
-              </div>
-            </div>
-          </div>
-        )} */}
-
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-2">
@@ -795,7 +837,7 @@ export default function VehicleDetailPage() {
               <TabsTrigger value="overview">Vehicle</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
               <TabsTrigger value="compliance">Compliance</TabsTrigger>
-              <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+              <TabsTrigger value="maintenance">Tyre Maintenance</TabsTrigger>
             </TabsList>
           </div>
 
@@ -1080,10 +1122,6 @@ export default function VehicleDetailPage() {
                 </div>
               </div>
             </div>
-
-            {/* ================= EQUIPMENT STATUS & COMPLIANCE (MOVED FROM COMPLIANCE TAB) ================= */}
-
-
           </TabsContent>
 
           {/* Documents Tab */}
@@ -1159,9 +1197,9 @@ export default function VehicleDetailPage() {
 
                 {/* LEFT */}
                 <div className="space-y-4">
-                  <TyreCard title="Front Passenger" pos="front_passenger" />
-                  <TyreCard title="Rear Outer Passenger" pos="rear_outer_passenger" />
-                  <TyreCard title="Rear Inner Passenger" pos="rear_inner_passenger" />
+                  <TyreCard title="Front Passenger" pos="front_passenger" ageKey="tyre_expiry_front_passenger" />
+                  <TyreCard title="Rear Outer Passenger" pos="rear_outer_passenger" ageKey="tyre_expiry_rear_outer_passenger" />
+                  <TyreCard title="Rear Inner Passenger" pos="rear_inner_passenger" ageKey="tyre_expiry_rear_inner_passenger" />
                 </div>
 
                 {/* CENTER VEHICLE */}
@@ -1179,9 +1217,9 @@ export default function VehicleDetailPage() {
 
                 {/* RIGHT */}
                 <div className="space-y-4">
-                  <TyreCard title="Front Driver" pos="front_driver" />
-                  <TyreCard title="Rear Outer Driver" pos="rear_outer_driver" />
-                  <TyreCard title="Rear Inner Driver" pos="rear_inner_driver" />
+                  <TyreCard title="Front Driver" pos="front_driver" ageKey="tyre_expiry_front_driver" />
+                  <TyreCard title="Rear Outer Driver" pos="rear_outer_driver" ageKey="tyre_expiry_rear_outer_driver" />
+                  <TyreCard title="Rear Inner Driver" pos="rear_inner_driver" ageKey="tyre_expiry_rear_inner_driver" />
                 </div>
 
               </div>
@@ -1190,252 +1228,177 @@ export default function VehicleDetailPage() {
 
           {/* Compliance Tab */}
           <TabsContent value="compliance" className="space-y-6 mt-6">
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                  <Settings className="w-4 h-4 text-indigo-600" />
+            {/* Compliance Documents Accordion */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-purple-600" />
                 </div>
-                <h3 className="font-semibold text-slate-900">Equipment Status</h3>
+                <h3 className="text-lg font-bold text-slate-900">Compliance Documents</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Tacho Switch */}
+              <Accordion type="multiple" className="space-y-3">
+                {complianceItems.map((item) => {
+                  const dateValue = vehicle[item.dateField as keyof typeof vehicle] as string;
+                  const docValue = vehicle[item.docField as keyof typeof vehicle] as string;
+                  const status = getExpiryStatus(dateValue);
+                  const hasDoc = hasDocument(docValue);
+                  const Icon = item.icon;
+                  const StatusIcon = status.icon;
 
+                  // Check if this item should show its content
+                  const showContent = shouldShowComplianceItem(item);
 
-                {/* Wheelchair Switch */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100/30 rounded-xl p-5 border border-blue-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <ShipWheelIcon className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold">Wheelchair Lift</h4>
-                        <p className="text-xs text-slate-600">Accessibility equipment</p>
-                      </div>
-                    </div>
-                    {isEditing ? (
-                      <Switch checked={editVehicle.is_wheelchair_lift_fitted} onCheckedChange={(c) => handleInputChange("is_wheelchair_lift_fitted", c)} />
-                    ) : (
-                      <Badge className={vehicle.is_wheelchair_lift_fitted ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-700 border-slate-200"}>
-                        {vehicle.is_wheelchair_lift_fitted ? "Yes" : "No"}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/30 rounded-xl p-5 border border-indigo-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                        <Gauge className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold">Tacho Fitted</h4>
-                        <p className="text-xs text-slate-600">Digital tachograph</p>
-                      </div>
-                    </div>
-                    {isEditing ? (
-                      <Switch checked={editVehicle.is_tacho_fitted} onCheckedChange={(c) => handleInputChange("is_tacho_fitted", c)} />
-                    ) : (
-                      <Badge className={vehicle.is_tacho_fitted ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-700 border-slate-200"}>
-                        {vehicle.is_tacho_fitted ? "Yes" : "No"}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
+                  const isRequired =
+                    (item.requiredForTacho && (isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted)) ||
+                    (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted));
 
-              {/* Conditional Compliance Cards in Compliance */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                {complianceItems
-                  .filter(item => item.key === 'tacho' || item.key === 'loller')
-                  .map((item) => {
-                    if (!shouldShowComplianceItem(item)) return null;
-
-                    const dateValue = vehicle[item.dateField as keyof typeof vehicle] as string;
-                    const docValue = vehicle[item.docField as keyof typeof vehicle] as string;
-                    const status = getExpiryStatus(dateValue);
-                    const hasDoc = hasDocument(docValue);
-                    const Icon = item.icon;
-                    const StatusIcon = status.icon;
-
-                    const isRequired =
-                      (item.requiredForTacho && (isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted)) ||
-                      (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted));
-
-                    return (
-                      <div
-                        key={`overview-${item.key}`}
-                        className={`bg-white rounded-xl shadow-sm border ${isRequired && !dateValue ? "border-red-400 ring-2 ring-red-200" : "border-slate-200"} overflow-hidden`}
-                      >
-                        <div className={`bg-gradient-to-r from-${item.color}-50 to-${item.color}-100/50 p-4 border-b ${isRequired && !dateValue ? "border-red-200" : `border-${item.color}-200`}`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 bg-${item.color}-100 rounded-xl flex items-center justify-center`}>
-                                <Icon className={`w-5 h-5 text-${item.color}-600`} />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-semibold">{item.label}</h4>
-                                  {isRequired && <Badge className="bg-red-100 text-red-700 text-xs">Required</Badge>}
-                                </div>
-                                <p className="text-xs text-slate-600">Expiry & Documentation</p>
-                              </div>
-                            </div>
-                            {item.hasDialog && (
-                              <Button size="sm" variant="ghost" onClick={() => item.key === "last_pmi" ? setPmiDialogOpen(true) : setMotDialogOpen(true)}>
-                                <Settings className="w-4 h-4" />
-                              </Button>
-                            )}
+                  return (
+                    <AccordionItem
+                      key={item.key}
+                      value={item.key}
+                      className={`bg-slate-50 rounded-xl border ${isRequired && !dateValue
+                        ? "border-red-300 ring-1 ring-red-200"
+                        : "border-slate-200"
+                        } overflow-hidden`}
+                    >
+                      {/* Accordion Trigger — always visible */}
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-slate-100/60 transition-colors [&>svg]:ml-2">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0">
+                            <Icon className="w-5 h-5 text-slate-600" />
                           </div>
-                        </div>
-
-                        <div className="p-4 space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <Calendar className="w-4 h-4 text-slate-400" />
-                                <span className="text-sm font-medium text-slate-600">
-                                  {item.key === "last_pmi" ? "Last PMI Date" : "Expiry Date"}
-                                </span>
-                              </div>
-                              <p className="text-sm font-semibold ml-6">{dateValue ? formatDate(dateValue) : "Not set"}</p>
-                            </div>
-                            <Badge className={`${status.color} border`}>
-                              <StatusIcon className="w-3 h-3 mr-1" />
-                              {status.text}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-3 border-t">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <FileText className="w-4 h-4 text-slate-400" />
-                                <span className="text-sm font-medium text-slate-600">Document</span>
-                              </div>
-                              <p className="text-sm font-semibold ml-6">{hasDoc ? "Uploaded" : "Not uploaded"}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {hasDoc ? (
-                                <>
-                                  <Button variant="ghost" size="sm" onClick={() => setPreviewDoc(docValue)}>
-                                    <Eye className="w-4 h-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => window.open(docValue, "_blank")}>
-                                    <Download className="w-4 h-4" />
-                                  </Button>
-                                </>
-                              ) : (
-                                <FileUploader onUploadSuccess={(url) => handleDocumentUpload(item.docField, url)} />
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-slate-900">{item.label}</p>
+                              {item.description && (
+                                <span className="text-xs text-slate-500">({item.description})</span>
                               )}
+                              {isRequired && (
+                                <Badge className="bg-red-100 text-red-700 text-xs">Required</Badge>
+                              )}
+                              {
+                                item.key === "loller" && (
+                                  isEditing ? (
+                                    <Switch checked={editVehicle.is_wheelchair_lift_fitted} onCheckedChange={(c) => handleInputChange("is_wheelchair_lift_fitted", c)} />
+                                  ) : (
+                                    <Badge className={vehicle.is_wheelchair_lift_fitted ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>
+                                      {vehicle.is_wheelchair_lift_fitted ? "Fitted" : "Not Fitted"}
+                                    </Badge>
+                                  )
+                                )
+                              }
+                              {
+                                item.key === "tacho" && (
+                                  isEditing ? (
+                                    <Switch checked={editVehicle.is_tacho_fitted} onCheckedChange={(c) => handleInputChange("is_tacho_fitted", c)} />
+                                  ) : (
+                                    <Badge className={vehicle.is_tacho_fitted ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>
+                                      {vehicle.is_tacho_fitted ? "Fitted" : "Not Fitted"}
+                                    </Badge>
+                                  )
+                                )
+                              }
                             </div>
+                            <p className="text-xs text-slate-500">
+                              {dateValue ? formatDate(dateValue) : "Date not set"}
+                            </p>
                           </div>
-
-                          <Button variant="outline" size="sm" onClick={() => openEditDateDialog(item.dateField, dateValue)} className="w-full">
-                            <Calendar className="w-4 h-4 mr-2" />
-                            {item.key === "last_pmi" ? "Update Last PMI Date" : "Update Date"}
-                          </Button>
+                          {/* Status badge visible in collapsed state */}
+                          <Badge className={`${status.color} border text-xs shrink-0 mr-2`}>
+                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {status.text}
+                          </Badge>
                         </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
+                      </AccordionTrigger>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {complianceItems.map((item) => {
-                if (!shouldShowComplianceItem(item)) return null;
-                if (item.key === "tacho" || item.key === "loller") return null;
-
-                const dateValue = vehicle[item.dateField as keyof typeof vehicle] as string;
-                const docValue = vehicle[item.docField as keyof typeof vehicle] as string;
-                const status = getExpiryStatus(dateValue);
-                const hasDoc = hasDocument(docValue);
-                const Icon = item.icon;
-                const StatusIcon = status.icon;
-
-                const isRequired =
-                  (item.requiredForTacho && (isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted)) ||
-                  (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted));
-
-                return (
-                  <div
-                    key={item.key}
-                    className={`bg-white rounded-2xl shadow-sm border ${isRequired && !dateValue ? "border-red-400 ring-2 ring-red-200" : "border-slate-200"} overflow-hidden`}
-                  >
-                    <div className={`bg-gradient-to-r from-${item.color}-50 to-${item.color}-100/50 p-4 border-b ${isRequired && !dateValue ? "border-red-200" : `border-${item.color}-200`}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 bg-${item.color}-100 rounded-xl flex items-center justify-center`}>
-                            <Icon className={`w-5 h-5 text-${item.color}-600`} />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold">{item.label}</h4>
-                              {isRequired && <Badge className="bg-red-100 text-red-700 text-xs">Required</Badge>}
+                      {/* Accordion Content — conditionally rendered based on showContent */}
+                      {showContent && (
+                        <AccordionContent className="px-4 pb-4">
+                          <div className="space-y-4 pt-2">
+                            {/* Expiry Date Row */}
+                            <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-slate-200">
+                              <div className="flex items-center gap-3">
+                                <Calendar className="w-4 h-4 text-slate-400" />
+                                <div>
+                                  <p className="text-xs text-slate-500">
+                                    {item.key === "last_pmi" ? "Last PMI Date" : 
+                                     item.key === "tyre_maintenance" ? "Last Maintenance Check" :
+                                     item.key === "tyre_expiry" ? "Tyre Expiry Date" : "Expiry Date"}
+                                  </p>
+                                  <p className="text-sm font-semibold text-slate-900">
+                                    {dateValue ? formatDate(dateValue) : "Not set"}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge className={`${status.color} border`}>
+                                <StatusIcon className="w-3 h-3 mr-1" />
+                                {status.text}
+                              </Badge>
                             </div>
-                            <p className="text-xs text-slate-600">Expiry & Documentation</p>
-                          </div>
-                        </div>
-                        {item.hasDialog && (
-                          <Button size="sm" variant="ghost" onClick={() => item.key === "last_pmi" ? setPmiDialogOpen(true) : setMotDialogOpen(true)}>
-                            <Settings className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
 
-                    <div className="p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <Calendar className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm font-medium text-slate-600">
-                              {item.key === "last_pmi" ? "Last PMI Date" : "Expiry Date"}
-                            </span>
-                          </div>
-                          <p className="text-sm font-semibold ml-6">{dateValue ? formatDate(dateValue) : "Not set"}</p>
-                        </div>
-                        <Badge className={`${status.color} border`}>
-                          <StatusIcon className="w-3 h-3 mr-1" />
-                          {status.text}
-                        </Badge>
-                      </div>
+                            {/* Document Row */}
+                            <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-slate-200">
+                              <div className="flex items-center gap-3">
+                                <FileText className="w-4 h-4 text-slate-400" />
+                                <div>
+                                  <p className="text-xs text-slate-500">Supporting Document</p>
+                                  <p className="text-sm font-semibold text-slate-900">
+                                    {hasDoc ? "Uploaded" : "Not uploaded"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {hasDoc ? (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setPreviewDoc(docValue)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => window.open(docValue, "_blank")}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <FileUploader
+                                    onUploadSuccess={(url) => handleDocumentUpload(item.docField, url)}
+                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                    maxSize={10 * 1024 * 1024}
+                                    id={`upload-compliance-${item.key}`}
+                                  />
+                                )}
+                              </div>
+                            </div>
 
-                      <div className="flex items-center justify-between pt-3 border-t">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <FileText className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm font-medium text-slate-600">Document</span>
+                            {/* Update Date Action */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditDateDialog(item.dateField, dateValue)}
+                              className="w-full"
+                            >
+                              <Calendar className="w-4 h-4 mr-2" />
+                              {item.key === "last_pmi" ? "Update Last PMI Date" : 
+                               item.key === "tyre_maintenance" ? "Update Maintenance Check Date" :
+                               item.key === "tyre_expiry" ? "Update Tyre Expiry Date" : "Update Expiry Date"}
+                            </Button>
                           </div>
-                          <p className="text-sm font-semibold ml-6">{hasDoc ? "Uploaded" : "Not uploaded"}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {hasDoc ? (
-                            <>
-                              <Button variant="ghost" size="sm" onClick={() => setPreviewDoc(docValue)}>
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => window.open(docValue, "_blank")}>
-                                <Download className="w-4 h-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <FileUploader onUploadSuccess={(url) => handleDocumentUpload(item.docField, url)} />
-                          )}
-                        </div>
-                      </div>
-
-                      <Button variant="outline" size="sm" onClick={() => openEditDateDialog(item.dateField, dateValue)} className="w-full">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        {item.key === "last_pmi" ? "Update Last PMI Date" : "Update Date"}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+                        </AccordionContent>
+                      )}
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             </div>
-
           </TabsContent>
         </Tabs>
 
@@ -1452,7 +1415,7 @@ export default function VehicleDetailPage() {
             </div>
           ) : (
             <div className="flex gap-4 flex-col">
-              <AssignDriverDialog vehicleId={vehicleId} />
+              {/* <AssignDriverDialog vehicleId={vehicleId} /> */}
               <Button variant="outline" onClick={handleEditToggle}>
                 <Edit className="w-6 h-6 mr-2" />
                 Edit Details
@@ -1474,7 +1437,11 @@ export default function VehicleDetailPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label>{editDateField === "last_pmi_date" ? "Last PMI Date *" : "Expiry Date *"}</Label>
+                <Label>
+                  {editDateField === "last_pmi_date" ? "Last PMI Date *" : 
+                   editDateField === "last_tyre_maintenance_check_date" ? "Last Tyre Maintenance Check Date *" :
+                   editDateField === "tyre_expiry_date" ? "Tyre Expiry Date *" : "Expiry Date *"}
+                </Label>
                 <Input type="date" value={tempDate} onChange={(e) => setTempDate(e.target.value)} />
               </div>
               <div>
@@ -1502,6 +1469,141 @@ export default function VehicleDetailPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditDateField(null)}>Cancel</Button>
               <Button onClick={() => handleDateSave(uploadedDoc || null)} disabled={!tempDate || (!skipUpload && !uploadedDoc)}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Tyre Maintenance Dialog */}
+        <Dialog open={tyreMaintenanceDialogOpen} onOpenChange={setTyreMaintenanceDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Update Tyre Maintenance Check</DialogTitle>
+              <DialogDescription>
+                Record the date of the last tyre maintenance inspection
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Last Maintenance Check Date *</Label>
+                <Input 
+                  type="date" 
+                  value={tempDate} 
+                  onChange={(e) => setTempDate(e.target.value)} 
+                  max={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Maintenance Report</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={skipUpload} onCheckedChange={(c) => setSkipUpload(c === true)} />
+                    <Label>Upload later</Label>
+                  </div>
+                </div>
+                {!skipUpload && !uploadedDoc && (
+                  <div className="border-2 border-dashed rounded-xl p-6 text-center">
+                    <FileUploader 
+                      onUploadSuccess={(url) => setUploadedDoc(url)} 
+                      id="tyre-maintenance-upload" 
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+                    <p className="text-sm mt-2">Upload maintenance report (PDF, JPG, PNG)</p>
+                  </div>
+                )}
+                {uploadedDoc && (
+                  <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
+                    <span className="text-sm">Document uploaded</span>
+                    <Button variant="ghost" size="sm" onClick={() => setUploadedDoc("")}><X className="w-4 h-4" /></Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setTyreMaintenanceDialogOpen(false);
+                setTempDate("");
+                setUploadedDoc("");
+                setSkipUpload(false);
+              }}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={async () => {
+                  setEditDateField("last_tyre_maintenance_check_date");
+                  await handleDateSave(uploadedDoc || null);
+                  setTyreMaintenanceDialogOpen(false);
+                }} 
+                disabled={!tempDate || (!skipUpload && !uploadedDoc)}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Tyre Expiry Dialog */}
+        <Dialog open={tyreExpiryDialogOpen} onOpenChange={setTyreExpiryDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Update Tyre Expiry Date</DialogTitle>
+              <DialogDescription>
+                Set the date when tyres need to be replaced
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Tyre Expiry Date *</Label>
+                <Input 
+                  type="date" 
+                  value={tempDate} 
+                  onChange={(e) => setTempDate(e.target.value)} 
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Tyre Certificate / Documentation</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={skipUpload} onCheckedChange={(c) => setSkipUpload(c === true)} />
+                    <Label>Upload later</Label>
+                  </div>
+                </div>
+                {!skipUpload && !uploadedDoc && (
+                  <div className="border-2 border-dashed rounded-xl p-6 text-center">
+                    <FileUploader 
+                      onUploadSuccess={(url) => setUploadedDoc(url)} 
+                      id="tyre-expiry-upload" 
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+                    <p className="text-sm mt-2">Upload tyre certificate or documentation</p>
+                  </div>
+                )}
+                {uploadedDoc && (
+                  <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
+                    <span className="text-sm">Document uploaded</span>
+                    <Button variant="ghost" size="sm" onClick={() => setUploadedDoc("")}><X className="w-4 h-4" /></Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setTyreExpiryDialogOpen(false);
+                setTempDate("");
+                setUploadedDoc("");
+                setSkipUpload(false);
+              }}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={async () => {
+                  setEditDateField("tyre_expiry_date");
+                  await handleDateSave(uploadedDoc || null);
+                  setTyreExpiryDialogOpen(false);
+                }} 
+                disabled={!tempDate || (!skipUpload && !uploadedDoc)}
+              >
                 Save
               </Button>
             </DialogFooter>
