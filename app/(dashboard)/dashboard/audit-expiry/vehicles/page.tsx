@@ -16,7 +16,7 @@ export default function Vehicles() {
         <Tabs defaultValue="dates" className="mt-6">
           <TabsList className="grid w-full grid-cols-2 bg-gray-200">
             <TabsTrigger value="dates">Compliance Dates</TabsTrigger>
-            <TabsTrigger value="alerts">Compliance Alerts</TabsTrigger>
+            <TabsTrigger value="alerts">Compliance Tasks</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dates">
