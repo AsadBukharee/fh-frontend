@@ -431,16 +431,20 @@ export function ComplianceList({ items, setItems, loading, saving, onUpdateItem,
                                 </div>
                             </TableCell>
                         </TableRow>
-                    ) : (
-                        <TableRow className="hover:bg-gray-50/50 border-0 cursor-pointer transition-colors" onClick={() => setIsCreating(true)}>
-                            <TableCell colSpan={4} className="py-3 text-center text-gray-400 group-hover:text-blue-600">
-                                <div className="flex items-center justify-center gap-2 text-sm font-medium py-2 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-200 hover:bg-blue-50/30 transition-all">
-                                    <Plus className="w-4 h-4" />
-                                    <span>Add New {type === "date" ? "Compliance Date" : "Compliance Alert"}</span>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    )}
+                    ) : null
+                    // (
+
+                    //     <TableRow className="hover:bg-gray-50/50 border-0 cursor-pointer transition-colors" onClick={() => setIsCreating(true)}>
+                    //         <TableCell colSpan={4} className="py-3 text-center text-gray-400 group-hover:text-blue-600">
+                    //             <div className="flex items-center justify-center gap-2 text-sm font-medium py-2 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-200 hover:bg-blue-50/30 transition-all">
+                    //                 <Plus className="w-4 h-4" />
+                    //                 <span>Add New {type === "date" ? "Compliance Date" : "Compliance Alert"}</span>
+                    //             </div>
+                    //         </TableCell>
+                    //     </TableRow>
+                    // )
+                    
+                    }
                 </TableBody>
             </Table>
         </div>

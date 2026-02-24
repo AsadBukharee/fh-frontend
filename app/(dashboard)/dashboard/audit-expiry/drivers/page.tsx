@@ -16,7 +16,7 @@ export default function Drivers() {
         <Tabs defaultValue="dates" className="mt-6">
           <TabsList className="grid w-full grid-cols-2 bg-gray-200">
             <TabsTrigger value="dates">Driver Compliance Dates</TabsTrigger>
-            <TabsTrigger value="alerts">Driver Compliance Alerts</TabsTrigger>
+            <TabsTrigger value="alerts">Driver Compliance Tasks</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dates">
