@@ -87,7 +87,7 @@ const ReferenceSelect = ({
                                             value === attr.name ? "opacity-100" : "opacity-0"
                                         )}
                                     />
-                                    {attr.name} <span className="text-gray-400 ml-1 text-[10px]">({attr.type})</span>
+                                    <span title={attr.name}>{attr.name} </span>
                                 </CommandItem>
                             ))}
                         </CommandGroup>
@@ -106,6 +106,7 @@ const ComplianceItem = memo(({
     updateField,
     loading,
     saving,
+    type,
     attributes,
     attributesLoading
 }: {
@@ -115,6 +116,7 @@ const ComplianceItem = memo(({
     updateField: (id: string, field: keyof AuditItem, value: any) => void,
     loading: boolean,
     saving: boolean,
+    type: "date" | "alert",
     attributes: DriverAttribute[],
     attributesLoading: boolean
 }) => {
@@ -127,6 +129,7 @@ const ComplianceItem = memo(({
     const isEditingTitle = editingField?.id === item.id && editingField?.field === "title"
     const isEditingSubtitle = editingField?.id === item.id && editingField?.field === "subtitle"
     const isEditingReference = editingField?.id === item.id && editingField?.field === "fieldReference"
+    const isEditingFieldName = editingField?.id === item.id && editingField?.field === "fieldName"
 
     return (
         <TableRow className="hover:bg-transparent border-b border-gray-100 last:border-0">
@@ -187,7 +190,38 @@ const ComplianceItem = memo(({
                     )}
                 </div>
             </TableCell>
-
+{
+                type === "date" ? (
+                    <TableCell className="py-3 align-top min-w-[200px]">
+                {isEditingFieldName ? (
+                    <ReferenceSelect
+                        value={item.fieldName || ""}
+                        onChange={(val) => {
+                            updateField(item.id, "fieldName", val)
+                            setEditingField(null)
+                        }}
+                        attributes={attributes}
+                        disabled={loading || saving || attributesLoading}
+                    />
+                ) : (
+                    <div
+                        onDoubleClick={() => !loading && !saving && setEditingField({ id: item.id, field: "fieldName" })}
+                        className="group flex items-center justify-between space-x-2 bg-gray-50 border border-gray-100 text-gray-700 px-3 py-1.5 rounded text-xs font-mono cursor-pointer hover:bg-gray-100 hover:border-gray-300 transition-all w-full"
+                        title="Double click to edit"
+                    >
+                        <span className="truncate">{item.fieldName || "-"}</span>
+                        <Pencil
+                            className="w-3 h-3 text-gray-400 opacity-50 group-hover:opacity-100 transition-opacity inline cursor-pointer hover:text-green-600 flex-shrink-0"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                if (!loading && !saving) setEditingField({ id: item.id, field: "fieldName" })
+                            }}
+                        />
+                    </div>
+                )}
+            </TableCell>
+                ) : null
+}
             <TableCell className="py-3 align-top min-w-[200px]">
                 {isEditingReference ? (
                     <ReferenceSelect
@@ -329,6 +363,9 @@ export function ComplianceList({ items, setItems, loading, saving, onUpdateItem,
                 <TableHeader className="bg-gray-50/50">
                     <TableRow className="border-b border-gray-100 hover:bg-gray-50/50">
                         <TableHead className="w-[40%] text-xs font-medium text-gray-500 uppercase tracking-wide py-3 pl-4">Audit Item</TableHead>
+{type=="date"?
+                        <TableHead className="w-[40%] text-xs font-medium text-gray-500 uppercase tracking-wide py-3 pl-4">Field Name</TableHead>
+:null}
                         <TableHead className="w-[20%] text-xs font-medium text-gray-500 uppercase tracking-wide py-3">Reference</TableHead>
                         <TableHead className="w-[20%] text-center text-xs font-medium text-gray-500 uppercase tracking-wide py-3">Days</TableHead>
                         <TableHead className="w-[20%] text-center text-xs font-medium text-gray-500 uppercase tracking-wide py-3">Trigger</TableHead>
@@ -344,6 +381,7 @@ export function ComplianceList({ items, setItems, loading, saving, onUpdateItem,
                             updateField={updateField}
                             loading={loading}
                             saving={saving}
+                            type={type}
                             attributes={memoizedAttributes}
                             attributesLoading={attributesLoading}
                         />
@@ -377,6 +415,7 @@ export function ComplianceList({ items, setItems, loading, saving, onUpdateItem,
                                     />
                                 </div>
                             </TableCell>
+                            
                             <TableCell className="py-4 align-top">
                                 <ReferenceSelect
                                     value={newItem.fieldReference}
