@@ -5,12 +5,96 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Loader2, Download, FileText, Check, X, AlertCircle } from 'lucide-react';
+import { 
+  ChevronDown, 
+  ChevronUp, 
+  Loader2, 
+  Download, 
+  FileText, 
+  Eye, 
+  X, 
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  User,
+  MapPin,
+  Gauge,
+  Signature,
+  Camera,
+  Printer
+} from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
 import { Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+// Add print styles
+const printStyles = `
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    .print-break-inside {
+      page-break-inside: avoid;
+    }
+    
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    .badge {
+      border: 1px solid currentColor !important;
+    }
+    
+    .print-card {
+      border: 1px solid #e5e7eb !important;
+      border-radius: 12px !important;
+      margin-bottom: 20px !important;
+      page-break-inside: avoid !important;
+    }
+    
+    .print-header {
+      background-color: #ffedd5 !important;
+      border-bottom: 1px solid #fed7aa !important;
+      padding: 12px 20px !important;
+    }
+    
+    .print-text-orange {
+      color: #9a3412 !important;
+    }
+    
+    .print-grid {
+      display: grid !important;
+      grid-template-columns: repeat(4, 1fr) !important;
+      gap: 24px !important;
+      margin-bottom: 16px !important;
+    }
+    
+    .print-answers-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 16px !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    
+    .print-signature {
+      border: 1px solid #d1d5db !important;
+      border-radius: 8px !important;
+      padding: 16px !important;
+      background-color: #ffffff !important;
+    }
+  }
+`;
 
 // Interfaces
 interface Steps {
@@ -47,12 +131,12 @@ interface WalkaroundData {
       vehicle: {
         id: number;
         registration_number: string;
-        vehicles_type_name: string;
+        vehicle_type_name: string;
         last_mileage: string | null;
-        current_mileage: string;
+        purchase_mileage: string | null;
         mileage_unit: string;
-        mileage_in_km: number;
-        mileage_in_miles: number;
+        mileage_in_km: number | null;
+        mileage_in_miles: number | null;
         site_allocated: Array<{
           id: number;
           name: string;
@@ -75,13 +159,14 @@ interface WalkaroundData {
         avatar: string | null;
       } | null;
       walkaround_step: number;
+      check_type: string;
       date: string;
       time: string;
       mileage: number | null;
       signature: string | null;
       note: string | null;
       defects: string | null;
-      walkaround_duration: number | null;
+      walkaround_duration: string | null;
       status: string;
       created_at: string;
       updated_at: string;
@@ -102,7 +187,7 @@ interface StepData {
   error: string | null;
 }
 
-// PDF Styles - Updated to match StepCard UI
+// PDF Styles
 const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
@@ -110,7 +195,6 @@ const styles = StyleSheet.create({
     padding: 24,
     fontFamily: 'Helvetica',
   },
-  // Step Card Container
   stepCard: {
     borderWidth: 1,
     borderColor: '#e5e7eb',
@@ -119,8 +203,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     overflow: 'hidden',
   },
-
-  // Header Section - Orange background like StepCard
   headerSection: {
     backgroundColor: '#ffedd5',
     paddingVertical: 12,
@@ -143,13 +225,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#92400e',
   },
-
-  // Card Content
   cardContent: {
     padding: 20,
   },
-
-  // Grid Layout like StepCard
   gridRow: {
     flexDirection: 'row',
     marginBottom: 16,
@@ -174,8 +252,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#9ca3af',
   },
-
-  // Badge styles matching StepCard
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -214,8 +290,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ea580c',
     color: '#ffffff',
   },
-
-  // Daily Checks Section
   dailyChecksHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -236,22 +310,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  statBadge: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-
-  // Answer Items matching StepCard grid
   answersGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: 12,
   },
   answerCard: {
-    width: '100%',
+    width: '48%',
     marginRight: '4%',
     marginBottom: 12,
     borderWidth: 1,
@@ -289,13 +354,6 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 6,
   },
-  answerBadge: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
   defectNote: {
     fontSize: 9,
     color: '#dc2626',
@@ -305,8 +363,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginTop: 4,
   },
-
-  // Notes and Defects Section
   notesSection: {
     marginTop: 20,
     borderTopWidth: 1,
@@ -333,8 +389,6 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 1.5,
   },
-
-  // Signature Section
   signatureSection: {
     marginTop: 20,
     borderTopWidth: 1,
@@ -366,8 +420,6 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginTop: 4,
   },
-
-  // Footer matching StepCard
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -385,8 +437,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#6b7280',
   },
-
-  // Two column layout for notes and defects
   twoColumn: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -397,14 +447,474 @@ const styles = StyleSheet.create({
   },
 });
 
-// Individual Step PDF Component - Updated to match StepCard UI
+// Print Button Component
+const PrintButton = ({ stepDataList }: { stepDataList: StepData[] }) => {
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow pop-ups to print');
+      return;
+    }
+
+    const validSteps = stepDataList.filter(step => step.data?.success);
+    
+    const formatTime = (timeString: string) => {
+      if (!timeString) return 'N/A';
+      return timeString.split(':').slice(0, 2).join(':');
+    };
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Vehicle Inspection Report</title>
+          <style>
+            ${printStyles}
+            
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+              margin: 20px;
+              background: white;
+              color: #1f2937;
+            }
+            
+            .print-container {
+              max-width: 1200px;
+              margin: 0 auto;
+            }
+            
+            .print-header {
+              text-align: center;
+              margin-bottom: 30px;
+              padding: 20px;
+              background: #ffedd5;
+              border-radius: 12px;
+            }
+            
+            .print-title {
+              font-size: 24px;
+              font-weight: bold;
+              color: #9a3412;
+              margin-bottom: 8px;
+            }
+            
+            .print-subtitle {
+              font-size: 14px;
+              color: #92400e;
+            }
+            
+            .print-summary {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 16px;
+              margin: 20px 0;
+            }
+            
+            .print-summary-item {
+              padding: 16px;
+              border-radius: 8px;
+              text-align: center;
+            }
+            
+            .print-summary-steps { background: #f0f9ff; }
+            .print-summary-passed { background: #f0fdf4; }
+            .print-summary-defects { background: #fef2f2; }
+            
+            .print-summary-number {
+              font-size: 32px;
+              font-weight: bold;
+            }
+            
+            .print-summary-label {
+              font-size: 12px;
+              color: #64748b;
+              margin-top: 4px;
+            }
+            
+            .print-step {
+              page-break-after: always;
+            }
+            
+            .print-step:last-child {
+              page-break-after: auto;
+            }
+            
+            .print-info-grid {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 20px;
+              margin-bottom: 20px;
+            }
+            
+            .print-info-label {
+              font-size: 11px;
+              color: #6b7280;
+              text-transform: uppercase;
+              margin-bottom: 4px;
+            }
+            
+            .print-info-value {
+              font-size: 13px;
+              font-weight: 600;
+              color: #1f2937;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            
+            .print-badge {
+              display: inline-flex;
+              align-items: center;
+              padding: 4px 8px;
+              border-radius: 6px;
+              font-size: 10px;
+              font-weight: 600;
+            }
+            
+            .print-badge-green {
+              background: #10b981;
+              color: white;
+            }
+            
+            .print-badge-red {
+              background: #ef4444;
+              color: white;
+            }
+            
+            .print-badge-orange {
+              background: #ea580c;
+              color: white;
+            }
+            
+            .print-badge-gray {
+              background: #6b7280;
+              color: white;
+            }
+            
+            .print-answer-item {
+              border: 1px solid #e5e7eb;
+              border-radius: 8px;
+              padding: 12px;
+              background: #f9fafb;
+              margin-bottom: 12px;
+            }
+            
+            .print-answer-item.defect {
+              background: #fef2f2;
+              border-color: #fecaca;
+              border-left: 4px solid #ef4444;
+            }
+            
+            .print-answer-item.pass {
+              border-left: 4px solid #10b981;
+            }
+            
+            .print-question-number {
+              display: inline-flex;
+              width: 20px;
+              height: 20px;
+              border-radius: 9999px;
+              background: #f3f4f6;
+              align-items: center;
+              justify-content: center;
+              font-size: 11px;
+              font-weight: 600;
+              margin-right: 8px;
+            }
+            
+            .print-question-number.defect {
+              background: #fee2e2;
+              color: #dc2626;
+            }
+            
+            .print-signature-img {
+              max-height: 60px;
+              object-fit: contain;
+              border: 1px solid #e5e7eb;
+              border-radius: 4px;
+              padding: 4px;
+              background: white;
+            }
+            
+            .print-footer {
+              margin-top: 20px;
+              padding-top: 16px;
+              border-top: 1px solid #e5e7eb;
+              font-size: 11px;
+              color: #6b7280;
+              display: flex;
+              justify-content: space-between;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-container">
+            <!-- Cover Page -->
+            <div class="print-step">
+              <div class="print-header">
+                <h1 class="print-title">Vehicle Inspection Report</h1>
+                <p class="print-subtitle">Comprehensive Walkaround Details</p>
+              </div>
+              
+              ${validSteps[0]?.data ? `
+                <div style="background: #ffedd5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                  <h2 style="font-size: 20px; color: #9a3412; margin-bottom: 8px;">
+                    ${validSteps[0].data.data.walkaround.vehicle?.registration_number || 'Unknown Vehicle'}
+                  </h2>
+                  <p style="color: #92400e;">
+                    ${validSteps[0].data.data.walkaround.vehicle?.vehicle_type_name || 'N/A'}
+                  </p>
+                </div>
+                
+                <div class="print-summary">
+                  <div class="print-summary-item print-summary-steps">
+                    <div class="print-summary-number" style="color: #0ea5e9;">
+                      ${validSteps.length}
+                    </div>
+                    <div class="print-summary-label">Total Steps</div>
+                  </div>
+                  
+                  <div class="print-summary-item print-summary-passed">
+                    <div class="print-summary-number" style="color: #10b981;">
+                      ${validSteps.reduce((sum, step) => sum + ((step.data?.data.total_answers || 0) - (step.data?.data.defected_count || 0)), 0)}
+                    </div>
+                    <div class="print-summary-label">Passed Checks</div>
+                  </div>
+                  
+                  <div class="print-summary-item print-summary-defects">
+                    <div class="print-summary-number" style="color: #ef4444;">
+                      ${validSteps.reduce((sum, step) => sum + (step.data?.data.defected_count || 0), 0)}
+                    </div>
+                    <div class="print-summary-label">Total Defects</div>
+                  </div>
+                </div>
+                
+                <div style="margin-top: 30px; padding: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
+                  <h3 style="font-size: 12px; font-weight: bold; margin-bottom: 8px;">Summary of Defect Notes:</h3>
+                  ${validSteps.flatMap(step => 
+                    step.data?.data.answers
+                      .filter(a => a.is_defected && a.description)
+                      .map(a => `<div style="font-size: 11px; color: #dc2626; margin-bottom: 4px;">• ${a.description}</div>`)
+                  ).join('') || '<div style="font-size: 11px; color: #6b7280; font-style: italic;">No defect notes recorded</div>'}
+                </div>
+                
+                <div style="margin-top: 40px; text-align: center; color: #9ca3af; font-size: 11px;">
+                  Generated on ${formatToDDMMYYYY(new Date().toISOString())} at ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              ` : ''}
+            </div>
+            
+            <!-- Individual Steps -->
+            ${validSteps.map((step, stepIndex) => {
+              const data = step.data?.data;
+              if (!data) return '';
+              
+              const { walkaround, answers, defected_count, total_answers } = data;
+              const motionDetectedCount = answers.filter(a => a.motion_detected).length;
+              
+              return `
+                <div class="print-step">
+                  <div class="print-card">
+                    <div class="print-header">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                          <h3 style="font-size: 14px; font-weight: bold; color: #9a3412; margin-bottom: 4px;">
+                            Walkaround Details <span style="color: #ea580c;">${String(step.stepNumber).padStart(2, "0")}</span>
+                          </h3>
+                          <p style="font-size: 11px; color: #92400e;">
+                            Chain ID: #${walkaround.parent ?? "—"} · Latest Step: ${step.stepNumber} of ${step.stepNumber}
+                          </p>
+                        </div>
+                        
+                        <span class="print-badge ${walkaround.status === "completed" ? 'print-badge-green' : 'print-badge-orange'}" style="padding: 6px 12px;">
+                          ${walkaround.status}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div style="padding: 20px;">
+                      <div class="print-info-grid">
+                        <div>
+                          <div class="print-info-label">Registration No.</div>
+                          <div class="print-info-value">${walkaround.vehicle?.registration_number || 'N/A'}</div>
+                        </div>
+                        
+                        <div>
+                          <div class="print-info-label">Vehicle Type</div>
+                          <div class="print-info-value">${walkaround.vehicle?.vehicle_type_name || 'N/A'}</div>
+                        </div>
+                        
+                        <div>
+                          <div class="print-info-label">Sites</div>
+                          <div class="print-info-value">
+                            ${walkaround.vehicle?.site_allocated?.[0]?.name || 'N/A'}
+                            <span class="print-badge print-badge-green" style="font-size: 10px;">Active</span>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div class="print-info-label">Current Mileage</div>
+                          <div class="print-info-value">${walkaround.vehicle?.last_mileage} ${walkaround.vehicle?.mileage_unit}</div>
+                        </div>
+                      </div>
+                      
+                      <div class="print-info-grid" style="border-top: 1px solid #e5e7eb; padding-top: 16px;">
+                        <div>
+                          <div class="print-info-label">Driver</div>
+                          <div class="print-info-value">
+                            ${walkaround.conducted_by.full_name}
+                            <span class="print-badge print-badge-green">${walkaround.conducted_by.role}</span>
+                          </div>
+                          <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">
+                            ${formatToDDMMYYYY(walkaround.date)} at ${formatTime(walkaround.time)}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div class="print-info-label">Manager</div>
+                          <div class="print-info-value">
+                            ${walkaround.walkaround_assignee?.full_name ?? "Unroad worthy"}
+                            <span class="print-badge print-badge-red">${walkaround.walkaround_assignee?.role || 'N/A'}</span>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div class="print-info-label">Motion Status</div>
+                          <div style="display: flex; gap: 8px;">
+                            <span class="print-badge print-badge-green">Static: ${answers.length - motionDetectedCount}</span>
+                            <span class="print-badge print-badge-red">Motion: ${motionDetectedCount}</span>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div class="print-info-label">Duration</div>
+                          <div class="print-info-value">${walkaround.walkaround_duration ?? "—"}</div>
+                        </div>
+                      </div>
+                      
+                      ${walkaround.signature ? `
+                        <div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+                          <div style="display: flex; align-items: center; gap: 16px;">
+                            <img src="data:image/png;base64,${walkaround.signature}" class="print-signature-img" />
+                            <div>
+                              <div style="font-weight: 600;">${walkaround.conducted_by.full_name}</div>
+                              <div style="font-size: 11px; color: #6b7280;">
+                                ${formatToDDMMYYYY(walkaround.date)} at ${formatTime(walkaround.time)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ` : ''}
+                      
+                      <div style="margin-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0;">
+                          <h4 style="font-size: 13px; font-weight: bold; color: #374151;">Daily checks</h4>
+                          <span class="print-badge print-badge-orange" style="background: #ea580c;">${defected_count} defects</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                          ${answers.map((answer, idx) => `
+                            <div class="print-answer-item ${answer.is_defected ? 'defect' : ''} ${answer.is_defected ? 'fail' : (answer.answer?.toLowerCase().includes('yes') ? 'pass' : '')}">
+                              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                <span class="print-question-number ${answer.is_defected ? 'defect' : ''}">${idx + 1}</span>
+                                <div style="flex: 1;">
+                                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                    <p style="font-size: 11px; font-weight: 600; margin: 0;">${answer.question_text}</p>
+                                    <div style="display: flex; gap: 4px;">
+                                      <span class="print-badge ${answer.is_defected ? 'print-badge-red' : 'print-badge-green'}" style="font-size: 9px;">
+                                        ${answer.is_defected ? 'Fail' : 'Pass'}
+                                      </span>
+                                      <span class="print-badge print-badge-orange" style="font-size: 9px;">
+                                        ${answer.motion_detected ? 'Motion' : 'Static'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  
+                                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <span class="print-badge print-badge-gray" style="font-size: 9px; background: #6b7280;">
+                                      ${answer.answer || 'N/A'}
+                                    </span>
+                                    
+                                    ${answer.prove ? `
+                                      <span style="font-size: 9px; color: #2563eb;">📷 Image attached</span>
+                                    ` : ''}
+                                  </div>
+                                  
+                                  ${answer.is_defected && answer.description ? `
+                                    <div style="margin-top: 8px; padding: 8px; background: #fee2e2; border-radius: 4px; font-size: 10px; color: #dc2626;">
+                                      <strong>Defect Note:</strong> ${answer.description}
+                                    </div>
+                                  ` : ''}
+                                </div>
+                              </div>
+                            </div>
+                          `).join('')}
+                        </div>
+                      </div>
+                      
+                      <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div>
+                          <h4 style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px; text-transform: uppercase;">
+                            Defects Reported
+                          </h4>
+                          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; min-height: 60px;">
+                            <p style="font-size: 11px; margin: 0;">${walkaround.defects || "No specific defects noted."}</p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px; text-transform: uppercase;">
+                            Additional Notes
+                          </h4>
+                          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; min-height: 60px;">
+                            <p style="font-size: 11px; margin: 0;">${walkaround.note || "No additional notes."}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="print-footer">
+                        <span>Total Defects: ${defected_count} / ${total_answers}</span>
+                        <span>${formatToDDMMYYYY(walkaround.date)} · ${formatTime(walkaround.time)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+  };
+
+  return (
+    <Button
+      onClick={handlePrint}
+      className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-orange-600 hover:bg-orange-700 text-white shadow-lg flex items-center justify-center group overflow-hidden no-print"
+    >
+      <Printer className="h-5 w-5" />
+      <span className="absolute left-full ml-3 whitespace-nowrap rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white opacity-0 scale-95 transition-all group-hover:opacity-100 group-hover:scale-100 pointer-events-none">
+        Print Report
+      </span>
+    </Button>
+  );
+};
+
+// Individual Step PDF Document
 const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumber: number }) => {
   const { walkaround, answers, defected_count, total_answers } = data.data;
 
   const motionDetectedCount = answers.filter(a => a.motion_detected).length;
   const motionNotDetectedCount = answers.length - motionDetectedCount;
-
-
 
   const formatTime = (timeString: string) => {
     if (!timeString) return 'N/A';
@@ -413,7 +923,6 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
 
   return (
     <View style={styles.stepCard}>
-      {/* Header */}
       <View style={styles.headerSection}>
         <View style={styles.headerRow}>
           <View>
@@ -433,9 +942,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
         </View>
       </View>
 
-      {/* Card Content */}
       <View style={styles.cardContent}>
-        {/* Vehicle Row */}
         <View style={styles.gridRow}>
           <View style={styles.gridItem}>
             <Text style={styles.label}>Registration No.</Text>
@@ -444,7 +951,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
 
           <View style={styles.gridItem}>
             <Text style={styles.label}>Vehicle Type</Text>
-            <Text style={styles.value}>{walkaround.vehicle?.vehicles_type_name || 'N/A'}</Text>
+            <Text style={styles.value}>{walkaround.vehicle?.vehicle_type_name || 'N/A'}</Text>
           </View>
 
           <View style={styles.gridItem}>
@@ -465,7 +972,6 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
           </View>
         </View>
 
-        {/* Personnel Row */}
         <View style={styles.gridRow}>
           <View style={styles.gridItem}>
             <Text style={styles.label}>Driver Name</Text>
@@ -499,24 +1005,44 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
 
           <View style={styles.gridItem}>
             <Text style={styles.label}>Total Time</Text>
-            <Text style={styles.value}>{walkaround.walkaround_duration ?? "—"} s</Text>
+            <Text style={styles.value}>{walkaround.walkaround_duration ?? "—"}</Text>
           </View>
         </View>
 
-        {/* Daily Checks Header */}
+        {walkaround.signature && (
+          <View style={styles.signatureSection}>
+            <Text style={styles.sectionTitle}>Signature</Text>
+            <View style={styles.signatureContainer}>
+              <Image
+                src={`data:image/png;base64,${walkaround.signature}`}
+                style={styles.signatureImage}
+              />
+              <Text style={styles.signatureInfo}>
+                Signed by: {walkaround.conducted_by?.full_name || 'N/A'}
+              </Text>
+              <Text style={[styles.signatureInfo, { marginTop: 4 }]}>
+                Date: {formatToDDMMYYYY(walkaround.date)} • Time: {formatTime(walkaround.time)}
+              </Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.dailyChecksHeader}>
           <Text style={styles.dailyChecksTitle}>Daily checks</Text>
-
+          <View style={styles.statsContainer}>
+            <View style={[styles.badge, styles.failBadge]}>
+              <Text>Defects: {defected_count}</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Answers Grid */}
         <View style={styles.answersGrid}>
           {answers.map((item, idx) => (
             <View
               key={item.id || idx}
               style={[
                 styles.answerCard,
-                ...(item.is_defected ? [styles.answerCardDefect] : [])
+                item.is_defected ? styles.answerCardDefect : {}
               ]}
             >
               <View style={styles.answerHeader}>
@@ -533,19 +1059,28 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
 
               <View style={styles.badgesRow}>
                 <View style={[styles.badge, styles.ldfBadge, { fontSize: 8 }]}>
-                  <Text>In-motion</Text>
+                  <Text>{item.motion_detected ? 'Motion' : 'Static'}</Text>
                 </View>
 
                 <View style={[
                   styles.badge,
-                  item.answer?.toLowerCase().includes('yes') ? styles.passBadge : styles.failBadge,
+                  item.is_defected ? styles.failBadge : styles.passBadge,
                   { fontSize: 8 }
                 ]}>
-                  <Text>{item.answer}</Text>
+                  <Text>{item.is_defected ? 'Fail' : 'Pass'}</Text>
+                </View>
+
+                <View style={[styles.badge, { backgroundColor: '#6b7280', fontSize: 8 }]}>
+                  <Text>{item.answer || 'N/A'}</Text>
                 </View>
               </View>
 
-              {/* Defect Note in PDF */}
+              {item.prove && (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={{ fontSize: 8, color: '#2563eb' }}>📷 Image attached</Text>
+                </View>
+              )}
+
               {item.is_defected && item.description && (
                 <View style={styles.defectNote}>
                   <Text style={{ fontSize: 8, color: '#dc2626', fontWeight: 'bold', marginBottom: 2 }}>
@@ -560,9 +1095,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
           ))}
         </View>
 
-        {/* Notes and Defects Section - Two Column Layout */}
         <View style={styles.twoColumn}>
-          {/* Defects Column */}
           <View style={styles.column}>
             <View style={styles.notesSection}>
               <Text style={styles.sectionTitle}>Defects Reported</Text>
@@ -574,7 +1107,6 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
             </View>
           </View>
 
-          {/* Additional Notes Column */}
           <View style={styles.column}>
             <View style={styles.notesSection}>
               <Text style={styles.sectionTitle}>Additional Notes</Text>
@@ -587,29 +1119,6 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
           </View>
         </View>
 
-        {/* Signature Section */}
-        {walkaround.signature && (
-          <View style={styles.signatureSection}>
-            <Text style={styles.sectionTitle}>Signature</Text>
-            <View style={styles.signatureContainer}>
-              <Image
-                src={walkaround.signature}
-                style={styles.signatureImage}
-              />
-              <Text style={styles.signatureInfo}>
-                Signed by:
-              </Text>
-              <Text style={styles.signatureName}>
-                {walkaround.conducted_by?.full_name || 'N/A'}
-              </Text>
-              <Text style={[styles.signatureInfo, { marginTop: 4 }]}>
-                Date: {formatToDDMMYYYY(walkaround.date)} • Time: {formatTime(walkaround.time)}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerLeft}>
             Total Defects: {defected_count} / {total_answers}
@@ -623,7 +1132,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
   );
 };
 
-// All Steps PDF Document - Cover page with StepCard styling
+// All Steps PDF Document
 const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => {
   const validSteps = stepDataList.filter(step => step.data?.success);
 
@@ -644,7 +1153,6 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
   const totalChecks = validSteps.reduce((sum, step) => sum + (step.data?.data.total_answers || 0), 0);
   const totalSteps = validSteps.length;
 
-  // Collect all defect notes from all steps
   const allDefectNotes: string[] = [];
   validSteps.forEach(step => {
     step.data?.data.answers.forEach(answer => {
@@ -656,7 +1164,6 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
 
   return (
     <Document>
-      {/* Cover Page */}
       <Page size="A4" style={styles.page}>
         <View style={{
           flex: 1,
@@ -664,7 +1171,6 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
           alignItems: 'center',
           backgroundColor: '#f8fafc'
         }}>
-          {/* Title Card */}
           <View style={{
             backgroundColor: 'white',
             borderWidth: 1,
@@ -711,11 +1217,11 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
                 fontSize: 12,
                 color: '#92400e',
               }}>
-                {vehicleInfo?.vehicles_type_name || 'N/A'}
+                {vehicleInfo?.vehicle_type_name || 'N/A'}
               </Text>
             </View>
 
-            <View style={[styles.statsContainer, { marginBottom: 24 }]}>
+            <View style={{ flexDirection: 'row', gap: 16, marginBottom: 24 }}>
               <View style={{
                 alignItems: 'center',
                 padding: 12,
@@ -831,7 +1337,7 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
               marginTop: 32,
               textAlign: 'center',
             }}>
-              Generated on {formatToDDMMYYYY(new Date())} at {new Date().toLocaleTimeString('en-GB', {
+              Generated on {formatToDDMMYYYY(new Date().toISOString())} at {new Date().toLocaleTimeString('en-GB', {
                 hour: '2-digit',
                 minute: '2-digit'
               })}
@@ -840,12 +1346,10 @@ const AllStepsPDFDocument = ({ stepDataList }: { stepDataList: StepData[] }) => 
         </View>
       </Page>
 
-      {/* Individual Steps */}
       {validSteps.map((step, index) => (
         <Page key={step.stepId} size="A4" style={styles.page}>
           <StepPDFDocument data={step.data!} stepNumber={step.stepNumber} />
 
-          {/* Page footer */}
           <View style={{
             position: 'absolute',
             bottom: 20,
@@ -912,7 +1416,7 @@ const StepPDFDownloadButton = ({ data }: { data: WalkaroundData }) => {
       onClick={handleDownloadPDF}
       disabled={isGenerating}
       size="sm"
-      className="bg-orange-500 hover:bg-orange-600 text-white h-8 px-3 gap-2"
+      className="bg-orange-500 hover:bg-orange-600 text-white h-8 px-3 gap-2 no-print"
     >
       {isGenerating ? (
         <>
@@ -962,7 +1466,7 @@ const AllStepsPDFDownloadButton = ({ stepDataList }: { stepDataList: StepData[] 
     <Button
       onClick={handleDownloadAllPDF}
       disabled={isGenerating}
-      className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center justify-center group overflow-hidden"
+      className="fixed bottom-6 right-24 h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center justify-center group overflow-hidden no-print"
     >
       {isGenerating ? (
         <Loader2 className="h-5 w-5 animate-spin" />
@@ -976,6 +1480,97 @@ const AllStepsPDFDownloadButton = ({ stepDataList }: { stepDataList: StepData[] 
   );
 };
 
+// Image Preview Modal Component
+const ImagePreviewModal = ({ 
+  imageUrl, 
+  isOpen, 
+  onClose 
+}: { 
+  imageUrl: string; 
+  isOpen: boolean; 
+  onClose: () => void;
+}) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-black/95 no-print">
+        <DialogHeader className="p-4 border-b border-gray-700">
+          <DialogTitle className="text-white flex items-center gap-2">
+            <Camera className="h-5 w-5" />
+            Image Preview
+          </DialogTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-4 top-4 text-white hover:bg-white/20"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogHeader>
+        <div className="p-4 flex items-center justify-center max-h-[80vh] overflow-auto">
+          <img
+            src={imageUrl}
+            alt="Preview"
+            className="max-w-full max-h-[70vh] object-contain rounded-lg"
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Signature Modal Component
+const SignatureModal = ({ 
+  signatureData, 
+  isOpen, 
+  onClose,
+  conductedBy,
+  date,
+  time
+}: { 
+  signatureData: string; 
+  isOpen: boolean; 
+  onClose: () => void;
+  conductedBy: { full_name: string } | null;
+  date: string;
+  time: string;
+}) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl w-full no-print">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Signature className="h-5 w-5 text-orange-500" />
+            Signature Details
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-6">
+          <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center">
+            <img
+              src={`data:image/png;base64,${signatureData}`}
+              alt="Signature"
+              className="max-w-full max-h-[200px] object-contain mb-4 border border-gray-200 rounded-lg p-4 bg-white"
+            />
+            <div className="text-center space-y-1">
+              <p className="text-sm font-medium text-gray-900">
+                Signed by: {conductedBy?.full_name || 'N/A'}
+              </p>
+              <p className="text-xs text-gray-500">
+                Date: {formatToDDMMYYYY(date)} • Time: {time}
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={onClose} variant="outline">
+              Close
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // Main Component
 const VehicleInspectionDashboard = () => {
   const [stepDataList, setStepDataList] = useState<StepData[]>([]);
@@ -986,7 +1581,15 @@ const VehicleInspectionDashboard = () => {
   const [steps, setSteps] = useState<Steps>({});
 
   useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = printStyles;
+    document.head.appendChild(style);
+
     extractStepsFromURL();
+
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   const extractStepsFromURL = () => {
@@ -1155,8 +1758,7 @@ const VehicleInspectionDashboard = () => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // Format date using the standardized utility
-  const formatToDDMMYYYY = (dateString: string) => {
+  const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
     try {
       return formatToDDMMYYYY(dateString);
@@ -1184,8 +1786,8 @@ const VehicleInspectionDashboard = () => {
   return (
     <div className="min-h-screen bg-white p-4">
       <div className="w-full px-5 mx-auto">
-        {/* All Steps Download Button */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center gap-4 mb-6">
+          <PrintButton stepDataList={stepDataList} />
           <AllStepsPDFDownloadButton stepDataList={stepDataList} />
         </div>
 
@@ -1198,7 +1800,7 @@ const VehicleInspectionDashboard = () => {
               savingStates={savingStates}
               expandedSections={expandedSections}
               toggleSection={toggleSection}
-              formatToDDMMYYYY={formatToDDMMYYYY}
+              formatDate={formatDate}
               formatTime={formatTime}
             />
           ))}
@@ -1208,13 +1810,14 @@ const VehicleInspectionDashboard = () => {
   );
 };
 
+// Step Card Component
 const StepCard = ({
   stepData,
   onSaveComments,
   savingStates,
   expandedSections,
   toggleSection,
-  formatToDDMMYYYY,
+  formatDate,
   formatTime,
 }: {
   stepData: StepData
@@ -1222,11 +1825,13 @@ const StepCard = ({
   savingStates: Record<number, boolean>
   expandedSections: Record<string, boolean>
   toggleSection: (section: string) => void
-  formatToDDMMYYYY: (dateString: string) => string
+  formatDate: (dateString: string) => string
   formatTime: (timeString: string) => string
 }) => {
   const { stepNumber, data, loading, error } = stepData;
   const isExpanded = expandedSections[`step-${stepNumber}`] !== false;
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showSignature, setShowSignature] = useState<boolean>(false);
 
   if (loading) {
     return (
@@ -1245,200 +1850,290 @@ const StepCard = ({
   const { walkaround, answers, defected_count, total_answers } = data.data;
   const motionDetectedCount = answers.filter(a => a.motion_detected).length;
   const motionNotDetectedCount = answers.length - motionDetectedCount;
+  const hasImages = answers.some(a => a.prove);
+  const hasSignature = !!walkaround.signature;
 
   return (
-    <Card className="border border-gray-200 rounded-xl overflow-hidden">
-      {/* HEADER */}
-      <div className="flex justify-between items-center px-5 py-3 bg-orange-50 border-b border-orange-100">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">
-            Walkaround Details <span className="text-orange-500">{String(stepNumber).padStart(2, "0")}</span>
-          </p>
-          <p className="text-xs text-gray-500">
-            Chain ID: #{walkaround.parent ?? "—"} · Latest Step: {stepNumber} of {stepNumber}
-          </p>
+    <>
+      <Card className="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow print-card">
+        <div className="flex justify-between items-center px-5 py-3 bg-orange-50 border-b border-orange-100 print-header">
+          <div className="flex items-center gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <span>Walkaround Details</span>
+                <span className="text-orange-500 font-bold">{String(stepNumber).padStart(2, "0")}</span>
+                {hasImages && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Camera className="h-4 w-4 text-blue-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Images available</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {hasSignature && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Signature className="h-4 w-4 text-green-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Signature available</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </p>
+              <p className="text-xs text-gray-500">
+                Chain ID: #{walkaround.parent ?? "—"} · Latest Step: {stepNumber} of {stepNumber}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 items-center no-print">
+            <Badge
+              className={
+                walkaround.status === "completed"
+                  ? "bg-green-100 text-green-700 border-green-200"
+                  : "bg-orange-100 text-orange-700 border-orange-200"
+              }
+            >
+              {walkaround.status}
+            </Badge>
+            <StepPDFDownloadButton data={data} />
+          </div>
         </div>
 
-        <div className="flex gap-3 justify-center">
-          <Badge
-            className={
-              walkaround.status === "completed"
-                ? "bg-green-100 text-green-700"
-                : "bg-orange-100 text-orange-700"
-            }
-          >
-            {walkaround.status}
-          </Badge>
-          <StepPDFDownloadButton data={data} />
-        </div>
-      </div>
+        <CardContent className="p-5 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Info 
+              label="Registration No." 
+              value={
+                <div className="flex items-center gap-2">
+                  <span className="font-bold">{walkaround.vehicle?.registration_number || 'N/A'}</span>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    {walkaround.vehicle?.vehicle_type_name || 'N/A'}
+                  </Badge>
+                </div>
+              } 
+            />
+            <Info 
+              label="Walkaround Date" 
+              value={
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3 w-3 text-gray-400" />
+                  <span>{formatDate(walkaround.date)} at {formatTime(walkaround.time)}</span>
+                </div>
+              } 
+            />
+            <Info
+              label="Sites"
+              value={
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-3 w-3 text-gray-400" />
+                  <span>{walkaround.vehicle?.site_allocated?.[0]?.name || 'N/A'}</span>
+                </div>
+              }
+              badge={<Badge className="bg-green-100 text-green-700 border-green-200">Active</Badge>}
+            />
+            <Info
+              label="Current Mileage"
+              value={
+                <div className="flex items-center gap-2">
+                  <Gauge className="h-3 w-3 text-gray-400" />
+                  <span>{walkaround.vehicle?.last_mileage} {walkaround.vehicle?.mileage_unit}</span>
+                </div>
+              }
+            />
+          </div>
 
-      <CardContent className="p-5 space-y-5">
-        {/* VEHICLE ROW */}
-        <div className="grid grid-cols-4 gap-6">
-          <Info label="Registration No." value={walkaround.vehicle?.registration_number} />
-          <Info label="Vehicle Type" value={walkaround.vehicle?.vehicles_type_name} />
-          <Info
-            label="Sites"
-            value={<Badge className="bg-green-100 text-green-700">Active</Badge>}
-            sub={walkaround.vehicle?.site_allocated?.[0]?.name}
-          />
-          <Info
-            label="Current Mileage"
-            value={`${walkaround.vehicle?.last_mileage} ${walkaround.vehicle?.mileage_unit}`}
-          />
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 border-t border-gray-100">
+            <Info
+              label="Driver"
+              value={
+                <div className="flex items-center gap-2">
+                  <User className="h-3 w-3 text-gray-400" />
+                  <span className="font-medium">{walkaround.conducted_by.full_name}</span>
+                </div>
+              }
+              badge={<Badge className="bg-green-100 text-green-700 border-green-200">{walkaround.conducted_by.role}</Badge>}
+            />
 
-        {/* PERSONNEL ROW */}
-        <div className="grid grid-cols-4 gap-6">
-          <Info
-            label="Driver Name"
-            value={<Badge className="bg-green-100 text-green-700">{walkaround.conducted_by.full_name}</Badge>}
-            sub={`${formatToDDMMYYYY(walkaround.date)} at ${formatTime(walkaround.time)}`}
-          />
+            <Info
+              label="Manager"
+              value={
+                <div className="flex items-center gap-2">
+                  <User className="h-3 w-3 text-gray-400" />
+                  <span className="font-medium">{walkaround.walkaround_assignee?.full_name ?? "Unroad worthy"}</span>
+                </div>
+              }
+              badge={<Badge className="bg-red-100 text-red-700 border-red-200">{walkaround.walkaround_assignee?.role || 'N/A'}</Badge>}
+            />
 
-          <Info
-            label="Manager Name"
-            value={
-              <Badge className="bg-red-100 text-red-700">
-                {walkaround.walkaround_assignee?.full_name ?? "Unroad worthy"}
-              </Badge>
-            }
-            sub={`${formatToDDMMYYYY(walkaround.date)} at ${formatTime(walkaround.time)}`}
-          />
+            <Info
+              label="Motion Status"
+              value={
+                <div className="flex gap-2">
+                  <Badge className="bg-green-100 text-green-700 border-green-200 flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" />
+                    {motionNotDetectedCount}
+                  </Badge>
+                  <Badge className="bg-red-100 text-red-700 border-red-200 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {motionDetectedCount}
+                  </Badge>
+                </div>
+              }
+            />
 
-          <Info
-            label="Motion"
-            value={
-              <div className="flex gap-2">
-                <Badge className="bg-green-100 text-green-700">
-                  {motionNotDetectedCount}
-                </Badge>
-                <Badge className="bg-red-100 text-red-700">
-                  {motionDetectedCount}
-                </Badge>
+            <Info
+              label="Duration"
+              value={
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3 w-3 text-gray-400" />
+                  <span>{walkaround.walkaround_duration ?? "—"}</span>
+                </div>
+              }
+            />
+          </div>
+
+          {walkaround.signature && (
+            <div className="pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+                  <Signature className="h-3 w-3" />
+                  Signature
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSignature(true)}
+                  className="h-7 px-2 text-xs gap-1 no-print"
+                >
+                  <Eye className="h-3 w-3" />
+                  View Signature
+                </Button>
               </div>
-            }
-          />
-
-          <Info
-            label="Total Time"
-            value={<Badge className="bg-green-100 text-green-700">{walkaround.walkaround_duration ?? "—"} s</Badge>}
-          />
-        </div>
-
-        {/* DAILY CHECKS TOGGLE */}
-        <button
-          onClick={() => toggleSection(`step-${stepNumber}`)}
-          className="w-full flex justify-between items-center pt-3 border-t border-gray-200 text-sm font-medium"
-        >
-          Daily checks
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4 text-gray-400" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-gray-400" />
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex items-center gap-4">
+                <img
+                  src={`data:image/png;base64,${walkaround.signature}`}
+                  alt="Signature"
+                  className="h-12 object-contain bg-white rounded border border-gray-200 p-1"
+                />
+                <div className="text-xs text-gray-600">
+                  <p className="font-medium">{walkaround.conducted_by.full_name}</p>
+                  <p>{formatDate(walkaround.date)} at {formatTime(walkaround.time)}</p>
+                </div>
+              </div>
+            </div>
           )}
-        </button>
 
-        {/* DAILY CHECKS */}
-        {isExpanded && (
-          <div className="grid grid-cols-2 gap-4 max-h-[320px] overflow-y-auto pr-2">
-            {answers.map((a, i) => (
-              <TooltipProvider key={a.id}>
-                <Tooltip delayDuration={150}>
-                  <TooltipTrigger asChild>
-                    <div
-                      className={`
-                        border rounded-lg p-3 bg-white flex justify-between cursor-pointer
-                        transition
-                        ${a.is_defected
-                          ? "border-red-200 hover:bg-red-50"
-                          : "border-gray-200 hover:bg-gray-50"}
-                      `}
-                    >
-                      <div>
-                        <p className="text-xs font-semibold text-gray-900 mb-1">
-                          {i + 1}. {a.question_text}
-                        </p>
+          <button
+            onClick={() => toggleSection(`step-${stepNumber}`)}
+            className="w-full flex justify-between items-center pt-3 border-t border-gray-200 text-sm font-medium hover:bg-gray-50 p-2 rounded-lg transition-colors no-print"
+          >
+            <span className="flex items-center gap-2">
+              <span>Daily checks</span>
+              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                {defected_count} defects
+              </Badge>
+            </span>
+            {isExpanded ? (
+              <ChevronUp className="h-4 w-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            )}
+          </button>
 
-                        <div className="flex gap-2">
-                          <Badge className="bg-gray-100 text-gray-700 text-xs">
-                            In-motion
-                          </Badge>
-
-                          <Badge
-                            className={
-                              a.answer?.toLowerCase().includes("yes")
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"
-                            }
-                          >
-                            {a.answer}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {/* status dot */}
-                      <span
-                        className={`w-2 h-2 rounded-full mt-1 ${a.is_defected ? "bg-red-500" : "bg-green-500"
-                          }`}
-                      />
-                    </div>
-                  </TooltipTrigger>
-
-                  {/* DEFECT TOOLTIP */}
-                  {a.is_defected && a.description && (
-                    <TooltipContent
-                      side="right"
-                      align="start"
-                      className="max-w-xs bg-red-600 text-white text-xs leading-relaxed shadow-lg"
-                    >
-                      <p className="font-semibold mb-1">Defect Note</p>
-                      <p>{a.description}</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
-            ))}
+          <div className={`${isExpanded ? 'block' : 'hidden'} print:block`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2 print:max-h-none print:overflow-visible print-answers-grid">
+              {answers.map((answer, index) => (
+                <AnswerItem
+                  key={answer.id}
+                  answer={answer}
+                  index={index}
+                  stepNumber={stepNumber}
+                  onSaveComments={onSaveComments}
+                  isSaving={savingStates[answer.id]}
+                  onImageClick={setSelectedImage}
+                />
+              ))}
+            </div>
           </div>
-        )}
 
-        {/* FOOTER */}
-        {isExpanded && (
-          <div className="pt-3 border-t border-gray-200 text-xs text-gray-500 flex justify-between">
-            <span>Total Defects: {defected_count} / {total_answers}</span>
-            <span>{formatToDDMMYYYY(walkaround.date)} · {formatTime(walkaround.time)}</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {isExpanded && (
+            <div className="pt-3 border-t border-gray-200 text-xs text-gray-500 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3 text-red-500" />
+                  Defects: {defected_count}/{total_answers}
+                </span>
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  Passed: {total_answers - defected_count}/{total_answers}
+                </span>
+              </div>
+              <span>{formatDate(walkaround.date)} · {formatTime(walkaround.time)}</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedImage && (
+        <ImagePreviewModal
+          imageUrl={selectedImage}
+          isOpen={!!selectedImage}
+          onClose={() => setSelectedImage(null)}
+        />
+      )}
+
+      {showSignature && walkaround.signature && (
+        <SignatureModal
+          signatureData={walkaround.signature}
+          isOpen={showSignature}
+          onClose={() => setShowSignature(false)}
+          conductedBy={walkaround.conducted_by}
+          date={walkaround.date}
+          time={walkaround.time}
+        />
+      )}
+    </>
   );
 };
 
-/* Info helper */
-const Info = ({ label, value, sub }: { label: string; value: any; sub?: string }) => (
+// Info helper component
+const Info = ({ label, value, badge }: { label: string; value: React.ReactNode; badge?: React.ReactNode }) => (
   <div>
     <p className="text-xs text-gray-500 mb-1">{label}</p>
-    <div className="text-sm font-medium text-gray-900">{value}</div>
-    {sub && <p className="text-xs text-gray-400">{sub}</p>}
+    <div className="text-sm text-gray-900 flex items-center gap-2 flex-wrap">
+      {value}
+      {badge}
+    </div>
   </div>
 );
 
-const DefectItem = ({
+// Answer Item Component
+const AnswerItem = ({
   answer,
   index,
   stepNumber,
   onSaveComments,
-  isSaving
+  isSaving,
+  onImageClick
 }: {
   answer: Answer;
   index: number;
   stepNumber: number;
   onSaveComments: (answerId: number, comments: string, stepNumber?: number) => Promise<void>;
   isSaving: boolean;
+  onImageClick: (url: string) => void;
 }) => {
   const [localComments, setLocalComments] = useState<string>(answer.description || '');
   const [hasChanges, setHasChanges] = useState<boolean>(false);
+  const [showComments, setShowComments] = useState<boolean>(false);
 
   useEffect(() => {
     setLocalComments(answer.description || '');
@@ -1454,69 +2149,126 @@ const DefectItem = ({
     if (answer.id) {
       await onSaveComments(answer.id, localComments, stepNumber);
       setHasChanges(false);
+      setShowComments(false);
     }
   };
 
-  return (
-    <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-md border border-gray-100">
-      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-red-100 flex items-center justify-center mt-0.5">
-        <span className="text-xs font-semibold text-red-600">{index + 1}</span>
-      </div>
+  const getStatusColor = () => {
+    if (answer.is_defected) return 'border-l-4 border-l-red-500';
+    if (answer.answer?.toLowerCase().includes('yes')) return 'border-l-4 border-l-green-500';
+    return 'border-l-4 border-l-gray-300';
+  };
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <p className="text-xs font-medium text-gray-900 leading-relaxed">
-            {answer.question_text || 'No question text'}
-          </p>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <Badge className={answer.is_defected ?
-              "bg-red-100 text-red-700 hover:bg-red-100" :
-              "bg-green-100 text-green-700 hover:bg-green-100"
-            } style={{ fontSize: '10px', padding: '2px 6px', fontWeight: 600 }}>
-              {answer.is_defected ? "Fail" : "Pass"}
-            </Badge>
-            <Badge className="bg-orange-50 text-orange-600 hover:bg-orange-50 border border-orange-200"
-              style={{ fontSize: '10px', padding: '2px 6px' }}>
-              LDF
-            </Badge>
-            {answer.motion_detected && (
-              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100"
-                style={{ fontSize: '10px', padding: '2px 6px' }}>
-                Motion
-              </Badge>
-            )}
-          </div>
+  return (
+    <div className={`border rounded-lg p-3 bg-white hover:shadow-sm transition-shadow ${getStatusColor()}`}>
+      <div className="flex items-start gap-2">
+        <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
+          answer.is_defected ? 'bg-red-100' : 'bg-gray-100'
+        }`}>
+          <span className={`text-xs font-semibold ${
+            answer.is_defected ? 'text-red-600' : 'text-gray-600'
+          }`}>{index + 1}</span>
         </div>
 
-        {answer.is_defected && (
-          <div className="space-y-2">
-            <Textarea
-              placeholder="No defects"
-              className="min-h-[50px] text-xs resize-none bg-white border-gray-200"
-              value={localComments}
-              onChange={(e) => handleCommentsChange(e.target.value)}
-              disabled={isSaving}
-            />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <p className="text-xs font-medium text-gray-900 leading-relaxed">
+              {answer.question_text}
+            </p>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Badge className={
+                answer.is_defected
+                  ? "bg-red-100 text-red-700 border-red-200"
+                  : "bg-green-100 text-green-700 border-green-200"
+              } style={{ fontSize: '10px', padding: '2px 6px' }}>
+                {answer.is_defected ? "Fail" : "Pass"}
+              </Badge>
+              <Badge className="bg-orange-50 text-orange-600 border-orange-200"
+                style={{ fontSize: '10px', padding: '2px 6px' }}>
+                {answer.motion_detected ? "Motion" : "Static"}
+              </Badge>
+            </div>
+          </div>
 
-            {hasChanges && (
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="outline" className="text-xs">
+              {answer.answer || 'N/A'}
+            </Badge>
+            
+            {answer.prove && (
               <Button
-                onClick={handleSave}
-                disabled={isSaving}
+                variant="ghost"
                 size="sm"
-                className="bg-orange-500 hover:bg-orange-600 h-7 text-xs px-3"
+                onClick={() => onImageClick(answer.prove!)}
+                className="h-6 px-2 text-xs gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 no-print"
               >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save'
-                )}
+                <Eye className="h-3 w-3" />
+                View Image
               </Button>
             )}
           </div>
-        )}
+
+          {answer.is_defected && (
+            <div className="mt-2 space-y-2">
+              {!showComments && answer.description && (
+                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-200">
+                  <p className="font-medium text-gray-700 mb-1">Defect Note:</p>
+                  <p>{answer.description}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowComments(true)}
+                    className="mt-1 h-6 text-xs no-print"
+                  >
+                    Edit
+                  </Button>
+                </div>
+              )}
+
+              {showComments && (
+                <div className="space-y-2 no-print">
+                  <Textarea
+                    placeholder="Add defect notes..."
+                    className="min-h-[60px] text-xs resize-none bg-white border-gray-200"
+                    value={localComments}
+                    onChange={(e) => handleCommentsChange(e.target.value)}
+                    disabled={isSaving}
+                  />
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSave}
+                      disabled={isSaving || !hasChanges}
+                      size="sm"
+                      className="bg-orange-500 hover:bg-orange-600 h-7 text-xs px-3"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save'
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowComments(false);
+                        setLocalComments(answer.description || '');
+                        setHasChanges(false);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

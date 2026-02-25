@@ -430,7 +430,7 @@ const WalkaroundPage = () => {
                         </Badge>
                       </p>
                       <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span></p>
-                      <p className="text-sm font-semibold">Time: <span className="text-gray-500">{root.time}</span></p>
+                      <p className="text-sm font-semibold">Time: <span className="text-gray-500">{root.time?.slice(0, 5) || "N/A"}</span></p>
                       <div className="flex gap-2 mt-2">
                         <Button 
                           variant="outline" 
@@ -462,7 +462,7 @@ const WalkaroundPage = () => {
                             </Badge>
                           </p>
                           <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span></p>
-                          <p className="text-sm font-semibold">Time: <span className="text-gray-500">{child.time}</span></p>
+                          <p className="text-sm font-semibold">Time: <span className="text-gray-500">{child.time?.slice(0, 5) || "N/A"}</span></p>
                           <div className="flex gap-2 mt-2">
                             <Button 
                               variant="outline" 

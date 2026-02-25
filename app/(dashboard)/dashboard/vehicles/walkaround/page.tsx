@@ -330,7 +330,7 @@ const WalkaroundPage = () => {
                       </p>
                       <p className="flex items-center gap-2 justify-center">
                         <Clock className="w-4 h-4 text-gray-500" />
-                        {walkaround.time}
+                        {walkaround.time?.slice(0, 5) || "N/A"}
                       </p>
                       {walkaround.walkaround_step && (
                         <p className="flex items-center gap-2 justify-center">
