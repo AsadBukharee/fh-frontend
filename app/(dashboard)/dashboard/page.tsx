@@ -39,6 +39,14 @@ type HoverDetailItem = {
   mechanic__full_name?: string;
 } | string;
 
+interface IsoWeekData {
+  date: string;
+  iso_year: number;
+  iso_week: number;
+  iso_weekday: number;
+  display: string;
+}
+
 interface Card {
   id: number;
   title: string;
@@ -471,10 +479,12 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(30);
+  const [isoWeekData, setIsoWeekData] = useState<IsoWeekData | null>(null);
   const cookies = useCookies().get("access_token");
 
   useEffect(() => {
     fetchDashboardData(false);
+    fetchIsoWeekData();
 
     // Set up a single interval for both countdown and auto-refresh
     const intervalId = setInterval(() => {
@@ -490,6 +500,22 @@ export default function Dashboard() {
     // Cleanup interval on component unmount
     return () => clearInterval(intervalId);
   }, []);
+
+  const fetchIsoWeekData = async () => {
+    try {
+      const response = await fetch(`${API_URL}/globals/globals/iso-week/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies}`,
+        },
+      });
+      if (!response.ok) return;
+      const result = await response.json();
+      setIsoWeekData(result);
+    } catch (err) {
+      console.error('Error fetching ISO week data:', err);
+    }
+  };
 
   const fetchDashboardData = async (isAutoRefresh: boolean = false) => {
     try {
@@ -561,6 +587,41 @@ export default function Dashboard() {
             <div className="mb-5 flex items-center justify-between">
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
               <div className="flex items-center gap-3">
+                {/* ISO Week Badge */}
+                {isoWeekData && (
+                  <Tooltip delayDuration={100}>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg cursor-default">
+                        <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                        <span className="text-sm font-semibold text-gray-700">{isoWeekData.display}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center" sideOffset={6} className="p-0 bg-white border border-gray-200 shadow-lg rounded-lg">
+                      <div className="p-3 min-w-[170px]">
+                        <p className="text-xs font-semibold text-gray-700 mb-2 border-b pb-1.5">ISO Week Details</p>
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-xs text-gray-500">Date</span>
+                            <span className="text-xs font-medium text-gray-800">{isoWeekData.date}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-xs text-gray-500">ISO Year</span>
+                            <span className="text-xs font-medium text-gray-800">{isoWeekData.iso_year}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-xs text-gray-500">ISO Week</span>
+                            <span className="text-xs font-medium text-gray-800">{isoWeekData.iso_week}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-xs text-gray-500">Weekday</span>
+                            <span className="text-xs font-medium text-gray-800">{isoWeekData.iso_weekday}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+
                 {/* Countdown Timer */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg border border-gray-200">
                   <div className="flex items-center gap-1.5">

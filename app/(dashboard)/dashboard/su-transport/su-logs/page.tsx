@@ -66,19 +66,56 @@ const RUN_TYPE_COLORS: Record<number, { bg: string; hover: string; text: string 
 const getRunTypeColor = (run: number) => RUN_TYPE_COLORS[run] ?? RUN_TYPE_COLORS[1];
 
 // ──────────────────────────────────────────────────────────────
+// Same-run color generator
+// ──────────────────────────────────────────────────────────────
+const SAME_RUN_COLORS = [
+  { bg: 'bg-indigo-100', hover: 'hover:bg-indigo-200', text: 'text-indigo-800', badge: 'bg-indigo-200' },
+  { bg: 'bg-rose-100', hover: 'hover:bg-rose-200', text: 'text-rose-800', badge: 'bg-rose-200' },
+  { bg: 'bg-emerald-100', hover: 'hover:bg-emerald-200', text: 'text-emerald-800', badge: 'bg-emerald-200' },
+  { bg: 'bg-amber-100', hover: 'hover:bg-amber-200', text: 'text-amber-800', badge: 'bg-amber-200' },
+  { bg: 'bg-cyan-100', hover: 'hover:bg-cyan-200', text: 'text-cyan-800', badge: 'bg-cyan-200' },
+  { bg: 'bg-fuchsia-100', hover: 'hover:bg-fuchsia-200', text: 'text-fuchsia-800', badge: 'bg-fuchsia-200' },
+  { bg: 'bg-lime-100', hover: 'hover:bg-lime-200', text: 'text-lime-800', badge: 'bg-lime-200' },
+  { bg: 'bg-orange-100', hover: 'hover:bg-orange-200', text: 'text-orange-800', badge: 'bg-orange-200' },
+  { bg: 'bg-teal-100', hover: 'hover:bg-teal-200', text: 'text-teal-800', badge: 'bg-teal-200' },
+  { bg: 'bg-pink-100', hover: 'hover:bg-pink-200', text: 'text-pink-800', badge: 'bg-pink-200' },
+  { bg: 'bg-violet-100', hover: 'hover:bg-violet-200', text: 'text-violet-800', badge: 'bg-violet-200' },
+  { bg: 'bg-sky-100', hover: 'hover:bg-sky-200', text: 'text-sky-800', badge: 'bg-sky-200' },
+];
+
+// Generate a consistent color index for a given run number
+const getSameRunColorIndex = (runNumber: number): number => {
+  // Use a simple hash function to get a consistent index for each run number
+  const hash = runNumber.toString().split('').reduce((acc, char) => {
+    return acc + char.charCodeAt(0);
+  }, 0);
+  return hash % SAME_RUN_COLORS.length;
+};
+
+const getSameRunColor = (runNumber: number) => {
+  return SAME_RUN_COLORS[getSameRunColorIndex(runNumber)];
+};
+
+// Get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+  const today = new Date();
+  return format(today, 'yyyy-MM-dd');
+};
+
+// ──────────────────────────────────────────────────────────────
 // Main Component
 // ──────────────────────────────────────────────────────────────
 export default function SURunList() {
   const cookies = useCookies();
   const token = cookies.get('access_token');
 
-  // ────── Filters ──────
+  // ────── Filters - Set default date to today ──────
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [driver, setDriver] = useState('');
   const [runType, setRunType] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(getTodayDate()); // Default to today
+  const [dateTo, setDateTo] = useState(getTodayDate()); // Default to today
   const [page, setPage] = useState(1);
 
   // ────── Data ──────
@@ -97,11 +134,11 @@ export default function SURunList() {
   const [viewOpen, setViewOpen] = useState(false);
   const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
 
-  // ────── Sorting ──────
+  // ────── Sorting - Default to show latest time first ──────
   const [sort, setSort] = useState<{
     key: keyof Stop | 'route';
     direction: 'asc' | 'desc';
-  }>({ key: 'stop_id', direction: 'asc' });
+  }>({ key: 'time', direction: 'desc' }); // Sort by time in descending order (latest first)
 
   const requestSort = (key: keyof Stop | 'route') => {
     setSort(prev => ({
@@ -195,13 +232,22 @@ export default function SURunList() {
   const sortedStops = useMemo(() => {
     return [...stops].sort((a, b) => {
       let aVal: any, bVal: any;
-      if (sort.key === 'route') {
+      
+      // Special handling for date + time combination to show latest first
+      if (sort.key === 'time') {
+        // Create comparable datetime strings
+        const aDateTime = `${a.date} ${a.time}`;
+        const bDateTime = `${b.date} ${b.time}`;
+        aVal = aDateTime;
+        bVal = bDateTime;
+      } else if (sort.key === 'route') {
         aVal = `${a.from} → ${a.to}`;
         bVal = `${b.from} → ${b.to}`;
       } else {
         aVal = a[sort.key];
         bVal = b[sort.key];
       }
+      
       if (aVal < bVal) return sort.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sort.direction === 'asc' ? 1 : -1;
       return 0;
@@ -239,7 +285,12 @@ export default function SURunList() {
   };
 
   const resetFilters = () => {
-    setFrom(''); setTo(''); setDriver(''); setRunType(''); setDateFrom(''); setDateTo('');
+    setFrom(''); 
+    setTo(''); 
+    setDriver(''); 
+    setRunType(''); 
+    setDateFrom(getTodayDate()); // Reset to today
+    setDateTo(getTodayDate()); // Reset to today
   };
 
   // ────── Editable SU Number ──────
@@ -278,10 +329,11 @@ export default function SURunList() {
     };
 
     if (!editing) {
+      const sameRunColor = getSameRunColor(stop.su_run);
       return (
         <Badge
-          variant={stop.numbers >= 0 ? 'default' : 'destructive'}
-          className="w-12 justify-center text-white cursor-pointer"
+          variant="outline"
+          className={`w-12 justify-center cursor-pointer ${sameRunColor.badge} ${sameRunColor.text} border-0`}
           onClick={startEdit}
         >
           {stop.numbers > 0 ? '+' : ''}{stop.numbers}
@@ -393,12 +445,22 @@ export default function SURunList() {
 
             <div>
               <Label className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Date From</Label>
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              <Input 
+                type="date" 
+                value={dateFrom} 
+                onChange={e => setDateFrom(e.target.value)} 
+                max={getTodayDate()} // Optional: prevent future dates
+              />
             </div>
 
             <div>
               <Label className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Date To</Label>
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+              <Input 
+                type="date" 
+                value={dateTo} 
+                onChange={e => setDateTo(e.target.value)}
+                max={getTodayDate()} // Optional: prevent future dates
+              />
             </div>
 
             <div className="flex items-end gap-2">
@@ -409,6 +471,8 @@ export default function SURunList() {
           </div>
         </CardContent>
       </Card>
+
+  
 
       {/* Loading / Error */}
       {loadingStops && <TableSkeleton />}
@@ -435,6 +499,8 @@ export default function SURunList() {
             <CardTitle>Run Details</CardTitle>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Total: {stops.length} stops</span>
+              <span>| Unique Runs: {new Set(stops.map(s => s.su_run)).size}</span>
+              <span>| Date: {format(new Date(dateFrom), 'dd MMM yyyy')}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -470,7 +536,7 @@ export default function SURunList() {
                   {sortedStops.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        No stops match your filters.
+                        No stops match your filters for {format(new Date(dateFrom), 'dd MMM yyyy')}.
                         <Button
                           variant="link"
                           onClick={handleRefresh}
@@ -488,14 +554,23 @@ export default function SURunList() {
                     </TableRow>
                   ) : (
                     sortedStops.map(stop => {
-                      const color = getRunTypeColor(stop.su_run);
+                      const typeColor = getRunTypeColor(stop.su_run);
+                      const sameRunColor = getSameRunColor(stop.su_run);
                       return (
-                        <TableRow key={stop.stop_id} className={color.hover}>
+                        <TableRow 
+                          key={stop.stop_id} 
+                          className={`${sameRunColor.bg} ${sameRunColor.hover} transition-colors`}
+                        >
                           <TableCell className="font-medium">
-                            <Badge variant="secondary">#{stop.su_run}</Badge>
+                            <Badge 
+                              variant="secondary" 
+                              className={`${sameRunColor.badge} ${sameRunColor.text} border-0`}
+                            >
+                              #{stop.su_run}
+                            </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge className={`${color.bg} ${color.text}`}>
+                            <Badge className={`${typeColor.bg} ${typeColor.text}`}>
                               {stop.run_type || `Type ${stop.su_run}`}
                             </Badge>
                           </TableCell>

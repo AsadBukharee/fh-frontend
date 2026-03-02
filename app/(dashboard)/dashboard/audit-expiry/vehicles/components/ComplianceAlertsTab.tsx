@@ -83,7 +83,7 @@ export function ComplianceAlertsTab() {
                 field_value: toApiValue(item)
             }))
 
-            const res = await fetch(`${HOST}/activity/vehicle-compliance-alerts/bulk_update/`, {
+            const res = await fetch(`${HOST}/activity/vehicle-compliance-alerts/bulk-update/`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

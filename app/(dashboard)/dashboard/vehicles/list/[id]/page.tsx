@@ -68,7 +68,6 @@ import InspectionDialog from "@/components/Vehicles/expiry/InspectionDialog";
 import MOTDialog from "@/components/Vehicles/expiry/MOTexpiry/MOTdialog";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import { AssignDriverDialog } from "@/components/AssignDriverDialog";
 import {
   Command,
   CommandEmpty,
@@ -1483,7 +1482,6 @@ export default function VehicleDetailPage() {
             </div>
           ) : (
             <div className="flex gap-4 flex-col">
-              {/* <AssignDriverDialog vehicleId={vehicleId} /> */}
               <Button variant="outline" onClick={handleEditToggle}>
                 <Edit className="w-6 h-6 mr-2" />
                 Edit Details

@@ -11,7 +11,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +32,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/app/Context/ToastContext";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 
@@ -104,12 +103,9 @@ interface Driver {
 
 interface AssignDriverDialogProps {
   vehicleId: number;
-  vehicleDetails?: {
-    model: string;
-    licensePlate: string;
-    type: string;
-  };
-  onDriverAssign?: (driverId: number, vehicleId: number, driverName: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 interface ApiResponse {
@@ -136,24 +132,28 @@ interface ApiResponse {
   };
 }
 
-export function AssignDriverDialog({
+export default function AssignDriverDialog({
   vehicleId,
-  vehicleDetails,
-  onDriverAssign,
+  open,
+  onOpenChange,
+  onSuccess,
 }: AssignDriverDialogProps) {
-  const [open, setOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<number | null>(null);
   const [isAssigning, setIsAssigning] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const { toast } = useToast();
-  const token = useCookies().get("access_token");
+  const { showToast } = useToast();
+  const cookies = useCookies();
+  const token = cookies.get("access_token");
 
   // Fetch drivers when dialog opens
   useEffect(() => {
     if (open) {
       fetchDrivers();
+      // Reset state when dialog opens
+      setSelectedDriver(null);
+      setSearchQuery("");
     }
   }, [open]);
 
@@ -170,6 +170,11 @@ export function AssignDriverDialog({
         }
       );
 
+      if (response.status === 401) {
+        showToast("Session expired. Please log in again.", "error");
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -183,11 +188,7 @@ export function AssignDriverDialog({
       }
     } catch (error) {
       console.error("Error fetching drivers:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load drivers. Please try again.",
-        variant: "destructive",
-      });
+      showToast("Failed to load drivers. Please try again.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -249,18 +250,16 @@ export function AssignDriverDialog({
     setSelectedDriver(selectedDriver === driverId ? null : driverId);
   };
 
-  const handleQuickAssign = async (driverId: number) => {
-    const selectedDriverData = drivers.find(driver => driver.id === driverId);
+  const handleAssign = async () => {
+    if (!selectedDriver) return;
+
+    const selectedDriverData = drivers.find(driver => driver.id === selectedDriver);
     if (!selectedDriverData) {
-      toast({
-        title: "Error",
-        description: "Selected driver not found",
-        variant: "destructive",
-      });
+      showToast("Selected driver not found", "error");
       return;
     }
 
-    setIsAssigning(driverId);
+    setIsAssigning(selectedDriver);
 
     try {
       const payload = {
@@ -279,6 +278,11 @@ export function AssignDriverDialog({
         }
       );
 
+      if (response.status === 401) {
+        showToast("Session expired. Please log in again.", "error");
+        return;
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
@@ -287,34 +291,25 @@ export function AssignDriverDialog({
       const result = await response.json();
 
       if (result.success) {
-        toast({
-          title: "Success",
-          description: `Vehicle ${vehicleId} assigned to ${selectedDriverData.user.full_name} successfully!`,
-        });
+        showToast(
+          `Vehicle assigned to ${selectedDriverData.user.full_name} successfully!`,
+          "success"
+        );
 
-        if (onDriverAssign) {
-          onDriverAssign(selectedDriverData.id, vehicleId, selectedDriverData.user.full_name);
+        if (onSuccess) {
+          onSuccess();
         }
 
-        setOpen(false);
+        onOpenChange(false);
       } else {
         throw new Error(result.message || "Assignment failed");
       }
     } catch (error: any) {
       console.error("Error assigning driver:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to assign driver. Please try again.",
-        variant: "destructive",
-      });
+      showToast(error.message || "Failed to assign driver. Please try again.", "error");
     } finally {
       setIsAssigning(null);
     }
-  };
-
-  const handleAssign = async () => {
-    if (!selectedDriver) return;
-    await handleQuickAssign(selectedDriver);
   };
 
   // Function to get initials from name
@@ -333,32 +328,20 @@ export function AssignDriverDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2 bg-orange-500 text-white hover:bg-orange-400">
-          <User className="h-4 w-4" />
-          Assign Driver
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Assign Driver to Vehicle</DialogTitle>
           <DialogDescription>
             Select a driver to assign to vehicle{" "}
             <span className="font-semibold">{vehicleId}</span>
-            {vehicleDetails && (
-              <span>
-                {" "}
-                ({vehicleDetails.model} - {vehicleDetails.licensePlate})
-              </span>
-            )}
           </DialogDescription>
         </DialogHeader>
 
         {/* Search Bar */}
         <div className="relative">
           <div className="relative">
-            <Search className="absolute  z-10 left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute z-10 left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               placeholder="Search drivers by name, email, phone, license, or site..."
               value={searchQuery}
@@ -391,7 +374,7 @@ export function AssignDriverDialog({
         <div className="space-y-4 py-4">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-12 space-y-3">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
               <span className="text-gray-600">Loading available drivers...</span>
             </div>
           ) : (
@@ -462,10 +445,10 @@ export function AssignDriverDialog({
                     {filteredDrivers.map((driver) => (
                       <Card
                         key={driver.id}
-                        className={`transition-all hover:shadow-md ${selectedDriver === driver.id
-                            ? "ring-2 ring-primary"
-                            : ""
-                          }`}
+                        className={`transition-all hover:shadow-md cursor-pointer ${
+                          selectedDriver === driver.id ? "ring-2 ring-primary" : ""
+                        }`}
+                        onClick={() => handleDriverSelect(driver.id)}
                       >
                         <CardContent className="p-4">
                           <div className="flex flex-col space-y-3">
@@ -523,25 +506,12 @@ export function AssignDriverDialog({
                                 </div>
                               </div>
 
-                              {/* Quick Assign Button */}
-                              <Button
-                                size="sm"
-                                onClick={() => handleQuickAssign(driver.id)}
-                                disabled={isAssigning === driver.id}
-                                className="gap-1 flex-shrink-0"
-                              >
-                                {isAssigning === driver.id ? (
-                                  <>
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                    Assigning...
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle className="h-3 w-3" />
-                                    Assign
-                                  </>
-                                )}
-                              </Button>
+                              {/* Selection Checkbox */}
+                              <Checkbox
+                                checked={selectedDriver === driver.id}
+                                onCheckedChange={() => handleDriverSelect(driver.id)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
                             </div>
 
                             {/* Details Section */}
@@ -580,14 +550,15 @@ export function AssignDriverDialog({
                                   {driver.warnings.slice(0, 2).map((warning, index) => (
                                     <div
                                       key={index}
-                                      className={`flex items-center gap-1 text-xs ${warning.includes("✅")
+                                      className={`flex items-center gap-1 text-xs ${
+                                        warning.includes("✅")
                                           ? "text-green-600"
                                           : warning.includes("⏳")
-                                            ? "text-amber-600"
-                                            : warning.includes("⚠️")
-                                              ? "text-red-600"
-                                              : "text-gray-600"
-                                        }`}
+                                          ? "text-amber-600"
+                                          : warning.includes("⚠️")
+                                          ? "text-red-600"
+                                          : "text-gray-600"
+                                      }`}
                                     >
                                       {warning.includes("✅") ? (
                                         <CheckCircle className="h-3 w-3" />
@@ -613,32 +584,14 @@ export function AssignDriverDialog({
 
                               {/* Profile Completion Status */}
                               <div className="flex items-center justify-between pt-2 border-t">
-                                <div className="flex items-center gap-2">
-                                  <Badge
-                                    variant="outline"
-                                    className={`${getProfileCompletionColor(
-                                      driver.is_profile_completed
-                                    )} border-transparent`}
-                                  >
-                                    {getProfileCompletionStatus(driver.is_profile_completed)}
-                                  </Badge>
-                                  {searchQuery && (
-                                    <span className="text-xs text-gray-500">
-                                      Search match
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Selection Checkbox */}
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-500">
-                                    Select for bulk assign
-                                  </span>
-                                  <Checkbox
-                                    checked={selectedDriver === driver.id}
-                                    onCheckedChange={() => handleDriverSelect(driver.id)}
-                                  />
-                                </div>
+                                <Badge
+                                  variant="outline"
+                                  className={`${getProfileCompletionColor(
+                                    driver.is_profile_completed
+                                  )} border-transparent`}
+                                >
+                                  {getProfileCompletionStatus(driver.is_profile_completed)}
+                                </Badge>
                               </div>
                             </div>
                           </div>
@@ -698,7 +651,7 @@ export function AssignDriverDialog({
           )}
         </div>
 
-        {/* Footer with bulk assign option */}
+        {/* Footer with assign option */}
         <DialogFooter className="flex-col sm:flex-row gap-3">
           <div className="flex-1 text-sm text-gray-500">
             {selectedDriver ? (
@@ -711,14 +664,14 @@ export function AssignDriverDialog({
             ) : searchQuery ? (
               <span>Searching drivers for "{searchQuery}"</span>
             ) : (
-              <span>Select a driver or use individual "Assign" buttons</span>
+              <span>Select a driver to assign</span>
             )}
           </div>
 
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
               disabled={!!isAssigning}
             >
               Cancel

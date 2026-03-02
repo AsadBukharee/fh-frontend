@@ -83,7 +83,7 @@ export function ComplianceAlertsTab() {
             }))
 
             // Try bulk update endpoint first
-            const res = await fetch(`${HOST}/activity/driver-compliance-alerts/bulk_update/`, {
+            const res = await fetch(`${HOST}/activity/driver-compliance-alerts/bulk-update/`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

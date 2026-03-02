@@ -178,7 +178,7 @@ const ComplianceItem = memo(({
                             className="group flex items-center space-x-1 text-xs text-gray-400 cursor-pointer hover:text-pink-500 transition-colors w-full"
                             title="Double click to edit"
                         >
-                            <span>{item.subtitle}</span>
+                            <span className="text-left">{item.subtitle}</span>
                             <Pencil
                                 className="w-2.5 h-2.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-pink-500 ml-2"
                                 onClick={(e) => {

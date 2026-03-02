@@ -15,6 +15,7 @@ export function ComplianceDatesTab() {
     const [dates, setDates] = useState<AuditItem[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [hardSetting, setHardSetting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const cookies = useCookies()
@@ -67,6 +68,40 @@ export function ComplianceDatesTab() {
         fetchData()
     }, [token])
 
+    const handleHardSet = async () => {
+        if (!token) {
+            toast.error("Not authenticated")
+            return
+        }
+
+        setHardSetting(true)
+        try {
+            const response = await fetch(`${HOST}/api/notifications/set-driver-compliance-dates/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                }
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null)
+                throw new Error(errorData?.message || "Failed to set driver compliance dates")
+            }
+
+            const data = await response.json()
+            toast.success(data.message || "Driver compliance dates set successfully!")
+            
+            // Optionally refresh the data after hard set to show updated values
+            await fetchData()
+        } catch (err: any) {
+            console.error(err)
+            toast.error("Failed to set driver compliance dates: " + (err.message || "Unknown error"))
+        } finally {
+            setHardSetting(false)
+        }
+    }
+
     const handleSave = async () => {
         if (!token) {
             toast.error("Not authenticated")
@@ -85,7 +120,7 @@ export function ComplianceDatesTab() {
             }))
 
             // Try bulk update endpoint first
-            const res = await fetch(`${HOST}/activity/driver-compliance-dates/bulk_update/`, {
+            const res = await fetch(`${HOST}/activity/driver-compliance-dates/bulk-update/`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -197,6 +232,16 @@ export function ComplianceDatesTab() {
 
     return (
         <div className="mt-6">
+            <div className="flex justify-between items-center mb-4">
+                <Button
+                    onClick={handleHardSet}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-4 rounded"
+                    disabled={loading || saving || hardSetting}
+                >
+                    {hardSetting ? "Setting..." : "Hard Set"}
+                </Button>
+            </div>
+            
             <ComplianceList
                 type="date"
                 items={dates}
@@ -211,7 +256,7 @@ export function ComplianceDatesTab() {
                 <Button
                     onClick={handleSave}
                     className="bg-pink-500 w-full hover:bg-pink-600 text-white py-6 text-lg font-medium"
-                    disabled={loading || saving}
+                    disabled={loading || saving || hardSetting}
                 >
                     {saving ? "Saving Changes..." : "Save Compliance Dates"}
                 </Button>
