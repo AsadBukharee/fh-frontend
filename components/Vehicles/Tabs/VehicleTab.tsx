@@ -53,6 +53,8 @@ import {
   X,
   Edit,
   CheckCircle,
+  UserPlus,
+  UserMinus,
 } from "lucide-react"
 
 import API_URL from "@/app/utils/ENV"
@@ -63,6 +65,7 @@ import AddVehicleStepper from "@/components/Vehicles/VehiclesStepper"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import ExportButton from "@/app/utils/ExportButton"
 import { Label } from "@/components/ui/label"
+import AssignDriverDialog from "@/components/AssignDriverDialog"
 
 interface VehicleType {
   id: number
@@ -137,6 +140,8 @@ export default function VehiclesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
+  const [selectedVehicleForAssign, setSelectedVehicleForAssign] = useState<Vehicle | null>(null)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
@@ -334,8 +339,6 @@ export default function VehiclesPage() {
     return <Badge className={`${variant} text-xs font-medium px-2 py-0.5`}>{display}</Badge>
   }
 
- 
-
   const clearFilters = () => {
     setFilters({ vehicleStatus: "", isRoadworthy: "", vehicleType: "" })
     setIsFilterDialogOpen(false)
@@ -377,6 +380,40 @@ export default function VehiclesPage() {
       }
     } catch {
       showToast("An error occurred while updating vehicle status", "error")
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
+
+  const handleAssignClick = (vehicle: Vehicle) => {
+    setSelectedVehicleForAssign(vehicle)
+    setIsAssignDialogOpen(true)
+  }
+
+  const handleUnassignDriver = async (vehicle: Vehicle) => {
+    if (!confirm(`Are you sure you want to unassign the driver from vehicle ${vehicle.registration_number}?`)) {
+      return
+    }
+
+    setUpdatingStatus(true)
+    try {
+      const response = await fetch(`${API_URL}/api/vehicles/${vehicle.id}/unassign/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      })
+
+      if (response.ok) {
+        showToast(`Driver unassigned from ${vehicle.registration_number} successfully`, "success")
+        fetchVehicles() // Refresh the list
+      } else {
+        const data = await response.json()
+        showToast(data.message || "Failed to unassign driver", "error")
+      }
+    } catch {
+      showToast("An error occurred while unassigning driver", "error")
     } finally {
       setUpdatingStatus(false)
     }
@@ -519,6 +556,7 @@ export default function VehiclesPage() {
                                 <DropdownMenuContent align="end" className="w-48">
                                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                   <DropdownMenuSeparator />
+                                  
                                   <DropdownMenuItem asChild>
                                     <Link
                                       href={`/dashboard/vehicles/list/${vehicle.id}`}
@@ -538,6 +576,42 @@ export default function VehiclesPage() {
                                     Update Status
                                   </DropdownMenuItem>
 
+                                  <DropdownMenuSeparator />
+
+                                  {/* Assign/Unassign Driver based on status */}
+                                  {vehicle.vehicle_status === "assigned" ? (
+                                    <DropdownMenuItem
+                                      onClick={() => handleUnassignDriver(vehicle)}
+                                      className="flex items-center gap-2 cursor-pointer text-amber-600 focus:text-amber-600"
+                                    >
+                                      <UserMinus className="h-4 w-4" />
+                                      Unassign Driver
+                                    </DropdownMenuItem>
+                                  ) : vehicle.vehicle_status === "available" ? (
+                                    <DropdownMenuItem
+                                      onClick={() => handleAssignClick(vehicle)}
+                                      className="flex items-center gap-2 cursor-pointer text-green-600 focus:text-green-600"
+                                    >
+                                      <UserPlus className="h-4 w-4" />
+                                      Assign Driver
+                                    </DropdownMenuItem>
+                                  ) : null}
+
+                                  {/* Show disabled message for other statuses */}
+                                  {vehicle.vehicle_status !== "assigned" && vehicle.vehicle_status !== "available" && (
+                                    <DropdownMenuItem
+                                      disabled
+                                      className="flex items-center gap-2 opacity-50 cursor-not-allowed"
+                                      title="Driver can only be assigned to available vehicles or unassigned from assigned vehicles"
+                                    >
+                                      {vehicle.vehicle_status === "assigned" ? (
+                                        <UserMinus className="h-4 w-4" />
+                                      ) : (
+                                        <UserPlus className="h-4 w-4" />
+                                      )}
+                                      {vehicle.vehicle_status === "assigned" ? "Unassign Driver" : "Assign Driver"}
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -714,6 +788,18 @@ export default function VehiclesPage() {
           </DialogContent>
         </Dialog>
 
+        {selectedVehicleForAssign && (
+          <AssignDriverDialog
+            vehicleId={selectedVehicleForAssign.id}
+            open={isAssignDialogOpen}
+            onOpenChange={setIsAssignDialogOpen}
+            onSuccess={() => {
+              fetchVehicles() // Refresh the list after successful assignment
+              setSelectedVehicleForAssign(null)
+            }}
+          />
+        )}
+
         {/* Filter Dialog */}
         <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
@@ -786,8 +872,6 @@ export default function VehiclesPage() {
             </div>
           </DialogContent>
         </Dialog>
-
-       
       </div>
     </TooltipProvider>
   )
