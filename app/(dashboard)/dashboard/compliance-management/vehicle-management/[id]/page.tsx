@@ -232,7 +232,7 @@ export default function VehicleDetailPage() {
         // Tyre maintenance fields
         last_tyre_maintenance_check_date: editVehicle.last_tyre_maintenance_check_date,
         tyre_expiry_date: editVehicle.tyre_expiry_date,
-        tyre_maintenance_docs: editVehicle.tyre_maintenance_docs,
+        tyre_maintenance_check_docs: editVehicle.tyre_maintenance_check_docs,
         tyre_expiry_docs: editVehicle.tyre_expiry_docs,
         // Tyre age fields
         tyre_expiry_front_driver: editVehicle.tyre_expiry_front_driver,
@@ -406,13 +406,14 @@ export default function VehicleDetailPage() {
     }
   };
 
-  const handleDateSave = async (documentUrl: string | null) => {
-    if (!editDateField || !tempDate) return;
+  const handleDateSave = async (documentUrl: string | null, fieldOverride?: string) => {
+    const activeField = fieldOverride || editDateField;
+    if (!activeField || !tempDate) return;
 
     const toastId = toast.loading("Saving date...");
 
     try {
-      const updateData: any = { [editDateField]: tempDate };
+      const updateData: any = { [activeField]: tempDate };
       const dateToDocMap: { [key: string]: string } = {
         mot_expiry: "mot_check_docs",
         tax_expiry: "tax_docs",
@@ -422,18 +423,18 @@ export default function VehicleDetailPage() {
         tacho_calibration_expiry: "tacho_calibration_docs",
         next_loller_test_date: "loller_docs",
         // Tyre maintenance mappings
-        last_tyre_maintenance_check_date: "tyre_maintenance_docs",
+        last_tyre_maintenance_check_date: "tyre_maintenance_check_docs",
         tyre_expiry_date: "tyre_expiry_docs",
       };
-      const docField = dateToDocMap[editDateField];
+      const docField = dateToDocMap[activeField];
       if (docField && documentUrl) {
         updateData[docField] = documentUrl;
       }
 
-      if (editDateField === "tacho_calibration_expiry") {
+      if (activeField === "tacho_calibration_expiry") {
         updateData.is_tacho_fitted = isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted;
       }
-      if (editDateField === "loller_test_expiry_date" || editDateField === "next_loller_test_date") {
+      if (activeField === "loller_test_expiry_date" || activeField === "next_loller_test_date") {
         updateData.is_wheelchair_lift_fitted = isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted;
       }
 
@@ -488,10 +489,12 @@ export default function VehicleDetailPage() {
       return;
     }
     if (field === "last_tyre_maintenance_check_date") {
+      setTempDate(currentValue ? currentValue.split("T")[0] : "");
       setTyreMaintenanceDialogOpen(true);
       return;
     }
     if (field === "tyre_expiry_date") {
+      setTempDate(currentValue ? currentValue.split("T")[0] : "");
       setTyreExpiryDialogOpen(true);
       return;
     }
@@ -646,8 +649,8 @@ export default function VehicleDetailPage() {
           ) : (
             <span
               className={`text-sm font-semibold ${highlight
-                  ? "text-green-700 bg-green-50 px-2 py-1 rounded-md"
-                  : "text-slate-900"
+                ? "text-green-700 bg-green-50 px-2 py-1 rounded-md"
+                : "text-slate-900"
                 }`}
             >
               {displayValue}
@@ -1177,55 +1180,56 @@ export default function VehicleDetailPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900">
-                      Tyre Management
+                      Tyre Maintenance
                     </h3>
                   </div>
                 </div>
               </div>
 
-              {/* Last Maintenance Check Card - Like Compliance Style */}
-              <div className="mb-6 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                <div className="p-4 border-b border-slate-200 bg-white">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <Calendar className="w-5 h-5 text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-900">Last Tyre Maintenance Check</p>
-                        <p className="text-xs text-slate-500">
-                          {vehicle?.last_tyre_maintenance_check_date
-                            ? `Last checked: ${formatDate(vehicle.last_tyre_maintenance_check_date)}`
-                            : 'No maintenance record'}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditDateDialog("last_tyre_maintenance_check_date", vehicle?.last_tyre_maintenance_check_date)}
-                    >
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Update Date
-                    </Button>
-                  </div>
-                </div>
+              {/* Last Maintenance Check Row - Horizontal Layout */}
+              <div className="mb-8 bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
 
-                {/* Document Section - Using tyre_maintenance_check_docs */}
-                <div className="p-4">
-                  <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-4 h-4 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500">Maintenance Report</p>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {vehicle?.tyre_maintenance_check_docs ? "Uploaded" : "Not uploaded"}
-                        </p>
-                      </div>
+                  {/* Left: Icon & Title & Edit */}
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                      <Gauge className="w-6 h-6 text-orange-600" />
                     </div>
-                    <div className="flex items-center gap-1">
-                      {vehicle?.tyre_maintenance_check_docs ? (
-                        <>
+                    <div className="space-y-1">
+                      <p className="font-bold text-slate-900 leading-none">Tyre Management</p>
+                      <button
+                        onClick={() => openEditDateDialog("last_tyre_maintenance_check_date", vehicle?.last_tyre_maintenance_check_date)}
+                        className="text-sm text-slate-500 hover:text-orange-600 transition-colors underline decoration-dotted underline-offset-4"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Center: Last Check Date */}
+                  <div className="flex-1 text-center px-6 border-x border-slate-100 hidden md:block">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Last Tyre Check Date: <span className="font-normal text-slate-600 ml-1">
+                        {vehicle?.last_tyre_maintenance_check_date
+                          ? formatDate(vehicle.last_tyre_maintenance_check_date)
+                          : 'DD/MM/YYYY'}
+                      </span>
+                    </p>
+                  </div>
+
+                  {/* Right: Document Status & Actions */}
+                  <div className="flex items-center gap-6 flex-1 justify-end">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-900">
+                        Document: <span className={vehicle?.tyre_maintenance_check_docs ? "text-emerald-600 font-medium" : "text-slate-500 font-normal"}>
+                          {vehicle?.tyre_maintenance_check_docs ? "Uploaded" : "Not Uploaded"}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {vehicle?.tyre_maintenance_check_docs && (
+                        <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-100">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1242,17 +1246,22 @@ export default function VehicleDetailPage() {
                           >
                             <Download className="w-4 h-4" />
                           </Button>
-                        </>
-                      ) : (
-                        <FileUploader
-                          onUploadSuccess={(url) => handleDocumentUpload("tyre_maintenance_check_docs", url)}
-                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                          maxSize={10 * 1024 * 1024}
-                          id="upload-tyre-maintenance"
-                        />
+                        </div>
                       )}
                     </div>
                   </div>
+
+                </div>
+
+                {/* Mobile view for date if hidden */}
+                <div className="mt-4 pt-4 border-t border-slate-50 md:hidden">
+                  <p className="text-sm font-medium text-slate-900">
+                    Last Tyre Check Date: <span className="text-slate-600 ml-1">
+                      {vehicle?.last_tyre_maintenance_check_date
+                        ? formatDate(vehicle.last_tyre_maintenance_check_date)
+                        : 'DD/MM/YYYY'}
+                    </span>
+                  </p>
                 </div>
               </div>
 
@@ -1481,7 +1490,6 @@ export default function VehicleDetailPage() {
             </div>
           ) : (
             <div className="flex gap-4 flex-col">
-              {/* <AssignDriverDialog vehicleId={vehicleId} /> */}
               <Button variant="outline" onClick={handleEditToggle}>
                 <Edit className="w-6 h-6 mr-2" />
                 Edit Details
@@ -1597,8 +1605,7 @@ export default function VehicleDetailPage() {
               </Button>
               <Button
                 onClick={async () => {
-                  setEditDateField("last_tyre_maintenance_check_date");
-                  await handleDateSave(uploadedDoc || null);
+                  await handleDateSave(uploadedDoc || null, "last_tyre_maintenance_check_date");
                   setTyreMaintenanceDialogOpen(false);
                 }}
                 disabled={!tempDate || (!skipUpload && !uploadedDoc)}
@@ -1664,8 +1671,7 @@ export default function VehicleDetailPage() {
               </Button>
               <Button
                 onClick={async () => {
-                  setEditDateField("tyre_expiry_date");
-                  await handleDateSave(uploadedDoc || null);
+                  await handleDateSave(uploadedDoc || null, "tyre_expiry_date");
                   setTyreExpiryDialogOpen(false);
                 }}
                 disabled={!tempDate || (!skipUpload && !uploadedDoc)}

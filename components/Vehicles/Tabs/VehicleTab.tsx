@@ -529,7 +529,11 @@ export default function VehiclesPage() {
                       return (
                         <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 text-gray-600 font-medium">{index}</td>
-                          <td className="px-6 py-4 font-medium text-gray-900">{vehicle.registration_number}</td>
+                          <td className="px-6 py-4 font-medium text-gray-900">
+                            <Link href={`/dashboard/vehicles/list/${vehicle.id}`} className="hover:underline">
+                              {vehicle.registration_number}
+                            </Link>
+                          </td>
                           <td className="px-6 py-4 text-gray-700">
                             {vehicle.vehicle_type_name || vehicle.vehicle_type.name}
                           </td>
