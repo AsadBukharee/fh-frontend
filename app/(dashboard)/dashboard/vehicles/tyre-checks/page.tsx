@@ -44,6 +44,7 @@ import {
   X,
   RefreshCcw,
   Plus,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCookies } from "next-client-cookies";
@@ -1015,10 +1016,18 @@ const TyreCheck: FC = () => {
                 >
                   Clear Filters
                 </Button>
-                <RefreshCcw
-                  className="w-6 h-6 text-gray-400 hover:text-gray-700"
-                  onClick={() => fetchVehicles()}
-                />
+                <Button
+                  onClick={fetchVehicles}
+                  disabled={loading}
+                  variant="outline"
+                  size="sm"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                      }`}
+                  />
+
+                </Button>
               </div>
             </div>
           </div>

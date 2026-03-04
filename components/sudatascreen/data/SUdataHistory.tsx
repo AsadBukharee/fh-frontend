@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import ExportButton from "@/app/utils/ExportButton";
+import { RefreshCw } from "lucide-react";
 
 // Define types
 interface Stop {
@@ -456,7 +457,10 @@ export default function SUHistoryScreen() {
                     onClick={refreshData}
                     className="text-sm"
                   >
-                    Refresh
+                    <RefreshCw
+                      className={`w-4 h-4  `}
+                    />
+
                   </Button>
                 </div>
               </div>
@@ -623,9 +627,8 @@ export default function SUHistoryScreen() {
                         <TableCell className="text-center">
                           <Badge
                             variant="secondary"
-                            className={`${
-                              row.spillover > 0 ? "bg-[#C1E1C5] text-[#2E7D32]" : "bg-[#FFC1CC] text-[#FF2E63]"
-                            }`}
+                            className={`${row.spillover > 0 ? "bg-[#C1E1C5] text-[#2E7D32]" : "bg-[#FFC1CC] text-[#FF2E63]"
+                              }`}
                           >
                             {row.spillover > 0 ? `+${row.spillover}` : row.spillover}
                           </Badge>
@@ -652,9 +655,8 @@ export default function SUHistoryScreen() {
                                 selectedStop.data.map((item, index) => (
                                   <TableRow
                                     key={index}
-                                    className={`hover:bg-gray-50 border-b ${
-                                      item.direction === "in" ? "bg-green-50" : "bg-red-50"
-                                    }`}
+                                    className={`hover:bg-gray-50 border-b ${item.direction === "in" ? "bg-green-50" : "bg-red-50"
+                                      }`}
                                   >
                                     <TableCell className="font-medium text-gray-900 py-3">
                                       {item.driver_name}
@@ -666,11 +668,10 @@ export default function SUHistoryScreen() {
                                     <TableCell className="text-center">
                                       <Badge
                                         variant="secondary"
-                                        className={`${
-                                          item.direction === "in"
+                                        className={`${item.direction === "in"
                                             ? "bg-green-100 text-green-600"
                                             : "bg-red-100 text-red-600"
-                                        }`}
+                                          }`}
                                       >
                                         {item.direction}
                                       </Badge>
@@ -714,9 +715,8 @@ export default function SUHistoryScreen() {
                   <TableCell className="text-center">
                     <Badge
                       variant="secondary"
-                      className={`${
-                        getTotalSpillOver() > 0 ? "bg-[#AEDBB2] text-[#2E7D32]" : "bg-[#FF9DB3] text-[#FF2E63]"
-                      } font-bold`}
+                      className={`${getTotalSpillOver() > 0 ? "bg-[#AEDBB2] text-[#2E7D32]" : "bg-[#FF9DB3] text-[#FF2E63]"
+                        } font-bold`}
                     >
                       {getTotalSpillOver() > 0 ? `+${getTotalSpillOver()}` : getTotalSpillOver()}
                     </Badge>

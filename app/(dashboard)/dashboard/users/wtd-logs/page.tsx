@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from "react"
-import { Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Search, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -21,49 +21,49 @@ export default function WTDLogsTable() {
   const token = useCookies().get('access_token') || ''
 
   // Fetch data from API with filters
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const periodNumber = period.replace("period", "")
+  const fetchData = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const periodNumber = period.replace("period", "")
 
-        const params = new URLSearchParams({
-          page: currentPage.toString(),
-          page_size: rowsPerPage.toString(),
-          reference_period: periodNumber,
-          ...(searchTerm && { search: searchTerm }),
-          ...(range !== "all" && { range: range })
-        })
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        page_size: rowsPerPage.toString(),
+        reference_period: periodNumber,
+        ...(searchTerm && { search: searchTerm }),
+        ...(range !== "all" && { range: range })
+      })
 
-        const response = await fetch(`${API_URL}/activity/wtd/logs/?${params.toString()}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          }
-        })
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+      const response = await fetch(`${API_URL}/activity/wtd/logs/?${params.toString()}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         }
-        
-        const result = await response.json()
-        
-        if (result.success) {
-          setData(result.data)
-        } else {
-          setError(result.message || "Failed to fetch data")
-        }
-      } catch (err: any) {
-        setError(err.message || "An error occurred while fetching data")
-        console.error("Fetch error:", err)
-      } finally {
-        setIsLoading(false)
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
+
+      const result = await response.json()
+
+      if (result.success) {
+        setData(result.data)
+      } else {
+        setError(result.message || "Failed to fetch data")
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred while fetching data")
+      console.error("Fetch error:", err)
+    } finally {
+      setIsLoading(false)
     }
-    
-    fetchData()
   }, [currentPage, rowsPerPage, period, range, token, searchTerm])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   // Add debounced search to prevent too many API calls
   useEffect(() => {
@@ -82,13 +82,13 @@ export default function WTDLogsTable() {
       <div className="text-lg text-gray-600">Loading...</div>
     </div>
   )
-  
+
   if (error) return (
     <div className="flex items-center justify-center h-64">
       <div className="text-lg text-red-600">Error: {error}</div>
     </div>
   )
-  
+
   if (!data) return (
     <div className="flex items-center justify-center h-64">
       <div className="text-lg text-gray-600">No data available</div>
@@ -118,10 +118,10 @@ export default function WTDLogsTable() {
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center justify-between gap-4">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 z-10 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Search drivers..."
               value={searchTerm}
@@ -130,6 +130,18 @@ export default function WTDLogsTable() {
             />
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              onClick={fetchData}
+              disabled={isLoading}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw
+                className={`w-4 h-4  ${isLoading ? "animate-spin" : ""
+                  }`}
+              />
+
+            </Button>
             <Select value={period} onValueChange={setPeriod}>
               <SelectTrigger className="w-32 bg-white border-gray-200">
                 <SelectValue placeholder="Select Period" />
@@ -165,11 +177,10 @@ export default function WTDLogsTable() {
                   {weekHeaders.map((week) => (
                     <th
                       key={week}
-                      className={`px-4 py-3 text-center text-sm font-medium w-24 ${
-                        parseInt(week.replace('w', '')) === current_week 
-                          ? "bg-blue-300 text-blue-800" 
-                          : "bg-purple-200 text-purple-600"
-                      }`}
+                      className={`px-4 py-3 text-center text-sm font-medium w-24 ${parseInt(week.replace('w', '')) === current_week
+                        ? "bg-blue-300 text-blue-800"
+                        : "bg-purple-200 text-purple-600"
+                        }`}
                     >
                       {week.toUpperCase()}
                     </th>
@@ -185,27 +196,24 @@ export default function WTDLogsTable() {
                   results.map((row: any, index: number) => (
                     <tr
                       key={row.driver.id}
-                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      }`}
+                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        }`}
                     >
                       <td className="px-4 py-3 text-sm text-gray-900 sticky left-0 bg-inherit z-10">{row.driver.id}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 font-medium sticky left-20 bg-inherit z-10">{row.driver.name}</td>
-                      
+
                       {weekHeaders.map((week) => {
                         const weekData = row.weeks[week]
                         return (
                           <td
                             key={week}
-                            className={`px-4 py-2 text-center text-sm w-24 ${
-                              weekData.value === 0 
-                                ? "text-gray-400 bg-gray-50" 
-                                : "text-gray-900 bg-purple-50"
-                            } ${
-                              parseInt(week.replace('w', '')) === current_week 
-                                ? "bg-blue-50" 
+                            className={`px-4 py-2 text-center text-sm w-24 ${weekData.value === 0
+                              ? "text-gray-400 bg-gray-50"
+                              : "text-gray-900 bg-purple-50"
+                              } ${parseInt(week.replace('w', '')) === current_week
+                                ? "bg-blue-50"
                                 : ""
-                            }`}
+                              }`}
                           >
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -224,7 +232,7 @@ export default function WTDLogsTable() {
                           </td>
                         )
                       })}
-                      
+
                       <td className="px-4 py-3 text-center text-sm sticky right-84 bg-inherit z-10">
                         <Badge className="bg-green-100 text-green-600 hover:bg-green-200">
                           {row.max_hours}
@@ -279,7 +287,7 @@ export default function WTDLogsTable() {
                 Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, count)} of {count} entries
               </span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -301,17 +309,16 @@ export default function WTDLogsTable() {
                     pageNum = startPage + i
                     if (pageNum > endPage) return null
                   }
-                  
+
                   return (
                     <Button
                       key={pageNum}
                       size="sm"
                       variant={currentPage === pageNum ? "default" : "outline"}
-                      className={`w-8 h-8 ${
-                        currentPage === pageNum
-                          ? "bg-orange-500 hover:bg-orange-600 text-white"
-                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
-                      }`}
+                      className={`w-8 h-8 ${currentPage === pageNum
+                        ? "bg-orange-500 hover:bg-orange-600 text-white"
+                        : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                        }`}
                       onClick={() => setCurrentPage(pageNum)}
                     >
                       {pageNum}

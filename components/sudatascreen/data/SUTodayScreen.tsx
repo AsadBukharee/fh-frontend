@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import ExportButton from "@/app/utils/ExportButton";
+import { RefreshCw } from "lucide-react";
 
 // Define types (unchanged)
 interface Stop {
@@ -254,7 +255,7 @@ export default function SUTodayScreen() {
     setIsLoading(true);
     try {
       const queryParams = new URLSearchParams({
-       
+
         driver: selectedDriver !== "all" ? String(Number(selectedDriver)) : "",
         location: selectedLocation !== "all" ? String(Number(selectedLocation)) : "",
         direction: direction !== "all" ? direction : "",
@@ -309,7 +310,7 @@ export default function SUTodayScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [ selectedDriver, selectedLocation, direction, page, token]);
+  }, [selectedDriver, selectedLocation, direction, page, token]);
 
   // Fetch data on filter changes or initial load
   useEffect(() => {
@@ -346,42 +347,42 @@ export default function SUTodayScreen() {
   const getTotalOut = () => filteredData.reduce((sum, item) => sum + item.out, 0);
   const getTotalIn = () => filteredData.reduce((sum, item) => sum + item.in, 0);
   const getTotalSpillOver = () => filteredData.reduce((sum, item) => sum + item.spillover, 0);
-const tabToRunType: Record<TimeSlotId, string> = {
-  early: "Early",
-  shuttle1: "1st Shuttle Run",
-  shuttle2: "2nd Shuttle Run",
-  shuttle3: "3rd Shuttle Run",
-  night: "Night",
-};
- const handleShowDetails = async (locationName: number) => {
-  const runType = tabToRunType[activeTab];
+  const tabToRunType: Record<TimeSlotId, string> = {
+    early: "Early",
+    shuttle1: "1st Shuttle Run",
+    shuttle2: "2nd Shuttle Run",
+    shuttle3: "3rd Shuttle Run",
+    night: "Night",
+  };
+  const handleShowDetails = async (locationName: number) => {
+    const runType = tabToRunType[activeTab];
 
-  const queryParams = new URLSearchParams({
-    location_id: String(locationName),
-    run_type: runType,
-  });
-
-  try {
-    const response = await fetch(`${API_URL}/activity/su-run/details/?${queryParams}`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+    const queryParams = new URLSearchParams({
+      location_id: String(locationName),
+      run_type: runType,
     });
 
-    if (!response.ok) throw new Error("Network error");
-    const data: StopDetailsResponse = await response.json();
+    try {
+      const response = await fetch(`${API_URL}/activity/su-run/details/?${queryParams}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    if (data.success) {
-      setSelectedStop({ location_name: String(locationName), data: data.data.data });
-    } else {
-      setError(data.message);
+      if (!response.ok) throw new Error("Network error");
+      const data: StopDetailsResponse = await response.json();
+
+      if (data.success) {
+        setSelectedStop({ location_name: String(locationName), data: data.data.data });
+      } else {
+        setError(data.message);
+      }
+    } catch (err: any) {
+      setError("Failed to load details: " + err.message);
+      setSelectedStop(null);
     }
-  } catch (err: any) {
-    setError("Failed to load details: " + err.message);
-    setSelectedStop(null);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-white p-6">
@@ -401,7 +402,7 @@ const tabToRunType: Record<TimeSlotId, string> = {
       </div>
 
       {/* Navigation Tabs */}
-    
+
 
       {/* Section Header */}
       {!isLoading && (
@@ -412,48 +413,51 @@ const tabToRunType: Record<TimeSlotId, string> = {
           </div>
           {/* Filter Row */}
           <div className="flex items-center gap-4 mb-6  justify-evenlytext-sm text-gray-600">
-              {!isLoading && (
-        <div className="flex items-center gap-4 justify-between">
-          <div className="flex gap-2">
-            <Select
-              onValueChange={(value: TimeSlotId) => {
-                setActiveTab(value);
-                setPage(1);
-                setRefreshCounter(60);
-              }}
-              value={activeTab}
-            >
-              <SelectTrigger className="w-[180px] border-gray-300">
-                <SelectValue placeholder="Select Time Slot" />
-              </SelectTrigger>
-              <SelectContent>
-                {tabs.map((tab) => (
-                  <SelectItem key={tab.id} value={tab.id}>
-                    {tab.label} ({tab.startTime} - {tab.endTime})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <ExportButton data={filteredData} fileName="SU Data Management" />
-            <Button
-              variant="outline"
-              onClick={clearFilters}
-              className="text-sm"
-            >
-              Clear Filters
-            </Button>
-            <Button
-              variant="outline"
-              onClick={refreshData}
-              className="text-sm"
-            >
-              Refresh
-            </Button>
-          </div>
-        </div>
-      )}
+            {!isLoading && (
+              <div className="flex items-center gap-4 justify-between">
+                <div className="flex gap-2">
+                  <Select
+                    onValueChange={(value: TimeSlotId) => {
+                      setActiveTab(value);
+                      setPage(1);
+                      setRefreshCounter(60);
+                    }}
+                    value={activeTab}
+                  >
+                    <SelectTrigger className="w-[180px] border-gray-300">
+                      <SelectValue placeholder="Select Time Slot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tabs.map((tab) => (
+                        <SelectItem key={tab.id} value={tab.id}>
+                          {tab.label} ({tab.startTime} - {tab.endTime})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ExportButton data={filteredData} fileName="SU Data Management" />
+                  <Button
+                    variant="outline"
+                    onClick={clearFilters}
+                    className="text-sm"
+                  >
+                    Clear Filters
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={refreshData}
+                    className="text-sm"
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4  `}
+                    />
+
+                  </Button>
+                </div>
+              </div>
+            )}
             <Select onValueChange={setDirection} value={direction}>
               <SelectTrigger className="w-[180px] border-gray-300">
                 <SelectValue placeholder="Select Direction" />
@@ -490,7 +494,7 @@ const tabToRunType: Record<TimeSlotId, string> = {
                 ))}
               </SelectContent>
             </Select>
-       
+
           </div>
         </div>
       )}
@@ -563,9 +567,8 @@ const tabToRunType: Record<TimeSlotId, string> = {
                         <TableCell className="text-center">
                           <Badge
                             variant="secondary"
-                            className={`${
-                              row.spillover > 0 ? "bg-[#C1E1C5] text-[#2E7D32]" : "bg-[#FFC1CC] text-[#FF2E63]"
-                            }`}
+                            className={`${row.spillover > 0 ? "bg-[#C1E1C5] text-[#2E7D32]" : "bg-[#FFC1CC] text-[#FF2E63]"
+                              }`}
                           >
                             {row.spillover > 0 ? `+${row.spillover}` : row.spillover}
                           </Badge>
@@ -592,9 +595,8 @@ const tabToRunType: Record<TimeSlotId, string> = {
                                 selectedStop.data.map((item, index) => (
                                   <TableRow
                                     key={index}
-                                    className={`hover:bg-gray-50 border-b ${
-                                      item.direction === "in" ? "bg-green-50" : "bg-red-50"
-                                    }`}
+                                    className={`hover:bg-gray-50 border-b ${item.direction === "in" ? "bg-green-50" : "bg-red-50"
+                                      }`}
                                   >
                                     <TableCell className="font-medium text-gray-900 py-3">
                                       {item.driver_name}
@@ -606,11 +608,10 @@ const tabToRunType: Record<TimeSlotId, string> = {
                                     <TableCell className="text-center">
                                       <Badge
                                         variant="secondary"
-                                        className={`${
-                                          item.direction === "in"
+                                        className={`${item.direction === "in"
                                             ? "bg-green-100 text-green-600"
                                             : "bg-red-100 text-red-600"
-                                        }`}
+                                          }`}
                                       >
                                         {item.direction}
                                       </Badge>
@@ -654,9 +655,8 @@ const tabToRunType: Record<TimeSlotId, string> = {
                   <TableCell className="text-center">
                     <Badge
                       variant="secondary"
-                      className={`${
-                        getTotalSpillOver() > 0 ? "bg-[#AEDBB2] text-[#2E7D32]" : "bg-[#FF9DB3] text-[#FF2E63]"
-                      } font-bold`}
+                      className={`${getTotalSpillOver() > 0 ? "bg-[#AEDBB2] text-[#2E7D32]" : "bg-[#FF9DB3] text-[#FF2E63]"
+                        } font-bold`}
                     >
                       {getTotalSpillOver() > 0 ? `+${getTotalSpillOver()}` : getTotalSpillOver()}
                     </Badge>

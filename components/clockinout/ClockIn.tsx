@@ -10,13 +10,14 @@ import {
 } from "@/components/ui/table";
 import {
   Select,
+
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Filter, Clock, Clock3, Info } from "lucide-react";
+import { Filter, Clock, Clock3, Info, RefreshCw } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { format } from "date-fns";
@@ -121,13 +122,13 @@ interface ClockOutModalProps {
   clockInTime: string | null;
 }
 
-const ClockInModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  driverName, 
-  shiftName, 
-  scheduledTime 
+const ClockInModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  driverName,
+  shiftName,
+  scheduledTime
 }: ClockInModalProps) => {
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [customReason, setCustomReason] = useState<string>("");
@@ -167,7 +168,7 @@ const ClockInModal = ({
               <p><span className="font-medium">Scheduled:</span> {scheduledTime}</p>
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="reason">Clock In Reason <span className="text-red-500">*</span></Label>
             <Select value={selectedReason} onValueChange={setSelectedReason}>
@@ -216,13 +217,13 @@ const ClockInModal = ({
   );
 };
 
-const ClockOutModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  driverName, 
+const ClockOutModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  driverName,
   shiftName,
-  clockInTime 
+  clockInTime
 }: ClockOutModalProps) => {
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [customReason, setCustomReason] = useState<string>("");
@@ -262,7 +263,7 @@ const ClockOutModal = ({
               <p><span className="font-medium">Clocked In:</span> {clockInTime || "-"}</p>
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="reason">Clock Out Reason <span className="text-red-500">*</span></Label>
             <Select value={selectedReason} onValueChange={setSelectedReason}>
@@ -319,7 +320,7 @@ const DriverClockInOut = () => {
   const [driverFilter, setDriverFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const token = useCookies().get("access_token") || "";
-  
+
   // Modal state
   const [isClockInModalOpen, setIsClockInModalOpen] = useState(false);
   const [isClockOutModalOpen, setIsClockOutModalOpen] = useState(false);
@@ -357,12 +358,12 @@ const DriverClockInOut = () => {
 
       if (!response.ok) throw new Error("Failed to fetch drivers rota");
       const data: ApiResponse = await response.json();
-      
+
       // Filter to only show drivers with active shifts (not OFF)
       const activeDrivers = data.results.filter(
         (driver) => driver.child_rota.shift.name !== "OFF"
       );
-      
+
       setDrivers(activeDrivers);
       setFilteredDrivers(activeDrivers);
     } catch (err) {
@@ -414,7 +415,7 @@ const DriverClockInOut = () => {
       const currentTime = `${hours}:${minutes}`;
 
       // Combine reason with custom text only if custom text exists
-      const clockInReason = customReason.trim() 
+      const clockInReason = customReason.trim()
         ? `${selectedReason}: ${customReason}`
         : selectedReason;
 
@@ -435,7 +436,7 @@ const DriverClockInOut = () => {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to clock in");
       }
-      
+
       toast.success(`${selectedDriver.name} clocked in successfully`);
       fetchDriversRota(); // Refresh data
     } catch (err) {
@@ -478,7 +479,7 @@ const DriverClockInOut = () => {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to clock out");
       }
-      
+
       toast.success(`${selectedDriver.name} clocked out successfully`);
       fetchDriversRota(); // Refresh data
     } catch (err) {
@@ -489,7 +490,7 @@ const DriverClockInOut = () => {
   // Determine button state based on clocking data
   const getButtonState = (driver: DriverRota) => {
     const { clocking } = driver;
-    
+
     if (!clocking) {
       // No clocking record - show Clock In
       return {
@@ -532,26 +533,26 @@ const DriverClockInOut = () => {
   // Get status badge
   const getStatusBadge = (driver: DriverRota) => {
     const { clocking } = driver;
-    
+
     if (!clocking) {
       return <Badge variant="outline" className="bg-gray-100">Not Started</Badge>;
     }
-    
+
     if (clocking.clock_in && !clocking.clock_out) {
       return <Badge className="bg-green-500">On Duty</Badge>;
     }
-    
+
     if (clocking.clock_in && clocking.clock_out) {
       return <Badge variant="outline" className="bg-blue-100">Completed</Badge>;
     }
-    
+
     return <Badge variant="outline">Pending</Badge>;
   };
 
   // Format time from ISO or time string
   const formatTime = (timeValue: string | null) => {
     if (!timeValue) return "-";
-    
+
     try {
       // If it's a full ISO string
       if (timeValue.includes('T')) {
@@ -570,7 +571,7 @@ const DriverClockInOut = () => {
   // Parse reason to get category and details
   const parseReason = (reason: string | null) => {
     if (!reason) return { category: null, details: null };
-    
+
     const parts = reason.split(': ');
     if (parts.length >= 2) {
       return {
@@ -598,8 +599,8 @@ const DriverClockInOut = () => {
           ? d.clocking.clock_out
             ? "completed"
             : d.clocking.clock_in
-            ? "on_duty"
-            : "pending"
+              ? "on_duty"
+              : "pending"
           : "not_started";
         return status === statusFilter;
       });
@@ -667,9 +668,8 @@ const DriverClockInOut = () => {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap items-end gap-4 bg-gray-50 p-4 rounded-lg">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium block mb-1">Driver</label>
+          <div className="flex flex-wrap items-end gap-4 rounded-lg">
+            <div className="flex-1 flex gap-3 items-center min-w-[200px]">
               <Select value={driverFilter} onValueChange={setDriverFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Drivers" />
@@ -683,10 +683,21 @@ const DriverClockInOut = () => {
                   ))}
                 </SelectContent>
               </Select>
+              <Button
+                onClick={fetchDriversRota}
+                disabled={loading}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCw
+                  className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                    }`}
+                />
+
+              </Button>
             </div>
 
             <div className="min-w-[150px]">
-              <label className="text-sm font-medium block mb-1">Status</label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Status" />
@@ -715,11 +726,11 @@ const DriverClockInOut = () => {
         </div>
 
         {/* Drivers Table */}
-        <div className="border rounded-lg overflow-hidden">
+        <div className=" rounded-lg overflow-hidden">
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow>
-                <TableHead>Driver</TableHead>
+                <TableHead>Drivr</TableHead>
                 <TableHead>Shift</TableHead>
                 <TableHead>Schedule</TableHead>
                 <TableHead>Clock In</TableHead>
@@ -735,15 +746,15 @@ const DriverClockInOut = () => {
                   const shift = driver.child_rota.shift;
                   const clockInReason = parseReason(driver.clocking?.clock_in_reason || null);
                   const clockOutReason = parseReason(driver.clocking?.clock_out_reason || null);
-                  
+
                   return (
                     <TableRow key={`${driver.user.id}-${driver.child_rota.id}`}>
                       <TableCell className="font-medium">
                         <div className="flex items-start gap-2">
-                         
+
                           <div className="flex-1 min-w-0">
                             <div className="font-medium">{driver.user.full_name}</div>
-                          
+
                           </div>
                         </div>
                       </TableCell>
@@ -901,7 +912,7 @@ const DriverClockInOut = () => {
                             Clock In
                           </Button>
                         )}
-                        
+
                         {buttonState.showClockOut && !buttonState.disabled && (
                           <Button
                             onClick={() => openClockOutModal(driver)}
@@ -941,7 +952,7 @@ const DriverClockInOut = () => {
           </Table>
         </div>
 
-     
+
       </div>
     </TooltipProvider>
   );

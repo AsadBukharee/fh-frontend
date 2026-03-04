@@ -232,7 +232,7 @@ export default function SURunList() {
   const sortedStops = useMemo(() => {
     return [...stops].sort((a, b) => {
       let aVal: any, bVal: any;
-      
+
       // Special handling for date + time combination to show latest first
       if (sort.key === 'time') {
         // Create comparable datetime strings
@@ -247,7 +247,7 @@ export default function SURunList() {
         aVal = a[sort.key];
         bVal = b[sort.key];
       }
-      
+
       if (aVal < bVal) return sort.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sort.direction === 'asc' ? 1 : -1;
       return 0;
@@ -285,10 +285,10 @@ export default function SURunList() {
   };
 
   const resetFilters = () => {
-    setFrom(''); 
-    setTo(''); 
-    setDriver(''); 
-    setRunType(''); 
+    setFrom('');
+    setTo('');
+    setDriver('');
+    setRunType('');
     setDateFrom(getTodayDate()); // Reset to today
     setDateTo(getTodayDate()); // Reset to today
   };
@@ -385,7 +385,7 @@ export default function SURunList() {
             ) : (
               <RefreshCw className="h-4 w-4" />
             )}
-            Refresh
+
           </Button>
           <ExportButton data={sortedStops} fileName='SU_logs' />
         </div>
@@ -445,19 +445,19 @@ export default function SURunList() {
 
             <div>
               <Label className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Date From</Label>
-              <Input 
-                type="date" 
-                value={dateFrom} 
-                onChange={e => setDateFrom(e.target.value)} 
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
                 max={getTodayDate()} // Optional: prevent future dates
               />
             </div>
 
             <div>
               <Label className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Date To</Label>
-              <Input 
-                type="date" 
-                value={dateTo} 
+              <Input
+                type="date"
+                value={dateTo}
                 onChange={e => setDateTo(e.target.value)}
                 max={getTodayDate()} // Optional: prevent future dates
               />
@@ -472,7 +472,7 @@ export default function SURunList() {
         </CardContent>
       </Card>
 
-  
+
 
       {/* Loading / Error */}
       {loadingStops && <TableSkeleton />}
@@ -501,20 +501,7 @@ export default function SURunList() {
               <span>Total: {stops.length} stops</span>
               <span>| Unique Runs: {new Set(stops.map(s => s.su_run)).size}</span>
               <span>| Date: {format(new Date(dateFrom), 'dd MMM yyyy')}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="h-8 w-8"
-                title="Refresh data"
-              >
-                {refreshing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-              </Button>
+
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -537,19 +524,7 @@ export default function SURunList() {
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         No stops match your filters for {format(new Date(dateFrom), 'dd MMM yyyy')}.
-                        <Button
-                          variant="link"
-                          onClick={handleRefresh}
-                          className="ml-2"
-                          disabled={refreshing}
-                        >
-                          {refreshing ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                          ) : (
-                            <RefreshCw className="h-4 w-4 mr-1" />
-                          )}
-                          Refresh
-                        </Button>
+
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -557,13 +532,13 @@ export default function SURunList() {
                       const typeColor = getRunTypeColor(stop.su_run);
                       const sameRunColor = getSameRunColor(stop.su_run);
                       return (
-                        <TableRow 
-                          key={stop.stop_id} 
+                        <TableRow
+                          key={stop.stop_id}
                           className={`${sameRunColor.bg} ${sameRunColor.hover} transition-colors`}
                         >
                           <TableCell className="font-medium">
-                            <Badge 
-                              variant="secondary" 
+                            <Badge
+                              variant="secondary"
                               className={`${sameRunColor.badge} ${sameRunColor.text} border-0`}
                             >
                               #{stop.su_run}

@@ -43,6 +43,7 @@ import {
   X,
   Calendar,
   RefreshCcw,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
@@ -657,10 +658,18 @@ const PMIHistory: FC = () => {
                 </div>
               </div>
               <div className="flex space-x-2 items-center">
-                <RefreshCcw
-                  className="w-6 h-6 text-gray-400 mx-4 hover:text-gray-700 cursor-pointer"
+                <Button
                   onClick={handleRefresh}
-                />
+                  disabled={loading}
+                  variant="outline"
+                  size="sm"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                      }`}
+                  />
+
+                </Button>
               </div>
             </div>
           </div>

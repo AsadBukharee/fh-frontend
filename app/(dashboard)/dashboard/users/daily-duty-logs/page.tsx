@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Search, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, X, RefreshCw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,9 +64,8 @@ const CountPill = ({
 
   return (
     <span
-      className={`inline-flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-full text-xs font-semibold transition-colors ${colors[color]} ${
-        disabled ? "opacity-50 cursor-not-allowed" : ""
-      }`}
+      className={`inline-flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-full text-xs font-semibold transition-colors ${colors[color]} ${disabled ? "opacity-50 cursor-not-allowed" : ""
+        }`}
       onClick={!disabled && onClick ? onClick : undefined}
     >
       {value}
@@ -88,10 +87,10 @@ interface Filters {
   minIncompleteCurrent: number
   minAwaiting: number
   sortBy:
-    | "name"
-    | "current-incomplete"
-    | "awaiting"
-    | "historical-incomplete"
+  | "name"
+  | "current-incomplete"
+  | "awaiting"
+  | "historical-incomplete"
 }
 
 /* ------------------------------ Main Component ---------------------------- */
@@ -117,54 +116,54 @@ export default function DriverLogsOverview() {
   useEffect(() => {
     setPage(1)
   }, [search, filters])
+  const fetchStats = async () => {
+    if (!token) return
+    setLoading(true)
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      if (!token) return
-      setLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/activity/duty-logs/dutylog-stats/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
 
-      try {
-        const res = await fetch(`${API_URL}/activity/duty-logs/dutylog-stats/`, {
-          headers: { Authorization: `Bearer ${token}` },
+      const json = await res.json()
+
+      if (!json.success || !Array.isArray(json.data)) {
+        setDrivers([])
+        return
+      }
+
+      const mapped = json.data
+        .filter((item: any) => item.user.role === "Driver")
+        .map((item: any) => {
+          const currentTotal = item.current?.total ?? 0
+          const currentComplete = item.current?.complete ?? 0
+          const currentIncompleteFromApi = item.current_incomplete ?? 0
+
+          return {
+            user_id: item.user.id,
+            full_name: item.user.full_name,
+            current_total: currentTotal,
+            current_complete: currentComplete,
+            current_incomplete:
+              currentIncompleteFromApi > 0
+                ? currentIncompleteFromApi
+                : Math.max(0, currentTotal - currentComplete),
+            awaiting_approval: item.historical_awaiting?.length ?? 0,
+            historical_incomplete: item.historical_incomplete?.length ?? 0,
+            historical_complete: item.historical_complete?.length ?? 0,
+          }
         })
 
-        const json = await res.json()
-
-        if (!json.success || !Array.isArray(json.data)) {
-          setDrivers([])
-          return
-        }
-
-        const mapped = json.data
-          .filter((item: any) => item.user.role === "Driver")
-          .map((item: any) => {
-            const currentTotal = item.current?.total ?? 0
-            const currentComplete = item.current?.complete ?? 0
-            const currentIncompleteFromApi = item.current_incomplete ?? 0
-
-            return {
-              user_id: item.user.id,
-              full_name: item.user.full_name,
-              current_total: currentTotal,
-              current_complete: currentComplete,
-              current_incomplete:
-                currentIncompleteFromApi > 0
-                  ? currentIncompleteFromApi
-                  : Math.max(0, currentTotal - currentComplete),
-              awaiting_approval: item.historical_awaiting?.length ?? 0,
-              historical_incomplete: item.historical_incomplete?.length ?? 0,
-              historical_complete: item.historical_complete?.length ?? 0,
-            }
-          })
-
-        setDrivers(mapped)
-      } catch (err) {
-        console.error("Failed to load logs stats:", err)
-        setDrivers([])
-      } finally {
-        setLoading(false)
-      }
+      setDrivers(mapped)
+    } catch (err) {
+      console.error("Failed to load logs stats:", err)
+      setDrivers([])
+    } finally {
+      setLoading(false)
     }
+  }
+  useEffect(() => {
+
 
     fetchStats()
   }, [token])
@@ -237,7 +236,7 @@ export default function DriverLogsOverview() {
   )
   const totalPages = Math.ceil(filteredAndSortedDrivers.length / rowsPerPage)
 
-  const navigateToDetail = (driverId: number, category: string,Name:string) => {
+  const navigateToDetail = (driverId: number, category: string, Name: string) => {
     router.push(`/dashboard/users/daily-duty-logs/${driverId}?tab=${category}&name=${Name}`)
   }
 
@@ -287,7 +286,18 @@ export default function DriverLogsOverview() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            <Button
+              onClick={fetchStats}
+              disabled={loading}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw
+                className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                  }`}
+              />
 
+            </Button>
             <Select
               value={filters.status}
               onValueChange={(v: FilterStatus) =>
@@ -454,7 +464,7 @@ export default function DriverLogsOverview() {
                 <TableCell className="text-center">
                   <CountPill
                     value={driver.current_total}
-                    onClick={() => navigateToDetail(driver.user_id, "current",driver.full_name)}
+                    onClick={() => navigateToDetail(driver.user_id, "current", driver.full_name)}
                   />
                 </TableCell>
 
@@ -464,7 +474,7 @@ export default function DriverLogsOverview() {
                     color="red"
                     onClick={() =>
                       driver.current_incomplete > 0 &&
-                      navigateToDetail(driver.user_id, "current-incomplete",driver.full_name)
+                      navigateToDetail(driver.user_id, "current-incomplete", driver.full_name)
                     }
                     disabled={true}
                   />
@@ -476,7 +486,7 @@ export default function DriverLogsOverview() {
                     color="green"
                     onClick={() =>
                       driver.current_complete > 0 &&
-                      navigateToDetail(driver.user_id, "current-complete",driver.full_name)
+                      navigateToDetail(driver.user_id, "current-complete", driver.full_name)
                     }
                     disabled={true}
                   />
@@ -488,7 +498,7 @@ export default function DriverLogsOverview() {
                     color="yellow"
                     onClick={() =>
                       driver.awaiting_approval > 0 &&
-                      navigateToDetail(driver.user_id, "awaiting-approval",driver.full_name)
+                      navigateToDetail(driver.user_id, "awaiting-approval", driver.full_name)
                     }
                     disabled={driver.awaiting_approval === 0}
                   />
@@ -500,7 +510,7 @@ export default function DriverLogsOverview() {
                     color="red"
                     onClick={() =>
                       driver.historical_incomplete > 0 &&
-                      navigateToDetail(driver.user_id, "historical-incomplete",driver.full_name)
+                      navigateToDetail(driver.user_id, "historical-incomplete", driver.full_name)
                     }
                     disabled={driver.historical_incomplete === 0}
                   />
@@ -512,7 +522,7 @@ export default function DriverLogsOverview() {
                     color="green"
                     onClick={() =>
                       driver.historical_complete > 0 &&
-                      navigateToDetail(driver.user_id, "historical-complete",driver.full_name)
+                      navigateToDetail(driver.user_id, "historical-complete", driver.full_name)
                     }
                     disabled={driver.historical_complete === 0}
                   />

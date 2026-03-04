@@ -50,6 +50,7 @@ import {
   Calendar,
   RefreshCcw,
   Gauge,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
@@ -934,11 +935,7 @@ const PMITabs: FC = () => {
         <div className="mb-6">
           <h1 className="text-2xl flex items-center font-semibold text-gray-900 mb-1">
             PMI Analysis - Maintenance
-            <RefreshCcw
 
-              className="w-4 h-4 text-gray-400 mx-4 hover:text-gray-700 cursor-pointer"
-              onClick={() => fetchPmiData()}
-            />
           </h1>
           <p className="text-sm text-gray-600 mb-6">
             Comprehensive vehicle inspection data with action controls
@@ -983,7 +980,18 @@ const PMITabs: FC = () => {
               </div>
 
               <div className="flex space-x-2 items-center">
+                <Button
+                  onClick={fetchPmiData}
+                  disabled={loading}
+                  variant="outline"
+                  size="sm"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                      }`}
+                  />
 
+                </Button>
                 <Popover open={showDateFilter} onOpenChange={setShowDateFilter}>
                   <PopoverTrigger asChild>
                     <Button className="bg-purple-300 border-0 text-purple-900 hover:bg-purple-600">

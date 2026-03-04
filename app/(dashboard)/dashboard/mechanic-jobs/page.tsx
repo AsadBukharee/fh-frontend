@@ -637,14 +637,18 @@ export default function MechanicJobsPage() {
               Filter ({filteredJobs.length} of {allJobs.length})
             </Button>
             <ExportButton data={paginatedJobs} fileName="Mechanic Job" />
-            <button
+            <Button
               onClick={fetchJobs}
               disabled={loading}
-              className="px-4 border border-gray-50 shadow rounded flex justify-center items-center gap-2 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              variant="outline"
+              size="sm"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              Refresh
-            </button>
+              <RefreshCw
+                className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                  }`}
+              />
+
+            </Button>
           </div>
         </div>
       </header>

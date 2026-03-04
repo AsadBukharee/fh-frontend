@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Car, Plus, RefreshCcw, User, CalendarDays, Clock, MoveRight, Edit } from "lucide-react";
+import { Eye, Car, Plus, RefreshCcw, User, CalendarDays, Clock, MoveRight, Edit, RefreshCw } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -344,21 +344,19 @@ const WalkaroundPage = () => {
             <p className="text-sm text-gray-500 mb-4">View vehicle walkaround details</p>
           </div>
           <div className="flex gap-4 items-center">
-            <RefreshCcw
-              className="text-gray-500 hover:text-gray-600 cursor-pointer"
+            <Button
               onClick={debouncedFetchWalkarounds}
-            />
-            <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-              <DialogTrigger asChild>
-                <GradientButton text="Walkaround" Icon={Plus} />
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Create New Walkaround</DialogTitle>
-                </DialogHeader>
-                <Addwalkaround setOpen={setOpenAdd} />
-              </DialogContent>
-            </Dialog>
+              disabled={loading}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw
+                className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                  }`}
+              />
+
+            </Button>
+
           </div>
         </div>
 
@@ -421,8 +419,20 @@ const WalkaroundPage = () => {
                   <SelectItem value="100">100</SelectItem>
                 </SelectContent>
               </Select>
+
               <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
               {error && <div className="text-red-500 self-center">{error}</div>}
+              <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+                <DialogTrigger asChild>
+                  <GradientButton text="Walkaround" Icon={Plus} />
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create New Walkaround</DialogTitle>
+                  </DialogHeader>
+                  <Addwalkaround setOpen={setOpenAdd} />
+                </DialogContent>
+              </Dialog>
             </div>
 
             {/* Walkaround List */}

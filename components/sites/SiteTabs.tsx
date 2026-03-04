@@ -31,6 +31,7 @@ import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
 import { useToast } from "@/app/Context/ToastContext";
 import ExportButton from "@/app/utils/ExportButton";
+import { Button } from "../ui/button";
 
 // Define interfaces
 interface OperationHour {
@@ -225,19 +226,19 @@ export default function SiteGrid() {
     }
 
     if (contactPositionFilter !== "all") {
-      filtered = filtered.filter((site) => 
+      filtered = filtered.filter((site) =>
         (site.contact_position || "N/A") === contactPositionFilter
       );
     }
 
     if (contactNameFilter !== "all") {
-      filtered = filtered.filter((site) => 
+      filtered = filtered.filter((site) =>
         (site.created_by || "N/A") === contactNameFilter
       );
     }
 
     if (activeStatusFilter !== "all") {
-      filtered = filtered.filter((site) => 
+      filtered = filtered.filter((site) =>
         site.status.toLowerCase() === activeStatusFilter.toLowerCase()
       );
     }
@@ -287,14 +288,15 @@ export default function SiteGrid() {
             </div>
 
             <div className="flex gap-2 items-center">
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={loading}
                 onClick={fetchSites}
-                className="p-2 rounded-md hover:bg-muted transition-colors"
+                className="flex items-center gap-2 bg-transparent"
               >
-                <RefreshCcw className={`w-4 h-4 text-gray-500 ${loading ? "animate-spin" : ""}`} />
-              </button>
+                <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              </Button>
 
               <ExportButton data={sites} fileName="Site_data" />
 
@@ -390,11 +392,10 @@ export default function SiteGrid() {
                     </div>
                     <div className="flex gap-2 items-center">
                       <Badge
-                        className={`text-xs font-medium ${
-                          site.status === "inactive"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-green-100 text-green-700"
-                        }`}
+                        className={`text-xs font-medium ${site.status === "inactive"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-green-100 text-green-700"
+                          }`}
                       >
                         {site.status === "active" ? "Active" : "Inactive"}
                       </Badge>
@@ -432,9 +433,8 @@ export default function SiteGrid() {
                     <Tooltip key={idx}>
                       <TooltipTrigger asChild>
                         <Badge
-                          className={`text-[12px] cursor-pointer h-[20px] px-2 py-0 font-medium ${
-                            person ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                          }`}
+                          className={`text-[12px] cursor-pointer h-[20px] px-2 py-0 font-medium ${person ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                            }`}
                         >
                           {shiftName.charAt(0).toUpperCase() + shiftName.slice(1)}
                         </Badge>
@@ -503,40 +503,40 @@ export default function SiteGrid() {
                   <button className="text-md w-full cursor-pointer py-2 rounded-sm text-orange bg-gray-100 flex items-center justify-center gap-2">
                     More Details <MoveUpRight size={16} />
                   </button>
-                   <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button
-                    data-delete="true"
-                    className="px-4 py-1  rounded-sm bg-red-100 hover:bg-red-200 text-red-600 transition-colors shadow-md"
-                    aria-label={`Delete site ${site.name}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Site Permanently?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action will <strong>permanently delete</strong> the site &quot;<strong>{site.name}</strong>&quot;.<br />
-                      All associated data will be lost. This cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => handleDeleteSite(site.id)}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      Yes, Delete Site
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        data-delete="true"
+                        className="px-4 py-1  rounded-sm bg-red-100 hover:bg-red-200 text-red-600 transition-colors shadow-md"
+                        aria-label={`Delete site ${site.name}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Site Permanently?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action will <strong>permanently delete</strong> the site &quot;<strong>{site.name}</strong>&quot;.<br />
+                          All associated data will be lost. This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteSite(site.id)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Yes, Delete Site
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </Link>
 
               {/* Delete Button with Confirmation */}
-             
+
             </div>
           ))}
         </div>
