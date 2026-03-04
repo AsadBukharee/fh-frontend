@@ -33,11 +33,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
+
 import {
   Search,
   Edit,
-  Trash2,
+
   ChevronLeft,
   ChevronRight,
   Download,
@@ -45,13 +45,10 @@ import {
   Save,
   X,
   Mail,
-  AlertCircle,
+
   RefreshCw,
   User,
-  Shield,
-  FileText,
-  Check,
-  XCircle,
+
   Plus,
   Eye,
   EyeOff,
@@ -431,13 +428,13 @@ interface DriverActionMenuProps {
   onResendActivation: () => void;
 }
 
-const DriverActionMenu = React.memo(({ 
-  driver, 
-  onViewProfile, 
+const DriverActionMenu = React.memo(({
+  driver,
+  onViewProfile,
   onEdit,
-  onApprove, 
+  onApprove,
   onDisapprove,
-  onResendActivation, 
+  onResendActivation,
 }: DriverActionMenuProps) => {
   const isApproved = driver.profile_status?.toLowerCase() === "approved";
 
@@ -454,7 +451,7 @@ const DriverActionMenu = React.memo(({
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent 
+      <DropdownMenuContent
         align="end"
         className="w-56 z-50"   // ← important: good z-index
         sideOffset={5}
@@ -462,7 +459,7 @@ const DriverActionMenu = React.memo(({
         <DropdownMenuLabel className="font-medium text-gray-900">
           {driver.user.full_name}
         </DropdownMenuLabel>
-        
+
         <DropdownMenuSeparator />
 
         <DropdownMenuItem onClick={onViewProfile} className="gap-2">
@@ -478,7 +475,7 @@ const DriverActionMenu = React.memo(({
         <DropdownMenuSeparator />
 
         {!isApproved ? (
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={onApprove}
             className="text-green-600 focus:text-green-600 focus:bg-green-50 gap-2"
           >
@@ -486,7 +483,7 @@ const DriverActionMenu = React.memo(({
             Approve Driver
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={onDisapprove}
             className="text-rose-600 focus:text-rose-600 focus:bg-rose-50 gap-2"
           >
@@ -496,7 +493,7 @@ const DriverActionMenu = React.memo(({
         )}
 
         {!isApproved && (
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={onResendActivation}
             className="text-blue-600 focus:text-blue-600 focus:bg-blue-50 gap-2"
           >
@@ -506,7 +503,7 @@ const DriverActionMenu = React.memo(({
         )}
 
 
-       
+
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -619,7 +616,7 @@ export default function DriversPage() {
     if (!contract) {
       return <Badge className="bg-red-50 text-red-600 border-red-200 hover:bg-red-50">No Contract</Badge>;
     }
-    
+
     const contractName = contract.name.toLowerCase();
     if (contractName.includes("19/11/25")) {
       return <Badge className="bg-green-50 text-green-600 border-green-200 hover:bg-green-50">{contract.name}</Badge>;
@@ -839,7 +836,7 @@ export default function DriversPage() {
     }
   };
 
- 
+
 
   const handleResendActivation = async (userId: number) => {
     try {
@@ -858,7 +855,7 @@ export default function DriversPage() {
         showToast("Session expired. Please log in again.", "error");
         return;
       }
-      
+
       if (response.ok && data.success) {
         showToast("Activation email resent successfully", "success");
       } else {
@@ -914,7 +911,7 @@ export default function DriversPage() {
       });
 
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         showToast("Driver disapproved successfully", "success");
         // Reset dialog state
@@ -959,7 +956,7 @@ export default function DriversPage() {
                 className="flex items-center gap-2"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+
               </Button>
               <ExportButton data={filteredDrivers} fileName="Drivers" />
               <Button
@@ -1033,7 +1030,7 @@ export default function DriversPage() {
       </header>
 
       {/* Table */}
-  {/* Table Section */}
+      {/* Table Section */}
       <div className="p-4 sm:p-6">
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           <div className="overflow-x-auto">
@@ -1120,18 +1117,18 @@ export default function DriversPage() {
                       </td>
                       <td className="px-4 py-4 sticky right-0 bg-white z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.05)]">
                         <div className="flex justify-end">
-                         <DriverActionMenu
-      driver={driver}
-      onViewProfile={() => window.open(`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`, "_blank")}
-      onEdit={() => handleEditDriver(driver)}
-      onApprove={() => handleApproveDriverClick(driver.id)}
-      onDisapprove={() => {
-        setSelectedDriver(driver);
-        setIsDisapproveDialogOpen(true);
-      }}
-      onResendActivation={() => handleResendActivation(driver.user.id)}
-     
-    />
+                          <DriverActionMenu
+                            driver={driver}
+                            onViewProfile={() => window.open(`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`, "_blank")}
+                            onEdit={() => handleEditDriver(driver)}
+                            onApprove={() => handleApproveDriverClick(driver.id)}
+                            onDisapprove={() => {
+                              setSelectedDriver(driver);
+                              setIsDisapproveDialogOpen(true);
+                            }}
+                            onResendActivation={() => handleResendActivation(driver.user.id)}
+
+                          />
                         </div>
                       </td>
                     </tr>
@@ -1224,7 +1221,7 @@ export default function DriversPage() {
         />
       )}
 
-     
+
     </div>
   );
 }

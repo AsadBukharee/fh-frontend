@@ -68,6 +68,7 @@ import {
   FileText,
   EyeOff,
   Eye,
+  RefreshCw,
 } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -230,7 +231,7 @@ const UserRow = React.memo(
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </DropdownMenuItem>
-         
+
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
@@ -1141,9 +1142,8 @@ export default function UsersPage() {
       debounce(async (query: string, page: number) => {
         setLoading(true);
         try {
-          const url = `${API_URL}/users/?drivers=false&page=${page}&per_page=${perPage}${
-            query ? `&q=${encodeURIComponent(query)}` : ""
-          }`;
+          const url = `${API_URL}/users/?drivers=false&page=${page}&per_page=${perPage}${query ? `&q=${encodeURIComponent(query)}` : ""
+            }`;
           const response = await fetch(url, {
             headers: {
               "Content-Type": "application/json",
@@ -1650,146 +1650,151 @@ export default function UsersPage() {
 
   return (
     <div className="p-6 bg-white">
-    <header className="bg-white ">
-  <div className="container mx-auto flex flex-col gap-6">
-    {/* Page Title + Action Buttons */}
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-        <p className="text-sm text-gray-500">Manage your team members and their permissions</p>
-      </div>
+      <header className="bg-white ">
+        <div className="container mx-auto flex flex-col gap-6">
+          {/* Page Title + Action Buttons */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+              <p className="text-sm text-gray-500">Manage your team members and their permissions</p>
+            </div>
 
-      <div className="flex items-center gap-3">
-        <ExportButton data={users} fileName="Other Staff" />
-        
-        <button
-          onClick={fetchUsers}
-          disabled={loading}
-          className="px-4 py-2 border border-gray-300 rounded-lg flex items-center gap-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
-        >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refresh"}
-        </button>
+            <div className="flex items-center gap-3">
+              <ExportButton data={users} fileName="Other Staff" />
 
-        <Button
-          className="flex items-center gap-2 rounded-xl px-6 py-3 text-white font-medium shadow-md"
-          style={{
-            background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
-          }}
-          onClick={() => handleAddUserClick("driver")}
-        >
-          <UserPlus className="w-4 h-4" />
-          Add User
-        </Button>
-      </div>
-    </div>
+              <Button
+                onClick={fetchUsers}
+                disabled={loading}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCw
+                  className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                    }`}
+                />
 
-    {/* ==== FILTERS — ALWAYS VISIBLE ON SCREEN ==== */}
-    <div className=" p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <Filter className="w-5 h-5" />
-          Filters
-        </h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setFilters({ role: "all", contract: "all", site: "all", status: "all" });
-            applyFilters();
-          }}
-        >
-          Clear All Filters
-        </Button>
-      </div>
+              </Button>
 
-      {/* Filter Dropdowns – Always Open */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Role */}
-        <div>
-          <Label className="flex items-center gap-2 mb-2 text-gray-700">
-            <Shield className="w-4 h-4" />
-            Role
-          </Label>
-          <Select value={filters.role} onValueChange={(v) => { setFilters(prev => ({ ...prev, role: v })); applyFilters(); }}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Roles" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              {roles.map((role) => (
-                <SelectItem key={role.id} value={role.slug}>
-                  {role.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <Button
+                className="flex items-center gap-2 rounded-xl px-6 py-3 text-white font-medium shadow-md"
+                style={{
+                  background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+                }}
+                onClick={() => handleAddUserClick("driver")}
+              >
+                <UserPlus className="w-4 h-4" />
+                Add User
+              </Button>
+            </div>
+          </div>
+
+          {/* ==== FILTERS — ALWAYS VISIBLE ON SCREEN ==== */}
+          <div className=" p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Filters
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFilters({ role: "all", contract: "all", site: "all", status: "all" });
+                  applyFilters();
+                }}
+              >
+                Clear All Filters
+              </Button>
+            </div>
+
+            {/* Filter Dropdowns – Always Open */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* Role */}
+              <div>
+                <Label className="flex items-center gap-2 mb-2 text-gray-700">
+                  <Shield className="w-4 h-4" />
+                  Role
+                </Label>
+                <Select value={filters.role} onValueChange={(v) => { setFilters(prev => ({ ...prev, role: v })); applyFilters(); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Roles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.slug}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Contract */}
+              <div>
+                <Label className="flex items-center gap-2 mb-2 text-gray-700">
+                  <FileText className="w-4 h-4" />
+                  Contract
+                </Label>
+                <Select value={filters.contract} onValueChange={(v) => { setFilters(prev => ({ ...prev, contract: v })); applyFilters(); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Contracts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Contracts</SelectItem>
+                    <SelectItem value="none">No Contract</SelectItem>
+                    {contracts.map((c) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Site */}
+              <div>
+                <Label className="flex items-center gap-2 mb-2 text-gray-700">
+                  <FileText className="w-4 h-4" />
+                  Site
+                </Label>
+                <Select value={filters.site} onValueChange={(v) => { setFilters(prev => ({ ...prev, site: v })); applyFilters(); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Sites" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sites</SelectItem>
+                    <SelectItem value="none">No Site</SelectItem>
+                    {sites.map((s) => (
+                      <SelectItem key={s.id} value={s.id.toString()}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <Label className="flex items-center gap-2 mb-2 text-gray-700">
+                  <ToggleLeft className="w-4 h-4" />
+                  Status
+                </Label>
+                <Select value={filters.status} onValueChange={(v) => { setFilters(prev => ({ ...prev, status: v })); applyFilters(); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">In-Active</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
         </div>
-
-        {/* Contract */}
-        <div>
-          <Label className="flex items-center gap-2 mb-2 text-gray-700">
-            <FileText className="w-4 h-4" />
-            Contract
-          </Label>
-          <Select value={filters.contract} onValueChange={(v) => { setFilters(prev => ({ ...prev, contract: v })); applyFilters(); }}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Contracts" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Contracts</SelectItem>
-              <SelectItem value="none">No Contract</SelectItem>
-              {contracts.map((c) => (
-                <SelectItem key={c.id} value={c.id.toString()}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Site */}
-        <div>
-          <Label className="flex items-center gap-2 mb-2 text-gray-700">
-            <FileText className="w-4 h-4" />
-            Site
-          </Label>
-          <Select value={filters.site} onValueChange={(v) => { setFilters(prev => ({ ...prev, site: v })); applyFilters(); }}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Sites" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sites</SelectItem>
-              <SelectItem value="none">No Site</SelectItem>
-              {sites.map((s) => (
-                <SelectItem key={s.id} value={s.id.toString()}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Status */}
-        <div>
-          <Label className="flex items-center gap-2 mb-2 text-gray-700">
-            <ToggleLeft className="w-4 h-4" />
-            Status
-          </Label>
-          <Select value={filters.status} onValueChange={(v) => { setFilters(prev => ({ ...prev, status: v })); applyFilters(); }}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">In-Active</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    </div>
-  </div>
-</header>
+      </header>
 
       <div className="mb-6">
         <div
@@ -1984,7 +1989,7 @@ export default function UsersPage() {
         </Dialog>
       )}
 
-     
+
     </div>
   );
 }

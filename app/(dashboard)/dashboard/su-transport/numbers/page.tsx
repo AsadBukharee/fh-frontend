@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
+import { RefreshCw } from "lucide-react"
 
 type TabKey = "early" | "shuttle1" | "shuttle2" | "shuttle3" | "night"
 type DataRow = { location: string; out: number; in: number; spillOver: number }
@@ -226,26 +227,25 @@ export default function TransportDashboard() {
                     setRefreshCounter(30)
                   }}
                   className={`flex items-center px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer gap-2
-                    ${
-                      tab.id === "early"
-                        ? isActive
-                          ? "bg-red-500/20 text-red-500 border-red-500/70"
-                          : "bg-white text-gray-600/50 border-gray-500/50"
-                        : tab.id === "shuttle1"
+                    ${tab.id === "early"
+                      ? isActive
+                        ? "bg-red-500/20 text-red-500 border-red-500/70"
+                        : "bg-white text-gray-600/50 border-gray-500/50"
+                      : tab.id === "shuttle1"
                         ? isActive
                           ? "bg-green-500/20 text-green-500 border-green-500/70"
                           : "bg-white text-gray-600/50 border-gray-500/50"
                         : tab.id === "shuttle2"
-                        ? isActive
-                          ? "bg-pink-500/20 text-pink-500 border-pink-500/70"
-                          : "bg-white text-gray-600/50 border-gray-500/50"
-                        : tab.id === "shuttle3"
-                        ? isActive
-                          ? "bg-orange-500/20 text-orange-500 border-orange-500/70"
-                          : "bg-white text-gray-600/50 border-gray-500/50"
-                        : isActive
-                        ? "bg-purple-500/20 text-purple-500 border-purple-500/70"
-                        : "bg-white text-gray-600/50 border-gray-500/50"
+                          ? isActive
+                            ? "bg-pink-500/20 text-pink-500 border-pink-500/70"
+                            : "bg-white text-gray-600/50 border-gray-500/50"
+                          : tab.id === "shuttle3"
+                            ? isActive
+                              ? "bg-orange-500/20 text-orange-500 border-orange-500/70"
+                              : "bg-white text-gray-600/50 border-gray-500/50"
+                            : isActive
+                              ? "bg-purple-500/20 text-purple-500 border-purple-500/70"
+                              : "bg-white text-gray-600/50 border-gray-500/50"
                     }`}
                 >
                   {tab.label}
@@ -258,7 +258,8 @@ export default function TransportDashboard() {
             onClick={refreshData}
             className="text-sm"
           >
-            Refresh
+            <RefreshCw className="h-4 w-4 mr-1" />
+
           </Button>
         </div>
 
@@ -305,13 +306,12 @@ export default function TransportDashboard() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div
-                          className={`px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px] ${
-                            row.spillOver > 0
+                          className={`px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px] ${row.spillOver > 0
                               ? "bg-green-100 text-green-800"
                               : row.spillOver < 0
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
                         >
                           {row.spillOver > 0 ? "+" : ""}
                           {row.spillOver}

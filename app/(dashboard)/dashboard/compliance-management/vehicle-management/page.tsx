@@ -1863,10 +1863,10 @@ export default function VehicleDashboard() {
               size="sm"
             >
               <RefreshCw
-                className={`w-4 h-4 mr-2 ${loading || isUpdating || isSweeping ? "animate-spin" : ""
+                className={`w-4 h-4  ${loading || isUpdating || isSweeping ? "animate-spin" : ""
                   }`}
               />
-              Refresh
+
             </Button>
           </div>
         </div>

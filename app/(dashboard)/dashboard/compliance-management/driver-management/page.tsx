@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CalendarIcon, ChevronLeft, ChevronRight, Loader2, GraduationCap, Calendar, Info } from 'lucide-react';
+import { CalendarIcon, ChevronLeft, ChevronRight, Loader2, GraduationCap, Calendar, Info, RefreshCw } from 'lucide-react';
 import { format, differenceInDays, isPast, parseISO, isBefore, isAfter, addDays, startOfDay, differenceInCalendarDays } from 'date-fns';
 import ExportButton from '@/app/utils/ExportButton';
 import API_URL from '@/app/utils/ENV';
@@ -138,11 +138,12 @@ const CPCModulesDialog = ({ driver }: { driver: Driver }) => {
   const hasModules = currentModules.length > 0 || nextFiveModules.length > 0;
 
   // Helper to get status for future modules
-  const getModuleStatus = (expiryDate: string | null) => {
-    if (!expiryDate) return { status: 'NA', color: 'text-gray-500', bg: 'bg-gray-50' };
-    const today = new Date('2026-02-12'); // Current date from context
-    const expiry = new Date(expiryDate);
-    const daysLeft = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const getModuleStatus = (expiryDateString: string | null) => {
+    if (!expiryDateString) return { status: 'NA', color: 'text-gray-500', bg: 'bg-gray-50' };
+    const today = startOfDay(new Date());
+    const expiryDate = startOfDay(parseISO(expiryDateString));
+    const daysLeft = differenceInCalendarDays(expiryDate, today);
+
     if (daysLeft > 90) return { status: `${daysLeft} days left to complete module`, color: 'text-green-700', bg: 'bg-green-50' };
     if (daysLeft > 45) return { status: `${daysLeft} days left to complete module`, color: 'text-amber-700', bg: 'bg-amber-50' };
     if (daysLeft > 0) return { status: `${daysLeft} days left to complete module`, color: 'text-red-700', bg: 'bg-red-50' };
@@ -182,14 +183,14 @@ const CPCModulesDialog = ({ driver }: { driver: Driver }) => {
                 </tr>
               </thead>
               <tbody>
-                {[0,1,2,3,4].map(i => {
+                {[0, 1, 2, 3, 4].map(i => {
                   const current = currentModules[i];
                   const future = nextFiveModules[i];
                   const expiryDate = current ? current.expiry_date : null;
                   const statusObj = getModuleStatus(expiryDate);
                   return (
                     <tr key={i} className={future ? statusObj.bg : 'bg-white'}>
-                      <td className="border px-2 py-1 text-center">{i+1}</td>
+                      <td className="border px-2 py-1 text-center">{i + 1}</td>
                       <td className="border px-2 py-1 text-center">{current ? current.module_name : ''}</td>
                       <td className="border px-2 py-1 text-center">{current && current.expiry_date ? new Date(current.expiry_date).toLocaleDateString('en-GB') : ''}</td>
                       <td className="border px-2 py-1 text-center">{future ? future.module_name : ''}</td>
@@ -375,13 +376,12 @@ const DriverManagementPage = () => {
     }
 
     try {
-      const date = parseISO(dateString);
       const today = startOfDay(new Date());
       const expiryDate = startOfDay(parseISO(dateString));
       const daysUntilExpiry = differenceInCalendarDays(expiryDate, today);
 
       // Check if expired
-      if (isPast(date)) {
+      if (daysUntilExpiry < 0) {
         const expiredDays = Math.abs(daysUntilExpiry);
         return {
           colorClass: 'bg-red-50 text-red-700',
@@ -393,186 +393,77 @@ const DriverManagementPage = () => {
       // License / D D1 category
       if (field === 'driver_licence_expiry' || field === 'd_d1_expiry') {
         if (daysUntilExpiry >= 90) {
-          return {
-            colorClass: 'bg-green-50 text-green-700',
-            label: '',
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-green-50 text-green-700', label: '', hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else if (daysUntilExpiry >= 60) {
-          return {
-            colorClass: 'bg-amber-50 text-amber-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
-        } else if (daysUntilExpiry >= 45) {
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-amber-50 text-amber-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else {
-          // Less than 45 days
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-red-50 text-red-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         }
       }
 
       // Next Driver Check Code Due
       if (field === 'next_driver_check_code_due') {
         if (daysUntilExpiry >= 15) {
-          return {
-            colorClass: 'bg-green-50 text-green-700',
-            label: '',
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-green-50 text-green-700', label: '', hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else if (daysUntilExpiry >= 3) {
-          return {
-            colorClass: 'bg-amber-50 text-amber-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-amber-50 text-amber-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else {
-          // Less than 3 days
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-red-50 text-red-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         }
       }
 
       // CPC Card Expiry
       if (field === 'cpc_card_expiry') {
         if (daysUntilExpiry >= 90) {
-          return {
-            colorClass: 'bg-green-50 text-green-700',
-            label: '',
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-green-50 text-green-700', label: '', hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else if (daysUntilExpiry >= 60) {
-          return {
-            colorClass: 'bg-amber-50 text-amber-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
-        } else if (daysUntilExpiry >= 30) {
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-amber-50 text-amber-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else {
-          // Less than 30 days
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-red-50 text-red-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         }
       }
 
       // Tacho Expiry
       if (field === 'tacho_expiry') {
         if (daysUntilExpiry >= 60) {
-          return {
-            colorClass: 'bg-green-50 text-green-700',
-            label: '',
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-green-50 text-green-700', label: '', hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else if (daysUntilExpiry >= 30) {
-          return {
-            colorClass: 'bg-amber-50 text-amber-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
-        } else if (daysUntilExpiry >= 10) {
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-amber-50 text-amber-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else {
-          // Less than 10 days
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-red-50 text-red-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         }
       }
 
       // Next Tacho DL
       if (field === 'next_driver_tacho_download') {
         if (daysUntilExpiry >= 10) {
-          return {
-            colorClass: 'bg-green-50 text-green-700',
-            label: '',
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-green-50 text-green-700', label: '', hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else if (daysUntilExpiry >= 2) {
-          return {
-            colorClass: 'bg-amber-50 text-amber-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-amber-50 text-amber-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else {
-          // Less than 2 days
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-red-50 text-red-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         }
       }
 
       // DBS Expiry
       if (field === 'dbs_expiry_date') {
         if (daysUntilExpiry >= 120) {
-          return {
-            colorClass: 'bg-green-50 text-green-700',
-            label: '',
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-green-50 text-green-700', label: '', hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else if (daysUntilExpiry >= 60) {
-          return {
-            colorClass: 'bg-amber-50 text-amber-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-amber-50 text-amber-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else {
-          // Less than 60 days
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-red-50 text-red-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         }
       }
 
       // Night Worker Assessment
       if (field === 'night_worker_assessment_expiry') {
         if (daysUntilExpiry >= 10) {
-          return {
-            colorClass: 'bg-green-50 text-green-700',
-            label: '',
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-green-50 text-green-700', label: '', hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else if (daysUntilExpiry >= 2) {
-          return {
-            colorClass: 'bg-amber-50 text-amber-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-amber-50 text-amber-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         } else {
-          // Less than 2 days
-          return {
-            colorClass: 'bg-red-50 text-red-700',
-            label: `${daysUntilExpiry} days`,
-            hoverText: `Expiry = ${daysUntilExpiry} Days Left`
-          };
+          return { colorClass: 'bg-red-50 text-red-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
         }
       }
 
@@ -681,19 +572,18 @@ const DriverManagementPage = () => {
               <PopoverContent className="w-80 text-sm">
                 <div className="space-y-2">
                   <div className="font-medium">{hoverText || `${displayValue}`}</div>
-                  
+
                   {/* Show rules for CPC card */}
                   <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
                     <strong>CPC Card Rules:</strong>
                     <br />- 90+ days: Green
-                    <br />- 60-89 days: Amber
-                    <br />- 30-59 days: Red
-                    <br />- Under 30 days: Dark Red
+                    <br />- 45-89 days: Amber
+                    <br />- Under 45 days: Red
                   </div>
                 </div>
               </PopoverContent>
             </Popover>
-            
+
             {/* Add CPC Modules Dialog */}
             <CPCModulesDialog driver={driver} />
           </div>
@@ -712,7 +602,7 @@ const DriverManagementPage = () => {
           <PopoverContent className="w-80 text-sm">
             <div className="space-y-2">
               <div className="font-medium">{hoverText || `${displayValue}`}</div>
-              
+
               {/* Show rules for each field */}
               <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
                 {field === 'driver_licence_expiry' || field === 'd_d1_expiry' ? (
@@ -734,8 +624,7 @@ const DriverManagementPage = () => {
                     <strong>Tacho Rules:</strong>
                     <br />- 60+ days: Green
                     <br />- 30-59 days: Amber
-                    <br />- 10-29 days: Red
-                    <br />- Under 10 days: Dark Red
+                    <br />- Under 30 days: Red
                   </>
                 ) : field === 'next_driver_tacho_download' ? (
                   <>
@@ -891,6 +780,17 @@ const DriverManagementPage = () => {
         <h1 className="text-2xl font-bold">Driver Compliance</h1>
         <div className="flex gap-3 items-center">
           <ExportButton data={drivers} fileName="driver_compliance_report" />
+          <Button
+            onClick={fetchDrivers}
+            disabled={loading}
+            variant="outline"
+            size="sm"
+          >
+            <RefreshCw
+              className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                }`}
+            />
+          </Button>
         </div>
       </div>
 
@@ -989,13 +889,13 @@ const DriverManagementPage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="text-center py-12">
+                  <TableCell colSpan={12} className="text-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
                   </TableCell>
                 </TableRow>
               ) : drivers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="text-center py-12 text-gray-500">
+                  <TableCell colSpan={12} className="text-center py-12 text-gray-500">
                     No drivers found matching your filters.
                   </TableCell>
                 </TableRow>

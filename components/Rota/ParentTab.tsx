@@ -1,7 +1,7 @@
 "use client"
 import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Edit, X, Loader2, ChevronDown } from "lucide-react";
+import { Edit, X, Loader2, ChevronDown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -1077,29 +1077,16 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center justify-center space-x-4">
           <StartRota users={uniqueUsers} />
-          <div className="relative">
+          <div className="relative mt-4">
+            <Search className="absolute z-10 left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <Input
-              type="search"
+              type="text"
               placeholder="Search employees..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-64 pl-10"
             />
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearSearch}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+
           </div>
         </div>
       </div>

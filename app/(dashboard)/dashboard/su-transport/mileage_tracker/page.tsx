@@ -25,7 +25,8 @@ import {
 import API_URL from '@/app/utils/ENV';
 import {
   EllipsisVertical, Gauge, MapPin, UsersRound, Eye, Edit, Trash2,
-  Calendar, Filter, User, CalendarDays, ChevronLeft, ChevronRight
+  Calendar, Filter, User, CalendarDays, ChevronLeft, ChevronRight,
+  RefreshCw
 } from 'lucide-react';
 import {
   Select,
@@ -182,93 +183,93 @@ const MileageTracker = () => {
     };
     fetchDrivers();
   }, [token]);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('page', currentPage.toString());
+      params.append('page_size', pageSize.toString());
 
-  // Fetch runs with filters
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        // Build query parameters
-        const params = new URLSearchParams();
-        params.append('page', currentPage.toString());
-        params.append('page_size', pageSize.toString());
+      if (dateFrom) {
+        params.append('date_from', format(dateFrom, 'yyyy-MM-dd'));
+      }
+      if (dateTo) {
+        params.append('date_to', format(dateTo, 'yyyy-MM-dd'));
+      }
+      if (selectedDriver !== "all") {
+        params.append('driver', selectedDriver);
+      }
+      // Send numeric run_type values
+      if (activeRunType !== "all") {
+        params.append('run_type', activeRunType);
+      }
 
-        if (dateFrom) {
-          params.append('date_from', format(dateFrom, 'yyyy-MM-dd'));
-        }
-        if (dateTo) {
-          params.append('date_to', format(dateTo, 'yyyy-MM-dd'));
-        }
-        if (selectedDriver !== "all") {
-          params.append('driver', selectedDriver);
-        }
-        // Send numeric run_type values
-        if (activeRunType !== "all") {
-          params.append('run_type', activeRunType);
-        }
+      const apiUrl = `${API_URL}/activity/su-run/?${params.toString()}`;
+      console.log('Fetching from:', apiUrl);
 
-        const apiUrl = `${API_URL}/activity/su-run/?${params.toString()}`;
-        console.log('Fetching from:', apiUrl);
+      const res = await fetch(apiUrl, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+      });
 
-        const res = await fetch(apiUrl, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
+      console.log('Response status:', res.status);
+      const data = await res.json();
+      console.log('Response data:', data);
+
+      if (data?.data?.results) {
+        // Process the data
+        const processedData = data.data.results.map((run: Run) => ({
+          ...run,
+          // Ensure driver name is handled properly
+          driver: {
+            ...run.driver,
+            full_name: run.driver?.full_name || (run.driver?.email === "AnonymousUser" ? "Anonymous" : run.driver?.email || "Unknown")
           },
-        });
-
-        console.log('Response status:', res.status);
-        const data = await res.json();
-        console.log('Response data:', data);
-
-        if (data?.data?.results) {
-          // Process the data
-          const processedData = data.data.results.map((run: Run) => ({
-            ...run,
-            // Ensure driver name is handled properly
-            driver: {
-              ...run.driver,
-              full_name: run.driver?.full_name || (run.driver?.email === "AnonymousUser" ? "Anonymous" : run.driver?.email || "Unknown")
-            },
-            // Calculate total mileage for display
-            totalMileage: () => {
-              if (run.traveled_mileage && parseFloat(run.traveled_mileage) > 0) {
-                return parseFloat(run.traveled_mileage);
-              }
-              if (run.end_mileage && run.vehicle?.last_mileage) {
-                const end = parseFloat(run.end_mileage);
-                const start = parseFloat(run.vehicle.last_mileage);
-                return end - start;
-              }
-              // Calculate from stops
-              return run.stops.reduce((sum, stop) => sum + stop.mileage, 0);
+          // Calculate total mileage for display
+          totalMileage: () => {
+            if (run.traveled_mileage && parseFloat(run.traveled_mileage) > 0) {
+              return parseFloat(run.traveled_mileage);
             }
-          }));
+            if (run.end_mileage && run.vehicle?.last_mileage) {
+              const end = parseFloat(run.end_mileage);
+              const start = parseFloat(run.vehicle.last_mileage);
+              return end - start;
+            }
+            // Calculate from stops
+            return run.stops.reduce((sum, stop) => sum + stop.mileage, 0);
+          }
+        }));
 
-          const sortedData = processedData.sort((a: Run, b: Run) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+        const sortedData = processedData.sort((a: Run, b: Run) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
 
-          console.log('Processed runs:', sortedData);
-          setRuns(sortedData);
-          setFilteredRuns(sortedData);
-          setTotalPages(data.data.total_pages || 1);
-          setTotalCount(data.data.count || 0);
-        } else {
-          console.log('No data results found');
-          setRuns([]);
-          setFilteredRuns([]);
-          setTotalPages(1);
-          setTotalCount(0);
-        }
-      } catch (err) {
-        console.error("Fetch error", err);
+        console.log('Processed runs:', sortedData);
+        setRuns(sortedData);
+        setFilteredRuns(sortedData);
+        setTotalPages(data.data.total_pages || 1);
+        setTotalCount(data.data.count || 0);
+      } else {
+        console.log('No data results found');
         setRuns([]);
         setFilteredRuns([]);
-      } finally {
-        setLoading(false);
+        setTotalPages(1);
+        setTotalCount(0);
       }
-    };
+    } catch (err) {
+      console.error("Fetch error", err);
+      setRuns([]);
+      setFilteredRuns([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Fetch runs with filters
+  useEffect(() => {
+
     fetchData();
   }, [token, currentPage, pageSize, dateFrom, dateTo, selectedDriver, activeRunType]);
 
@@ -363,7 +364,7 @@ const MileageTracker = () => {
   };
 
   const handleEdit = (run: Run) => {
-    setSelectedRun(run);
+    setSelectedRun(run)
     setEditMileage(run.traveled_mileage || "");
     setEditNotes(run.notes || "");
     setEditOpen(true);
@@ -443,6 +444,15 @@ const MileageTracker = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchData}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw size={16} />
+
+              </Button>
               <ExportButton
                 data={runs}
                 fileName='Mileage_tracker'
@@ -474,8 +484,8 @@ const MileageTracker = () => {
                   <Badge
                     key={f.id}
                     className={`cursor-pointer px-5 py-2 rounded-full text-sm font-semibold transition-all border-2 ${activeRunType === f.id
-                        ? "bg-white border-gray-800 shadow-md text-gray-900 font-bold"
-                        : f.color + " border-transparent"
+                      ? "bg-white border-gray-800 shadow-md text-gray-900 font-bold"
+                      : f.color + " border-transparent"
                       }`}
                     onClick={() => setActiveRunType(f.id)}
                   >
@@ -486,8 +496,8 @@ const MileageTracker = () => {
                   <Badge
                     key={f.id}
                     className={`cursor-pointer px-5 py-2 rounded-full text-sm font-semibold transition-all border-2 ${activeRunType === f.id
-                        ? "bg-white border-gray-800 shadow-md text-gray-900 font-bold"
-                        : f.color + " border-transparent"
+                      ? "bg-white border-gray-800 shadow-md text-gray-900 font-bold"
+                      : f.color + " border-transparent"
                       }`}
                     onClick={() => setActiveRunType(f.id)}
                   >
@@ -497,8 +507,8 @@ const MileageTracker = () => {
                 <Badge
                   key="all"
                   className={`cursor-pointer px-5 py-2 rounded-full text-sm font-semibold transition-all border-2 ${activeRunType === "all"
-                      ? "bg-white border-gray-800 shadow-md text-gray-900 font-bold"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border-transparent"
+                    ? "bg-white border-gray-800 shadow-md text-gray-900 font-bold"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 border-transparent"
                     }`}
                   onClick={() => setActiveRunType("all")}
                 >
@@ -637,8 +647,8 @@ const MileageTracker = () => {
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="outline" className={`px-4 py-1 text-sm font-bold border-2 ${run.direction === "in"
-                                ? "bg-green-100 text-green-700 border-green-400"
-                                : "bg-red-100 text-red-700 border-red-400"
+                              ? "bg-green-100 text-green-700 border-green-400"
+                              : "bg-red-100 text-red-700 border-red-400"
                               }`}>
                               {run.direction.toUpperCase()}
                             </Badge>

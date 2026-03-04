@@ -24,6 +24,7 @@ import {
   HandCoins,
   Filter,
   LayoutGrid,
+  RefreshCw,
 } from "lucide-react"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
@@ -900,6 +901,18 @@ const ShiftManagement = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">All Contracts</h2>
               <div className=" flex gap-2">
+                <Button
+                  onClick={fetchData}
+                  disabled={loading}
+                  variant="outline"
+                  size="sm"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                      }`}
+                  />
+
+                </Button>
                 <GradientButton
                   text="New Contract"
                   onClick={() => setIsContractModalOpen(true)}
@@ -1068,6 +1081,18 @@ const ShiftManagement = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">All Templates</h2>
               <div className=" flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchData}
+                  disabled={loading}
+                >
+                  <RefreshCw
+                    className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                      }`}
+                  />
+
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

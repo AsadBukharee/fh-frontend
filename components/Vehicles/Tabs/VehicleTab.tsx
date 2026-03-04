@@ -167,9 +167,8 @@ export default function VehiclesPage() {
   const fetchVehicles = useCallback(async () => {
     setLoading(true)
     try {
-      const url = `${API_URL}/api/vehicles/?page=${currentPage}&per_page=${perPage}${
-        searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
-      }`
+      const url = `${API_URL}/api/vehicles/?page=${currentPage}&per_page=${perPage}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
+        }`
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${cookies.get("access_token")}`,
@@ -234,7 +233,7 @@ export default function VehiclesPage() {
       result = result.filter((v) => v.is_roadworthy === val)
     }
     if (filters.vehicleType) {
-      result = result.filter((v) => 
+      result = result.filter((v) =>
         (v.vehicle_type_name || v.vehicle_type.name) === filters.vehicleType
       )
     }
@@ -262,7 +261,7 @@ export default function VehiclesPage() {
 
   const getRoadworthyBadge = (vehicle: Vehicle) => {
     const status = vehicle.vehicle_roadworthy_status
-    
+
     // Contract-based roadworthy
     if (status.includes("contract")) {
       const dateMatch = status.match(/(\d{2}\/\d{2}\/\d{2})\s+Contract/)
@@ -283,7 +282,7 @@ export default function VehiclesPage() {
             No Defect
           </Badge>
         )
-      
+
       case "minor_defect_roadworthy":
         return (
           <Badge className="bg-blue-100 text-blue-800 border border-blue-300 font-semibold text-xs px-3 py-1 rounded-full">
@@ -291,7 +290,7 @@ export default function VehiclesPage() {
             Minor Defect (Roadworthy)
           </Badge>
         )
-      
+
       case "minor_defect_not_roadworthy":
         return (
           <Badge className="bg-amber-100 text-amber-800 border border-amber-300 font-semibold text-xs px-3 py-1 rounded-full">
@@ -299,7 +298,7 @@ export default function VehiclesPage() {
             Minor Defect (Not Roadworthy)
           </Badge>
         )
-      
+
       case "major_defect_not_roadworthy":
         return (
           <Badge className="bg-red-100 text-red-800 border border-red-300 font-semibold text-xs px-3 py-1 rounded-full ring-1 ring-red-200">
@@ -307,7 +306,7 @@ export default function VehiclesPage() {
             Major Defect (Not Roadworthy)
           </Badge>
         )
-      
+
       case "contract":
         return (
           <Badge className="bg-purple-100 text-purple-800 border border-purple-300 font-semibold text-xs px-3 py-1 rounded-full">
@@ -315,7 +314,7 @@ export default function VehiclesPage() {
             Contract
           </Badge>
         )
-      
+
       default:
         // Fallback for unknown status
         return (
@@ -334,8 +333,8 @@ export default function VehiclesPage() {
       num >= 20
         ? "bg-green-100 text-green-800" // Good → keep green
         : num >= 10
-        ? "bg-amber-100 text-amber-800 ring-1 ring-amber-300" // Warning → Amber
-        : "bg-red-100 text-red-800 ring-1 ring-red-300" // Danger → Red
+          ? "bg-amber-100 text-amber-800 ring-1 ring-amber-300" // Warning → Amber
+          : "bg-red-100 text-red-800 ring-1 ring-red-300" // Danger → Red
     return <Badge className={`${variant} text-xs font-medium px-2 py-0.5`}>{display}</Badge>
   }
 
@@ -466,8 +465,8 @@ export default function VehiclesPage() {
               </Button>
               <ExportButton data={vehicles} fileName="Vehicles" />
               <Button variant="outline" size="sm" onClick={fetchVehicles} disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                Refresh
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+
               </Button>
               <Button
                 className="bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 
@@ -560,7 +559,7 @@ export default function VehiclesPage() {
                                 <DropdownMenuContent align="end" className="w-48">
                                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                   <DropdownMenuSeparator />
-                                  
+
                                   <DropdownMenuItem asChild>
                                     <Link
                                       href={`/dashboard/vehicles/list/${vehicle.id}`}

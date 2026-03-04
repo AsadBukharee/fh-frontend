@@ -263,7 +263,7 @@ const LocationTabs = () => {
               </p>
             </div>
             <div className="flex gap-3 items-center">
-              <ExportButton data={filteredLocations} fileName="Location_data"/>
+              <ExportButton data={filteredLocations} fileName="Location_data" />
               <Button
                 variant="outline"
                 size="sm"
@@ -272,7 +272,7 @@ const LocationTabs = () => {
                 className="flex items-center gap-2 bg-transparent"
               >
                 <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                Refresh
+
               </Button>
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>

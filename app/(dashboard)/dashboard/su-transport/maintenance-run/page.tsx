@@ -12,7 +12,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -297,7 +297,7 @@ const MaintenanceRunsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -314,15 +314,16 @@ const MaintenanceRunsPage = () => {
               onClick={refreshData}
               className="text-sm"
             >
-              Refresh API
+              <RefreshCw className="h-4 w-4 " />
+
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="">
         {/* Filters Section */}
-        <Card className="mb-6">
+        <Card className="mb-2">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
           </CardHeader>
@@ -385,7 +386,7 @@ const MaintenanceRunsPage = () => {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Maintenance run data</p>
+              <p className="text-sm ml-2 text-gray-500">Maintenance run data</p>
             </div>
             <div className="flex items-center gap-4">
               <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">

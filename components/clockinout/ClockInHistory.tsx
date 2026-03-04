@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Filter } from 'lucide-react';
+import { Filter, RefreshCw } from 'lucide-react';
 import ExportButton from '@/app/utils/ExportButton';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
@@ -267,13 +267,25 @@ const ClockInOutHistory = () => {
               Comprehensive overview of driver clock-in and clock-out times
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              {totalRecords} record{totalRecords !== 1 ? 's' : ''} found | 
-              Total Hours: {formatHours(totalHours)} | 
+              {totalRecords} record{totalRecords !== 1 ? 's' : ''} found |
+              Total Hours: {formatHours(totalHours)} |
               Total Earnings: £{totalEarnings.toFixed(2)}
             </p>
           </div>
           <div className="flex gap-2">
             <ExportButton data={filteredLogs} fileName="clock_logs.csv" />
+            <Button
+              onClick={() => fetchLogs(currentPage)}
+              disabled={loading}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw
+                className={`w-4 h-4  ${loading ? "animate-spin" : ""
+                  }`}
+              />
+
+            </Button>
           </div>
         </div>
 
@@ -387,9 +399,8 @@ const ClockInOutHistory = () => {
                 <TableCell>{log.driverName}</TableCell>
                 <TableCell>
                   <span
-                    className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                      siteBadgeColors[log.siteName] || 'bg-gray-100 text-gray-800'
-                    }`}
+                    className={`inline-block px-2 py-1 rounded text-xs font-medium ${siteBadgeColors[log.siteName] || 'bg-gray-100 text-gray-800'
+                      }`}
                   >
                     {log.siteName}
                   </span>

@@ -28,6 +28,7 @@ import {
   Calendar as CalendarIcon,
   ChevronDown,
   Logs,
+  RefreshCw,
 } from "lucide-react";
 import {
   Select,
@@ -506,22 +507,19 @@ const Page = () => {
 
         <ExportButton data={tasks} fileName="tasks_export.csv" />
         <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/dashboard/tasks/settings")}
-          title="Settings"
+          onClick={fetchTasks}
+          disabled={loading}
+          variant="outline"
+          size="sm"
         >
-          <Settings size={20} className="h-6 w-6" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/dashboard/tasks/task-types")}
-          title="Task Type List"
-        >
-          <ListFilter className="h-4 w-4" />
+          <RefreshCw
+            className={`w-4 h-4  ${loading ? "animate-spin" : ""
+              }`}
+          />
 
         </Button>
+
+
 
       </div>
       <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
