@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Addwalkaround from "@/components/walkaround/add-walkaround";
 import PlusWalkaround from "@/components/walkaround/pluswalkaround";
 import WalkaroundQuestionScreen from "@/components/walkaround/WalkaroundQuestionScreen";
+import WalkaroundCategory from "@/components/walkaround/WalkaroundCategory";
 import { debounce } from "lodash";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
@@ -375,6 +376,12 @@ const WalkaroundPage = () => {
             >
               Walkaround Questions
             </TabsTrigger>
+            <TabsTrigger
+              value="walkaround-category"
+              className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
+            >
+              Walkaround Category
+            </TabsTrigger>
           </TabsList>
 
           {/* Tab 1: All Check */}
@@ -570,6 +577,10 @@ const WalkaroundPage = () => {
             <WalkaroundQuestionScreen
 
             />
+          </TabsContent>
+
+          <TabsContent value="walkaround-category">
+            <WalkaroundCategory />
           </TabsContent>
         </Tabs>
       </div>

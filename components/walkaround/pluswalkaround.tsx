@@ -39,14 +39,14 @@ interface Walkaround {
   conducted_by: string | null;
   walkaround_assignee: string | null;
   status:
-    | "pending"
-    | "completed"
-    | "failed"
-    | "minor_roadworthy_defect"
-    | "minor_unroadworthy_defect"
-    | "major_unroadworthy_defect"
-    | "in_progress"
-    | "further_work_required";
+  | "pending"
+  | "completed"
+  | "failed"
+  | "minor_roadworthy_defect"
+  | "minor_unroadworthy_defect"
+  | "major_unroadworthy_defect"
+  | "in_progress"
+  | "further_work_required";
 
   date: string;
   time: string;
@@ -67,6 +67,7 @@ interface Profile {
 interface Vehicle {
   id: number;
   name: string;
+  vehicle_type_id: number;
 }
 
 interface PlusWalkaroundProps {
@@ -82,16 +83,18 @@ const WalkaroundQuestion: React.FC<{
   onComplete: () => void;
   walkaroundId: number | null;
   vehicleId: number | null;
-}> = ({ isOpen, onComplete, walkaroundId, vehicleId }) => {
+  vehicleTypeId: number | null;
+}> = ({ isOpen, onComplete, walkaroundId, vehicleId, vehicleTypeId }) => {
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent className="w-5xl">
+    <Dialog open={isOpen} onOpenChange={() => { }}>
+      <DialogContent className="min-w-[700px]">
         <DialogHeader>
           <DialogTitle>Walkaround Questions</DialogTitle>
         </DialogHeader>
         <WalkaroundQuestions
           walkaroundId={walkaroundId}
           vehicleId={vehicleId}
+          vehicleTypeId={vehicleTypeId}
           onComplete={onComplete}
         />
       </DialogContent>
@@ -128,6 +131,9 @@ const PlusWalkaround = ({
   const [showQuestion, setShowQuestion] = useState(false); // State for WalkaroundQuestions dialog
   const [walkaroundId, setWalkaroundId] = useState<number | null>(null); // Store created walkaround ID
   const [vehicleId, setVehicleId] = useState<number | null>(null); // Store vehicle ID
+  const [vehicleTypeId, setVehicleTypeId] = useState<number | null>(
+    walkaround?.vehicle.vehicles_type_name ? null : null // We'll set this via useEffect or selection
+  );
   const sigCanvas = useRef<SignatureCanvas>(null);
   const cookies = useCookies();
   const { toast } = useToast();
@@ -196,6 +202,7 @@ const PlusWalkaround = ({
             result.data.map((vehicle: any) => ({
               id: vehicle.id,
               name: `${vehicle.vehicle_type_name} (${vehicle.registration_number})`,
+              vehicle_type_id: vehicle.vehicle_type?.id || vehicle.vehicle_type,
             }))
           );
         } else {
@@ -215,6 +222,16 @@ const PlusWalkaround = ({
     fetchProfiles("manager", setManagers);
     fetchVehicles();
   }, [cookies]);
+
+  // Set initial vehicleTypeId if walkaround is provided
+  useEffect(() => {
+    if (formData.vehicle && vehicles.length > 0) {
+      const selectedVehicle = vehicles.find(v => v.id.toString() === formData.vehicle);
+      if (selectedVehicle) {
+        setVehicleTypeId(selectedVehicle.vehicle_type_id);
+      }
+    }
+  }, [formData.vehicle, vehicles]);
 
   const formatName = (name: string): string =>
     name
@@ -370,9 +387,13 @@ const PlusWalkaround = ({
           <Label>Vehicle</Label>
           <Select
             value={formData.vehicle}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, vehicle: value }))
-            }
+            onValueChange={(value) => {
+              setFormData((prev) => ({ ...prev, vehicle: value }));
+              const selectedVehicle = vehicles.find(v => v.id.toString() === value);
+              if (selectedVehicle) {
+                setVehicleTypeId(selectedVehicle.vehicle_type_id);
+              }
+            }}
             disabled
           >
             <SelectTrigger>
@@ -609,6 +630,7 @@ const PlusWalkaround = ({
         onComplete={handleQuestionComplete}
         walkaroundId={walkaroundId}
         vehicleId={vehicleId}
+        vehicleTypeId={vehicleTypeId}
       />
     </>
   );
