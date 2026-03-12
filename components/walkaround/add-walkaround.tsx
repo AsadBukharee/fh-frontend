@@ -38,14 +38,14 @@ interface Walkaround {
   conducted_by: string | null;
   walkaround_assignee: string | null;
   status:
-    | "pending"
-    | "completed"
-    | "failed"
-    | "minor_roadworthy_defect"
-    | "minor_unroadworthy_defect"
-    | "major_unroadworthy_defect"
-    | "in_progress"
-    | "further_work_required";
+  | "pending"
+  | "completed"
+  | "failed"
+  | "minor_roadworthy_defect"
+  | "minor_unroadworthy_defect"
+  | "major_unroadworthy_defect"
+  | "in_progress"
+  | "further_work_required";
 
   date: string;
   time: string;
@@ -65,6 +65,7 @@ interface Profile {
 interface Vehicle {
   id: number;
   name: string;
+  vehicle_type_id: number;
 }
 
 interface FormData {
@@ -92,16 +93,18 @@ const WalkaroundQuestion: React.FC<{
   onComplete: () => void;
   walkaroundId: number | null;
   vehicleId: number | null;
-}> = ({ isOpen, onComplete, walkaroundId, vehicleId }) => {
+  vehicleTypeId: number | null;
+}> = ({ isOpen, onComplete, walkaroundId, vehicleId, vehicleTypeId }) => {
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}} modal>
-      <DialogContent className="w-5xl">
+    <Dialog open={isOpen} onOpenChange={() => { }} modal>
+      <DialogContent className="min-w-[700px]">
         <DialogHeader>
           <DialogTitle>Walkaround Question</DialogTitle>
         </DialogHeader>
-        <WalkaroundQuestions 
+        <WalkaroundQuestions
           walkaroundId={walkaroundId}
           vehicleId={vehicleId}
+          vehicleTypeId={vehicleTypeId}
           onComplete={onComplete}
         />
       </DialogContent>
@@ -131,7 +134,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
   const [managers, setManagers] = useState<Profile[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [showQuestion, setShowQuestion] = useState(false);
-    const STATUS_CHOICES: { value: Walkaround["status"]; label: string }[] = [
+  const STATUS_CHOICES: { value: Walkaround["status"]; label: string }[] = [
     { value: "pending", label: "Pending" },
     // { value: "completed", label: "Completed" },
     // { value: "failed", label: "Failed" },
@@ -144,7 +147,8 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
   // Add state to store walkaround response data
   const [walkaroundId, setWalkaroundId] = useState<number | null>(null);
   const [vehicleId, setVehicleId] = useState<number | null>(null);
-  
+  const [vehicleTypeId, setVehicleTypeId] = useState<number | null>(null);
+
   const sigCanvas = useRef<SignatureCanvas | null>(null);
   const cookies = useCookies();
   const token = cookies.get('access_token');
@@ -208,6 +212,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
             result.data.map((vehicle: any) => ({
               id: vehicle.id,
               name: ` ${vehicle.registration_number}`,
+              vehicle_type_id: vehicle.vehicle_type?.id || vehicle.vehicle_type,
             })),
           );
         } else {
@@ -323,10 +328,10 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
 
       // Reset loading state first
       setLoading(false);
-      
+
       // Show the question dialog after successful creation
       setShowQuestion(true);
-      
+
     } catch (err) {
       setErrors({
         //@ts-expect-error ab thk ha
@@ -429,9 +434,13 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
           <Label>Vehicle</Label>
           <Select
             value={formData.vehicle}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, vehicle: value }))
-            }
+            onValueChange={(value) => {
+              setFormData((prev) => ({ ...prev, vehicle: value }));
+              const selectedVehicle = vehicles.find(v => v.id.toString() === value);
+              if (selectedVehicle) {
+                setVehicleTypeId(selectedVehicle.vehicle_type_id);
+              }
+            }}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select vehicle" />
@@ -465,12 +474,12 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
         <div>
           <Label>Signature</Label>
           <div className="border rounded-md">
-           <SignatureCanvas
-    ref={sigCanvas}
-    penColor="black"
-    canvasProps={{ className: "w-full h-40 bg-white" }}
-    onEnd={saveSignature}
-  />
+            <SignatureCanvas
+              ref={sigCanvas}
+              penColor="black"
+              canvasProps={{ className: "w-full h-40 bg-white" }}
+              onEnd={saveSignature}
+            />
 
           </div>
           <div className="mt-2">
@@ -512,7 +521,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
-               {STATUS_CHOICES.map(({ value, label }) => (
+              {STATUS_CHOICES.map(({ value, label }) => (
                 <SelectItem key={value} value={value}>
                   {label}
                 </SelectItem>
@@ -533,6 +542,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
         onComplete={handleQuestionComplete}
         walkaroundId={walkaroundId}
         vehicleId={vehicleId}
+        vehicleTypeId={vehicleTypeId}
       />
     </>
   );

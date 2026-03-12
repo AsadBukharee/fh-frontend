@@ -17,14 +17,49 @@ import {
 import { Button } from "@/components/ui/button"
 import AddMechanicJobDialog from "../mechhanic-job/AddMechanic"
 
+interface Category {
+  id: number
+  code: string
+  name: string
+  description: string
+  display_order: number
+  is_pre_check: boolean
+}
+
+interface FollowUp {
+  id: number
+  parent_wa_question: number | null
+  parent: number | null
+  code: string
+  category_name: string | null
+  text: string
+  display_order: number
+  severity: string
+  tick_all: boolean
+  follow_up_instruction: string
+  follow_ups: FollowUp[]
+}
+
 interface InspectionItem {
   id: number
   question: string
-  takePicture: boolean
+  instruction: string
+  question_code: string
+  category: Category | null
+  category_name: string
+  vehicle_types: number[]
+  display_order: number
+  take_picture_on_pass: boolean
+  take_picture_on_fail: boolean
   note: string
+  is_pre_check: boolean
+  on_fail_blocks_walkaround: boolean
+  severity: string
+  tick_all: boolean
+  follow_up_instruction: string
+  follow_ups: FollowUp[]
   created_at: string
   updated_at: string
-  vehicle_type: number
 }
 
 interface Answer {
@@ -35,13 +70,62 @@ interface Answer {
   is_defected: boolean
   description?: string
   prove?: string
+  follow_up_ids?: number[] // For selected follow-ups
+}
+
+const FollowUpList: React.FC<{
+  followUps: FollowUp[]
+  questionId: number
+  selectedIds: number[]
+  parentTickAll: boolean
+  onToggle: (id: number, multiSelect: boolean, siblings: number[]) => void
+}> = ({ followUps, questionId, selectedIds, parentTickAll, onToggle }) => {
+  return (
+    <ul className="space-y-3 mt-2">
+      {followUps.map((fu) => {
+        const isSelected = selectedIds.includes(fu.id)
+        const siblings = followUps.map((s) => s.id)
+        return (
+          <li key={fu.id} className="space-y-2">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <input
+                type={parentTickAll ? "checkbox" : "radio"}
+                name={`followup-${fu.parent || fu.parent_wa_question}`}
+                checked={isSelected}
+                onChange={() => onToggle(fu.id, parentTickAll, siblings)}
+                className="h-4 w-4 text-orange-600 rounded focus:ring-orange-500"
+              />
+              <span className={`text-sm ${isSelected ? "text-orange-900 font-semibold" : "text-gray-700"}`}>
+                {fu.text}
+              </span>
+            </label>
+            {isSelected && fu.follow_ups.length > 0 && (
+              <div className="ml-7 pl-4 border-l-2 border-orange-100 py-1">
+                {fu.follow_up_instruction && (
+                  <p className="text-xs font-bold text-orange-800 mb-2">{fu.follow_up_instruction}</p>
+                )}
+                <FollowUpList
+                  followUps={fu.follow_ups}
+                  questionId={questionId}
+                  selectedIds={selectedIds}
+                  parentTickAll={fu.tick_all}
+                  onToggle={onToggle}
+                />
+              </div>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 const WalkaroundQuestions: React.FC<{
   vehicleId: number | null
+  vehicleTypeId: number | null
   walkaroundId: number | null
   onComplete: () => void
-}> = ({ vehicleId, walkaroundId, onComplete }) => {
+}> = ({ vehicleId, vehicleTypeId, walkaroundId, onComplete }) => {
   const [inspectionData, setInspectionData] = useState<InspectionItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -63,12 +147,16 @@ const WalkaroundQuestions: React.FC<{
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/walk-around-questions/`, {
+        let url = `${API_URL}/api/walk-around-questions/?`
+        if (vehicleTypeId) {
+          url += `vehicle_types=[${vehicleTypeId}]`
+        }
+        const response = await fetch(url, {
           headers: { Authorization: `Bearer ${cookies.get("access_token")}` },
         })
         if (!response.ok) throw new Error("Failed to fetch questions")
         const result = await response.json()
-        if (result.success) setInspectionData(result.data)
+        if (result.success) setInspectionData(result.data.results)
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error")
       } finally {
@@ -76,7 +164,7 @@ const WalkaroundQuestions: React.FC<{
       }
     }
     fetchQuestions()
-  }, [])
+  }, [vehicleTypeId])
 
   const handleDefectedChange = (itemId: number, checked: boolean) => {
     setAnswers(prev => ({
@@ -117,17 +205,51 @@ const WalkaroundQuestions: React.FC<{
 
   const isQuestionComplete = (item: InspectionItem) => {
     const ans = answers[item.id]
-    if (!ans?.is_defected) return true
-    const hasDescription = !!ans.description?.trim()
-    const hasPhoto = item.takePicture ? !!ans.prove : true
-    return hasDescription && hasPhoto
+    const isDefected = ans?.is_defected || false
+
+    const photoRequired = isDefected ? item.take_picture_on_fail : item.take_picture_on_pass
+    const hasPhoto = photoRequired ? !!ans?.prove : true
+    const hasDescription = isDefected ? !!ans?.description?.trim() : true
+
+    // If defected and has follow-ups, at least one must be selected
+    const hasFollowUps = item.follow_ups.length > 0
+    const followUpsComplete = isDefected && hasFollowUps ? (ans?.follow_up_ids?.length || 0) > 0 : true
+
+    return hasPhoto && hasDescription && followUpsComplete
   }
 
   const completedCount = inspectionData.filter(isQuestionComplete).length
 
+  const handleFollowUpToggle = (questionId: number, followUpId: number, multiSelect: boolean, siblings: number[]) => {
+    setAnswers((prev) => {
+      const ans = prev[questionId] || {
+        question_id: questionId,
+        walkaround_id: WALKAROUND_ID ?? 0,
+        vehicle: VEHICLE_ID ?? 0,
+        is_defected: true,
+        follow_up_ids: [],
+      }
+      let newIds = ans.follow_up_ids || []
+
+      if (multiSelect) {
+        if (newIds.includes(followUpId)) {
+          newIds = newIds.filter((id) => id !== followUpId)
+        } else {
+          newIds = [...newIds, followUpId]
+        }
+      } else {
+        // Remove siblings and add current
+        newIds = newIds.filter((id) => !siblings.includes(id))
+        newIds.push(followUpId)
+      }
+
+      return { ...prev, [questionId]: { ...ans, follow_up_ids: newIds, is_defected: true } }
+    })
+  }
+
   const generateDefectNotes = () => {
     const defects = inspectionData
-      .map(item => {
+      .map((item) => {
         const ans = answers[item.id]
         if (ans?.is_defected && ans.description?.trim()) {
           return `• ${item.question}\n  → ${ans.description.trim()}`
@@ -141,68 +263,65 @@ const WalkaroundQuestions: React.FC<{
       : ""
   }
 
- const handleSubmitAnswers = async () => {
-  // Find incomplete defect items
-  const incomplete = inspectionData.filter(q => {
-    const ans = answers[q.id]
-    if (!ans?.is_defected) return false
-    const hasDescription = !!ans.description?.trim()
-    const hasPhoto = q.takePicture ? !!ans.prove : true
-    return !(hasDescription && hasPhoto)
-  })
+  const handleSubmitAnswers = async () => {
+    // Find incomplete items (either missing mandatory photo or defect details)
+    const incomplete = inspectionData.filter((q) => !isQuestionComplete(q))
 
-  if (incomplete.length > 0) {
-    setTimeout(() => {
-      document.getElementById(`question-${incomplete[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
-    }, 100)
-    alert(`Please complete defect details and photos for ${incomplete.length} item(s).`)
-    return
-  }
-
-  setSubmitting(true)
-  try {
-    // Build complete payload: one entry per question
-    const payload = inspectionData.map(item => {
-      const existingAnswer = answers[item.id]
-
-      return {
-        question_id: item.id,
-        walkaround_id: WALKAROUND_ID ?? 0,
-        vehicle: VEHICLE_ID ?? 0,
-        user: Number(cookies.get("user_id")) || undefined,
-        is_defected: existingAnswer?.is_defected || false,
-        description: existingAnswer?.is_defected ? existingAnswer?.description || "" : null,
-        prove: existingAnswer?.is_defected && item.takePicture ? existingAnswer?.prove || null : null,
-        answer: existingAnswer?.is_defected ? "Defected" : "OK",
-      }
-    })
-
-    const response = await fetch(`${API_URL}/api/walk-around-answers/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${cookies.get("access_token")}`,
-      },
-      body: JSON.stringify(payload),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Submission failed: ${response.status} ${errorText}`)
+    if (incomplete.length > 0) {
+      setTimeout(() => {
+        document.getElementById(`question-${incomplete[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }, 100)
+      alert(`Please complete required details for ${incomplete.length} item(s).`)
+      return
     }
 
-    // Success: check if any defects
-    const defectsFound = payload.some(a => a.is_defected)
-    setHasDefects(defectsFound)
-    setPrefilledNotes(generateDefectNotes())
-    setShowConfirmDialog(true)
-  } catch (err) {
-    console.error(err)
-    setError("Failed to submit answers")
-  } finally {
-    setSubmitting(false)
+    setSubmitting(true)
+    try {
+      // Build complete payload: one entry per question
+      const payload = inspectionData.map((item) => {
+        const existingAnswer = answers[item.id]
+        const isDefected = existingAnswer?.is_defected || false
+        const photoRequired = isDefected ? item.take_picture_on_fail : item.take_picture_on_pass
+
+        return {
+          question_id: item.id,
+          walkaround_id: WALKAROUND_ID ?? 0,
+          vehicle: VEHICLE_ID ?? 0,
+          user: Number(cookies.get("user_id")) || undefined,
+          is_defected: isDefected,
+          description: isDefected ? existingAnswer?.description || "" : null,
+          prove: photoRequired ? existingAnswer?.prove || null : null,
+          answer: isDefected ? "Defected" : "OK",
+          follow_up_ids: isDefected ? existingAnswer?.follow_up_ids || [] : [],
+        }
+      })
+
+      const response = await fetch(`${API_URL}/api/walk-around-answers/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Submission failed: ${response.status} ${errorText}`)
+      }
+
+      // Success: check if any defects
+      const defectsFound = payload.some(a => a.is_defected)
+      setHasDefects(defectsFound)
+      setPrefilledNotes(generateDefectNotes())
+      setShowConfirmDialog(true)
+    } catch (err) {
+      console.error(err)
+      setError("Failed to submit answers")
+    } finally {
+      setSubmitting(false)
+    }
   }
-}
 
   const handleCreateJobChoice = (create: boolean) => {
     setShowConfirmDialog(false)
@@ -238,7 +357,7 @@ const WalkaroundQuestions: React.FC<{
 
   return (
     <>
-      <div className="max-h-[600px] overflow-y-auto bg-gray-50 py-6">
+      <div className="max-h-[600px] min-w-[650px] overflow-y-auto bg-gray-50 py-6">
         <div className="max-w-2xl mx-auto px-4">
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Vehicle Walkaround Check</h1>
@@ -254,28 +373,22 @@ const WalkaroundQuestions: React.FC<{
             {inspectionData.map((item, index) => {
               const isDefected = answers[item.id]?.is_defected || false
               const isComplete = isQuestionComplete(item)
+              const photoRequired = isDefected ? item.take_picture_on_fail : item.take_picture_on_pass
 
               return (
                 <div
                   key={item.id}
                   id={`question-${item.id}`}
-                  className={`bg-white rounded-xl shadow-sm border-2 p-6 transition-all ${
-                    isDefected
-                      ? "border-orange-400 bg-orange-50"
-                      : isComplete
-                      ? "border-green-300 bg-green-50"
-                      : "border-gray-300"
-                  }`}
+                  className={`bg-white rounded-xl shadow-sm border-2 p-6 transition-all ${isDefected ? "border-orange-400 bg-orange-50" : isComplete ? "border-green-300 bg-green-50" : "border-gray-300"
+                    }`}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="bg-orange-100 text-orange-800 text-sm font-bold px-3 py-1 rounded-full">
-                          Q{index + 1}
-                        </span>
+                        <span className="bg-orange-100 text-orange-800 text-sm font-bold px-3 py-1 rounded-full">Q{index + 1}</span>
                         {isDefected && <AlertTriangle className="h-5 w-5 text-orange-600" />}
                         {!isDefected && isComplete && <Check className="h-5 w-5 text-green-600" />}
-                        {item.takePicture && <Camera className="h-5 w-5 text-gray-600" />}
+                        {photoRequired && <Camera className="h-5 w-5 text-gray-600" />}
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900">{item.question}</h3>
                       {item.note && <p className="text-sm text-gray-600 mt-1">{item.note}</p>}
@@ -290,18 +403,14 @@ const WalkaroundQuestions: React.FC<{
                       onChange={(e) => handleDefectedChange(item.id, e.target.checked)}
                       className="h-5 w-5 text-orange-600 rounded focus:ring-orange-500"
                     />
-                    <label className="text-base font-medium text-gray-800">
-                      Mark as Defected
-                    </label>
+                    <label className="text-base font-medium text-gray-800">Mark as Defected</label>
                   </div>
 
-                  {/* Show only when defected */}
+                  {/* Show description only when defected */}
                   {isDefected && (
                     <div className="space-y-5 mt-4 pt-4 border-t-2 border-orange-200">
                       <div>
-                        <label className="block text-sm font-semibold text-orange-800 mb-2">
-                          Defect Description (required)
-                        </label>
+                        <label className="block text-sm font-semibold text-orange-800 mb-2">Defect Description (required)</label>
                         <textarea
                           value={answers[item.id]?.description || ""}
                           onChange={(e) => handleDescriptionChange(item.id, e.target.value)}
@@ -311,37 +420,61 @@ const WalkaroundQuestions: React.FC<{
                         />
                       </div>
 
-                      {item.takePicture && (
-                        <div className="bg-orange-50 border border-orange-300 rounded-lg p-5">
-                          <div className="flex justify-between items-center mb-4">
-                            <span className="font-medium text-orange-800 flex items-center gap-2">
-                              <Camera className="h-5 w-5" />
-                              Photo Required
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => toggleCameraFacing(item.id)}
-                              className="text-sm bg-orange-100 hover:bg-orange-200 px-3 py-1.5 rounded-lg flex items-center gap-2"
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                              {cameraFacing[item.id] === "user" ? "Front" : "Back"} Camera
-                            </button>
-                          </div>
-
-                          <ImageUploader
-                            onUploadSuccess={(url) => handleUploadSuccess(item.id, url)}
-                            cameraFacing={cameraFacing[item.id] || "environment"}
+                      {/* Follow-up Questions Section */}
+                      {item.follow_ups.length > 0 && (
+                        <div className="bg-white border border-orange-200 rounded-lg p-4">
+                          <p className="text-sm font-bold text-orange-800 mb-3">
+                            {item.follow_up_instruction || "Specific Issues:"}
+                            {item.tick_all ? " (Tick all that apply)" : " (Select one)"}
+                          </p>
+                          <FollowUpList
+                            followUps={item.follow_ups}
+                            questionId={item.id}
+                            selectedIds={answers[item.id]?.follow_up_ids || []}
+                            parentTickAll={item.tick_all}
+                            onToggle={(fuId: number, multi: boolean, sids: number[]) => handleFollowUpToggle(item.id, fuId, multi, sids)}
                           />
-
-                          {imageUrls[item.id] && (
-                            <div className="mt-4 text-center">
-                              <Check className="inline h-5 w-5 text-green-600 mr-2" />
-                              <span className="text-green-700 font-medium">Photo uploaded!</span>
-                              <img src={imageUrls[item.id]} alt="Defect" className="mt-3 mx-auto max-w-full h-64 object-cover rounded-lg shadow" />
-                            </div>
-                          )}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Show photo uploader if required (on pass or fail) */}
+                  {photoRequired && (
+                    <div className={`mt-4 pt-4 border-t-2 ${isDefected ? "border-orange-200" : "border-gray-200"}`}>
+                      <div className="bg-orange-50 bg-opacity-50 border border-orange-100 rounded-lg p-5">
+                        <div className="flex justify-between items-center mb-4">
+                          <span className={`${isDefected ? "text-orange-800" : "text-gray-700"} font-medium flex items-center gap-2`}>
+                            <Camera className="h-5 w-5" />
+                            Photo Required {isDefected ? "(Defect Proof)" : "(Check Verification)"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleCameraFacing(item.id)}
+                            className="text-sm bg-orange-100 hover:bg-orange-200 px-3 py-1.5 rounded-lg flex items-center gap-2"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            {cameraFacing[item.id] === "user" ? "Front" : "Back"} Camera
+                          </button>
+                        </div>
+
+                        <ImageUploader
+                          onUploadSuccess={(url) => handleUploadSuccess(item.id, url)}
+                          cameraFacing={cameraFacing[item.id] || "environment"}
+                        />
+
+                        {imageUrls[item.id] && (
+                          <div className="mt-4 text-center">
+                            <Check className="inline h-5 w-5 text-green-600 mr-2" />
+                            <span className="text-green-700 font-medium">Photo uploaded!</span>
+                            <img
+                              src={imageUrls[item.id]}
+                              alt="Inspection"
+                              className="mt-3 mx-auto max-w-full h-64 object-cover rounded-lg shadow"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
