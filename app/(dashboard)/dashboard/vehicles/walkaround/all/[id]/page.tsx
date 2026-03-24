@@ -21,7 +21,8 @@ import {
   Gauge,
   Signature,
   Camera,
-  Printer
+  Printer,
+  RotateCcw
 } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
 import { Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer';
@@ -795,7 +796,7 @@ const PrintButton = ({ stepDataList }: { stepDataList: StepData[] }) => {
                       ${walkaround.signature ? `
                         <div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
                           <div style="display: flex; align-items: center; gap: 16px;">
-                            <img src="data:image/png;base64,${walkaround.signature}" class="print-signature-img" />
+                            <img src="${walkaround.signature}" class="print-signature-img" />
                             <div>
                               <div style="font-weight: 600;">${walkaround.conducted_by.full_name}</div>
                               <div style="font-size: 11px; color: #6b7280;">
@@ -1014,7 +1015,7 @@ const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; stepNumbe
             <Text style={styles.sectionTitle}>Signature</Text>
             <View style={styles.signatureContainer}>
               <Image
-                src={`data:image/png;base64,${walkaround.signature}`}
+                src={walkaround.signature as string}
                 style={styles.signatureImage}
               />
               <Text style={styles.signatureInfo}>
@@ -1547,7 +1548,7 @@ const SignatureModal = ({
         <div className="space-y-6">
           <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center">
             <img
-              src={`data:image/png;base64,${signatureData}`}
+              src={signatureData}
               alt="Signature"
               className="max-w-full max-h-[200px] object-contain mb-4 border border-gray-200 rounded-lg p-4 bg-white"
             />
@@ -1594,6 +1595,7 @@ const VehicleInspectionDashboard = () => {
 
   const extractStepsFromURL = () => {
     try {
+      setIsLoading(true);
       const url = new URL(window.location.href);
       const params = new URLSearchParams(url.search);
 
@@ -1787,6 +1789,14 @@ const VehicleInspectionDashboard = () => {
     <div className="min-h-screen bg-white p-4">
       <div className="w-full px-5 mx-auto">
         <div className="flex justify-center gap-4 mb-6">
+          <Button
+            onClick={extractStepsFromURL}
+            variant="outline"
+            className="flex items-center gap-2 border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Refresh Data
+          </Button>
           <PrintButton stepDataList={stepDataList} />
           <AllStepsPDFDownloadButton stepDataList={stepDataList} />
         </div>
@@ -2019,7 +2029,7 @@ const StepCard = ({
               </div>
               <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex items-center gap-4">
                 <img
-                  src={`data:image/png;base64,${walkaround.signature}`}
+                  src={walkaround.signature}
                   alt="Signature"
                   className="h-12 object-contain bg-white rounded border border-gray-200 p-1"
                 />

@@ -35,6 +35,7 @@ interface Walkaround {
     id: number;
     vehicles_type_name: string;
     registration_number: string;
+    last_mileage: string | null;
   };
   conducted_by: string | null;
   walkaround_assignee: string | null;
@@ -51,7 +52,6 @@ interface Walkaround {
   date: string;
   time: string;
   mileage: number;
-  defects?: string;
   notes?: string;
   walkaround_step?: number;
 }
@@ -68,6 +68,7 @@ interface Vehicle {
   id: number;
   name: string;
   vehicle_type_id: number;
+  last_mileage: string | null;
 }
 
 interface PlusWalkaroundProps {
@@ -116,10 +117,9 @@ const PlusWalkaround = ({
     vehicle: walkaround?.vehicle.id.toString() || "",
     date: new Date().toISOString().split("T")[0], // Current date in YYYY-MM-DD format
     time: new Date().toTimeString().split(" ")[0].slice(0, 5), // Current time in HH:MM format
-    milage: "",
+    mileage: walkaround?.vehicle.last_mileage || "",
     signature: "",
     note: walkaround?.notes || "",
-    defects: walkaround?.defects || "",
     status: walkaround?.status || "pending",
     walkaround_step: ((walkaround?.walkaround_step || 0) + 1).toString(),
   });
@@ -138,12 +138,12 @@ const PlusWalkaround = ({
   const cookies = useCookies();
   const { toast } = useToast();
   const STATUS_CHOICES: { value: Walkaround["status"]; label: string }[] = [
-    { value: "pending", label: "Pending" },
-    // { value: "completed", label: "Completed" },
-    // { value: "failed", label: "Failed" },
-    { value: "minor_roadworthy_defect", label: "Minor Roadworthy Defect" },
-    { value: "minor_unroadworthy_defect", label: "Minor Unroadworthy Defect" },
-    { value: "major_unroadworthy_defect", label: "Major Unroadworthy Defect" },
+    // { value: "pending", label: "Pending" },
+    { value: "completed", label: "Completed" },
+    { value: "failed", label: "Failed" },
+    // { value: "minor_roadworthy_defect", label: "Minor Roadworthy Defect" },
+    // { value: "minor_unroadworthy_defect", label: "Minor Unroadworthy Defect" },
+    // { value: "major_unroadworthy_defect", label: "Major Unroadworthy Defect" },
     // { value: "in_progress", label: "In Progress" },
     // { value: "further_work_required", label: "Further Work Required" },
   ];
@@ -203,6 +203,7 @@ const PlusWalkaround = ({
               id: vehicle.id,
               name: `${vehicle.vehicle_type_name} (${vehicle.registration_number})`,
               vehicle_type_id: vehicle.vehicle_type?.id || vehicle.vehicle_type,
+              last_mileage: vehicle.last_mileage ? String(vehicle.last_mileage) : "",
             }))
           );
         } else {
@@ -229,6 +230,9 @@ const PlusWalkaround = ({
       const selectedVehicle = vehicles.find(v => v.id.toString() === formData.vehicle);
       if (selectedVehicle) {
         setVehicleTypeId(selectedVehicle.vehicle_type_id);
+        if ((!formData.mileage || formData.mileage === "0") && selectedVehicle.last_mileage) {
+          setFormData((prev) => ({ ...prev, mileage: selectedVehicle.last_mileage || "" }));
+        }
       }
     }
   }, [formData.vehicle, vehicles]);
@@ -276,7 +280,7 @@ const PlusWalkaround = ({
     const newErrors: Partial<typeof formData> = {};
     if (!formData.driver) newErrors.driver = "Driver is required.";
     if (!formData.vehicle) newErrors.vehicle = "Vehicle is required.";
-    if (!formData.milage) newErrors.milage = "Mileage is required.";
+    if (!formData.mileage) newErrors.mileage = "Mileage is required.";
     if (!formData.date) newErrors.date = "Date is required.";
     if (!formData.time) newErrors.time = "Time is required.";
     if (!formData.signature) newErrors.signature = "Signature is required.";
@@ -291,7 +295,7 @@ const PlusWalkaround = ({
       driver: parseInt(formData.driver, 10),
       vehicle: parseInt(formData.vehicle, 10),
       status: formData.status,
-      milage: parseFloat(formData.milage),
+      mileage: parseFloat(formData.mileage),
       walkaround_step: parseInt(formData.walkaround_step, 10),
       walkaround_assignee:
         formData.walkaround_assignee && formData.walkaround_assignee !== "none"
@@ -303,7 +307,6 @@ const PlusWalkaround = ({
       date: formData.date,
       time: formData.time,
       note: formData.note || null,
-      defects: formData.defects || null,
     };
 
     try {
@@ -366,10 +369,9 @@ const PlusWalkaround = ({
       vehicle: walkaround?.vehicle.id.toString() || "",
       date: new Date().toISOString().split("T")[0],
       time: new Date().toTimeString().split(" ")[0].slice(0, 5),
-      milage: "",
+      mileage: walkaround?.vehicle.last_mileage || "",
       signature: "",
       note: walkaround?.notes || "",
-      defects: walkaround?.defects || "",
       status: walkaround?.status || "pending",
       walkaround_step: ((walkaround?.walkaround_step || 0) + 1).toString(),
     });
@@ -392,6 +394,9 @@ const PlusWalkaround = ({
               const selectedVehicle = vehicles.find(v => v.id.toString() === value);
               if (selectedVehicle) {
                 setVehicleTypeId(selectedVehicle.vehicle_type_id);
+                if (selectedVehicle.last_mileage) {
+                  setFormData((prev) => ({ ...prev, mileage: selectedVehicle.last_mileage || "" }));
+                }
               }
             }}
             disabled
@@ -485,17 +490,17 @@ const PlusWalkaround = ({
           <Label>Mileage</Label>
           <Input
             type="number"
-            name="milage"
-            value={formData.milage}
+            name="mileage"
+            value={formData.mileage}
             onChange={handleFormChange}
             step="0.1"
             min="0"
           />
           <p className="text-sm text-gray-500 mt-1">
-            Previous: {walkaround?.mileage || "N/A"}
+            Previous walkaround: {walkaround?.mileage || "N/A"} | Vehicle's current: {vehicles.find(v => v.id.toString() === formData.vehicle)?.last_mileage || "N/A"}
           </p>
-          {errors.milage && (
-            <div className="text-red-500 text-sm">{errors.milage}</div>
+          {errors.mileage && (
+            <div className="text-red-500 text-sm">{errors.mileage}</div>
           )}
         </div>
 
@@ -538,22 +543,6 @@ const PlusWalkaround = ({
           </p>
           {errors.note && (
             <div className="text-red-500 text-sm">{errors.note}</div>
-          )}
-        </div>
-
-        {/* Defects */}
-        <div>
-          <Label>Defects</Label>
-          <Textarea
-            name="defects"
-            value={formData.defects}
-            onChange={handleFormChange}
-          />
-          <p className="text-sm text-gray-500 mt-1">
-            Previous: {walkaround?.defects || "None"}
-          </p>
-          {errors.defects && (
-            <div className="text-red-500 text-sm">{errors.defects}</div>
           )}
         </div>
 

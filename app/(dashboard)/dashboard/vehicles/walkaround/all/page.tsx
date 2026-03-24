@@ -33,6 +33,7 @@ interface Walkaround {
     id: number;
     vehicles_type_name: string;
     registration_number: string;
+    last_mileage: string | null;
   };
   conducted_by: string | null;
   walkaround_assignee: string | null;
@@ -180,6 +181,7 @@ const WalkaroundPage = () => {
               id: root.vehicle.id,
               vehicles_type_name: root.vehicle.vehicles_type_name,
               registration_number: root.vehicle.registration_number,
+              last_mileage: root.vehicle.last_mileage || null,
             },
             conducted_by: conductorName,
             walkaround_assignee: assigneeName,
@@ -214,6 +216,7 @@ const WalkaroundPage = () => {
                 id: child.vehicle.id,
                 vehicles_type_name: child.vehicle.vehicles_type_name,
                 registration_number: child.vehicle.registration_number,
+                last_mileage: child.vehicle.last_mileage || null,
               },
               conducted_by: childConductorName,
               walkaround_assignee: childAssigneeName,
@@ -452,7 +455,7 @@ const WalkaroundPage = () => {
                 return (
                   <div key={chainId} className="p-4 border border-gray-200 rounded-lg bg-white">
                     <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-                      Vehicle: {vehicleInfo?.registration_number} ({vehicleInfo?.vehicles_type_name})
+                      Vehicle: {vehicleInfo?.registration_number} 
                       <Badge className="ml-2 bg-blue-100 text-blue-800">
                         {chainWalkarounds.length} of {MAX_WALKAROUNDS_PER_CHAIN} steps
                       </Badge>
