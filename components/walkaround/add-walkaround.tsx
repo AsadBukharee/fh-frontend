@@ -34,6 +34,7 @@ interface Walkaround {
     id: number;
     vehicles_type_name: string;
     registration_number: string;
+    last_mileage: string | null;
   };
   conducted_by: string | null;
   walkaround_assignee: string | null;
@@ -66,6 +67,7 @@ interface Vehicle {
   id: number;
   name: string;
   vehicle_type_id: number;
+  last_mileage: string | null;
 }
 
 interface FormData {
@@ -75,10 +77,9 @@ interface FormData {
   vehicle: string;
   date: string;
   time: string;
-  milage: string;
+  mileage: string;
   signature: string;
   note: string;
-  defects: string;
   walkaround_duration: string;
   status: string;
 }
@@ -120,10 +121,9 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
     vehicle: '',
     date: '',
     time: '',
-    milage: '',
+    mileage: '',
     signature: '',
     note: '',
-    defects: '',
     walkaround_duration: '',
     status: 'pending',
   });
@@ -135,12 +135,12 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [showQuestion, setShowQuestion] = useState(false);
   const STATUS_CHOICES: { value: Walkaround["status"]; label: string }[] = [
-    { value: "pending", label: "Pending" },
-    // { value: "completed", label: "Completed" },
-    // { value: "failed", label: "Failed" },
-    { value: "minor_roadworthy_defect", label: "Minor Roadworthy Defect" },
-    { value: "minor_unroadworthy_defect", label: "Minor Unroadworthy Defect" },
-    { value: "major_unroadworthy_defect", label: "Major Unroadworthy Defect" },
+    // { value: "pending", label: "Pending" },
+    { value: "completed", label: "Completed" },
+    { value: "failed", label: "Failed" },
+    // { value: "minor_roadworthy_defect", label: "Minor Roadworthy Defect" },
+    // { value: "minor_unroadworthy_defect", label: "Minor Unroadworthy Defect" },
+    // { value: "major_unroadworthy_defect", label: "Major Unroadworthy Defect" },
     // { value: "in_progress", label: "In Progress" },
     // { value: "further_work_required", label: "Further Work Required" },
   ];
@@ -211,8 +211,9 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
           setVehicles(
             result.data.map((vehicle: any) => ({
               id: vehicle.id,
-              name: ` ${vehicle.registration_number}`,
+              name: `${vehicle.vehicle_type_name} (${vehicle.registration_number})`,
               vehicle_type_id: vehicle.vehicle_type?.id || vehicle.vehicle_type,
+              last_mileage: vehicle.last_mileage ? String(vehicle.last_mileage) : "",
             })),
           );
         } else {
@@ -273,7 +274,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
     const newErrors: Partial<FormData> = {};
     if (!formData.driver) newErrors.driver = 'Driver is required.';
     if (!formData.vehicle) newErrors.vehicle = 'Vehicle is required.';
-    if (!formData.milage) newErrors.milage = 'Mileage is required.';
+    if (!formData.mileage) newErrors.mileage = 'Mileage is required.';
     if (!formData.date) newErrors.date = 'Date is required.';
     if (!formData.time) newErrors.time = 'Time is required.';
     if (!formData.signature) newErrors.signature = 'Signature is required.';
@@ -288,7 +289,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
       driver: parseInt(formData.driver, 10),
       vehicle: parseInt(formData.vehicle, 10),
       status: formData.status,
-      milage: parseFloat(formData.milage),
+      milage: parseFloat(formData.mileage),
       walkaround_step: 1,
       walkaround_assignee:
         formData.walkaround_assignee && formData.walkaround_assignee !== 'none'
@@ -298,7 +299,6 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
       date: formData.date,
       time: formData.time,
       note: formData.note || null,
-      defects: formData.defects || null,
     };
 
     try {
@@ -350,10 +350,9 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
       vehicle: '',
       date: new Date().toISOString().split('T')[0], // Reset to current date
       time: new Date().toTimeString().split(' ')[0].slice(0, 5), // Reset to current time
-      milage: '',
+      mileage: '',
       signature: '',
       note: '',
-      defects: '',
       walkaround_duration: '',
       status: 'pending',
     });
@@ -435,10 +434,16 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
           <Select
             value={formData.vehicle}
             onValueChange={(value) => {
-              setFormData((prev) => ({ ...prev, vehicle: value }));
               const selectedVehicle = vehicles.find(v => v.id.toString() === value);
               if (selectedVehicle) {
                 setVehicleTypeId(selectedVehicle.vehicle_type_id);
+                setFormData((prev) => ({ 
+                  ...prev, 
+                  vehicle: value,
+                  mileage: selectedVehicle.last_mileage || prev.mileage
+                }));
+              } else {
+                setFormData((prev) => ({ ...prev, vehicle: value }));
               }
             }}
           >
@@ -461,13 +466,16 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
           <Label>Mileage</Label>
           <Input
             type="number"
-            name="milage"
-            value={formData.milage}
+            name="mileage"
+            value={formData.mileage}
             onChange={handleFormChange}
             step="0.1"
             min="0"
           />
-          {errors.milage && <div className="text-red-500 text-sm">{errors.milage}</div>}
+          <p className="text-sm text-gray-500 mt-1">
+            Last recorded: {vehicles.find(v => v.id.toString() === formData.vehicle)?.last_mileage || "N/A"}
+          </p>
+          {errors.mileage && <div className="text-red-500 text-sm">{errors.mileage}</div>}
         </div>
 
         {/* Signature */}
@@ -495,17 +503,6 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
           <Label>Note</Label>
           <Textarea name="note" value={formData.note} onChange={handleFormChange} />
           {errors.note && <div className="text-red-500 text-sm">{errors.note}</div>}
-        </div>
-
-        {/* Defects */}
-        <div>
-          <Label>Defects</Label>
-          <Textarea
-            name="defects"
-            value={formData.defects}
-            onChange={handleFormChange}
-          />
-          {errors.defects && <div className="text-red-500 text-sm">{errors.defects}</div>}
         </div>
 
         {/* Status */}

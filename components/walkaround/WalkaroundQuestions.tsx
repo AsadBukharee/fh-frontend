@@ -73,6 +73,32 @@ interface Answer {
   follow_up_ids?: number[] // For selected follow-ups
 }
 
+interface FollowUpAnswer {
+  followup_question: number
+  is_ticked: boolean
+  severity: string
+  follow_up_answers: FollowUpAnswer[]
+}
+
+interface WalkaroundAnswer {
+  question_id: number
+  is_defected: boolean
+  answer: "PASS" | "FAIL"
+  description: string | null
+  prove: string | null
+  motion_detected: boolean
+  severity: string | null
+  follow_up_answers: FollowUpAnswer[]
+}
+
+interface WalkaroundSubmissionPayload {
+  walkaround_id: number
+  driver_vehicle: number
+  user: number
+  submitted_at: string
+  answers: WalkaroundAnswer[]
+}
+
 const FollowUpList: React.FC<{
   followUps: FollowUp[]
   questionId: number
@@ -263,6 +289,15 @@ const WalkaroundQuestions: React.FC<{
       : ""
   }
 
+  const buildFollowUpAnswers = (followUps: FollowUp[], selectedIds: number[]): FollowUpAnswer[] => {
+    return followUps.map((fu) => ({
+      followup_question: fu.id,
+      is_ticked: selectedIds.includes(fu.id),
+      severity: fu.severity,
+      follow_up_answers: buildFollowUpAnswers(fu.follow_ups, selectedIds),
+    }))
+  }
+
   const handleSubmitAnswers = async () => {
     // Find incomplete items (either missing mandatory photo or defect details)
     const incomplete = inspectionData.filter((q) => !isQuestionComplete(q))
@@ -277,24 +312,32 @@ const WalkaroundQuestions: React.FC<{
 
     setSubmitting(true)
     try {
-      // Build complete payload: one entry per question
-      const payload = inspectionData.map((item) => {
+      // Build complete payload matching the new requested structure
+      const submittedAnswers: WalkaroundAnswer[] = inspectionData.map((item) => {
         const existingAnswer = answers[item.id]
         const isDefected = existingAnswer?.is_defected || false
         const photoRequired = isDefected ? item.take_picture_on_fail : item.take_picture_on_pass
+        const selectedFollowUpIds = existingAnswer?.follow_up_ids || []
 
         return {
           question_id: item.id,
-          walkaround_id: WALKAROUND_ID ?? 0,
-          vehicle: VEHICLE_ID ?? 0,
-          user: Number(cookies.get("user_id")) || undefined,
           is_defected: isDefected,
+          answer: isDefected ? "FAIL" : "PASS",
           description: isDefected ? existingAnswer?.description || "" : null,
           prove: photoRequired ? existingAnswer?.prove || null : null,
-          answer: isDefected ? "Defected" : "OK",
-          follow_up_ids: isDefected ? existingAnswer?.follow_up_ids || [] : [],
+          motion_detected: true, // Defaulting to true as per requirements
+          severity: item.severity,
+          follow_up_answers: buildFollowUpAnswers(item.follow_ups, selectedFollowUpIds),
         }
       })
+
+      const payload: WalkaroundSubmissionPayload = {
+        walkaround_id: WALKAROUND_ID ?? 0,
+        driver_vehicle: VEHICLE_ID ?? 0,
+        user: Number(cookies.get("user_id")) || 0,
+        submitted_at: new Date().toISOString(),
+        answers: submittedAnswers,
+      }
 
       const response = await fetch(`${API_URL}/api/walk-around-answers/`, {
         method: "POST",
@@ -311,7 +354,7 @@ const WalkaroundQuestions: React.FC<{
       }
 
       // Success: check if any defects
-      const defectsFound = payload.some(a => a.is_defected)
+      const defectsFound = payload.answers.some((a: WalkaroundAnswer) => a.is_defected)
       setHasDefects(defectsFound)
       setPrefilledNotes(generateDefectNotes())
       setShowConfirmDialog(true)
@@ -334,7 +377,7 @@ const WalkaroundQuestions: React.FC<{
 
   if (loading) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen bg-gray-50">
+      <div className="flex flex-col justify-center items-center h-screen max-h-[600px] bg-gray-50">
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-orange-500 border-t-transparent"></div>
         <p className="mt-4 text-gray-600 font-medium">Loading inspection questions...</p>
       </div>
@@ -343,13 +386,23 @@ const WalkaroundQuestions: React.FC<{
 
   if (error) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen bg-gray-50">
+      <div className="flex flex-col justify-center items-center h-screen max-h-[600px] bg-gray-50">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-          <div className="flex items-center">
+          <div className="flex items-center mb-2">
             <AlertTriangle className="h-6 w-6 text-red-500 mr-3" />
             <h3 className="text-lg font-semibold text-red-800">Error</h3>
-            <p className="text-red-600 mt-1">{error}</p>
           </div>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              handleSubmitAnswers();
+            }}
+            className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-all"
+            disabled={submitting}
+          >
+            {submitting ? "Retrying..." : "Retry Submission"}
+          </button>
         </div>
       </div>
     )

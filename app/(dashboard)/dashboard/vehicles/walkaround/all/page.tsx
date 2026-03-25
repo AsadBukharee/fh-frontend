@@ -1,10 +1,10 @@
 "use client";
 
-import { Eye, Car, Plus, RefreshCcw, User, CalendarDays, Clock, MoveRight, Edit, RefreshCw } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { Eye, Plus, RefreshCw, MoveRight, Edit } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import GradientButton from "@/app/utils/GradientButton";
 import WalkaroundDetailsDialog from "@/components/walkaround/walkaround_detail";
@@ -18,7 +18,6 @@ import Addwalkaround from "@/components/walkaround/add-walkaround";
 import PlusWalkaround from "@/components/walkaround/pluswalkaround";
 import WalkaroundQuestionScreen from "@/components/walkaround/WalkaroundQuestionScreen";
 import WalkaroundCategory from "@/components/walkaround/WalkaroundCategory";
-import { debounce } from "lodash";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 
@@ -33,6 +32,7 @@ interface Walkaround {
     id: number;
     vehicles_type_name: string;
     registration_number: string;
+    last_mileage: string | null;
   };
   conducted_by: string | null;
   walkaround_assignee: string | null;
@@ -92,7 +92,8 @@ const WalkaroundPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openAdd, setOpenAdd] = useState(false);
-  const [openPlus, setOpenPlus] = useState(false);
+  // FIX 2: Single dialog state — tracks which chain's "+" was clicked
+  const [openPlusChainId, setOpenPlusChainId] = useState<number | null>(null);
   const [selectedWalkaround, setSelectedWalkaround] = useState<Walkaround | null>(null);
   const [activeTab, setActiveTab] = useState("all-check");
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
@@ -105,44 +106,8 @@ const WalkaroundPage = () => {
   const cookies = useCookies();
   const router = useRouter();
 
-  // Function to navigate to details with search params in the format: ?step_1=1&step_2=32&step_3=456
-  const navigateToDetailsWithParams = (walkaround: Walkaround) => {
-    // Get all walkarounds in the same chain
-    const chainWalkarounds = walkarounds.filter(
-      (w) => w.chain_id === walkaround.chain_id
-    );
-
-    // Sort by walkaround_step to get proper order
-    const sortedChainWalkarounds = [...chainWalkarounds].sort(
-      (a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0)
-    );
-
-    // Create search params
-    const searchParams = new URLSearchParams();
-
-    // Add each step with its ID
-    sortedChainWalkarounds.forEach((walk, index) => {
-      const stepNumber = index + 1;
-      searchParams.append(`step_${stepNumber}`, walk.id.toString());
-    });
-
-    // Also add which step is currently being viewed
-    const currentStepIndex = sortedChainWalkarounds.findIndex(w => w.id === walkaround.id);
-    searchParams.append('current_step', (currentStepIndex + 1).toString());
-
-    // Add total steps
-    searchParams.append('total_steps', sortedChainWalkarounds.length.toString());
-
-    // Add chain ID
-    if (walkaround.chain_id) {
-      searchParams.append('chain_id', walkaround.chain_id.toString());
-    }
-
-    // Navigate to details page with search params
-    router.push(`/dashboard/vehicles/walkaround/all/${walkaround.id}?${searchParams.toString()}`);
-  };
-
-  const fetchWalkarounds = async () => {
+  // FIX 1: Stable fetchWalkarounds with useCallback so debounce ref stays consistent
+  const fetchWalkarounds = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -180,6 +145,7 @@ const WalkaroundPage = () => {
               id: root.vehicle.id,
               vehicles_type_name: root.vehicle.vehicles_type_name,
               registration_number: root.vehicle.registration_number,
+              last_mileage: root.vehicle.last_mileage || null,
             },
             conducted_by: conductorName,
             walkaround_assignee: assigneeName,
@@ -214,6 +180,7 @@ const WalkaroundPage = () => {
                 id: child.vehicle.id,
                 vehicles_type_name: child.vehicle.vehicles_type_name,
                 registration_number: child.vehicle.registration_number,
+                last_mileage: child.vehicle.last_mileage || null,
               },
               conducted_by: childConductorName,
               walkaround_assignee: childAssigneeName,
@@ -245,13 +212,23 @@ const WalkaroundPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, dateFrom, dateTo, cookies]);
 
-  const debouncedFetchWalkarounds = debounce(fetchWalkarounds, 300);
+  // FIX 1: Debounce via a ref so the timer is stable across renders
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedFetchWalkarounds = useCallback(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      fetchWalkarounds();
+    }, 300);
+  }, [fetchWalkarounds]);
 
   useEffect(() => {
     debouncedFetchWalkarounds();
-  }, [page, pageSize, dateFrom, dateTo]);
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [debouncedFetchWalkarounds]);
 
   useEffect(() => {
     if (dateFrom && dateTo) {
@@ -266,46 +243,59 @@ const WalkaroundPage = () => {
   }, [dateFrom, dateTo]);
 
   useEffect(() => {
-    if (!openPlus && !openDetailsDialog) {
+    if (!openPlusChainId && !openDetailsDialog) {
       setSelectedWalkaround(null);
     }
-  }, [openPlus, openDetailsDialog]);
+  }, [openPlusChainId, openDetailsDialog]);
 
-  const resetFilters = () => {
+  // FIX 4: All handlers wrapped in useCallback
+  const resetFilters = useCallback(() => {
     const currentDate = new Date();
     setDateFrom(currentDate);
     setDateTo(currentDate);
     setPage(1);
     setPageSize(50);
     setError(null);
-  };
+  }, []);
 
-  const handleViewDetails = (walkaround: Walkaround) => {
+  const handleViewDetails = useCallback((walkaround: Walkaround) => {
     setSelectedWalkaround(walkaround);
     setOpenDetailsDialog(true);
-  };
+  }, []);
 
-  const handleAddChildWalkaround = (chainId: number) => {
-    const chainWalkarounds = walkarounds.filter((w) => w.chain_id === chainId);
-    const totalInChain = chainWalkarounds.length;
+  // FIX 4: navigateToDetailsWithParams with useCallback
+  const navigateToDetailsWithParams = useCallback((walkaround: Walkaround, allWalkarounds: Walkaround[]) => {
+    const chainWalkarounds = allWalkarounds.filter(
+      (w) => w.chain_id === walkaround.chain_id
+    );
+    const sortedChainWalkarounds = [...chainWalkarounds].sort(
+      (a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0)
+    );
+    const searchParams = new URLSearchParams();
+    sortedChainWalkarounds.forEach((walk, index) => {
+      searchParams.append(`step_${index + 1}`, walk.id.toString());
+    });
+    const currentStepIndex = sortedChainWalkarounds.findIndex(w => w.id === walkaround.id);
+    searchParams.append("current_step", (currentStepIndex + 1).toString());
+    searchParams.append("total_steps", sortedChainWalkarounds.length.toString());
+    if (walkaround.chain_id) {
+      searchParams.append("chain_id", walkaround.chain_id.toString());
+    }
+    router.push(`/dashboard/vehicles/walkaround/all/${walkaround.id}?${searchParams.toString()}`);
+  }, [router]);
 
-    if (totalInChain >= MAX_WALKAROUNDS_PER_CHAIN) {
+  // FIX 2: handleAddChildWalkaround opens the single lifted dialog
+  const handleAddChildWalkaround = useCallback((chainId: number, chainSize: number) => {
+    if (chainSize >= MAX_WALKAROUNDS_PER_CHAIN) {
       alert(`Maximum of ${MAX_WALKAROUNDS_PER_CHAIN} walkarounds allowed per vehicle chain. Cannot add more.`);
       return;
     }
-
-    const latestWalkaround = chainWalkarounds.reduce((latest, current) => {
-      return (current.walkaround_step || 0) > (latest.walkaround_step || 0) ? current : latest;
-    }, chainWalkarounds[0]);
-
-    if (latestWalkaround) {
-      setSelectedWalkaround(latestWalkaround);
-      setOpenPlus(true);
-    }
-  };
+    setOpenPlusChainId(chainId);
+  }, []);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
+  // FIX 3: groupedWalkarounds now also stores total count per chain to avoid re-filtering in render
   const groupedWalkarounds = useMemo(() => {
     const byChain = walkarounds.reduce((acc, walkaround) => {
       const chainId = walkaround.chain_id || walkaround.id;
@@ -322,7 +312,19 @@ const WalkaroundPage = () => {
     return byChain;
   }, [walkarounds]);
 
-  if (loading) {
+  // FIX 2: Resolve the selected walkaround for the lifted Plus dialog
+  const plusDialogWalkaround = useMemo(() => {
+    if (openPlusChainId === null) return null;
+    const group = groupedWalkarounds[openPlusChainId];
+    if (!group) return null;
+    const chainWalkarounds = group.root ? [group.root, ...group.children] : group.children;
+    return chainWalkarounds.reduce((latest, current) =>
+      (current.walkaround_step || 0) > (latest.walkaround_step || 0) ? current : latest,
+      chainWalkarounds[0]
+    ) || null;
+  }, [openPlusChainId, groupedWalkarounds]);
+
+  if (loading && walkarounds.length === 0) {
     return (
       <div className="min-h-screen bg-white p-6 flex items-center justify-center">
         <div className="text-gray-600">Loading...</div>
@@ -346,18 +348,15 @@ const WalkaroundPage = () => {
           </div>
           <div className="flex gap-4 items-center">
             <Button
-              onClick={debouncedFetchWalkarounds}
+              onClick={fetchWalkarounds}
               disabled={loading}
               variant="outline"
               size="sm"
             >
               <RefreshCw
-                className={`w-4 h-4  ${loading ? "animate-spin" : ""
-                  }`}
+                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
               />
-
             </Button>
-
           </div>
         </div>
 
@@ -430,9 +429,9 @@ const WalkaroundPage = () => {
               <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
               {error && <div className="text-red-500 self-center">{error}</div>}
               <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-                <DialogTrigger asChild>
-                  <GradientButton text="Walkaround" Icon={Plus} />
-                </DialogTrigger>
+                <Button onClick={() => setOpenAdd(true)} className=" bg-transparent hover:bg-transparent" asChild>
+                  <span><GradientButton text="Walkaround" Icon={Plus} /></span>
+                </Button>
                 <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create New Walkaround</DialogTitle>
@@ -446,15 +445,16 @@ const WalkaroundPage = () => {
             <div className="space-y-6">
               {Object.entries(groupedWalkarounds).map(([chainId, { root, children }]) => {
                 const vehicleInfo = root?.vehicle || children[0]?.vehicle;
-                const chainWalkarounds = walkarounds.filter((w) => w.chain_id === Number(chainId));
-                const canAddMore = chainWalkarounds.length < MAX_WALKAROUNDS_PER_CHAIN;
+                // FIX 3: Use data already in groupedWalkarounds — no extra .filter() call
+                const totalInChain = (root ? 1 : 0) + children.length;
+                const canAddMore = totalInChain < MAX_WALKAROUNDS_PER_CHAIN;
 
                 return (
                   <div key={chainId} className="p-4 border border-gray-200 rounded-lg bg-white">
                     <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-                      Vehicle: {vehicleInfo?.registration_number} ({vehicleInfo?.vehicles_type_name})
+                      Vehicle: {vehicleInfo?.registration_number}
                       <Badge className="ml-2 bg-blue-100 text-blue-800">
-                        {chainWalkarounds.length} of {MAX_WALKAROUNDS_PER_CHAIN} steps
+                        {totalInChain} of {MAX_WALKAROUNDS_PER_CHAIN} steps
                       </Badge>
                     </h2>
 
@@ -463,7 +463,7 @@ const WalkaroundPage = () => {
                       {root && (
                         <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
                           <h3 className="text-sm font-semibold">Step <span className="text-gray-500">1</span></h3>
-                          <p className="text-sm font-semibold">Checker:  <span className="text-gray-500">{root.conducted_by || "N/A"}</span></p>
+                          <p className="text-sm font-semibold">Checker: <span className="text-gray-500">{root.conducted_by || "N/A"}</span></p>
                           <p className="text-sm font-semibold">
                             Status: <Badge className={getStatusClasses(root.status)}>
                               {root.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
@@ -475,7 +475,7 @@ const WalkaroundPage = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigateToDetailsWithParams(root)}
+                              onClick={() => navigateToDetailsWithParams(root, walkarounds)}
                             >
                               <Eye className="h-4 w-4 mr-1" /> Details
                             </Button>
@@ -495,7 +495,7 @@ const WalkaroundPage = () => {
                           <div key={child.id} className="flex items-center gap-4">
                             <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
                               <h3 className="text-sm font-semibold">Step <span className="text-gray-500">{child.walkaround_step || idx + 2}</span></h3>
-                              <p className="text-sm font-semibold">Checker:  <span className="text-gray-500">{child.conducted_by || "N/A"}</span></p>
+                              <p className="text-sm font-semibold">Checker: <span className="text-gray-500">{child.conducted_by || "N/A"}</span></p>
                               <p className="text-sm font-semibold">
                                 Status: <Badge className={getStatusClasses(child.status)}>
                                   {child.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
@@ -507,7 +507,7 @@ const WalkaroundPage = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => navigateToDetailsWithParams(child)}
+                                  onClick={() => navigateToDetailsWithParams(child, walkarounds)}
                                 >
                                   <Eye className="h-4 w-4 mr-1" /> Details
                                 </Button>
@@ -520,30 +520,15 @@ const WalkaroundPage = () => {
                           </div>
                         ))}
 
-                      {/* Add Button or Limit Indicator */}
+                      {/* FIX 2: Just a button — no Dialog here. The single Dialog is below the list. */}
                       {canAddMore ? (
-                        <Dialog open={openPlus} onOpenChange={setOpenPlus}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="w-10 h-10 rounded-full bg-purple-700 text-white hover:bg-purple-800 shadow-lg"
-                              onClick={() => handleAddChildWalkaround(Number(chainId))}
-                            >
-                              <Plus className="h-5 w-5" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>Add Follow-up Walkaround</DialogTitle>
-                            </DialogHeader>
-                            <PlusWalkaround
-                              setOpen={setOpenPlus}
-                              refreshWalkarounds={debouncedFetchWalkarounds}
-                              parentId={selectedWalkaround?.id || 0}
-                              walkaround={selectedWalkaround}
-                            />
-                          </DialogContent>
-                        </Dialog>
+                        <Button
+                          variant="ghost"
+                          className="w-10 h-10 rounded-full bg-purple-700 text-white hover:bg-purple-800 shadow-lg"
+                          onClick={() => handleAddChildWalkaround(Number(chainId), totalInChain)}
+                        >
+                          <Plus className="h-5 w-5" />
+                        </Button>
                       ) : (
                         <div className="flex items-center justify-center w-10 h-10">
                           <div
@@ -574,9 +559,7 @@ const WalkaroundPage = () => {
 
           {/* Tab 2: Walkaround Questions */}
           <TabsContent value="walkaround-questions">
-            <WalkaroundQuestionScreen
-
-            />
+            <WalkaroundQuestionScreen />
           </TabsContent>
 
           <TabsContent value="walkaround-category">
@@ -584,6 +567,28 @@ const WalkaroundPage = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* FIX 2: Single lifted Plus dialog — rendered once outside the list */}
+      <Dialog
+        open={openPlusChainId !== null}
+        onOpenChange={(open) => {
+          if (!open) setOpenPlusChainId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Follow-up Walkaround</DialogTitle>
+          </DialogHeader>
+          {plusDialogWalkaround && (
+            <PlusWalkaround
+              setOpen={(open) => { if (!open) setOpenPlusChainId(null); }}
+              refreshWalkarounds={fetchWalkarounds}
+              parentId={plusDialogWalkaround.id}
+              walkaround={plusDialogWalkaround}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <WalkaroundDetailsDialog
         walkaround={selectedWalkaround}

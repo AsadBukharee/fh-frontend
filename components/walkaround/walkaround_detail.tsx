@@ -23,6 +23,7 @@ interface Walkaround {
     id: number
     vehicles_type_name: string
     registration_number: string
+    last_mileage: string | null
   }
   conducted_by: string | null
   walkaround_assignee: string | null

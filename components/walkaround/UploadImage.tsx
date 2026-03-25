@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import { Camera, Upload, X } from "lucide-react";
+import API_URL from "@/app/utils/ENV";
+import { useCookies } from "next-client-cookies";
 
 interface ImageUploaderProps {
   onUploadSuccess: (url: string) => void;
@@ -16,6 +18,9 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUploadSuccess, cameraFa
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const cookies = useCookies();
+  const token = cookies.get("access_token");
 
   // Debounce utility to prevent rapid camera restarts
   const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
@@ -107,13 +112,33 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUploadSuccess, cameraFa
     }
   }, []);
 
-  const uploadImage = async (file: Blob) => {
+  const uploadImage = async (file: Blob | File) => {
+    if (!token) {
+      alert("Authentication required. Please log in.");
+      return;
+    }
+
     setUploading(true);
+    const formData = new FormData();
+    const fileName = (file as File).name || `capture_${Date.now()}.jpg`;
+    formData.append("file", file, fileName);
+
     try {
-      // Simulate upload (replace with actual server/cloud storage upload in production)
-      const url = URL.createObjectURL(file);
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate upload delay
-      onUploadSuccess(url);
+      const res = await fetch(`${API_URL}/media/upload_media/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const result = await res.json();
+
+      if (result.success && result.data?.url) {
+        onUploadSuccess(result.data.url);
+      } else {
+        throw new Error(result.message || "Upload failed");
+      }
     } catch (error) {
       console.error("Upload failed:", error);
       alert("Failed to upload image. Please try again.");
