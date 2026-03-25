@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useCookies } from "next-client-cookies";
 import API_URL from "@/app/utils/ENV";
 import { Button } from "@/components/ui/button";
@@ -64,12 +64,7 @@ interface Profile {
   sites: { id: number; name: string }[];
 }
 
-interface Vehicle {
-  id: number;
-  name: string;
-  vehicle_type_id: number;
-  last_mileage: string | null;
-}
+
 
 interface PlusWalkaroundProps {
   setOpen: (open: boolean) => void;
@@ -127,13 +122,11 @@ const PlusWalkaround = ({
   const [loading, setLoading] = useState(false);
   const [drivers, setDrivers] = useState<Profile[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [showQuestion, setShowQuestion] = useState(false); // State for WalkaroundQuestions dialog
   const [walkaroundId, setWalkaroundId] = useState<number | null>(null); // Store created walkaround ID
   const [vehicleId, setVehicleId] = useState<number | null>(null); // Store vehicle ID
-  const [vehicleTypeId, setVehicleTypeId] = useState<number | null>(
-    walkaround?.vehicle.vehicles_type_name ? null : null // We'll set this via useEffect or selection
-  );
+  // FIX 5: vehicleTypeId is derived from the walkaround prop — no vehicle API needed
+  const [vehicleTypeId, setVehicleTypeId] = useState<number | null>(null);
   const sigCanvas = useRef<SignatureCanvas>(null);
   const cookies = useCookies();
   const { toast } = useToast();
@@ -148,94 +141,54 @@ const PlusWalkaround = ({
     // { value: "further_work_required", label: "Further Work Required" },
   ];
 
-  // Fetch drivers, managers, and vehicles
-  useEffect(() => {
-    const fetchProfiles = async (
-      type: string,
-      setData: React.Dispatch<React.SetStateAction<Profile[]>>
-    ) => {
-      try {
-        const response = await fetch(
-          `${API_URL}/users/list-names/?role=${type}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${cookies.get("access_token")}`,
-            },
-          }
-        );
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ${type}s: ${response.statusText}`);
-        }
-        const result = await response.json();
-        if (result.success) {
-          setData(result.data);
-        } else {
-          setErrors({ [type]: result.message || `Failed to fetch ${type}s` });
-        }
-      } catch (err) {
-        setErrors({
-          [type]:
-            err instanceof Error
-              ? err.message
-              : `An error occurred while fetching ${type}s`,
-        });
-      }
-    };
-
-    const fetchVehicles = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/vehicles/`, {
+  // FIX 5: Only fetch drivers and managers — vehicle is pre-known from the walkaround prop
+  const fetchProfiles = useCallback(async (
+    type: string,
+    setData: React.Dispatch<React.SetStateAction<Profile[]>>
+  ) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/users/list-names/?role=${type}`,
+        {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to fetch vehicles: ${response.statusText}`);
         }
-        const result = await response.json();
-        if (result.success) {
-          setVehicles(
-            result.data.map((vehicle: any) => ({
-              id: vehicle.id,
-              name: `${vehicle.vehicle_type_name} (${vehicle.registration_number})`,
-              vehicle_type_id: vehicle.vehicle_type?.id || vehicle.vehicle_type,
-              last_mileage: vehicle.last_mileage ? String(vehicle.last_mileage) : "",
-            }))
-          );
-        } else {
-          setErrors({ vehicle: result.message || "Failed to fetch vehicles" });
-        }
-      } catch (err) {
-        setErrors({
-          vehicle:
-            err instanceof Error
-              ? err.message
-              : "An error occurred while fetching vehicles",
-        });
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${type}s: ${response.statusText}`);
       }
-    };
-
-    fetchProfiles("driver", setDrivers);
-    fetchProfiles("manager", setManagers);
-    fetchVehicles();
+      const result = await response.json();
+      if (result.success) {
+        setData(result.data);
+      } else {
+        setErrors({ [type]: result.message || `Failed to fetch ${type}s` });
+      }
+    } catch (err) {
+      setErrors({
+        [type]:
+          err instanceof Error
+            ? err.message
+            : `An error occurred while fetching ${type}s`,
+      });
+    }
   }, [cookies]);
 
-  // Set initial vehicleTypeId if walkaround is provided
   useEffect(() => {
-    if (formData.vehicle && vehicles.length > 0) {
-      const selectedVehicle = vehicles.find(v => v.id.toString() === formData.vehicle);
-      if (selectedVehicle) {
-        setVehicleTypeId(selectedVehicle.vehicle_type_id);
-        if ((!formData.mileage || formData.mileage === "0") && selectedVehicle.last_mileage) {
-          setFormData((prev) => ({ ...prev, mileage: selectedVehicle.last_mileage || "" }));
-        }
-      }
+    fetchProfiles("driver", setDrivers);
+    fetchProfiles("manager", setManagers);
+  }, [fetchProfiles]);
+
+  // FIX 5: Derive vehicleTypeId from the walkaround prop directly (no vehicles list needed)
+  useEffect(() => {
+    if (walkaround) {
+      // vehicle_type_id is not in the Walkaround interface — set to null and let the
+      // WalkaroundQuestions component handle fetching by vehicleId instead
+      setVehicleTypeId(null);
     }
-  }, [formData.vehicle, vehicles]);
+  }, [walkaround]);
 
   const formatName = (name: string): string =>
     name
@@ -384,38 +337,12 @@ const PlusWalkaround = ({
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Vehicle */}
+        {/* Vehicle — pre-filled & read-only from the parent walkaround prop */}
         <div>
           <Label>Vehicle</Label>
-          <Select
-            value={formData.vehicle}
-            onValueChange={(value) => {
-              setFormData((prev) => ({ ...prev, vehicle: value }));
-              const selectedVehicle = vehicles.find(v => v.id.toString() === value);
-              if (selectedVehicle) {
-                setVehicleTypeId(selectedVehicle.vehicle_type_id);
-                if (selectedVehicle.last_mileage) {
-                  setFormData((prev) => ({ ...prev, mileage: selectedVehicle.last_mileage || "" }));
-                }
-              }
-            }}
-            disabled
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select vehicle" />
-            </SelectTrigger>
-            <SelectContent>
-              {vehicles.map((vehicle) => (
-                <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
-                  {vehicle.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-sm text-gray-500 mt-1">
-            Current: {walkaround?.vehicle.registration_number || "N/A"} (
-            {walkaround?.vehicle.vehicles_type_name || "N/A"})
-          </p>
+          <div className="flex h-9 w-full items-center rounded-md border border-input bg-gray-100 px-3 py-1 text-sm shadow-sm">
+            {walkaround?.vehicle.registration_number || "N/A"} ({walkaround?.vehicle.vehicles_type_name || "N/A"})
+          </div>
           {errors.vehicle && (
             <div className="text-red-500 text-sm">{errors.vehicle}</div>
           )}
@@ -497,7 +424,7 @@ const PlusWalkaround = ({
             min="0"
           />
           <p className="text-sm text-gray-500 mt-1">
-            Previous walkaround: {walkaround?.mileage || "N/A"} | Vehicle's current: {vehicles.find(v => v.id.toString() === formData.vehicle)?.last_mileage || "N/A"}
+            Previous walkaround: {walkaround?.mileage || "N/A"} | Vehicle&apos;s last recorded: {walkaround?.vehicle.last_mileage || "N/A"}
           </p>
           {errors.mileage && (
             <div className="text-red-500 text-sm">{errors.mileage}</div>

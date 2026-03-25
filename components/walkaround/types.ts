@@ -8,12 +8,25 @@ export interface Steps {
   chain_id?: string;
 }
 
+export interface FollowupAnswer {
+  id: number;
+  followup_question_id: number;
+  followup_question_text: string;
+  followup_question_code: string;
+  selected: boolean;
+  description: string | null;
+  severity: string;
+  created_at: string;
+  followup_answers: FollowupAnswer[];
+}
+
 export interface Answer {
   id: number;
   question_text: string;
   question_id: number;
   answer: string;
   is_defected: boolean;
+  calculated_severity: string;
   description: string | null;
   date: string;
   prove: string | null;
@@ -22,6 +35,7 @@ export interface Answer {
   user_name: string;
   vehicle_id: number | null;
   vehicle_registration: string | null;
+  followup_answers: FollowupAnswer[];
 }
 
 export interface WalkaroundData {
@@ -33,12 +47,12 @@ export interface WalkaroundData {
       vehicle: {
         id: number;
         registration_number: string;
-        vehicles_type_name: string;
+        vehicle_type_name: string;
         last_mileage: string | null;
-        current_mileage: string;
+        purchase_mileage: string | null;
         mileage_unit: string;
-        mileage_in_km: number;
-        mileage_in_miles: number;
+        mileage_in_km: number | null;
+        mileage_in_miles: number | null;
         site_allocated: Array<{
           id: number;
           name: string;
@@ -61,19 +75,37 @@ export interface WalkaroundData {
         avatar: string | null;
       } | null;
       walkaround_step: number;
+      check_type: string;
       date: string;
       time: string;
       mileage: number | null;
       signature: string | null;
       note: string | null;
       defects: string | null;
-      walkaround_duration: number | null;
+      walkaround_duration: string | null;
       status: string;
       created_at: string;
       updated_at: string;
       parent: number | null;
     };
     answers: Answer[];
+    driver_signature: {
+      id: number;
+      user_id: number;
+      user_name: string;
+      role: string;
+      signature: string;
+      signed_at: string;
+    } | null;
+    cp_signature: any;
+    activity_log: {
+      id: number;
+      user_id: number;
+      user_name: string;
+      action: string;
+      details: string;
+      created_at: string;
+    }[];
     total_answers: number;
     defected_count: number;
     non_defected_count: number;
