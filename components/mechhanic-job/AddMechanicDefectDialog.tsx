@@ -21,6 +21,9 @@ import { Trash2, Plus, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "../ui/alert"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
+import { useDispatch, useSelector } from "react-redux"
+import { RootState } from "@/app/store"
+import { resetWalkaroundState } from "@/app/store/slices/walkaroundSlice"
 
 interface Defect {
   priority: string
@@ -32,6 +35,7 @@ interface AddDefectsFormDialogProps {
   showDefectsModal: boolean
   jobId: number | null
   setShowJobIdModal: React.Dispatch<React.SetStateAction<boolean>>
+  onComplete?: () => void
 }
 
 const PRIORITY_CHOICES = [
@@ -40,16 +44,25 @@ const PRIORITY_CHOICES = [
   { value: "low", label: "Low", color: "bg-green-100 text-green-800 border-green-200" },
 ]
 
-const AddMechanicDefectDialog = ({ showDefectsModal, jobId, setShowJobIdModal }: AddDefectsFormDialogProps) => {
+const AddMechanicDefectDialog = ({ showDefectsModal, jobId, setShowJobIdModal, onComplete }: AddDefectsFormDialogProps) => {
   const [defects, setDefects] = useState<Defect[]>([{ priority: "medium", defect_text: "", color: "#ef4444" }])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(showDefectsModal) // Local state to control dialog
   const token = useCookies().get("access_token") || ""
+  const dispatch = useDispatch()
+  const walkaroundDefects = useSelector((state: RootState) => state.walkaround.walkaroundDefects)
 
 useEffect(() => {
     setIsOpen(showDefectsModal)
-  }, [showDefectsModal])
+    // When the dialog opens, if we have walkaround defects, populate the form
+    if (showDefectsModal && walkaroundDefects.length > 0) {
+      setDefects(walkaroundDefects)
+    } else if (showDefectsModal && defects.length === 0) {
+      // Default initial row for manual defects
+      setDefects([{ priority: "medium", defect_text: "", color: "#ef4444" }])
+    }
+  }, [showDefectsModal, walkaroundDefects])
 
   const addDefect = () => {
     setDefects([...defects, { priority: "medium", defect_text: "", color: "#ef4444" }])
@@ -94,32 +107,34 @@ useEffect(() => {
     setError(null)
 
     try {
-      // Prepare the payload as an array of defects
-      const payload = defects.map((defect) => ({
-        mechanic_job: jobId,
-        priority: defect.priority,
-        defect_text: defect.defect_text,
-        color: defect.color,
-      }))
+      // Send each defect as a separate POST request
+      for (const defect of defects) {
+        const payload = {
+          mechanic_job: jobId,
+          priority: defect.priority,
+          defect_text: defect.defect_text,
+          color: defect.color,
+        }
 
-      // Send a single POST request with all defects
-      const response = await fetch(`${API_URL}/activity/mechanic-defect/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      })
+        const response = await fetch(`${API_URL}/activity/mechanic-defect/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        })
 
-      if (!response.ok) {
-        throw new Error(`Failed to add defects: ${response.statusText}`)
+        if (!response.ok) {
+          throw new Error(`Failed to add defect: ${response.statusText}`)
+        }
       }
 
-      // Only close dialog and show confirmation after successful API call
+      // Only close dialog on success
       setIsOpen(false)
-      setShowJobIdModal(true) // Show confirmation dialog
+      setShowJobIdModal(false)
       setDefects([{ priority: "medium", defect_text: "", color: "#ef4444" }]) // Reset form
+      if (onComplete) onComplete()
     } catch (err) {
       setError("Failed to add defects. Please try again.")
       console.error(err)
@@ -133,6 +148,9 @@ useEffect(() => {
       setIsOpen(false)
       setShowJobIdModal(false)
       setError(null)
+      // Clear Redux state when closing/finishing the flow
+      dispatch(resetWalkaroundState())
+      if (onComplete) onComplete()
     }
   }
 

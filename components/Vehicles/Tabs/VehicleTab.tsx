@@ -139,14 +139,14 @@ interface Vehicle {
 export default function VehiclesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
-  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  // const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [selectedVehicleForAssign, setSelectedVehicleForAssign] = useState<Vehicle | null>(null)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [vehicleToUpdate, setVehicleToUpdate] = useState<Vehicle | null>(null)
+  // const [vehicleToUpdate, setVehicleToUpdate] = useState<Vehicle | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState({
@@ -343,46 +343,9 @@ export default function VehiclesPage() {
     setIsFilterDialogOpen(false)
   }
 
-  const handleUpdateStatusClick = (vehicle: Vehicle) => {
-    setVehicleToUpdate(vehicle)
-    setStatusForm({
-      vehicle_status: vehicle.vehicle_status,
-      vehicle_roadworthy_status: vehicle.vehicle_roadworthy_status,
-    })
-    setIsStatusDialogOpen(true)
-  }
+ 
 
-  const handleUpdateStatus = async () => {
-    if (!vehicleToUpdate) return
-
-    setUpdatingStatus(true)
-    try {
-      const res = await fetch(`${API_URL}/api/vehicles/${vehicleToUpdate.id}/`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cookies.get("access_token")}`,
-        },
-        body: JSON.stringify({
-          vehicle_status: statusForm.vehicle_status,
-          vehicle_roadworthy_status: statusForm.vehicle_roadworthy_status,
-        }),
-      })
-
-      if (res.ok) {
-        showToast(`Vehicle ${vehicleToUpdate.registration_number} status updated successfully`, "success")
-        fetchVehicles()
-        setIsStatusDialogOpen(false)
-      } else {
-        const data = await res.json()
-        showToast(data.message || "Failed to update vehicle status", "error")
-      }
-    } catch {
-      showToast("An error occurred while updating vehicle status", "error")
-    } finally {
-      setUpdatingStatus(false)
-    }
-  }
+ 
 
   const handleAssignClick = (vehicle: Vehicle) => {
     setSelectedVehicleForAssign(vehicle)
@@ -570,14 +533,7 @@ export default function VehiclesPage() {
                                     </Link>
                                   </DropdownMenuItem>
 
-                                  {/* Update Status Menu Item */}
-                                  <DropdownMenuItem
-                                    onClick={() => handleUpdateStatusClick(vehicle)}
-                                    className="flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                    Update Status
-                                  </DropdownMenuItem>
+                                
 
                                   <DropdownMenuSeparator />
 
@@ -683,114 +639,7 @@ export default function VehiclesPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Update Status Dialog */}
-        <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Edit className="w-5 h-5" />
-                Update Vehicle Status
-              </DialogTitle>
-              <DialogDescription>
-                Update the status for vehicle:{" "}
-                <strong>{vehicleToUpdate?.registration_number}</strong>
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              {/* Vehicle Status */}
-              <div className="space-y-3">
-                <Label
-                  htmlFor="vehicle_status"
-                  className="text-sm font-semibold tracking-wide uppercase text-muted-foreground"
-                >
-                  Vehicle Status
-                </Label>
-                <Select
-                  value={statusForm.vehicle_status}
-                  onValueChange={(value) => setStatusForm(prev => ({ ...prev, vehicle_status: value }))}
-                >
-                  <SelectTrigger className="w-full h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">
-                      <span className="px-2 py-1 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
-                        Available
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="unavailable">
-                      <span className="px-2 py-1 rounded border bg-slate-100 text-slate-700 border-slate-200">
-                        Unavailable
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="assigned">
-                      <span className="px-2 py-1 rounded border bg-orange-50 text-orange-700 border-orange-200">
-                        Assigned
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="disabled">
-                      <span className="px-2 py-1 rounded border bg-gray-100 text-gray-700 border-gray-200">
-                        Disabled
-                      </span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Roadworthy Status */}
-              <div className="space-y-3">
-                <Label
-                  htmlFor="vehicle_roadworthy_status"
-                  className="text-sm font-semibold tracking-wide uppercase text-muted-foreground"
-                >
-                  Roadworthy Status
-                </Label>
-                <Select
-                  value={statusForm.vehicle_roadworthy_status}
-                  onValueChange={(value) => setStatusForm(prev => ({ ...prev, vehicle_roadworthy_status: value }))}
-                >
-                  <SelectTrigger className="w-full h-12 rounded-xl shadow-inner bg-background/60 border-border/60 transition-all duration-300">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no_defect">No Defect</SelectItem>
-                    <SelectItem value="minor_defect_roadworthy">Minor Defect (Roadworthy)</SelectItem>
-                    <SelectItem value="minor_defect_not_roadworthy">Minor Defect (Not Roadworthy)</SelectItem>
-                    <SelectItem value="major_defect_not_roadworthy">Major Defect (Not Roadworthy)</SelectItem>
-                    <SelectItem value="contract">Contract</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsStatusDialogOpen(false)}
-                disabled={updatingStatus}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleUpdateStatus}
-                disabled={updatingStatus}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {updatingStatus ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Update Status
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
+  
         {selectedVehicleForAssign && (
           <AssignDriverDialog
             vehicleId={selectedVehicleForAssign.id}

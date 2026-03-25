@@ -2,6 +2,8 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
+import { useDispatch } from "react-redux"
+import { setWalkaroundVehicle, setWalkaroundDefects, resetWalkaroundState } from "@/app/store/slices/walkaroundSlice"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { Camera, RotateCcw, Check, AlertTriangle, Upload } from "lucide-react"
@@ -16,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import AddMechanicJobDialog from "../mechhanic-job/AddMechanic"
+import AddMechanicDefectDialog from "../mechhanic-job/AddMechanicDefectDialog"
 
 interface Category {
   id: number
@@ -159,10 +162,13 @@ const WalkaroundQuestions: React.FC<{
   const [answers, setAnswers] = useState<{ [key: number]: Answer }>({})
   const [cameraFacing, setCameraFacing] = useState<{ [key: number]: "user" | "environment" }>({})
   const [submitting, setSubmitting] = useState(false)
+  const dispatch = useDispatch()
 
   // Mechanic job flow
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [showMechanicJobDialog, setShowMechanicJobDialog] = useState(false)
+  const [showDefectsDialog, setShowDefectsDialog] = useState(false)
+  const [newJobId, setNewJobId] = useState<number | null>(null)
   const [hasDefects, setHasDefects] = useState(false)
   const [prefilledNotes, setPrefilledNotes] = useState("")
 
@@ -355,6 +361,23 @@ const WalkaroundQuestions: React.FC<{
 
       // Success: check if any defects
       const defectsFound = payload.answers.some((a: WalkaroundAnswer) => a.is_defected)
+      
+      // Store vehicle and defects in Redux for the mechanic job flow
+      dispatch(setWalkaroundVehicle(VEHICLE_ID))
+      
+      if (defectsFound) {
+        const reduxDefects = inspectionData
+          .filter(item => answers[item.id]?.is_defected)
+          .map(item => ({
+            defect_text: `${item.question}: ${answers[item.id]?.description || ""}`,
+            priority: "medium",
+            color: "#ef4444"
+          }))
+        dispatch(setWalkaroundDefects(reduxDefects))
+      } else {
+        dispatch(setWalkaroundDefects([]))
+      }
+
       setHasDefects(defectsFound)
       setPrefilledNotes(generateDefectNotes())
       setShowConfirmDialog(true)
@@ -577,12 +600,20 @@ const WalkaroundQuestions: React.FC<{
         <AddMechanicJobDialog
           isOpen={showMechanicJobDialog}
           onOpenChange={setShowMechanicJobDialog}
-          onJobAdded={() => {
+          onJobAdded={(jobId) => {
             setShowMechanicJobDialog(false)
-            onComplete()
+            setNewJobId(jobId)
+            setShowDefectsDialog(true)
           }}
           defaultVehicleId={VEHICLE_ID?.toString()}
           defaultNotes={prefilledNotes}
+        />
+
+        <AddMechanicDefectDialog
+           showDefectsModal={showDefectsDialog}
+           setShowJobIdModal={setShowDefectsDialog}
+           jobId={newJobId}
+           onComplete={onComplete}
         />
       </div>
     </>

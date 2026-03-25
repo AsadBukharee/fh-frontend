@@ -4,6 +4,7 @@ import { ToastProvider } from "./Context/ToastContext";
 import { CookiesProvider } from "next-client-cookies/server";
 import { cookies } from "next/headers"; // ✅ correct import
 import NotificationProvider from "@/components/NotificationProvider";
+import ReduxProvider from "./store/ReduxProvider";
 
 export const metadata: Metadata = {
   title: "Foster Hartley - Vehicle Management",
@@ -25,14 +26,14 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body>
-        <CookiesProvider>
-          <ToastProvider>
-            <NotificationProvider/>
-            
+        <ReduxProvider>
+          <CookiesProvider>
+            <ToastProvider>
+              <NotificationProvider/>
               {children}
-           
-          </ToastProvider>
-        </CookiesProvider>
+            </ToastProvider>
+          </CookiesProvider>
+        </ReduxProvider>
       </body>
     </html>
   );
