@@ -17,14 +17,14 @@ export default function Vehciles() {
             value="parent"
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 "
           >
-            Vehicles Management
+            Vehicle Management
           </TabsTrigger>
           <TabsTrigger
             value="child"
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 "
 
           >
-        Vehicles Type Mangments
+        Manage Vehicle Types
           </TabsTrigger>
         </TabsList>
 

@@ -21,7 +21,9 @@ import { Separator } from "@/components/ui/separator"
 import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { useToast } from "@/app/Context/ToastContext"
-import AddMechanicDefectDialog from "./AddMechanicDefectDialog"
+import { useDispatch, useSelector } from "react-redux"
+import { RootState } from "@/app/store"
+import { resetWalkaroundState } from "@/app/store/slices/walkaroundSlice"
 
 interface Vehicle {
   id: number
@@ -36,7 +38,7 @@ interface User {
 interface AddMechanicJobDialogProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
-  onJobAdded: () => void
+  onJobAdded: (jobId: number) => void
   defaultVehicleId?: string     // Optional – auto-filled if present
   defaultNotes?: string
 }
@@ -56,10 +58,13 @@ export default function AddMechanicJobDialog({ isOpen, onOpenChange, onJobAdded,
   const [loading, setLoading] = useState(false)
   const [dataLoading, setDataLoading] = useState(false)
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
-  const [showJobIdModal, setShowJobIdModal] = useState(false)
   const [jobId, setJobId] = useState<number | null>(null)
   const { showToast } = useToast()
   const cookies = useCookies()
+  const dispatch = useDispatch()
+  
+  // Get vehicle from Redux if available
+  const walkaroundVehicleId = useSelector((state: RootState) => state.walkaround.vehicleId)
 
   const fetchVehicles = useCallback(async () => {
     try {
@@ -145,10 +150,10 @@ export default function AddMechanicJobDialog({ isOpen, onOpenChange, onJobAdded,
       Promise.all([fetchVehicles(), fetchMechanics(), fetchAssignees()]).finally(() => setDataLoading(false))
 
       setFormData({
-        vehicle: "",
+        vehicle: defaultVehicleId || walkaroundVehicleId?.toString() || "",
         mechanic: "",
         assignee: "",
-        notes: "",
+        notes: defaultNotes || "",
         source: "walkaround",
         status: "in_house",
       })
@@ -212,9 +217,9 @@ export default function AddMechanicJobDialog({ isOpen, onOpenChange, onJobAdded,
 
       if (response.ok && data.success) {
         showToast("Mechanic job created successfully", "success")
-        setJobId(data.data.id)
-        setShowJobIdModal(true)
-        onJobAdded()
+        const newJobId = data.data.id
+        setJobId(newJobId)
+        onJobAdded(newJobId)
         onOpenChange(false)
       } else {
         if (response.status === 400 && data.errors) {
@@ -460,12 +465,6 @@ export default function AddMechanicJobDialog({ isOpen, onOpenChange, onJobAdded,
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-     <AddMechanicDefectDialog
-        showDefectsModal={showJobIdModal}
-        setShowJobIdModal={setShowJobIdModal}
-        jobId={jobId}
-      />
     </>
   )
 }

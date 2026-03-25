@@ -56,10 +56,8 @@ interface WalkaroundDetailsDialogProps {
 // import { AddMechanicJobDialog } from "@/components/AddMechanicJobDialog"
 
 const STATUS_CHOICES: Walkaround["status"][] = [
-  "pending",
-  "minor_roadworthy_defect",
-  "minor_unroadworthy_defect",
-  "major_unroadworthy_defect",
+  "completed",
+  "failed"
 ]
 
 // Statuses that require mechanic job creation

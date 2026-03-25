@@ -471,10 +471,8 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
             onChange={handleFormChange}
             step="0.1"
             min="0"
+            placeholder={vehicles.find(v => v.id.toString() === formData.vehicle)?.last_mileage || "Enter mileage"}
           />
-          <p className="text-sm text-gray-500 mt-1">
-            Last recorded: {vehicles.find(v => v.id.toString() === formData.vehicle)?.last_mileage || "N/A"}
-          </p>
           {errors.mileage && <div className="text-red-500 text-sm">{errors.mileage}</div>}
         </div>
 
