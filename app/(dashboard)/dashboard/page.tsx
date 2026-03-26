@@ -56,6 +56,8 @@ interface Card {
   iconBg: string;
   iconColor: string;
   hoverDetails: HoverDetailItem[];
+  highlight?: boolean;
+  link?: string;
 }
 
 interface MonthlyData {
@@ -271,7 +273,10 @@ const StatCard: React.FC<{
   icon: string;
   hoverDetails: HoverDetailItem[];
   index: number;
-}> = ({ title, value, subtitle, iconBg, iconColor, icon, hoverDetails, index }) => {
+  highlight?: boolean;
+  link?: string;
+}> = ({ title, value, subtitle, iconBg, iconColor, icon, hoverDetails, index, highlight, link }) => {
+  const router = useRouter();
   const hasHoverDetails = hoverDetails && hoverDetails.length > 0;
 
   const getTooltipDelay = () => {
@@ -280,54 +285,64 @@ const StatCard: React.FC<{
     return 0;
   };
 
+  const handleCardClick = () => {
+    if (link) {
+      router.push(link);
+    }
+  };
+
   return (
     <TooltipProvider>
       <Tooltip delayDuration={getTooltipDelay()}>
         <TooltipTrigger asChild>
           <div
-            className={`relative w-[300px] rounded-xl p-4 border border-gray-200 transition-all duration-200 ${index === 0
-              ? 'bg-white border-orange-300 shadow-orange-300 shadow hover:shadow-lg'
-              : 'bg-white hover:shadow-md'
-              } ${hasHoverDetails ? 'cursor-pointer hover:border-blue-300 active:scale-[0.98]' : ''}`}
+            onClick={handleCardClick}
+            className={`group relative w-full sm:w-[280px] lg:w-[280px] rounded-2xl p-5 border transition-all duration-300 transform active:scale-[0.98] ${highlight
+              ? 'bg-white border-red-500 border-4 shadow-red-100 shadow-xl hover:shadow-red-200'
+              : index === 0
+                ? 'bg-white border-orange-300 border-2 shadow-orange-100 shadow-lg hover:shadow-orange-200'
+                : 'bg-white border-gray-100 border-2 shadow-sm hover:shadow-xl hover:border-blue-200'
+              } ${hasHoverDetails || link ? 'cursor-pointer' : ''} overflow-hidden`}
           >
-            <div className="flex items-start justify-between">
+            {/* Glossy Overlay Effect */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent -mr-16 -mt-16 rounded-full blur-2xl group-hover:w-40 group-hover:h-40 transition-all duration-500" />
+
+            <div className="flex items-start justify-between relative z-10">
               <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className={`text-[11px] text-gray-600 mb-1.5`}>{title}</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">{title}</p>
                   {hasHoverDetails && (
-                    <div className="relative group">
-                      <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Info className="w-3 h-3 text-blue-500" />
-                      </div>
-                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        View details
-                        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                    <div className="relative">
+                      <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                        <Info className="w-3.5 h-3.5 text-blue-500" />
                       </div>
                     </div>
                   )}
                 </div>
-                <p className={`text-3xl font-bold text-gray-900 mb-1 ${index === 0 ? "text-red-600" : ""}`}>
+                <p className={`text-4xl font-extrabold text-gray-900 mb-2 tracking-tight ${highlight ? "text-red-600" : index === 0 ? "text-orange-600" : ""}`}>
                   {value}
                 </p>
-                <p className="text-[10px] text-gray-400">{subtitle}</p>
+                <p className="text-xs font-medium text-gray-400 flex items-center gap-1">
+                  {subtitle}
+                  {link && <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                </p>
               </div>
-              <div className={`${iconBg} p-2.5 rounded-lg`}>
-                <IconComponent iconName={icon} className={`w-5 h-5 ${iconColor}`} />
+              <div className={`${iconBg} p-3.5 rounded-2xl shadow-inner group-hover:scale-110 transition-transform duration-300`}>
+                <IconComponent iconName={icon} className={`w-6 h-6 ${iconColor}`} />
               </div>
             </div>
 
-            {/* Hover Indicator */}
-            {hasHoverDetails && (
-              <div className="absolute inset-0 border-2 border-transparent rounded-xl group-hover:border-blue-300 transition-colors pointer-events-none" />
-            )}
+            {/* Bottom Glow Effect */}
+            <div className={`absolute bottom-0 left-0 h-1 transition-all duration-300 ${highlight ? "bg-red-500 w-full" : "bg-transparent group-hover:bg-blue-400 group-hover:w-full"
+              }`} />
           </div>
         </TooltipTrigger>
         {hasHoverDetails && (
           <TooltipContent
-            side="top"
-            align="center"
-            sideOffset={5}
-            className="p-0 bg-white border border-gray-200 shadow-xl rounded-lg max-w-xs"
+            side="bottom"
+            align="start"
+            sideOffset={10}
+            className="p-0 bg-white border border-gray-200 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
           >
             <HoverDetailsContent
               details={hoverDetails}
@@ -375,20 +390,42 @@ const customStyles = `
 }
 `;
 
-const BarChart: React.FC<{ data: MonthlyData[] }> = ({ data }) => {
-  const maxValue = Math.max(...data.map(d => d.value));
+const MultiBarChart: React.FC<{ data: MonthlyData[] }> = ({ data }) => {
+  const maxValue = Math.max(...data.map(d => d.value), 100);
 
   return (
-    <div className="flex items-end justify-between h-48 gap-1.5 px-2">
+    <div className="flex items-end justify-between h-56 gap-4 px-2">
       {data.map((item, idx) => (
-        <div key={idx} className="flex flex-col items-center flex-1">
-          <div className="w-full flex items-end justify-center" style={{ height: '160px' }}>
+        <div key={idx} className="flex flex-col items-center flex-1 group/bar">
+          <div className="w-full flex items-end justify-center gap-1" style={{ height: '180px' }}>
+            {/* Real Data Bar */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="w-2.5 rounded-t-sm bg-orange-500 hover:bg-orange-600 transition-all cursor-help"
+                    style={{ height: `${(item.value / maxValue) * 100}%` }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent className="bg-gray-800 text-white border-0">
+                  <p className="text-xs">{item.month}: {item.value}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Placeholder Bar 1 (e.g. Internal) */}
             <div
-              className={`w-full rounded-t transition-all ${item.month === 'Jun' ? 'bg-orange-500' : 'bg-gray-200'}`}
-              style={{ height: `${(item.value / maxValue) * 100}%`, maxWidth: '20px' }}
+              className="w-2.5 rounded-t-sm bg-blue-400 opacity-60 hover:opacity-100 transition-all"
+              style={{ height: `${(item.value / (maxValue * 1.2)) * 80}%` }}
+            />
+
+            {/* Placeholder Bar 2 (e.g. Specials) */}
+            <div
+              className="w-2.5 rounded-t-sm bg-gray-300 opacity-60 hover:opacity-100 transition-all"
+              style={{ height: `${(item.value / (maxValue * 1.5)) * 60}%` }}
             />
           </div>
-          <p className="text-[10px] text-gray-400 mt-2">{item.month}</p>
+          <p className="text-[11px] font-semibold text-gray-500 mt-3 group-hover/bar:text-orange-600 transition-colors uppercase">{item.month}</p>
         </div>
       ))}
     </div>
@@ -654,199 +691,80 @@ export default function Dashboard() {
             </div>
 
             {/* Stats Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-5">
-              {dashboardData.cards.map((card, index) => (
-                <StatCard
-                  key={card.id}
-                  title={card.title}
-                  value={card.value}
-                  subtitle={card.subtitle}
-                  iconBg={card.iconBg}
-                  iconColor={card.iconColor}
-                  icon={card.icon}
-                  hoverDetails={card.hoverDetails}
-                  index={index}
-                />
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
+              {dashboardData.cards.map((card, index) => {
+                // Link mapping based on title
+                let cardLink = card.link;
+                if (!cardLink) {
+                  const title = card.title.toLowerCase();
+                  if (title.includes('outstanding')) cardLink = '/dashboard/tasks/task-management';
+                  else if (title.includes('pmi') || title.includes('mot')) cardLink = '/dashboard/compliance-management/vehicle-management';
+                  else if (title.includes('available') || title.includes('vor')) cardLink = '/dashboard/compliance-management/vehicle-management';
+                  else if (title.includes('walkaround')) cardLink = '/dashboard/compliance-management/walkaround-checks';
+                }
+
+                return (
+                  <StatCard
+                    key={card.id}
+                    title={card.title}
+                    value={card.value}
+                    subtitle={card.subtitle}
+                    iconBg={card.iconBg}
+                    iconColor={card.iconColor}
+                    icon={card.icon}
+                    hoverDetails={card.hoverDetails}
+                    index={index}
+                    highlight={card.highlight || card.title.toLowerCase().includes('total outstanding')}
+                    link={cardLink}
+                  />
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               {/* Left Column - Main Charts */}
               <div className="lg:col-span-2 space-y-5">
-                {/* Total Appointments */}
-                <div className="bg-white rounded-xl p-5 border border-gray-200">
-                  <div className="flex justify-between items-start mb-5">
+                {/* Transport Data Chart */}
+                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-8">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Total SU Numbers</p>
-                      <p className="text-3xl font-bold text-gray-900">{dashboardData.totalAppointments.total.toLocaleString()}</p>
+                      <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Transport Data</h2>
+                      <p className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                        {dashboardData.totalAppointments.total.toLocaleString()}
+                        <span className="text-sm font-medium text-gray-400 ml-2">Total SU Numbers</span>
+                      </p>
                     </div>
-                    <div className="flex gap-6 text-right">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Appointment</p>
-                        <div className="flex items-center justify-end gap-1">
-                          <p className="text-xl font-bold text-emerald-500">{dashboardData.totalAppointments.appointment}</p>
-                          <div className="w-4 h-4 bg-emerald-100 rounded flex items-center justify-center">
+                    <div className="flex gap-8">
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Internal</p>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <p className="text-lg font-bold text-emerald-500">12.5%</p>
+                          <div className="w-5 h-5 bg-emerald-50 rounded-full flex items-center justify-center">
                             <TrendingUp className="w-3 h-3 text-emerald-500" />
                           </div>
                         </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Growth</p>
-                        <div className="flex items-center justify-end gap-1">
-                          <p className="text-xl font-bold text-emerald-500">{dashboardData.totalAppointments.growth}</p>
-                          <div className="w-4 h-4 bg-emerald-100 rounded flex items-center justify-center">
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Specials</p>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <p className="text-lg font-bold text-emerald-500">8.2%</p>
+                          <div className="w-5 h-5 bg-emerald-50 rounded-full flex items-center justify-center">
                             <TrendingUp className="w-3 h-3 text-emerald-500" />
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium text-gray-600">Month</h3>
-                    <button className="text-sm text-gray-400">▼</button>
-                  </div>
-                  <BarChart data={dashboardData.totalAppointments.monthlyData} />
+                  <MultiBarChart data={dashboardData.totalAppointments.monthlyData} />
                 </div>
 
                 {/* Bottom Row Charts */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  {/* Onsite/Offsite Vehicles */}
-                  <div className="bg-white rounded-xl p-5 border border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-800 mb-4">Onsite/Offsite Vehicles</h3>
-                    <DonutChart
-                      onsite={dashboardData.vehicleDistribution.onsite}
-                      offsite={dashboardData.vehicleDistribution.offsite}
-                      onRoad={dashboardData.vehicleDistribution.onRoad}
-                    />
-                    <div className="mt-5 space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                          <span className="text-xs text-gray-600">Onsite</span>
-                        </div>
-                        <span className="text-sm font-semibold text-gray-900">{dashboardData.vehicleDistribution.onsite}%</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                          <span className="text-xs text-gray-600">Offsite</span>
-                        </div>
-                        <span className="text-sm font-semibold text-gray-900">{dashboardData.vehicleDistribution.offsite}%</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                          <span className="text-xs text-gray-600">On Road</span>
-                        </div>
-                        <span className="text-sm font-semibold text-gray-900">{dashboardData.vehicleDistribution.onRoad}%</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Fuel Usage */}
-                  <div className="bg-white rounded-xl p-5 border border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-800 mb-4">Fuel Usage</h3>
-                    <LineChart data={dashboardData.fuelUsage.weeklyData} color="#F59E0B" />
-                    <div className="grid grid-cols-2 gap-3 mt-4">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">This Week</p>
-                        <div className="flex items-center gap-1">
-                          <span className="text-base font-bold text-emerald-500">+ {dashboardData.fuelUsage.thisWeek}%</span>
-                          <div className="w-3.5 h-3.5 bg-emerald-100 rounded flex items-center justify-center">
-                            <TrendingUp className="w-2.5 h-2.5 text-emerald-500" />
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Last Week</p>
-                        <div className="flex items-center gap-1">
-                          <span className="text-base font-bold text-emerald-500">+ {dashboardData.fuelUsage.lastWeek}%</span>
-                          <div className="w-3.5 h-3.5 bg-emerald-100 rounded flex items-center justify-center">
-                            <TrendingUp className="w-2.5 h-2.5 text-emerald-500" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <p className="text-xs text-gray-500 mb-1">Impression</p>
-                      <p className="text-xl font-bold text-gray-900 mb-3">{dashboardData.sickLeaves.impressionValue.toLocaleString()}</p>
-                      <p className="text-[10px] text-emerald-500 mb-2">300k more than last week</p>
-                      <MiniBarChart data={dashboardData.fuelUsage.impressionData} />
-                    </div>
-                  </div>
-
-                  {/* Sick Leaves */}
-                  <div className="bg-white rounded-xl p-5 border border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-800 mb-4">Sick Leaves</h3>
-                    <LineChart data={[20, 35, 30, 45, 40, 50, 45]} color="#F59E0B" />
-                    <div className="grid grid-cols-2 gap-3 mt-4">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">This Week</p>
-                        <div className="flex items-center gap-1">
-                          <span className="text-base font-bold text-emerald-500">+ {dashboardData.sickLeaves.thisWeek}%</span>
-                          <div className="w-3.5 h-3.5 bg-emerald-100 rounded flex items-center justify-center">
-                            <TrendingUp className="w-2.5 h-2.5 text-emerald-500" />
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Last Week</p>
-                        <div className="flex items-center gap-1">
-                          <span className="text-base font-bold text-emerald-500">+ {dashboardData.sickLeaves.lastWeek}%</span>
-                          <div className="w-3.5 h-3.5 bg-emerald-100 rounded flex items-center justify-center">
-                            <TrendingUp className="w-2.5 h-2.5 text-emerald-500" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Right Sidebar */}
               <div className="space-y-5">
-                {/* Recent Drivers */}
-                <div className="bg-white rounded-xl p-5 border border-gray-200">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-semibold text-gray-800">Recent Drivers</h3>
-                    <a href="#" className="text-xs text-orange-500 hover:underline">View All</a>
-                  </div>
-                  <div className="grid grid-cols-4 gap-3">
-                    {dashboardData.recentDrivers.map((driver) => (
-                      <div key={driver.id} className="text-center">
-                        <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full mx-auto mb-1.5 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
-                          {driver.name.charAt(0)}
-                        </div>
-                        <p className="text-[10px] text-gray-700 truncate font-medium">{driver.name}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Messages */}
-                <div className="bg-white rounded-xl p-5 border border-gray-200">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-semibold text-gray-800">Messages</h3>
-                    <a href="#" className="text-xs text-orange-500 hover:underline">View All</a>
-                  </div>
-                  <div className="space-y-3">
-                    {dashboardData.messages.map((msg) => (
-                      <div key={msg.id} className="flex gap-3 items-start p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
-                          {msg.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-0.5">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{msg.name}</p>
-                            {msg.unread && <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0 mt-1.5" />}
-                          </div>
-                          <p className="text-xs text-gray-500 truncate mb-1">{msg.message}</p>
-                          <p className="text-[10px] text-gray-400">{msg.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {/* Sidebar items removed as per design (Recent Drivers, Messages) */}
 
                 {/* Task Activity */}
                 <div className="bg-white rounded-xl p-5 border border-gray-200">

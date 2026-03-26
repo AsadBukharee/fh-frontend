@@ -39,6 +39,7 @@ import API_URL from "@/app/utils/ENV";
 import Link from "next/link";
 import AssignSite from "./header/AssignSite";
 import TimeZone from "./header/TimeZone";
+import UkTime from "./UkTime";
 
 /* -------------------------------------------------
    Types
@@ -372,7 +373,8 @@ export function Header() {
         <div className="flex items-center space-x-2 justify-evenly">
           <SearchBar />
           <AssignSite/>
-          <TimeZone/>
+          {/* <TimeZone/> */}
+          <UkTime />
         </div>
 
         <div className="flex items-center space-x-2 h-[60px] overflow-x-auto pb-1">
