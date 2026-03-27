@@ -615,7 +615,17 @@ export default function SUTodayScreen() {
                                     <TableCell className="font-medium text-gray-900 py-3">
                                       {item.driver_name}
                                     </TableCell>
-                                    <TableCell className="text-center">{item.number}</TableCell>
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={`${item.number >= 0
+                                            ? "bg-[#C1E1C5] text-[#2E7D32]"
+                                            : "bg-[#FFC1CC] text-[#FF2E63]"
+                                          }`}
+                                      >
+                                        {Math.abs(item.number)}
+                                      </Badge>
+                                    </TableCell>
                                     <TableCell className="text-center">
                                       {new Date(item.datetime).toLocaleString()}
                                     </TableCell>

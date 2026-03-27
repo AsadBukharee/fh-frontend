@@ -613,10 +613,10 @@ const MileageTracker = () => {
                                   {idx > 0 && (
                                     <div className="flex flex-col items-center relative">
                                       <div className="w-24 h-1 border-t-4 border-dashed border-gray-400"></div>
-                                      <span className="absolute mt-6 text-xs font-medium text-gray-700 flex items-center gap-1 bg-white px-2 rounded">
+                                      {/* <span className="absolute mt-6 text-xs font-medium text-gray-700 flex items-center gap-1 bg-white px-2 rounded">
                                         <Gauge size={12} />
                                         {stop.mileage > 0 ? `${stop.mileage.toFixed(1)} mi` : '0 mi'}
-                                      </span>
+                                      </span> */}
                                     </div>
                                   )}
                                   <div className="flex flex-col items-center min-w-28">
