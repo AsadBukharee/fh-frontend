@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Download, Users, DollarSign, Calendar, Clock, Loader, FileText, FileSpreadsheet } from 'lucide-react';
+import { Download, Users, DollarSign, Calendar, Clock, Loader, FileText, FileSpreadsheet, CalendarCheck } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import * as ExcelJS from 'exceljs';
@@ -32,6 +32,24 @@ interface ReportingData {
   rows: ReportingRow[];
   grand_totals: { [key: string]: number };
 }
+
+const shiftTypeMap: { [key: string]: { name: string; color: string } } = {
+  ADMIN_STAFF: { name: 'Admin Staff', color: 'bg-[#64748b]' },
+  DAY: { name: 'Day', color: 'bg-[#8b5cf6]' },
+  EARLY: { name: 'Early', color: 'bg-[#f59e0b]' },
+  HOLIDAYP: { name: 'Holiday P', color: 'bg-[#ef4444]' },
+  LATE_DAY: { name: 'Late Day', color: 'bg-[#ec4899]' },
+  MANAGER: { name: 'Manager', color: 'bg-[#f97316]' },
+  MIDDLE: { name: 'Middle', color: 'bg-[#06b6d4]' },
+  NIGHT: { name: 'Night', color: 'bg-[#2563eb]' },
+  OFF: { name: 'Off', color: 'bg-[#22c55e]' },
+  SUPERVISOR_D: { name: 'Supervisor', color: 'bg-[#4f46e5]' },
+  UNAUTHORISED_ABSENCE: { name: 'Unauthorised', color: 'bg-[#dc2626]' },
+  SICKP: { name: 'Sick P', color: 'bg-[#fb923c]' },
+  TOTAL: { name: 'Total', color: 'bg-[#eab308]' },
+  MECHANIC: { name: 'Mechanic', color: 'bg-[#14b8a6]' },
+  SUPERVISOR_E: { name: 'Supervisor E', color: 'bg-[#991b1b]' },
+};
 
 export default function Reporting({ refreshKey }: { refreshKey?: number }) {
   const [filters, setFilters] = useState({
@@ -205,6 +223,12 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
         }
 
         const data: ReportingData = await response.json();
+        
+        // Deduplicate columns if any duplicates exist in the API response
+        if (data.columns) {
+          data.columns = Array.from(new Set(data.columns));
+        }
+        
         setApiData(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -239,22 +263,11 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
     setPdfDownloading(true);
     try {
       // Create HTML content for the PDF
-      const shiftNames: { [key: string]: string } = {
-        ADMIN_STAFF: 'Admin Staff',
-        DAY: 'Day',
-        EARLY: 'Early',
-        HOLIDAYP: 'Holiday P',
-        LATE_DAY: 'Late Day',
-        MANAGER: 'Manager',
-        MIDDLE: 'Middle',
-        NIGHT: 'Night',
-        OFF: 'Off',
-        SUPERVISOR_D: 'Supervisor',
-        UNAUTHORISED_ABSENCE: 'Unauthorised Absence',
-        SICKP: 'Sick P',
-        TOTAL: 'Total',
-        MECHANIC: 'Mechanic',
-        SUPERVISOR_E: 'Supervisor E',
+      const formatValue = (val: number) => {
+        if (filters.displayType === 'SALARY') return `£${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (filters.displayType === 'DAYS') return `${val} days`;
+        if (filters.displayType === 'HOURS') return `${val} hours`;
+        return val.toString();
       };
 
       const htmlContent = `
@@ -421,19 +434,19 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
             <thead>
               <tr>
                 <th>Driver Name</th>
-                ${apiData.columns.map(col => `<th>${shiftNames[col] || col}</th>`).join('')}
+                ${apiData.columns.map(col => `<th>${shiftTypeMap[col]?.name || col}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
               ${apiData.rows.map((row, index) => `
                 <tr class="${index % 2 === 0 ? 'even-row' : ''}">
                   <td class="driver-name">${row.driver.name}</td>
-                  ${apiData.columns.map(col => `<td>${row.values[col] || 0}</td>`).join('')}
+                  ${apiData.columns.map(col => `<td>${formatValue(row.values[col] || 0)}</td>`).join('')}
                 </tr>
               `).join('')}
               <tr class="totals-row">
                 <td class="driver-name">TOTALS</td>
-                ${apiData.columns.map(col => `<td>${apiData.grand_totals[col] || 0}</td>`).join('')}
+                ${apiData.columns.map(col => `<td>${formatValue(apiData.grand_totals[col] || 0)}</td>`).join('')}
               </tr>
             </tbody>
           </table>
@@ -552,7 +565,7 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
       dateRow.alignment = { horizontal: 'center', vertical: 'middle' };
 
       // Column headers
-      const headers = ['Driver Name', ...apiData.columns.map(col => shiftNames[col] || col)];
+      const headers = ['Driver Name', ...apiData.columns.map(col => shiftTypeMap[col]?.name || col)];
 
       // Add header row
       const headerRow = worksheet.getRow(4);
@@ -585,7 +598,23 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
 
         values.forEach((value, colIndex) => {
           const cell = dataRow.getCell(colIndex + 1);
-          cell.value = value;
+          
+          if (colIndex === 0) {
+            cell.value = value;
+          } else {
+            const numValue = Number(value) || 0;
+            if (filters.displayType === 'SALARY') {
+              cell.value = numValue;
+              cell.numFmt = '£#,##0.00';
+            } else if (filters.displayType === 'DAYS') {
+              cell.value = `${numValue} days`;
+            } else if (filters.displayType === 'HOURS') {
+              cell.value = `${numValue} hours`;
+            } else {
+              cell.value = numValue;
+            }
+          }
+
           cell.font = {
             size: 9,
             color: { argb: colIndex === 0 ? 'FF1E293B' : 'FF334155' },
@@ -621,7 +650,23 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
 
       totalsValues.forEach((value, colIndex) => {
         const cell = totalsRow.getCell(colIndex + 1);
-        cell.value = value;
+        
+        if (colIndex === 0) {
+          cell.value = value;
+        } else {
+          const numValue = Number(value) || 0;
+          if (filters.displayType === 'SALARY') {
+            cell.value = numValue;
+            cell.numFmt = '£#,##0.00';
+          } else if (filters.displayType === 'DAYS') {
+            cell.value = `${numValue} days`;
+          } else if (filters.displayType === 'HOURS') {
+            cell.value = `${numValue} hours`;
+          } else {
+            cell.value = numValue;
+          }
+        }
+
         cell.font = {
           bold: true,
           size: 10,
@@ -679,9 +724,15 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
         labelCell.value = metric.label;
         labelCell.font = { size: 10, color: { argb: 'FF475569' } };
 
-        valueCell.value = metric.value;
+        const numValue = Number(metric.value) || 0;
+        valueCell.value = numValue;
         valueCell.font = { size: 10, bold: true, color: { argb: 'FF1E293B' } };
-        valueCell.numFmt = '#,##0';
+        
+        if (metric.label.toLowerCase().includes('salary') || (filters.displayType === 'SALARY' && (metric.label.toLowerCase().includes('total') || metric.label.toLowerCase().includes('pay') || metric.label.toLowerCase().includes('shifts')))) {
+          valueCell.numFmt = '£#,##0.00';
+        } else {
+          valueCell.numFmt = '#,##0';
+        }
 
         if (index % 2 === 0) {
           labelCell.fill = valueCell.fill = {
@@ -733,6 +784,18 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
     }
   };
 
+  const formatValue = (val: number) => {
+    if (filters.displayType === 'SALARY') {
+      return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+      }).format(val);
+    }
+    if (filters.displayType === 'DAYS') return `${val} days`;
+    if (filters.displayType === 'HOURS') return `${val} hours`;
+    return val.toString();
+  };
+
   // Metrics data
   const metrics = [
     {
@@ -742,49 +805,30 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
       color: 'text-pink-500',
     },
     {
-      label: 'Total Days',
-      value: apiData?.grand_totals.TOTAL || 0,
-      icon: <DollarSign size={20} />,
+      label: `Total ${viewType}`,
+      value: formatValue(apiData?.grand_totals.TOTAL || 0),
+      icon: <CalendarCheck size={20} />,
       color: 'text-rose-500',
     },
     {
-      label: 'Holidays Pay',
-      value: apiData?.grand_totals.HOLIDAYP || 0,
+      label: filters.displayType === 'SALARY' ? 'Holiday Pay' : 'Holiday Days',
+      value: formatValue(apiData?.grand_totals.HOLIDAYP || 0),
       icon: <Calendar size={20} />,
       color: 'text-purple-500',
     },
     {
       label: 'Manager Hours',
-      value: apiData?.grand_totals.MANAGER || 0,
+      value: formatValue(apiData?.grand_totals.MANAGER || 0),
       icon: <Clock size={20} />,
       color: 'text-orange-500',
     },
     {
       label: 'Day Shifts',
-      value: apiData?.grand_totals.DAY || 0,
+      value: formatValue(apiData?.grand_totals.DAY || 0),
       icon: <Clock size={20} />,
       color: 'text-teal-500',
     },
   ];
-
-  // Map column names to display names and colors
-  const shiftTypeMap: { [key: string]: { name: string; color: string } } = {
-    ADMIN_STAFF: { name: 'Admin Staff', color: 'bg-[#64748b]' },
-    DAY: { name: 'Day', color: 'bg-[#8b5cf6]' },
-    EARLY: { name: 'Early', color: 'bg-[#f59e0b]' },
-    HOLIDAYP: { name: 'Holiday P', color: 'bg-[#ef4444]' },
-    LATE_DAY: { name: 'Late Day', color: 'bg-[#ec4899]' },
-    MANAGER: { name: 'Manager', color: 'bg-[#f97316]' },
-    MIDDLE: { name: 'Middle', color: 'bg-[#06b6d4]' },
-    NIGHT: { name: 'Night', color: 'bg-[#2563eb]' },
-    OFF: { name: 'Off', color: 'bg-[#22c55e]' },
-    SUPERVISOR_D: { name: 'Supervisor', color: 'bg-[#4f46e5]' },
-    UNAUTHORISED_ABSENCE: { name: 'Unauthorised', color: 'bg-[#dc2626]' },
-    SICKP: { name: 'Sick P', color: 'bg-[#fb923c]' },
-    TOTAL: { name: 'Total', color: 'bg-[#eab308]' },
-    MECHANIC: { name: 'Mechanic', color: 'bg-[#14b8a6]' },
-    SUPERVISOR_E: { name: 'Supervisor E', color: 'bg-[#991b1b]' },
-  };
 
   // Filter dropdown component
   const FilterDropdown = ({
@@ -989,8 +1033,8 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
                     handleFilterChange('displayType', type.value);
                   }}
                   className={`px-4 py-2 rounded-full text-sm font-semibold transition ${viewType === type.label
-                      ? 'bg-red-500 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'bg-red-500 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                 >
                   {type.label}
@@ -1034,12 +1078,12 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
                     Driver Name
                   </th>
                   {apiData?.columns.map((col, index) => (
-                    <th
-                      key={`header-${col}-${index}`}
-                      className="px-4 py-4 text-center text-xs font-bold text-slate-700 whitespace-nowrap min-w-[110px]"
-                    >
-                      {filters.displayType === 'SALARY' ? '£0.00' : filters.displayType === 'DAYS' ? '0 days' : '0 hours'}
-                    </th>
+                      <th
+                        key={`header-${col}-${index}`}
+                        className="px-4 py-4 text-center text-xs font-bold text-slate-700 whitespace-nowrap min-w-[110px]"
+                      >
+                        {filters.displayType === 'SALARY' ? 'Value (£)' : filters.displayType === 'DAYS' ? 'Days' : 'Hours'}
+                      </th>
                   ))}
                 </tr>
               </thead>
@@ -1079,7 +1123,7 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
                             key={`${row.driver.id}-${col}-${colIndex}`}
                             className="px-4 py-4 text-center text-slate-700"
                           >
-                            {row.values[col] || 0}
+                            {formatValue(row.values[col] || 0)}
                           </td>
                         ))}
                       </tr>
@@ -1094,7 +1138,7 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
                           key={`total-${col}-${index}`}
                           className="px-4 py-4 text-center font-bold text-slate-900"
                         >
-                          {apiData.grand_totals[col] || 0}
+                          {formatValue(apiData.grand_totals[col] || 0)}
                         </td>
                       ))}
                     </tr>

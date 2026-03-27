@@ -45,19 +45,21 @@ const transportData: TransportData = {
 
 const tabs: { id: TabKey; label: string; apiRunType: string; color: string; startTime: string; endTime: string }[] = [
   { id: "early", label: "Early", apiRunType: "Early", color: "border-red-200 text-red-600", startTime: "5:00 AM", endTime: "9:20 AM" },
-  { id: "shuttle1", label: "First Shuttle", apiRunType: "First Shuttle", color: "border-green-200 text-green-600", startTime: "9:21 AM", endTime: "2:00 PM" },
-  { id: "shuttle2", label: "Second Shuttle", apiRunType: "Second Shuttle", color: "border-pink-200 text-pink-600", startTime: "2:01 PM", endTime: "4:30 PM" },
-  { id: "shuttle3", label: "Third Shuttle", apiRunType: "Third Shuttle", color: "border-orange-200 text-orange-600", startTime: "4:31 PM", endTime: "6:59 PM" },
+  { id: "shuttle1", label: "First Shuttle", apiRunType: "1st Shuttle Run", color: "border-green-200 text-green-600", startTime: "9:21 AM", endTime: "2:00 PM" },
+  { id: "shuttle2", label: "Second Shuttle", apiRunType: "2nd Shuttle Run", color: "border-pink-200 text-pink-600", startTime: "2:01 PM", endTime: "4:30 PM" },
+  { id: "shuttle3", label: "Third Shuttle", apiRunType: "3rd Shuttle Run", color: "border-orange-200 text-orange-600", startTime: "4:31 PM", endTime: "6:59 PM" },
   { id: "night", label: "Night", apiRunType: "Night", color: "border-purple-200 text-purple-600", startTime: "7:00 PM", endTime: "4:59 AM" },
 ]
 
 // Map API run names to TabKey, including the exact format from API
 const runNameToId: Record<string, TabKey> = {
   Early: "early",
+  "1st Shuttle Run": "shuttle1",
+  "2nd Shuttle Run": "shuttle2",
+  "3rd Shuttle Run": "shuttle3",
   "First Shuttle": "shuttle1",
   "Second Shuttle": "shuttle2",
-  "3rd Shuttle Run": "shuttle3", // Match API's exact format
-  "Third Shuttle": "shuttle3", // Support both formats for robustness
+  "Third Shuttle": "shuttle3",
   Night: "night",
 }
 

@@ -212,9 +212,9 @@ const DayStatsPopover = memo(({
           <div className="text-sm font-medium flex items-center justify-center gap-1">
             {day.day.slice(0, 3)}
           </div>
-          <div className="text-xs text-muted-foreground mt-0.5">
+          {/* <div className="text-xs text-muted-foreground mt-0.5">
             {day.date}
-          </div>
+          </div> */}
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-3">
@@ -426,7 +426,6 @@ ShiftCell.displayName = "ShiftCell";
 const EmployeeRow = memo(
   ({
     employee,
-    userIndex,
     openShiftIndex,
     onToggleShift,
     onSelectShift,
@@ -435,25 +434,24 @@ const EmployeeRow = memo(
     onStartRota,
   }: {
     employee: Employee;
-    userIndex: number;
     openShiftIndex: string | null;
     onToggleShift: (key: string) => void;
-    onSelectShift: (userIndex: number, shiftIndex: number, shift: EmployeeShift) => void;
-    onClearShift: (userIndex: number, shiftIndex: number) => void;
+    onSelectShift: (employeeId: number, shiftIndex: number, shift: EmployeeShift) => void;
+    onClearShift: (employeeId: number, shiftIndex: number) => void;
     onEditShift: (shift: EmployeeShift) => void;
     onStartRota: (employeeId: number) => void;
   }) => {
     const handleSelectShift = useCallback(
       (shiftIndex: number, shift: EmployeeShift) => {
-        onSelectShift(userIndex, shiftIndex, shift);
+        onSelectShift(employee.id, shiftIndex, shift);
       },
-      [userIndex, onSelectShift],
+      [employee.id, onSelectShift],
     );
     const handleClearShift = useCallback(
       (shiftIndex: number) => {
-        onClearShift(userIndex, shiftIndex);
+        onClearShift(employee.id, shiftIndex);
       },
-      [userIndex, onClearShift],
+      [employee.id, onClearShift],
     );
     const handleStartRota = useCallback(() => {
       onStartRota(employee.id);
@@ -489,8 +487,8 @@ const EmployeeRow = memo(
           <TableCell key={shiftIndex} className="w-[130px] min-w-[130px] p-2">
             <ShiftCell
               shift={shift}
-              isOpen={openShiftIndex === `${userIndex}-${shiftIndex}`}
-              onToggle={() => onToggleShift(`${userIndex}-${shiftIndex}`)}
+              isOpen={openShiftIndex === `${employee.id}-${shiftIndex}`}
+              onToggle={() => onToggleShift(`${employee.id}-${shiftIndex}`)}
               onSelect={(shift) => handleSelectShift(shiftIndex, shift)}
               onClear={() => handleClearShift(shiftIndex)}
               onEdit={onEditShift}
@@ -851,16 +849,18 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
   );
 
   const selectShift = useCallback(
-    (userIndex: number, shiftIndex: number, shift: EmployeeShift) => {
-      const employeeId = employees[userIndex].id;
+    (employeeId: number, shiftIndex: number, shift: EmployeeShift) => {
+      const employee = employees.find((emp) => emp.id === employeeId);
+      if (!employee) return;
+
       setTempShiftSelections((prev) => {
-        const employeeSelections = prev[employeeId] || {
-          week1: employees[userIndex].allWeeksShifts.week1,
-          week2: employees[userIndex].allWeeksShifts.week2,
-          week3: employees[userIndex].allWeeksShifts.week3,
-          week4: employees[userIndex].allWeeksShifts.week4,
+        const employeeSelections: { [key: string]: (EmployeeShift | "dropdown" | null)[] } = prev[employeeId] || {
+          week1: employee.allWeeksShifts.week1,
+          week2: employee.allWeeksShifts.week2,
+          week3: employee.allWeeksShifts.week3,
+          week4: employee.allWeeksShifts.week4,
         };
-        const weekSelections = [...(employeeSelections[selectedWeek] || employees[userIndex].shifts)];
+        const weekSelections = [...(employeeSelections[selectedWeek] || employee.shifts)];
         weekSelections[shiftIndex] = shift;
         return {
           ...prev,
@@ -876,16 +876,18 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
   );
 
   const clearShift = useCallback(
-    (userIndex: number, shiftIndex: number) => {
-      const employeeId = employees[userIndex].id;
+    (employeeId: number, shiftIndex: number) => {
+      const employee = employees.find((emp) => emp.id === employeeId);
+      if (!employee) return;
+
       setTempShiftSelections((prev) => {
-        const employeeSelections = prev[employeeId] || {
-          week1: employees[userIndex].allWeeksShifts.week1,
-          week2: employees[userIndex].allWeeksShifts.week2,
-          week3: employees[userIndex].allWeeksShifts.week3,
-          week4: employees[userIndex].allWeeksShifts.week4,
+        const employeeSelections: { [key: string]: (EmployeeShift | "dropdown" | null)[] } = prev[employeeId] || {
+          week1: employee.allWeeksShifts.week1,
+          week2: employee.allWeeksShifts.week2,
+          week3: employee.allWeeksShifts.week3,
+          week4: employee.allWeeksShifts.week4,
         };
-        const weekSelections = [...(employeeSelections[selectedWeek] || employees[userIndex].shifts)];
+        const weekSelections = [...(employeeSelections[selectedWeek] || employee.shifts)];
         weekSelections[shiftIndex] = null;
         return {
           ...prev,
@@ -1165,7 +1167,6 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
                       <EmployeeRow
                         key={employee.id}
                         employee={employee}
-                        userIndex={userIndex}
                         openShiftIndex={openShiftIndex}
                         onToggleShift={toggleShiftSelection}
                         onSelectShift={selectShift}
@@ -1221,7 +1222,6 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
                       <EmployeeRow
                         key={employee.id}
                         employee={employee}
-                        userIndex={userIndex}
                         openShiftIndex={openShiftIndex}
                         onToggleShift={toggleShiftSelection}
                         onSelectShift={selectShift}
