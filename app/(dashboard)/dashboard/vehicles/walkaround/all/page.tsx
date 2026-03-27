@@ -360,212 +360,178 @@ const WalkaroundPage = () => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden mb-4">
-            <TabsTrigger
-              value="all-check"
-              className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
-            >
-              All Check
-            </TabsTrigger>
-            <TabsTrigger
-              value="walkaround-questions"
-              className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
-            >
-              Walkaround Questions
-            </TabsTrigger>
-            <TabsTrigger
-              value="walkaround-category"
-              className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
-            >
-              Walkaround Category
-            </TabsTrigger>
-          </TabsList>
 
-          {/* Tab 1: All Check */}
-          <TabsContent value="all-check">
-            <div className="flex flex-col sm:flex-row gap-4 mb-4">
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
-                      {dateFrom ? formatDmy(dateFrom) : "Pick start date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus />
-                  </PopoverContent>
-                </Popover>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
-                      {dateTo ? formatDmy(dateTo) : "Pick end date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={dateTo}
-                      onSelect={setDateTo}
-                      initialFocus
-                      disabled={(date) => (dateFrom ? date < dateFrom : false)}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue placeholder="Page size" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
-              {error && <div className="text-red-500 self-center">{error}</div>}
-              <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-                <Button onClick={() => setOpenAdd(true)} className=" bg-transparent hover:bg-transparent" asChild>
-                  <span><GradientButton text="Walkaround" Icon={Plus} /></span>
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+          <div className="flex gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                  {dateFrom ? formatDmy(dateFrom) : "Pick start date"}
                 </Button>
-                <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create New Walkaround</DialogTitle>
-                  </DialogHeader>
-                  <Addwalkaround setOpen={setOpenAdd} />
-                </DialogContent>
-              </Dialog>
-            </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                  {dateTo ? formatDmy(dateTo) : "Pick end date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  initialFocus
+                  disabled={(date) => (dateFrom ? date < dateFrom : false)}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue placeholder="Page size" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
 
-            {/* Walkaround List */}
-            <div className="space-y-6">
-              {Object.entries(groupedWalkarounds).map(([chainId, { root, children }]) => {
-                const vehicleInfo = root?.vehicle || children[0]?.vehicle;
-                // FIX 3: Use data already in groupedWalkarounds — no extra .filter() call
-                const totalInChain = (root ? 1 : 0) + children.length;
-                const canAddMore = totalInChain < MAX_WALKAROUNDS_PER_CHAIN;
+          <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
+          {error && <div className="text-red-500 self-center">{error}</div>}
+          <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+            <Button onClick={() => setOpenAdd(true)} className=" bg-transparent hover:bg-transparent" asChild>
+              <span><GradientButton text="Walkaround" Icon={Plus} /></span>
+            </Button>
+            <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Walkaround</DialogTitle>
+              </DialogHeader>
+              <Addwalkaround setOpen={setOpenAdd} />
+            </DialogContent>
+          </Dialog>
+        </div>
 
-                return (
-                  <div key={chainId} className="p-4 border border-gray-200 rounded-lg bg-white">
-                    <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-                      Vehicle: {vehicleInfo?.registration_number}
-                      <Badge className="ml-2 bg-blue-100 text-blue-800">
-                        {totalInChain} of {MAX_WALKAROUNDS_PER_CHAIN} steps
-                      </Badge>
-                    </h2>
+        {/* Walkaround List */}
+        <div className="space-y-6">
+          {Object.entries(groupedWalkarounds).map(([chainId, { root, children }]) => {
+            const vehicleInfo = root?.vehicle || children[0]?.vehicle;
+            // FIX 3: Use data already in groupedWalkarounds — no extra .filter() call
+            const totalInChain = (root ? 1 : 0) + children.length;
+            const canAddMore = totalInChain < MAX_WALKAROUNDS_PER_CHAIN;
 
-                    <div className="flex flex-col sm:flex-row bg-white overflow-x-auto items-start sm:items-center gap-4">
-                      {/* Root (Step 1) */}
-                      {root && (
+            return (
+              <div key={chainId} className="p-4 border border-gray-200 rounded-lg bg-white">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                  Vehicle: {vehicleInfo?.registration_number}
+                  <Badge className="ml-2 bg-blue-100 text-blue-800">
+                    {totalInChain} of {MAX_WALKAROUNDS_PER_CHAIN} steps
+                  </Badge>
+                </h2>
+
+                <div className="flex flex-col sm:flex-row bg-white overflow-x-auto items-start sm:items-center gap-4">
+                  {/* Root (Step 1) */}
+                  {root && (
+                    <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
+                      <h3 className="text-sm font-semibold">Step <span className="text-gray-500">1</span></h3>
+                      <p className="text-sm font-semibold">Checker: <span className="text-gray-500">{root.conducted_by || "N/A"}</span></p>
+                      <p className="text-sm font-semibold">
+                        Status: <Badge className={getStatusClasses(root.status)}>
+                          {root.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                        </Badge>
+                      </p>
+                      <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span></p>
+                      <p className="text-sm font-semibold">Time: <span className="text-gray-500">{root.time?.slice(0, 5) || "N/A"}</span></p>
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigateToDetailsWithParams(root, walkarounds)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" /> Details
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleViewDetails(root)}>
+                          <Edit className="h-4 w-4 mr-1" /> Update
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {children.length > 0 && <MoveRight className="text-gray-400 hidden sm:block" />}
+
+                  {/* Children (Step 2, Step 3, etc.) */}
+                  {children
+                    .sort((a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0))
+                    .map((child, idx) => (
+                      <div key={child.id} className="flex items-center gap-4">
                         <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
-                          <h3 className="text-sm font-semibold">Step <span className="text-gray-500">1</span></h3>
-                          <p className="text-sm font-semibold">Checker: <span className="text-gray-500">{root.conducted_by || "N/A"}</span></p>
+                          <h3 className="text-sm font-semibold">Step <span className="text-gray-500">{child.walkaround_step || idx + 2}</span></h3>
+                          <p className="text-sm font-semibold">Checker: <span className="text-gray-500">{child.conducted_by || "N/A"}</span></p>
                           <p className="text-sm font-semibold">
-                            Status: <Badge className={getStatusClasses(root.status)}>
-                              {root.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                            Status: <Badge className={getStatusClasses(child.status)}>
+                              {child.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
                             </Badge>
                           </p>
-                          <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(root.date), "dd/MM/yyyy")}</span></p>
-                          <p className="text-sm font-semibold">Time: <span className="text-gray-500">{root.time?.slice(0, 5) || "N/A"}</span></p>
+                          <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span></p>
+                          <p className="text-sm font-semibold">Time: <span className="text-gray-500">{child.time?.slice(0, 5) || "N/A"}</span></p>
                           <div className="flex gap-2 mt-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigateToDetailsWithParams(root, walkarounds)}
+                              onClick={() => navigateToDetailsWithParams(child, walkarounds)}
                             >
                               <Eye className="h-4 w-4 mr-1" /> Details
                             </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleViewDetails(root)}>
+                            <Button variant="outline" size="sm" onClick={() => handleViewDetails(child)}>
                               <Edit className="h-4 w-4 mr-1" /> Update
                             </Button>
                           </div>
                         </div>
-                      )}
+                        {idx < children.length - 1 && <MoveRight className="text-gray-400 hidden sm:block" />}
+                      </div>
+                    ))}
 
-                      {children.length > 0 && <MoveRight className="text-gray-400 hidden sm:block" />}
-
-                      {/* Children (Step 2, Step 3, etc.) */}
-                      {children
-                        .sort((a, b) => (a.walkaround_step || 0) - (b.walkaround_step || 0))
-                        .map((child, idx) => (
-                          <div key={child.id} className="flex items-center gap-4">
-                            <div className="p-4 shrink-0 rounded-lg shadow m-4 w-fit border border-gray-100 text-left sm:w-64">
-                              <h3 className="text-sm font-semibold">Step <span className="text-gray-500">{child.walkaround_step || idx + 2}</span></h3>
-                              <p className="text-sm font-semibold">Checker: <span className="text-gray-500">{child.conducted_by || "N/A"}</span></p>
-                              <p className="text-sm font-semibold">
-                                Status: <Badge className={getStatusClasses(child.status)}>
-                                  {child.status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
-                                </Badge>
-                              </p>
-                              <p className="text-sm font-semibold">Date: <span className="text-gray-500">{format(new Date(child.date), "dd/MM/yyyy")}</span></p>
-                              <p className="text-sm font-semibold">Time: <span className="text-gray-500">{child.time?.slice(0, 5) || "N/A"}</span></p>
-                              <div className="flex gap-2 mt-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => navigateToDetailsWithParams(child, walkarounds)}
-                                >
-                                  <Eye className="h-4 w-4 mr-1" /> Details
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => handleViewDetails(child)}>
-                                  <Edit className="h-4 w-4 mr-1" /> Update
-                                </Button>
-                              </div>
-                            </div>
-                            {idx < children.length - 1 && <MoveRight className="text-gray-400 hidden sm:block" />}
-                          </div>
-                        ))}
-
-                      {/* FIX 2: Just a button — no Dialog here. The single Dialog is below the list. */}
-                      {canAddMore ? (
-                        <Button
-                          variant="ghost"
-                          className="w-10 h-10 rounded-full bg-purple-700 text-white hover:bg-purple-800 shadow-lg"
-                          onClick={() => handleAddChildWalkaround(Number(chainId), totalInChain)}
-                        >
-                          <Plus className="h-5 w-5" />
-                        </Button>
-                      ) : (
-                        <div className="flex items-center justify-center w-10 h-10">
-                          <div
-                            className="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-bold"
-                            title="Maximum 3 walkarounds reached"
-                          >
-                            MAX
-                          </div>
-                        </div>
-                      )}
+                  {/* FIX 2: Just a button — no Dialog here. The single Dialog is below the list. */}
+                  {canAddMore ? (
+                    <Button
+                      variant="ghost"
+                      className="w-10 h-10 rounded-full bg-purple-700 text-white hover:bg-purple-800 shadow-lg"
+                      onClick={() => handleAddChildWalkaround(Number(chainId), totalInChain)}
+                    >
+                      <Plus className="h-5 w-5" />
+                    </Button>
+                  ) : (
+                    <div className="flex items-center justify-center w-10 h-10">
+                      <div
+                        className="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-bold"
+                        title="Maximum 3 walkarounds reached"
+                      >
+                        MAX
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Pagination */}
-            <div className="flex justify-between items-center mt-6">
-              <p className="text-sm text-gray-500">
-                Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} walkarounds | Page {page} of {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
-                <Button variant="outline" disabled={page === totalPages || totalCount === 0} onClick={() => setPage(p => p + 1)}>Next</Button>
+                  )}
+                </div>
               </div>
-            </div>
-          </TabsContent>
+            );
+          })}
+        </div>
 
-          {/* Tab 2: Walkaround Questions */}
-          <TabsContent value="walkaround-questions">
-            <WalkaroundQuestionScreen />
-          </TabsContent>
+        {/* Pagination */}
+        <div className="flex justify-between items-center mt-6">
+          <p className="text-sm text-gray-500">
+            Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} walkarounds | Page {page} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
+            <Button variant="outline" disabled={page === totalPages || totalCount === 0} onClick={() => setPage(p => p + 1)}>Next</Button>
+          </div>
+        </div>
 
-          <TabsContent value="walkaround-category">
-            <WalkaroundCategory />
-          </TabsContent>
-        </Tabs>
       </div>
 
       {/* FIX 2: Single lifted Plus dialog — rendered once outside the list */}
