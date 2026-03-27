@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -104,6 +104,7 @@ export default function TransportDashboard() {
   const [apiData, setApiData] = useState<TransportData>(transportData)
   const [refreshCounter, setRefreshCounter] = useState<number>(30)
   const [currentRunType, setCurrentRunType] = useState<string | null>(null)
+  const isInitialLoad = useRef(true)
   const token = useCookies().get("access_token")
 
   // Fetch data from API and set initial active tab based on curent_run_type
@@ -147,12 +148,15 @@ export default function TransportDashboard() {
         })
 
         setApiData(updatedData)
-        // Set active tab based on curent_run_type, handling typo
+        // Set active tab based on curent_run_type only on initial load
         const runType = result.data.current_run_type || result.data.curent_run_type
-        if (runType && runNameToId[runType]) {
-          setActiveTab(runNameToId[runType])
-        } else {
-          setActiveTab(getCurrentShiftByTime(new Date()))
+        if (isInitialLoad.current) {
+          if (runType && runNameToId[runType]) {
+            setActiveTab(runNameToId[runType])
+          } else {
+            setActiveTab(getCurrentShiftByTime(new Date()))
+          }
+          isInitialLoad.current = false
         }
         setCurrentRunType(runType)
       } else {
@@ -271,7 +275,6 @@ export default function TransportDashboard() {
               <h2 className="text-xl font-semibold text-gray-900">
                 {tabs.find((tab) => tab.id === activeTab)?.label} Run
               </h2>
-              <p className="text-sm text-gray-500">Van run data</p>
             </div>
             <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
               {currentData.timeRange}
@@ -307,10 +310,10 @@ export default function TransportDashboard() {
                       <TableCell className="text-center">
                         <div
                           className={`px-3 py-1 rounded-md text-sm font-medium inline-block min-w-[40px] ${row.spillOver > 0
-                              ? "bg-green-100 text-green-800"
-                              : row.spillOver < 0
-                                ? "bg-red-100 text-red-800"
-                                : "bg-gray-100 text-gray-800"
+                            ? "bg-green-100 text-green-800"
+                            : row.spillOver < 0
+                              ? "bg-red-100 text-red-800"
+                              : "bg-gray-100 text-gray-800"
                             }`}
                         >
                           {row.spillOver > 0 ? "+" : ""}
@@ -334,7 +337,6 @@ export default function TransportDashboard() {
           <div className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Internal Operations</h3>
-              <p className="text-sm text-gray-500">Van run data</p>
             </div>
             <div className="grid grid-cols-2 gap-4 max-w-md">
               <Card className="p-4 bg-orange-50 border-orange-200">

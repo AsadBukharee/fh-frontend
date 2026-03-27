@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -143,9 +143,11 @@ const fallbackDrivers: Driver[] = [
 const runNameToId: Record<string, TimeSlotId> = {
   Early: "early",
   "First Shuttle": "shuttle1",
+  "1st Shuttle Run": "shuttle1",
   "Second Shuttle": "shuttle2",
+  "2nd Shuttle Run": "shuttle2",
+  "Third Shuttle": "shuttle3",
   "3rd Shuttle Run": "shuttle3",
-  "Third Shuttle": "shuttle3", // Added for consistency
   Night: "night",
 };
 
@@ -158,7 +160,8 @@ const tabs: { id: TimeSlotId; label: string; color: string; startTime: string; e
 ];
 
 export default function SUTodayScreen() {
-  const [activeTab, setActiveTab] = useState<TimeSlotId>("early"); // Initialize to "early"
+  const [activeTab, setActiveTab] = useState<TimeSlotId>("early");
+  const initialLoadDone = useRef(false); // Track if initial auto-select has happened
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
 
@@ -301,11 +304,22 @@ export default function SUTodayScreen() {
       setTransportData(newTransportData);
       console.log("Updated transportData:", newTransportData); // Debug
       setTotalPages(apiData.data.total_pages);
-      setActiveTab(runNameToId[apiData.data.current_run_type] || "early");
+
+      // Only auto-select current_run_type on the very first load
+      if (!initialLoadDone.current) {
+        const mappedTab = runNameToId[apiData.data.current_run_type] || "early";
+        console.log("Auto-selecting tab:", mappedTab, "from current_run_type:", apiData.data.current_run_type);
+        setActiveTab(mappedTab);
+        initialLoadDone.current = true;
+      }
+
       setError(null);
     } catch (err) {
       setError("Error fetching data. Using fallback data.");
-      setActiveTab("early");
+      if (!initialLoadDone.current) {
+        setActiveTab("early");
+        initialLoadDone.current = true;
+      }
       console.error(err);
     } finally {
       setIsLoading(false);
