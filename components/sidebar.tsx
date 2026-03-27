@@ -13,13 +13,14 @@ import {
   Truck,
   ClipboardList,
   CheckSquare,
+  Joystick,
   TowerControl,
   Clock,
   ChevronRight,
   Settings,
   BookOpen,
   Bell,
-  
+
   ShieldCheck,
   ClipboardCheck,
   Stethoscope,
@@ -69,6 +70,7 @@ const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } =
   Car,
   BarChart3,
   Users,
+  Joystick,
   FileText,
   TowerControl,
   File,
@@ -100,7 +102,7 @@ const ICON_MAP: { [key: string]: React.ComponentType<{ className?: string }> } =
   MoreHorizontal,
   SquareCheckBig,
   CalendarClock,
-   List, // Fallback for ListNumbers
+  List, // Fallback for ListNumbers
   ListChecks,
   ListNumbers: List, // Fallback for ListNumbers
 }
@@ -161,7 +163,7 @@ const MenuItem = memo(
     const isActive = pathname === normalizeHref(item.href)
     const hasChildren = item.children && item.children.length > 0
     // Open collapsible if any child matches the current pathname
-const isOpenInitially = hasChildren && item.children?.some((child) => pathname.includes(child.href));
+    const isOpenInitially = hasChildren && item.children?.some((child) => pathname.includes(child.href));
     const [isOpen, setIsOpen] = useState(isOpenInitially)
 
     const buttonStyles = useMemo(
@@ -173,8 +175,7 @@ const isOpenInitially = hasChildren && item.children?.some((child) => pathname.i
 
     const baseClasses = useMemo(
       () =>
-        `flex items-center rounded-lg cursor-pointer transition-colors duration-200 ${
-          isActive ? "bg-red-50 text-red-600" : "text-gray-600 hover:bg-gray-100"
+        `flex items-center rounded-lg cursor-pointer transition-colors duration-200 ${isActive ? "bg-red-50 text-red-600" : "text-gray-600 hover:bg-gray-100"
         }`,
       [isActive],
     )
@@ -313,9 +314,8 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   return (
     <div
-      className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
-        isCollapsed ? "w-24" : "w-64"
-      }`}
+      className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${isCollapsed ? "w-24" : "w-64"
+        }`}
     >
       {/* Logo */}
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">

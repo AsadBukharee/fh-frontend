@@ -11,6 +11,7 @@ import {
   BarChart3,
   Loader2,
   Check,
+  Euro,
 } from "lucide-react";
 
 import API_URL from "@/app/utils/ENV";
@@ -623,7 +624,7 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
               <CardTitle className="text-sm font-medium">
                 Total Salary
               </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <Euro className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
