@@ -238,7 +238,7 @@ const VehicleTypeTab = () => {
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
-                <AlertDialog open={deleteId === item.id} onOpenChange={() => setDeleteId(null)}>
+                <AlertDialog open={deleteId === item.id} onOpenChange={(open) => !open && setDeleteId(null)}>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="destructive"

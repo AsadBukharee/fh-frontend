@@ -430,12 +430,53 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
 
           image: { width: "100%", height: "auto", marginBottom: 20, borderRadius: 4, border: '1px solid #e5e7eb' },
 
-          table: { width: "100%", marginTop: 10 },
-          tableRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", minHeight: 25, alignItems: 'center' },
-          tableHeaderRow: { flexDirection: "row", backgroundColor: "#dc2626", borderBottomWidth: 1, borderBottomColor: "#b91c1c", minHeight: 30, alignItems: 'center' },
-          tableHeader: { flex: 1, padding: 5, color: "#ffffff", fontSize: 10, fontWeight: "bold", textAlign: 'center' },
-          tableCell: { flex: 1, padding: 5, fontSize: 9, color: "#334155", textAlign: 'center' },
-          tableCellFirst: { flex: 1, padding: 5, fontSize: 9, color: "#1e293b", fontWeight: 'bold', textAlign: 'left' },
+          table: { width: "100%", marginTop: 10, borderTopWidth: 1, borderTopColor: "#e5e7eb" },
+          tableRow: { 
+            flexDirection: "row", 
+            borderBottomWidth: 1, 
+            borderBottomColor: "#e5e7eb", 
+            minHeight: 30, 
+            alignItems: 'stretch' // Changed to stretch for consistent height
+          },
+          tableHeaderRow: { 
+            flexDirection: "row", 
+            backgroundColor: "#dc2626", 
+            borderBottomWidth: 2, 
+            borderBottomColor: "#b91c1c", 
+            minHeight: 32, 
+            alignItems: 'stretch' 
+          },
+          tableHeader: { 
+            width: '20%', // Fixed width percentage
+            padding: 6, 
+            color: "#ffffff", 
+            fontSize: 9, 
+            fontWeight: "bold", 
+            textAlign: 'center',
+            borderRightWidth: 1,
+            borderRightColor: 'rgba(255,255,255,0.2)'
+          },
+          tableCell: { 
+            width: '20%', // Consistent with header
+            padding: 6, 
+            fontSize: 8, 
+            color: "#334155", 
+            textAlign: 'center',
+            borderRightWidth: 1,
+            borderRightColor: '#e5e7eb',
+            justifyContent: 'center'
+          },
+          tableCellFirst: { 
+            width: '20%', 
+            padding: 6, 
+            fontSize: 8, 
+            color: "#1e293b", 
+            fontWeight: 'bold', 
+            textAlign: 'left',
+            borderRightWidth: 1,
+            borderRightColor: '#e5e7eb',
+            justifyContent: 'center'
+          },
 
           footer: {
             position: 'absolute',
@@ -593,11 +634,26 @@ const ExportButton: React.FC<ExportChartButtonProps> = ({
                     backgroundColor: "#ffffff",
                     border: "none",
                     borderRadius: "8px",
-                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)"
+                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+                    maxWidth: "240px",
+                    padding: "12px",
+                    fontSize: "12px",
+                    lineHeight: "1.5"
+                  }}
+                  itemStyle={{
+                    padding: "2px 0",
+                    whiteSpace: "normal",
+                    wordBreak: "break-word"
                   }}
                   cursor={{ fill: '#f9fafb' }}
                 />
-                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                <Legend 
+                  iconType="circle" 
+                  wrapperStyle={{ 
+                    paddingTop: '32px',
+                    fontSize: '12px'
+                  }} 
+                />
                 {yAxisKeys.map((key, index) => (
                   <Bar
                     key={key}

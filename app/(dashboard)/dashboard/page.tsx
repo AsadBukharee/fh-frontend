@@ -280,9 +280,8 @@ const StatCard: React.FC<{
   const hasHoverDetails = hoverDetails && hoverDetails.length > 0;
 
   const getTooltipDelay = () => {
-    if (Array.isArray(hoverDetails) && hoverDetails.length > 10) return 100;
-    if (Array.isArray(hoverDetails) && hoverDetails.length > 5) return 50;
-    return 0;
+    if (Array.isArray(hoverDetails) && hoverDetails.length > 10) return 500; // Increased delay for better UX
+    return 200;
   };
 
   const handleCardClick = () => {
@@ -297,7 +296,7 @@ const StatCard: React.FC<{
         <TooltipTrigger asChild>
           <div
             onClick={handleCardClick}
-            className={`group relative w-full sm:w-[280px] lg:w-[280px] rounded-2xl p-5 border transition-all duration-300 transform active:scale-[0.98] ${highlight
+            className={`group relative w-full rounded-2xl p-5 border transition-all duration-300 transform active:scale-[0.98] ${highlight
               ? 'bg-white border-red-500 border-4 shadow-red-100 shadow-xl hover:shadow-red-200'
               : index === 0
                 ? 'bg-white border-orange-300 border-2 shadow-orange-100 shadow-lg hover:shadow-orange-200'
@@ -319,7 +318,7 @@ const StatCard: React.FC<{
                     </div>
                   )}
                 </div>
-                <p className={`text-4xl font-extrabold text-gray-900 mb-2 tracking-tight ${highlight ? "text-red-600" : index === 0 ? "text-orange-600" : ""}`}>
+                <p className={`text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight ${highlight ? "text-red-600" : index === 0 ? "text-orange-600" : ""}`}>
                   {value}
                 </p>
                 <p className="text-xs font-medium text-gray-400 flex items-center gap-1">
@@ -394,40 +393,42 @@ const MultiBarChart: React.FC<{ data: MonthlyData[] }> = ({ data }) => {
   const maxValue = Math.max(...data.map(d => d.value), 100);
 
   return (
-    <div className="flex items-end justify-between h-56 gap-4 px-2">
-      {data.map((item, idx) => (
-        <div key={idx} className="flex flex-col items-center flex-1 group/bar">
-          <div className="w-full flex items-end justify-center gap-1" style={{ height: '180px' }}>
-            {/* Real Data Bar */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className="w-2.5 rounded-t-sm bg-orange-500 hover:bg-orange-600 transition-all cursor-help"
-                    style={{ height: `${(item.value / maxValue) * 100}%` }}
-                  />
-                </TooltipTrigger>
-                <TooltipContent className="bg-gray-800 text-white border-0">
-                  <p className="text-xs">{item.month}: {item.value}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+    <div className="overflow-x-auto pb-2 custom-scrollbar">
+      <div className="flex items-end justify-between h-56 gap-4 px-2 min-w-[600px] lg:min-w-0">
+        {data.map((item, idx) => (
+          <div key={idx} className="flex flex-col items-center flex-1 group/bar">
+            <div className="w-full flex items-end justify-center gap-1" style={{ height: '180px' }}>
+              {/* Real Data Bar */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      className="w-2.5 rounded-t-sm bg-orange-500 hover:bg-orange-600 transition-all cursor-help"
+                      style={{ height: `${(item.value / maxValue) * 100}%` }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-gray-800 text-white border-0">
+                    <p className="text-xs">{item.month}: {item.value}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-            {/* Placeholder Bar 1 (e.g. Internal) */}
-            <div
-              className="w-2.5 rounded-t-sm bg-blue-400 opacity-60 hover:opacity-100 transition-all"
-              style={{ height: `${(item.value / (maxValue * 1.2)) * 80}%` }}
-            />
+              {/* Placeholder Bar 1 (e.g. Internal) */}
+              <div
+                className="w-2.5 rounded-t-sm bg-blue-400 opacity-60 hover:opacity-100 transition-all"
+                style={{ height: `${(item.value / (maxValue * 1.2)) * 80}%` }}
+              />
 
-            {/* Placeholder Bar 2 (e.g. Specials) */}
-            <div
-              className="w-2.5 rounded-t-sm bg-gray-300 opacity-60 hover:opacity-100 transition-all"
-              style={{ height: `${(item.value / (maxValue * 1.5)) * 60}%` }}
-            />
+              {/* Placeholder Bar 2 (e.g. Specials) */}
+              <div
+                className="w-2.5 rounded-t-sm bg-gray-300 opacity-60 hover:opacity-100 transition-all"
+                style={{ height: `${(item.value / (maxValue * 1.5)) * 60}%` }}
+              />
+            </div>
+            <p className="text-[11px] font-semibold text-gray-500 mt-3 group-hover/bar:text-orange-600 transition-colors uppercase">{item.month}</p>
           </div>
-          <p className="text-[11px] font-semibold text-gray-500 mt-3 group-hover/bar:text-orange-600 transition-colors uppercase">{item.month}</p>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 };
@@ -621,14 +622,14 @@ export default function Dashboard() {
         <div className="min-h-screen bg-white p-5">
           <div className="max-w-[1600px] mx-auto">
             {/* Header */}
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                 {/* ISO Week Badge */}
                 {isoWeekData && (
                   <Tooltip delayDuration={100}>
                     <TooltipTrigger asChild>
-                      <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg cursor-default">
+                      <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg cursor-default flex-grow sm:flex-grow-0">
                         <Calendar className="w-3.5 h-3.5 text-gray-500" />
                         <span className="text-sm font-semibold text-gray-700">{isoWeekData.display}</span>
                       </div>
@@ -660,7 +661,7 @@ export default function Dashboard() {
                 )}
 
                 {/* Countdown Timer */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg border border-gray-200 flex-grow sm:flex-grow-0">
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                     <span className="text-sm text-gray-600">Next refresh in:</span>
@@ -671,9 +672,9 @@ export default function Dashboard() {
                 </div>
 
                 {isRefreshing && (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 ml-auto sm:ml-0">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Refreshing...</span>
+                    <span className="hidden sm:inline">Refreshing...</span>
                   </div>
                 )}
                 <button
@@ -682,10 +683,11 @@ export default function Dashboard() {
                     setCountdown(30); // Reset countdown on manual refresh
                   }}
                   disabled={isRefreshing}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors ml-auto sm:ml-0"
                   title="Refresh dashboard data"
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh</span>
                 </button>
               </div>
             </div>
@@ -726,16 +728,16 @@ export default function Dashboard() {
               <div className="lg:col-span-2 space-y-5">
                 {/* Transport Data Chart */}
                 <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start mb-8">
+                  <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
                     <div>
                       <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Transport Data</h2>
-                      <p className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                      <p className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
                         {dashboardData.totalAppointments.total.toLocaleString()}
                         <span className="text-sm font-medium text-gray-400 ml-2">Total SU Numbers</span>
                       </p>
                     </div>
-                    <div className="flex gap-8">
-                      <div className="text-right">
+                    <div className="flex gap-6 sm:gap-8 w-full md:w-auto overflow-x-auto pb-2 sm:pb-0">
+                      <div className="text-right flex-shrink-0">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Internal</p>
                         <div className="flex items-center justify-end gap-1.5">
                           <p className="text-lg font-bold text-emerald-500">12.5%</p>
@@ -744,7 +746,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Specials</p>
                         <div className="flex items-center justify-end gap-1.5">
                           <p className="text-lg font-bold text-emerald-500">8.2%</p>
