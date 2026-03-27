@@ -154,6 +154,7 @@ export default function VehiclesPage() {
     isRoadworthy: "",
     vehicleType: "",
   })
+  const [tempFilters, setTempFilters] = useState({ ...filters })
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [statusForm, setStatusForm] = useState({
     vehicle_status: "",
@@ -220,6 +221,13 @@ export default function VehiclesPage() {
   useEffect(() => {
     fetchVehicles()
   }, [fetchVehicles])
+
+  // Sync tempFilters when dialog opens
+  useEffect(() => {
+    if (isFilterDialogOpen) {
+      setTempFilters({ ...filters })
+    }
+  }, [isFilterDialogOpen, filters])
 
   // Client-side filtering
   useEffect(() => {
@@ -339,7 +347,14 @@ export default function VehiclesPage() {
   }
 
   const clearFilters = () => {
-    setFilters({ vehicleStatus: "", isRoadworthy: "", vehicleType: "" })
+    const defaultFilters = { vehicleStatus: "", isRoadworthy: "", vehicleType: "" }
+    setFilters(defaultFilters)
+    setTempFilters(defaultFilters)
+    setIsFilterDialogOpen(false)
+  }
+
+  const applyFilters = () => {
+    setFilters({ ...tempFilters })
     setIsFilterDialogOpen(false)
   }
 
@@ -635,7 +650,7 @@ export default function VehiclesPage() {
                 Fill in the details to register a new vehicle into the system.
               </DialogDescription>
             </DialogHeader>
-            <AddVehicleStepper />
+            <AddVehicleStepper onClose={() => setIsModalOpen(false)} />
           </DialogContent>
         </Dialog>
 
@@ -663,8 +678,8 @@ export default function VehiclesPage() {
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="status" className="text-right font-medium">Status</label>
                 <Select
-                  value={filters.vehicleStatus}
-                  onValueChange={(v) => setFilters((prev) => ({ ...prev, vehicleStatus: v === "all" ? "" : v }))}
+                  value={tempFilters.vehicleStatus}
+                  onValueChange={(v) => setTempFilters((prev) => ({ ...prev, vehicleStatus: v === "all" ? "" : v }))}
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="All statuses" />
@@ -682,8 +697,8 @@ export default function VehiclesPage() {
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="roadworthy" className="text-right font-medium">Roadworthy</label>
                 <Select
-                  value={filters.isRoadworthy}
-                  onValueChange={(v) => setFilters((prev) => ({ ...prev, isRoadworthy: v === "all" ? "" : v }))}
+                  value={tempFilters.isRoadworthy}
+                  onValueChange={(v) => setTempFilters((prev) => ({ ...prev, isRoadworthy: v === "all" ? "" : v }))}
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="All" />
@@ -699,8 +714,8 @@ export default function VehiclesPage() {
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="type" className="text-right font-medium">Vehicle Type</label>
                 <Select
-                  value={filters.vehicleType}
-                  onValueChange={(v) => setFilters((prev) => ({ ...prev, vehicleType: v === "all" ? "" : v }))}
+                  value={tempFilters.vehicleType}
+                  onValueChange={(v) => setTempFilters((prev) => ({ ...prev, vehicleType: v === "all" ? "" : v }))}
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="All types" />
@@ -720,7 +735,7 @@ export default function VehiclesPage() {
               <Button variant="outline" onClick={clearFilters}>
                 <X className="w-4 h-4 mr-2" /> Clear Filters
               </Button>
-              <Button onClick={() => setIsFilterDialogOpen(false)}>Apply Filters</Button>
+              <Button onClick={applyFilters}>Apply Filters</Button>
             </div>
           </DialogContent>
         </Dialog>
