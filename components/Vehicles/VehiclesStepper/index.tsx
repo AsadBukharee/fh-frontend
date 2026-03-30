@@ -24,7 +24,7 @@ import vehicleReducer, {
   setShowTaskDialog,
   setTaskPrefillData,
 } from "./vehicleSlice"
-import { type VehicleFormData, type ValidationErrors } from "./types"
+import { type VehicleFormData, type ValidationErrors, TYRE_DEFAULTS } from "./types"
 import {
   DOCUMENT_CONFIG,
   validateTyreExpiry,
@@ -74,9 +74,10 @@ const STEP_META = [
 
 interface AddVehicleStepperFormProps {
   onClose?: () => void
+  vehicleId?: number
 }
 
-function AddVehicleStepperForm({ onClose }: AddVehicleStepperFormProps) {
+function AddVehicleStepperForm({ onClose, vehicleId }: AddVehicleStepperFormProps) {
   const dispatch = useDispatch<AppDispatch>()
   const cookies = useCookies()
   const { currentStep, goToNextStep, goToPreviousStep } = useStepper()
@@ -100,14 +101,131 @@ function AddVehicleStepperForm({ onClose }: AddVehicleStepperFormProps) {
       dispatch(setVehicleTypesLoading(true))
       const token = cookies.get("access_token")
       try {
-        const [sitesRes, typesRes] = await Promise.all([
+        const promises: Promise<Response>[] = [
           fetch(`${API_URL}/api/sites/list-names/`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${API_URL}/api/vehicle-types/`, { headers: { Authorization: `Bearer ${token}` } }),
-        ])
-        const sitesData = await sitesRes.json()
-        const typesData = await typesRes.json()
+        ]
+
+        if (vehicleId) {
+          promises.push(
+            fetch(`${API_URL}/api/vehicles/${vehicleId}/`, { headers: { Authorization: `Bearer ${token}` } }),
+            fetch(`${API_URL}/api/documents/documents/by-entity/vehicle/${vehicleId}/`, { headers: { Authorization: `Bearer ${token}` } })
+          )
+        }
+
+        const responses = await Promise.all(promises)
+        const sitesData = await responses[0].json()
+        const typesData = await responses[1].json()
+
         if (sitesData.success) dispatch(setSites(sitesData.data))
         if (typesData.success) dispatch(setVehicleTypes(typesData.data))
+
+        if (vehicleId && responses[2]) {
+          const vehicleResponse = await responses[2].json()
+          if (vehicleResponse.success) {
+            const vData = vehicleResponse.data
+            
+            const mappedData: Partial<VehicleFormData> = {
+              vin: vData.vin || "",
+              vehicle_type: vData.vehicle_type?.id || 0,
+              site_allocated: vData.site_allocated?.map((s: any) => s.id) || [],
+              registration_number: vData.registration_number || "",
+              make: vData.make || "",
+              model: vData.model || "",
+              vehicle_picture: vData.vehicle_picture || "",
+              number_of_seats: vData.number_of_seats || null,
+              mileage_unit: vData.mileage_unit || "miles",
+              notes: vData.notes || "",
+              is_tacho_fitted: vData.is_tacho_fitted || false,
+              is_wheelchair_lift_fitted: vData.is_wheelchair_lift_fitted || false,
+              date_of_purchase: vData.date_of_purchase || "",
+              purchased_from: vData.purchased_from || "",
+              purchased_by: vData.purchased_by || "",
+              price: vData.price || "",
+              purchase_mileage: vData.purchase_mileage || "",
+              has_vat: vData.has_vat || false,
+              vat_amount: vData.vat_amount || "",
+              last_pmi_date: vData.last_pmi_date || "",
+              pmi_cycle: vData.pmi_cycle || null,
+              vehicle_status: vData.vehicle_status || "available",
+              vehicle_roadworthy_status: vData.vehicle_roadworthy_status || "no_defect",
+              is_roadworthy: vData.is_roadworthy ?? true,
+              is_active: vData.is_active ?? true,
+              is_assigned: vData.is_assigned || false,
+              last_mileage: vData.last_mileage || "",
+              mot_expiry: vData.mot_expiry || "",
+              insurance_expiry: vData.insurance_expiry || "",
+              tax_expiry: vData.tax_expiry || "",
+              last_tyre_maintenance_check_date: vData.last_tyre_maintenance_check_date || "",
+              loller_test_expiry_date: vData.loller_test_expiry_date || "",
+              loller_docs: vData.loller_docs || "",
+              tacho_calibration_expiry: vData.tacho_calibration_expiry || "",
+              last_tacho_download_date: vData.last_tacho_download_date || "",
+              last_tacho_download_docs: vData.last_tacho_download_docs || "",
+              last_valet_check_date: vData.last_valet_check_date || "",
+              last_valet_check_docs: vData.last_valet_check_docs || "",
+              last_equipment_check_date: vData.last_equipment_check_date || "",
+              equipment_docs: vData.equipment_docs || "",
+              tyre_expiry_front_driver: vData.tyre_expiry_front_driver || TYRE_DEFAULTS.expiry,
+              tyre_expiry_front_passenger: vData.tyre_expiry_front_passenger || TYRE_DEFAULTS.expiry,
+              tyre_expiry_rear_inner_driver: vData.tyre_expiry_rear_inner_driver || TYRE_DEFAULTS.expiry,
+              tyre_expiry_rear_inner_passenger: vData.tyre_expiry_rear_inner_passenger || TYRE_DEFAULTS.expiry,
+              tyre_expiry_rear_outer_driver: vData.tyre_expiry_rear_outer_driver || TYRE_DEFAULTS.expiry,
+              tyre_expiry_rear_outer_passenger: vData.tyre_expiry_rear_outer_passenger || TYRE_DEFAULTS.expiry,
+              tyre_depth_front_driver: vData.tyre_depth_front_driver || TYRE_DEFAULTS.depth,
+              tyre_depth_front_passenger: vData.tyre_depth_front_passenger || TYRE_DEFAULTS.depth,
+              tyre_depth_rear_inner_driver: vData.tyre_depth_rear_inner_driver || TYRE_DEFAULTS.depth,
+              tyre_depth_rear_inner_passenger: vData.tyre_depth_rear_inner_passenger || TYRE_DEFAULTS.depth,
+              tyre_depth_rear_outer_driver: vData.tyre_depth_rear_outer_driver || TYRE_DEFAULTS.depth,
+              tyre_depth_rear_outer_passenger: vData.tyre_depth_rear_outer_passenger || TYRE_DEFAULTS.depth,
+              tyre_pressure_front_driver: vData.tyre_pressure_front_driver || TYRE_DEFAULTS.frontPressure,
+              tyre_pressure_front_passenger: vData.tyre_pressure_front_passenger || TYRE_DEFAULTS.frontPressure,
+              tyre_pressure_rear_inner_driver: vData.tyre_pressure_rear_inner_driver || TYRE_DEFAULTS.rearPressure,
+              tyre_pressure_rear_inner_passenger: vData.tyre_pressure_rear_inner_passenger || TYRE_DEFAULTS.rearPressure,
+              tyre_pressure_rear_outer_driver: vData.tyre_pressure_rear_outer_driver || TYRE_DEFAULTS.rearPressure,
+              tyre_pressure_rear_outer_passenger: vData.tyre_pressure_rear_outer_passenger || TYRE_DEFAULTS.rearPressure,
+              tyre_torque_front_driver: vData.tyre_torque_front_driver || TYRE_DEFAULTS.torque,
+              tyre_torque_front_passenger: vData.tyre_torque_front_passenger || TYRE_DEFAULTS.torque,
+              tyre_torque_rear_outer_driver: vData.tyre_torque_rear_outer_driver || TYRE_DEFAULTS.torque,
+              tyre_torque_rear_outer_passenger: vData.tyre_torque_rear_outer_passenger || TYRE_DEFAULTS.torque,
+            }
+
+            // Process documents from the vehicles endpoint if any
+            let docsToProcess: any[] = []
+            if (vData.documents && Array.isArray(vData.documents)) {
+              docsToProcess = [...vData.documents]
+            }
+
+            // Also map from the specific documents endpoint if fetched
+            if (responses[3]) {
+              const docsResponse = await responses[3].json()
+              if (docsResponse.success && docsResponse.data?.documents && Array.isArray(docsResponse.data.documents)) {
+                 docsToProcess = [...docsToProcess, ...docsResponse.data.documents]
+              } else if (Array.isArray(docsResponse)) {
+                 docsToProcess = [...docsToProcess, ...docsResponse]
+              }
+            }
+
+            // Map documents returning objects into URL strings (based on document_type.code)
+            if (docsToProcess.length > 0) {
+              docsToProcess.forEach((doc: any) => {
+                if (doc.document_type?.code) {
+                  const validDocFields = [
+                    "vehicle_invoice_docs", "mot_check_docs", "pmi_inspection_docs", "others_docs",
+                    "tacho_calibration_docs", "tax_docs", "insurance_docs", "service_records_docs",
+                    "new_vehicle_checklist_docs", "logbook_docs", "COIF_technical_docs",
+                    "loller_docs", "last_tacho_download_docs", "last_valet_check_docs", "equipment_docs"
+                  ];
+                  if (validDocFields.includes(doc.document_type.code) && doc.url) {
+                    (mappedData as any)[doc.document_type.code] = doc.url
+                  }
+                }
+              })
+            }
+
+            dispatch(setFormData(mappedData))
+          }
+        }
       } catch {
         toast.error("Failed to load initial data")
       } finally {
@@ -116,7 +234,7 @@ function AddVehicleStepperForm({ onClose }: AddVehicleStepperFormProps) {
       }
     }
     fetchData()
-  }, [dispatch, cookies])
+  }, [dispatch, cookies, vehicleId])
 
   // ── Handlers ────────────────────────────────────────
   const handleFileUploadSuccess = (field: keyof VehicleFormData) => (url: string) => {
@@ -219,19 +337,30 @@ function AddVehicleStepperForm({ onClose }: AddVehicleStepperFormProps) {
       }
     })
 
+    // Convert empty strings to null to avoid API errors for optional fields
+    Object.keys(submissionData).forEach(key => {
+      if ((submissionData as any)[key] === "") {
+        (submissionData as any)[key] = null
+      }
+    })
+
     try {
-      const response = await fetch(`${API_URL}/api/vehicles/`, {
-        method: "POST",
+      const isEditing = !!vehicleId
+      const url = isEditing ? `${API_URL}/api/vehicles/${vehicleId}/` : `${API_URL}/api/vehicles/`
+      const method = isEditing ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(submissionData),
       })
       if (response.ok) {
-        toast.success("Vehicle created successfully")
+        toast.success(isEditing ? "Vehicle updated successfully" : "Vehicle created successfully")
         dispatch(resetForm())
         onClose?.()
       } else {
         const data = await response.json()
-        toast.error(data.message || "Failed to create vehicle")
+        toast.error(data.message || (isEditing ? "Failed to update vehicle" : "Failed to create vehicle"))
       }
     } catch {
       toast.error("An unexpected error occurred. Please try again.")
@@ -317,7 +446,7 @@ function AddVehicleStepperForm({ onClose }: AddVehicleStepperFormProps) {
                 ) : (
                   <Car className="h-4 w-4" />
                 )}
-                Create Vehicle
+                {vehicleId ? "Update Vehicle" : "Create Vehicle"}
               </Button>
             ) : (
               <Button
@@ -346,11 +475,11 @@ function AddVehicleStepperForm({ onClose }: AddVehicleStepperFormProps) {
   )
 }
 
-export default function VehiclesStepper({ onClose }: { onClose?: () => void }) {
+export default function VehiclesStepper({ onClose, vehicleId }: { onClose?: () => void; vehicleId?: number }) {
   return (
     <Provider store={store}>
       <Stepper totalSteps={STEP_META.length} initialStep={0}>
-        <AddVehicleStepperForm onClose={onClose} />
+        <AddVehicleStepperForm onClose={onClose} vehicleId={vehicleId} />
       </Stepper>
     </Provider>
   )

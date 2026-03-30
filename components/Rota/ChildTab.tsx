@@ -59,6 +59,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 // Interfaces
 interface Shift {
@@ -118,7 +119,9 @@ interface DailyStats {
   total_staff: number;
   total_drivers: number;
   total_holidays: number;
+  total_sick: number;
   total_salary: number;
+  total_hours: number;
 }
 interface ApiResponse {
   rota_by_user: Array<{
@@ -130,6 +133,8 @@ interface ApiResponse {
   salary_monthly: Record<string, Record<string, number>>;
   total_users: number;
   total_rota_entries: number;
+  month: number;
+  year: number;
 }
 interface ShiftTableProps {
   year: number;
@@ -194,6 +199,18 @@ const normalizeDate = (dateStr: string): string => {
     console.warn(`Invalid date format: ${dateStr}`);
     return dateStr.split("T")[0];
   }
+};
+
+const parseTimeToDecimal = (timeStr: string | null | undefined): number => {
+  if (!timeStr) return 0;
+  // Handle cases like "09:30" or "09:30:00" or "9:00:"
+  const cleanTime = timeStr.replace(/:$/, ""); // Remove trailing colon if any
+  const parts = cleanTime.split(":");
+  if (parts.length < 2) return parseFloat(cleanTime) || 0;
+
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  return hours + (isNaN(minutes) ? 0 : minutes / 60);
 };
 
 // Main component
@@ -278,11 +295,14 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
 
       const allShifts = shiftsData.rota_by_user.flatMap((entry) =>
         entry.rota.map((shift: Shift) => {
-          const hours = parseFloat(shift.shift_detail.total_hours) || 0;
+          const hoursStr = shift.shift_detail.total_hours;
+          const hours = parseTimeToDecimal(hoursStr);
           const calculatedSalary = hours * shift.shift_detail.rate_per_hours;
+
           if (
+            shift.daily_salary !== undefined &&
             shift.daily_salary !== 0 &&
-            shift.daily_salary !== calculatedSalary
+            Math.abs(shift.daily_salary - calculatedSalary) > 0.01
           ) {
             console.warn(
               `Salary mismatch for shift ${shift.id}: API=${shift.daily_salary}, Calculated=${calculatedSalary}`,
@@ -301,8 +321,8 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
               parent_rota_completed: entry.user.parent_rota_completed ?? false,
               child_rota_completed: entry.user.child_rota_completed ?? true,
             },
-            daily_hours: shift.daily_hours || hours,
-            daily_salary: shift.daily_salary || calculatedSalary,
+            daily_hours: shift.daily_hours !== undefined ? shift.daily_hours : hours,
+            daily_salary: shift.daily_salary !== undefined ? shift.daily_salary : calculatedSalary,
           };
         }),
       );
@@ -900,16 +920,78 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
                         >
                           {/* Day cell - sticky left */}
                           <td
-                            className="sticky left-0 z-10 m-2 font-medium whitespace-nowrap border border-gray-300"
+                            className="sticky left-0 z-10 font-medium whitespace-nowrap border border-gray-300"
                             style={{ minWidth: "120px", color: getWeekColor(dayData), backgroundColor: "#fff" }}
                           >
-                            <div>
-                              <div className="font-semibold">{getDayName(dayData)}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {format(dayData, "dd/MM/yyyy")}
-                              </div>
-                            </div>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <div className="flex flex-col items-center justify-center py-2 px-1 cursor-pointer hover:bg-gray-50 transition-colors w-full h-full">
+                                  <div className="font-semibold text-sm">{getDayName(dayData)}</div>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    {format(dayData, "dd/MM/yyyy")}
+                                  </div>
+                                </div>
+                              </PopoverTrigger>
+                              <PopoverContent className="p-0 border-none shadow-none" side="right" align="start">
+                                <Card className="shadow-xl border border-gray-200 min-w-[220px]">
+                                  <CardHeader className="p-3 bg-gray-50 border-b">
+                                    <CardTitle className="text-xs font-bold flex items-center gap-2">
+                                      <Calendar className="h-3 w-3 text-blue-500" />
+                                      {format(dayData, "EEEE, MMMM do")}
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent className="p-3 space-y-2">
+                                    {(() => {
+                                      const dayStat = stats?.dailyStats.find(s => s.date === dayStr);
+                                      if (!dayStat) return <p className="text-[10px] text-muted-foreground italic">No daily stats available</p>;
+
+                                      return (
+                                        <>
+                                          <div className="grid grid-cols-2 gap-2 pb-2 border-b">
+                                            <div className="space-y-1">
+                                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Salary</p>
+                                              <p className="text-sm font-bold text-green-600">£{dayStat.total_salary.toFixed(2)}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Hours</p>
+                                              <p className="text-sm font-bold text-blue-600">{dayStat.total_hours.toFixed(1)}h</p>
+                                            </div>
+                                          </div>
+                                          <div className="space-y-1.5 py-1">
+                                            <div className="flex justify-between items-center">
+                                              <div className="flex items-center gap-1.5 text-[10px] text-gray-600">
+                                                <Users className="h-2.5 w-2.5" /> Staff Working
+                                              </div>
+                                              <span className="text-[10px] font-semibold">{dayStat.users_working}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                              <div className="flex items-center gap-1.5 text-[10px] text-gray-600">
+                                                <Check className="h-2.5 w-2.5" /> Drivers
+                                              </div>
+                                              <span className="text-[10px] font-semibold">{dayStat.total_drivers}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                              <div className="flex items-center gap-1.5 text-[10px] text-gray-600 font-medium text-orange-600">
+                                                <Calendar className="h-2.5 w-2.5" /> Holidays
+                                              </div>
+                                              <span className="text-[10px] font-bold text-orange-600">{dayStat.total_holidays}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                              <div className="flex items-center gap-1.5 text-[10px] text-gray-600 font-medium text-red-600">
+                                                <BarChart3 className="h-2.5 w-2.5" /> Sick Leave
+                                              </div>
+                                              <span className="text-[10px] font-bold text-red-600">{dayStat.total_sick}</span>
+                                            </div>
+                                          </div>
+                                        </>
+                                      );
+                                    })()}
+                                  </CardContent>
+                                </Card>
+                              </PopoverContent>
+                            </Popover>
                           </td>
+
 
                           {/* User shift cells */}
                           {(selectedUser ? childRotaUsers.filter(u => u.id === selectedUser) : filteredUsers).map(user => {
