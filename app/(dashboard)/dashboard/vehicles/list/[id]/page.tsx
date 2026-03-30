@@ -109,6 +109,7 @@ export default function VehicleDetailPage() {
   const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
   const [tyreMaintenanceDialogOpen, setTyreMaintenanceDialogOpen] = useState(false);
   const [tyreExpiryDialogOpen, setTyreExpiryDialogOpen] = useState(false);
+  const [vehicleDocuments, setVehicleDocuments] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -139,6 +140,15 @@ export default function VehicleDetailPage() {
           },
         });
         const typesData = await typesRes.json();
+
+        // Fetch vehicle documents
+        const documentsRes = await fetch(`${API_URL}/api/documents/documents/by-entity/vehicle/${id}/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const documentsData = await documentsRes.json();
 
         if (vehicleData.success) {
           // Don't map vehicle_type - use it as is from API
@@ -172,6 +182,12 @@ export default function VehicleDetailPage() {
           setVehicleTypes(typesData.data || []);
         } else {
           console.error("Failed to fetch vehicle types:", typesData.message);
+        }
+ 
+        if (Array.isArray(documentsData)) {
+          setVehicleDocuments(documentsData);
+        } else {
+          console.error("Failed to fetch vehicle documents:", documentsData);
         }
       } catch (err) {
         setError("Error fetching data");
@@ -368,16 +384,69 @@ export default function VehicleDetailPage() {
 
   const handleDocumentUpload = async (docType: string, fileUrl: string) => {
     if (!token) return;
+ 
+    // Check if it's one of the "additional documents" that should use the bulk API
+    const additionalDoc = additionalDocuments.find(d => d.key === docType);
+ 
+    if (additionalDoc) {
+      try {
+        const payload = {
+          vehicle_id: vehicleId,
+          documents: [
+            {
+              document_type: additionalDoc.document_type,
+              title: additionalDoc.label,
+              url: fileUrl,
+              expiry_date: null
+            }
+          ]
+        };
+ 
+        const res = await fetch(`${API_URL}/api/documents/documents/vehicle-bulk/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+ 
+        if (res.ok) {
+          // Refetch documents to update UI
+          const docsRes = await fetch(`${API_URL}/api/documents/documents/by-entity/vehicle/${id}/`, {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          const docsData = await docsRes.json();
+          if (Array.isArray(docsData)) {
+            setVehicleDocuments(docsData);
+          }
+          toast.success(`${additionalDoc.label} uploaded successfully`);
+          return;
+        } else {
+          const errorData = await res.json();
+          throw new Error(errorData.message || `Failed to upload ${additionalDoc.label}`);
+        }
+      } catch (err: any) {
+        console.error("Error in bulk upload:", err);
+        toast.error(err.message || "Failed to upload document");
+        return;
+      }
+    }
+ 
+    // Fallback/Legacy for other documents (compliance items, tyre docs, etc.)
     try {
       const payload: any = { [docType]: fileUrl };
-
+ 
       if (docType === "tacho_calibration_docs") {
         payload.is_tacho_fitted = isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted;
       }
       if (docType === "loller_docs") {
         payload.is_wheelchair_lift_fitted = isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted;
       }
-
+ 
       const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         method: "PATCH",
         headers: {
@@ -684,12 +753,12 @@ export default function VehicleDetailPage() {
   ];
 
   const additionalDocuments = [
-    { key: "vehicle_invoice_docs", label: "Vehicle Invoice", icon: FileText },
-    { key: "service_records_docs", label: "Service Records", icon: Wrench },
-    { key: "new_vehicle_checklist_docs", label: "New Vehicle Checklist", icon: FileCheck },
-    { key: "logbook_docs", label: "Log Book / V5C", icon: FileText },
-    { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText },
-    { key: "other_docs", label: "Other Documents", icon: FileText },
+    { key: "vehicle_invoice_docs", label: "Vehicle Invoice", icon: FileText, document_type: 2 },
+    { key: "service_records_docs", label: "Service Records", icon: Wrench, document_type: 4 },
+    { key: "new_vehicle_checklist_docs", label: "New Vehicle Checklist", icon: FileCheck, document_type: 14 },
+    { key: "logbook_docs", label: "Log Book / V5C", icon: FileText, document_type: 1 },
+    { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText, document_type: 3 },
+    { key: "other_docs", label: "Other Documents", icon: FileText, document_type: 6 },
   ];
 
   function TyreCard({ title, pos, ageKey }: { title: string; pos: string; ageKey: string }) {
@@ -1128,7 +1197,9 @@ export default function VehicleDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {additionalDocuments.map((doc) => {
                   const Icon = doc.icon;
-                  const docUrl = vehicle[doc.key as keyof typeof vehicle] as string;
+                  // First check in vehicleDocuments fetched from API
+                  const apiDoc = vehicleDocuments.find(d => d.document_type?.id === doc.document_type);
+                  const docUrl = apiDoc ? apiDoc.url : (vehicle[doc.key as keyof typeof vehicle] as string);
                   const hasDoc = hasDocument(docUrl);
                   return (
                     <div key={doc.key} className="bg-slate-50 rounded-xl p-4 border border-slate-200">

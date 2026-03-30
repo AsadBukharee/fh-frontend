@@ -630,7 +630,7 @@ const MileageTracker = () => {
                                       <div className="font-semibold text-sm text-gray-800 line-clamp-1">
                                         {stop.location_name}
                                       </div>
-                                      <div className="text-xs text-gray-600 flex items-center justify-center gap-1 mt-1">
+                                      {/* <div className="text-xs text-gray-600 flex items-center justify-center gap-1 mt-1">
                                         <UsersRound size={12} />
                                         SU: {stop.number}
                                         {stop.spillover !== 0 && (
@@ -638,7 +638,7 @@ const MileageTracker = () => {
                                             ({stop.spillover > 0 ? '+' : ''}{stop.spillover})
                                           </span>
                                         )}
-                                      </div>
+                                      </div> */}
                                     </div>
                                   </div>
                                 </React.Fragment>
