@@ -378,7 +378,7 @@ export default function VehicleDetailPage() {
       };
 
       const url = `${API_URL}/api/documents/documents/vehicle-bulk/`;
-      const method = existingDoc ? "PUT" : "POST";
+      const method = existingDoc ? "POST" : "POST";
 
       const res = await fetch(url, {
         method: method,

@@ -716,7 +716,7 @@ export default function Dashboard() {
                     icon={card.icon}
                     hoverDetails={card.hoverDetails}
                     index={index}
-                    highlight={card.highlight || card.title.toLowerCase().includes('total outstanding')}
+                    highlight={card.highlight || card.id==1}
                     link={cardLink}
                   />
                 );
