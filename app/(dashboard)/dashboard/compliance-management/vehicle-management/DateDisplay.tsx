@@ -50,7 +50,24 @@ export const formatDate = (
     return showTBC ? "TBC" : "NA";
   }
 
-  return s ?? (showTBC ? "TBC" : "NA");
+  if (!s) return showTBC ? "TBC" : "NA";
+
+  if (s.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const parts = s.split("-");
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+
+  if (s.includes("T")) {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      const day = d.getDate().toString().padStart(2, "0");
+      const month = (d.getMonth() + 1).toString().padStart(2, "0");
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+  }
+
+  return s;
 };
 // Date status utility function
 export const getDateStatus = (
@@ -89,7 +106,7 @@ export const getDateStatus = (
 
     // Calculate difference in days
     const diffTime = targetDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     // For comparison with another date (e.g., "Book Next From" date)
     if (compareDate && !shouldShowTBC(compareDate)) {
@@ -116,8 +133,8 @@ export const getDateStatus = (
       const targetTime = targetDate.getTime();
       const compareTime = compareDateObj.getTime();
 
-      // If we're past the target date (expired)
-      if (targetTime < todayTime) return "red";
+      // If we're on or past the target date (expired)
+      if (targetTime <= todayTime) return "red";
 
       // If today is on or after the "book from" date
       if (todayTime >= compareTime) {
@@ -132,7 +149,7 @@ export const getDateStatus = (
     }
 
     // Standard expiry logic
-    if (diffDays < 0) return "red"; // Expired
+    if (diffDays <= 0) return "red"; // Expired
     if (diffDays <= 7) return "yellow"; // Within 7 days
     return "green"; // More than 7 days away
   } catch (error) {
@@ -160,14 +177,10 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
 
   const shouldShowTBCValue = shouldShowTBC(date, fieldType);
 
-  const getCustomStatus = (): "green" | "yellow" | "red" | "gray" => {
-    if (shouldShowTBCValue) return "gray";
-
-    if (!date) return "gray";
-
+  const getDiffDays = () => {
+    if (!date || shouldShowTBCValue) return null;
     try {
       let dateObj: Date;
-
       if (date.includes("/")) {
         const parts = date.split("/");
         if (parts.length === 3) {
@@ -181,17 +194,28 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
       } else {
         dateObj = new Date(date);
       }
-
-      if (isNaN(dateObj.getTime())) return "gray";
+      if (isNaN(dateObj.getTime())) return null;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
       const targetDate = new Date(dateObj);
       targetDate.setHours(0, 0, 0, 0);
 
       const diffTime = targetDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return Math.round(diffTime / (1000 * 60 * 60 * 24));
+    } catch {
+      return null;
+    }
+  };
+
+  const currentDiffDays = getDiffDays();
+
+  const getCustomStatus = (): "green" | "yellow" | "red" | "gray" => {
+    if (shouldShowTBCValue) return "gray";
+    if (!date || currentDiffDays === null) return "gray";
+
+    try {
+      const diffDays = currentDiffDays;
 
       if (
         isNextMOTFrom &&
@@ -202,31 +226,31 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
       }
 
       if (fieldType === "mot_expiry") {
-        if (diffDays < 0) return "red";
+        if (diffDays <= 0) return "red";
         if (diffDays <= warningDays) return "yellow";
         return "green";
       }
 
       if (fieldType === "pmi_expiry") {
-        if (diffDays < 0) return "red";
+        if (diffDays <= 0) return "red";
         if (diffDays <= 10) return "red";
         return "green";
       }
 
       if (isBooking || fieldType === "booking") {
-        if (diffDays < 0) return "red";
+        if (diffDays <= 0) return "red";
         if (diffDays <= 10) return "red";
         return "green";
       }
 
       if (fieldType === "insurance_expiry") {
-        if (diffDays < 0) return "red";
+        if (diffDays <= 0) return "red";
         if (diffDays <= 60) return "yellow";
         return "green";
       }
 
       if (fieldType === "tax_expiry") {
-        if (diffDays < 0) return "red";
+        if (diffDays <= 0) return "red";
         if (diffDays <= 45) return "yellow";
         return "green";
       }
@@ -250,35 +274,10 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
       return "Booked";
     }
 
-    if (!date) return showTBC ? "TBC" : "NA";
+    if (!date || currentDiffDays === null) return showTBC ? "TBC" : "NA";
 
     try {
-      let dateObj: Date;
-
-      if (date.includes("/")) {
-        const parts = date.split("/");
-        if (parts.length === 3) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1;
-          const year = parseInt(parts[2], 10);
-          dateObj = new Date(year, month, day);
-        } else {
-          dateObj = new Date(date);
-        }
-      } else {
-        dateObj = new Date(date);
-      }
-
-      if (isNaN(dateObj.getTime())) return date;
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const targetDate = new Date(dateObj);
-      targetDate.setHours(0, 0, 0, 0);
-
-      const diffTime = targetDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = currentDiffDays;
 
       if (isBooking || showBookedText) {
         if (diffDays < 0) {
@@ -317,35 +316,10 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
 
     if (shouldShowTBCValue) return "To be confirmed";
 
-    if (!date) return "No date set";
+    if (!date || currentDiffDays === null) return "No date set";
 
     try {
-      let dateObj: Date;
-
-      if (date.includes("/")) {
-        const parts = date.split("/");
-        if (parts.length === 3) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1;
-          const year = parseInt(parts[2], 10);
-          dateObj = new Date(year, month, day);
-        } else {
-          dateObj = new Date(date);
-        }
-      } else {
-        dateObj = new Date(date);
-      }
-
-      if (isNaN(dateObj.getTime())) return date;
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const targetDate = new Date(dateObj);
-      targetDate.setHours(0, 0, 0, 0);
-
-      const diffTime = targetDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = currentDiffDays;
 
       if (fieldType === "mot_expiry") {
         if (diffDays < 0) return `${Math.abs(diffDays)} days overdue`;
@@ -360,7 +334,7 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
       }
 
       if (fieldType === "insurance_expiry") {
-        if (diffDays < 0) return "Insurance expired";
+        if (diffDays < 0) return `Insurance expired ${Math.abs(diffDays)} ${Math.abs(diffDays) === 1 ? 'day' : 'days'} ago`;
         if (diffDays <= 5 && diffDays >= 0)
           return `${diffDays} days to insurance expiry`;
         if (diffDays === 0) return "Insurance expires today";
@@ -368,7 +342,7 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
       }
 
       if (fieldType === "tax_expiry") {
-        if (diffDays < 0) return "Tax expired";
+        if (diffDays < 0) return `Tax expired ${Math.abs(diffDays)} ${Math.abs(diffDays) === 1 ? 'day' : 'days'} ago`;
         if (diffDays <= 5 && diffDays >= 0)
           return `${diffDays} days to tax expiry`;
         if (diffDays === 0) return "Tax expires today";
@@ -376,7 +350,7 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
       }
 
       if (isBooking || fieldType === "booking") {
-        if (diffDays < 0) return "Check overdue";
+        if (diffDays < 0) return `Check overdue by ${Math.abs(diffDays)} ${Math.abs(diffDays) === 1 ? 'day' : 'days'}`;
         if (diffDays <= 3 && diffDays >= 0)
           return `${diffDays} days left to next check`;
         if (diffDays === 0) return "Check due today";

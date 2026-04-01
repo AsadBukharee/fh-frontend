@@ -773,13 +773,15 @@ function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: Documen
 
 /* ────────────────────── Main Component ────────────────────── */
 interface SignedAgreementsProps {
-    driverId?: number;
+    driverId?: number | null;
     userId?: number;
+    onOpenChange?: (open: boolean) => void;
 }
 
 export default function SignedAgreements({
     driverId,
     userId,
+    onOpenChange,
 }: SignedAgreementsProps) {
     const cookies = useCookies();
     const token = cookies.get("access_token") ?? "";
@@ -1032,7 +1034,14 @@ export default function SignedAgreements({
         
         // Clear any previous error
         setValidationError(null);
-        goToNextStep();
+        
+        // This is the last step, so close the dialog
+        if (onOpenChange) {
+            sonnerToast.success("Driver registration completed successfully!");
+            onOpenChange(false);
+        } else {
+            goToNextStep();
+        }
     };
 
     if (docsLoading || namesLoading) {
@@ -1331,7 +1340,7 @@ export default function SignedAgreements({
                     Previous
                 </Button>
 
-                {/* Save & Next */}
+                {/* Save & Finish */}
                 <Button
                     type="button"
                     variant="outline"
@@ -1339,7 +1348,7 @@ export default function SignedAgreements({
                     onClick={handleNext}
                     disabled={!canProceedToNextStep()}
                 >
-                    Save & Next
+                    Finish
                     <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
             </div>

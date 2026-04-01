@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Edit,
+  History,
   X,
   FileText,
   Gauge,
@@ -94,6 +95,7 @@ const DOCUMENT_TYPE_MAPPING = {
 
 export default function VehicleDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const cookies = useCookies();
   const token = cookies.get("access_token");
   const vehicleId = Array.isArray(id) ? Number(id[0]) : Number(id);
@@ -848,6 +850,10 @@ export default function VehicleDetailPage() {
             <p className="text-slate-600">{vehicle.vehicle_type?.name || vehicle.vehicles_type?.name}</p>
           </div>
           <div className="flex items-center gap-3">
+            <div>
+
+
+            </div>
             <Badge className={`${getStatusBadgeColor(vehicle.vehicle_status)} px-3 py-1`}>
               {getStatusDisplayText(vehicle.vehicle_status)}
             </Badge>
@@ -1127,11 +1133,22 @@ export default function VehicleDetailPage() {
           {/* Documents Tab */}
           <TabsContent value="documents" className="space-y-6 mt-6">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-purple-600" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Additional Documents</h3>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Additional Documents</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+                  onClick={() => router.push(`/dashboard/vehicles/list/${id}/document-history`)}
+                >
+                  <History className="w-3.5 h-3.5 mr-1.5" />
+                  View Document History
+                </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {additionalDocuments.map((doc) => {

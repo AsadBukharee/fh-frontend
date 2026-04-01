@@ -21,7 +21,7 @@ const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => 
   // Added "Employment Details" to labels, placed before Documents
   const stepLabels = ["Personal Info", "Next of Kin", "Health Questions", "Employment Details", "Documents", "Signed Agreements"];
 
-  const [driverId, setDriverId] = useState<number>(0);
+  const [driverId, setDriverId] = useState<number | null>(null);
   const [personalInfoData, setPersonalInfoData] = useState<any>(null);
   const [nextOfKinData, setNextOfKinData] = useState<any>(null);
   const [healthQuestionsData, setHealthQuestionsData] = useState<any>(null);
@@ -66,7 +66,7 @@ const AddDriver: React.FC<AddDriverProps> = ({ userId, open, onOpenChange }) => 
             <SignedAgreements
               driverId={driverId}
               userId={userId}
-              // onOpenchange={onOpenChange}
+              onOpenChange={onOpenChange}
             />
           </StepperContent>
 
