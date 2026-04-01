@@ -64,13 +64,13 @@ interface OperationHour {
 }
 
 const dayLabels = [
-  "Sunday",
   "Monday",
   "Tuesday",
   "Wednesday",
   "Thursday",
   "Friday",
   "Saturday",
+  "Sunday",
 ];
 
 interface Staff {
@@ -110,6 +110,9 @@ interface Site {
   updated_at: string;
   operation_hours: OperationHour[];
   warnings: string[];
+  missing_attributes: string[];
+  users: any[];
+  site_vehicles: any[];
   presence: Presence;
   staff: Staff;
 }
@@ -332,6 +335,9 @@ export default function SiteDetails() {
             }))
             : initializeDefaultOperationHours(),
         warnings: data.warnings || [],
+        missing_attributes: data.missing_attributes || [],
+        users: data.users || [],
+        site_vehicles: data.site_vehicles || [],
         presence: data.presence,
         staff: data.staff,
       };
@@ -989,7 +995,22 @@ export default function SiteDetails() {
                   <li key={index}>{warning}</li>
                 ))}
               </ul>
-              <p className="text-xs text-gray-500 mt-2">
+
+              {site.missing_attributes && site.missing_attributes.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 mt-4 mb-2">
+                    <AlertCircle className="w-4 h-4 text-orange-600" />
+                    <span className="text-orange-600 font-bold text-sm">Missing Attributes</span>
+                  </div>
+                  <ul className="text-sm text-gray-700 list-disc pl-4">
+                    {site.missing_attributes.map((attr, index) => (
+                      <li key={index}>{attr}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              <p className="text-xs text-gray-500 mt-4">
                 Last Updated: {formatToDDMMYYYY(site.updated_at)}
               </p>
             </Card>

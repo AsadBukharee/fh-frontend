@@ -2331,15 +2331,6 @@ export default function VehicleDashboard() {
                                 fieldType="insurance_expiry"
                                 warningDays={60}
                                 showExpiryText={true}
-                                hoverText={
-                                  row.insurance?.insurance_expiry
-                                    ? getDateStatus(
-                                      row.insurance.insurance_expiry,
-                                    ) === "red"
-                                      ? "Insurance expired"
-                                      : "5 days to insurance expiry"
-                                    : "No expiry date"
-                                }
                               >
                                 {formatDate(
                                   row.insurance?.insurance_expiry,
@@ -2353,15 +2344,6 @@ export default function VehicleDashboard() {
                                 fieldType="tax_expiry"
                                 warningDays={45}
                                 showExpiryText={true}
-                                hoverText={
-                                  row.insurance?.tax_expiry
-                                    ? getDateStatus(
-                                      row.insurance.tax_expiry,
-                                    ) === "red"
-                                      ? "Tax expired"
-                                      : "5 days to tax expiry"
-                                    : "No expiry date"
-                                }
                               >
                                 {formatDate(row.insurance?.tax_expiry, false)}
                               </DateDisplay>

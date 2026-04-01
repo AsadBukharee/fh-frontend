@@ -27,11 +27,12 @@ interface ClockLog {
   driverName: string;
   driverId: number;
   siteName: string;
-  siteId: number;
+  siteId: number | null;
   date: string;
-  clockIn: string;
-  clockOut: string;
+  clockIn: string | null;
+  clockOut: string | null;
   totalHours: number;
+  formatedHours: string;
   hourlyRate: number;
   earnings: number;
 }
@@ -54,11 +55,12 @@ interface ApiResponseClock {
         name: string;
         status: string;
         image: string;
-      };
+      } | null;
       date: string;
-      clock_in: string;
-      clock_out: string;
+      clock_in: string | null;
+      clock_out: string | null;
       hours_worked: number;
+      formated_hours: string;
       hourly_rate: number;
       earnings: number;
     }[];
@@ -73,6 +75,7 @@ interface ApiResponseClock {
       total_hours: number;
       total_earnings: number;
       total_records: number;
+      formated_hours: string;
     };
   };
 }
@@ -117,6 +120,7 @@ const ClockInOutHistory = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
+  const [totalFormatedHours, setTotalFormatedHours] = useState('0m');
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [users, setUsers] = useState<User[]>([]);
   const [sites, setSites] = useState<string[]>([]);
@@ -184,14 +188,15 @@ const ClockInOutHistory = () => {
 
       const mappedLogs: ClockLog[] = data.data.results.map((log) => ({
         id: log.id,
-        driverName: log.user.full_name,
-        driverId: log.user.id,
-        siteName: log.site.name,
-        siteId: log.site.id,
+        driverName: log.user?.full_name || 'Unknown',
+        driverId: log.user?.id || 0,
+        siteName: log.site?.name || 'N/A',
+        siteId: log.site?.id || null,
         date: log.date,
         clockIn: log.clock_in,
         clockOut: log.clock_out,
         totalHours: log.hours_worked,
+        formatedHours: log.formated_hours,
         hourlyRate: log.hourly_rate,
         earnings: log.earnings,
       }));
@@ -201,11 +206,12 @@ const ClockInOutHistory = () => {
       setTotalPages(data.data.pagination.total_pages);
       setTotalRecords(data.data.summary.total_records);
       setTotalHours(data.data.summary.total_hours);
+      setTotalFormatedHours(data.data.summary.formated_hours);
       setTotalEarnings(data.data.summary.total_earnings);
 
       const clockingSites = new Set<string>([
         ...sites,
-        ...data.data.results.map((log) => log.site.name),
+        ...data.data.results.map((log) => log.site?.name || 'N/A'),
       ]);
       setSites(Array.from(clockingSites).sort());
     } catch (err) {
@@ -268,7 +274,7 @@ const ClockInOutHistory = () => {
             </p>
             <p className="text-sm text-gray-500 mt-1">
               {totalRecords} record{totalRecords !== 1 ? 's' : ''} found |
-              Total Hours: {formatHours(totalHours)} |
+              Total Hours: {totalFormatedHours || formatHours(totalHours)} |
               Total Earnings: £{totalEarnings.toFixed(2)}
             </p>
           </div>
@@ -406,18 +412,10 @@ const ClockInOutHistory = () => {
                   </span>
                 </TableCell>
                 <TableCell>
-                  {new Date(`1970-01-01T${log.clockIn}`).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                  })}
+                  {log.clockIn ? log.clockIn.slice(0, 5) : '-'}
                 </TableCell>
                 <TableCell>
-                  {new Date(`1970-01-01T${log.clockOut}`).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                  })}
+                  {log.clockOut ? log.clockOut.slice(0, 5) : '-'}
                 </TableCell>
                 <TableCell>
                   <span
@@ -425,7 +423,7 @@ const ClockInOutHistory = () => {
                       log.totalHours
                     )}`}
                   >
-                    {formatHours(log.totalHours)}
+                    {log.formatedHours || formatHours(log.totalHours)}
                   </span>
                 </TableCell>
               </TableRow>

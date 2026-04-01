@@ -28,19 +28,19 @@ interface PersonalInfo {
 
 interface ApiPayload {
   user_id: number;
- 
-    date_of_birth: string;
-    phone: string;
-    address: string;
-    account_no: string;
-    sort_code: string;
-    post_code: string;
-    national_insurance_no: string;
-    license_number: string;
-    license_issue_number: string;
-    have_other_jobs: boolean;
-    have_other_jobs_note: string;
-  
+
+  date_of_birth: string;
+  phone: string;
+  address: string;
+  account_no: string;
+  sort_code: string;
+  post_code: string;
+  national_insurance_no: string;
+  license_number: string;
+  license_issue_number: string;
+  have_other_jobs: boolean;
+  have_other_jobs_note: string;
+
   timestamp: string;
 }
 
@@ -118,7 +118,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
 
   const validateSortCode = (sortCode: string) => {
     const sortCodeRegex = /^\d{2}-\d{2}-\d{2}$/;
-    return sortCodeRegex.test(sortCode) ? "" : "Sort code must be in the format XX-XX-XX";
+    return sortCodeRegex.test(sortCode) ? "" : "Sort code must be in the format XXXXXX";
   };
 
   const validateLicenseNumber = (licenseNumber: string) => {
@@ -160,10 +160,10 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
     } else if (name === "sort_code") {
       // Remove all non-digit characters
       const digitsOnly = value.replace(/\D/g, "");
-      
+
       // Limit to 6 digits max
       const limited = digitsOnly.slice(0, 6);
-      
+
       // Auto-format as XX-XX-XX
       if (limited.length === 0) {
         formattedValue = "";
@@ -228,19 +228,19 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
 
     const payload: ApiPayload = {
       user_id,
-     
-        date_of_birth: rawPersonalInfo.date_of_birth,
-        phone: rawPersonalInfo.phone,
-        address,
-        account_no: rawPersonalInfo.account_no,
-        sort_code: rawPersonalInfo.sort_code,
-        post_code: rawPersonalInfo.post_code,
-        national_insurance_no: rawPersonalInfo.national_insurance_no,
-        license_number: rawPersonalInfo.license_number,
-        license_issue_number: rawPersonalInfo.license_issue_number,
-        have_other_jobs: rawPersonalInfo.have_other_jobs,
-        have_other_jobs_note: rawPersonalInfo.have_other_jobs ? rawPersonalInfo.have_other_jobs_note || "" : "",
-      
+
+      date_of_birth: rawPersonalInfo.date_of_birth,
+      phone: rawPersonalInfo.phone,
+      address,
+      account_no: rawPersonalInfo.account_no,
+      sort_code: rawPersonalInfo.sort_code,
+      post_code: rawPersonalInfo.post_code,
+      national_insurance_no: rawPersonalInfo.national_insurance_no,
+      license_number: rawPersonalInfo.license_number,
+      license_issue_number: rawPersonalInfo.license_issue_number,
+      have_other_jobs: rawPersonalInfo.have_other_jobs,
+      have_other_jobs_note: rawPersonalInfo.have_other_jobs ? rawPersonalInfo.have_other_jobs_note || "" : "",
+
       timestamp: new Date().toISOString(),
     };
 
@@ -379,7 +379,7 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
             </div>
             <div className="space-y-2">
               <Label htmlFor="national_insurance_no" className="text-sm font-medium text-gray-700">
-               NI Number
+                NI Number
               </Label>
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 z-1 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -528,9 +528,9 @@ export function PersonalInfoStep({ setDriverId, setPersonalInfoData, user_id, dr
         )}
       </CardContent>
       <CardFooter className="flex justify-end pt-6">
-        <Button 
-          onClick={handleSubmit} 
-          className="text-[#F97316] bg-[#F97316]/20 w-full hover:bg-[#EA580C]/30 font-medium px-8 py-5" 
+        <Button
+          onClick={handleSubmit}
+          className="text-[#F97316] bg-[#F97316]/20 w-full hover:bg-[#EA580C]/30 font-medium px-8 py-5"
           disabled={isPending}
         >
           {isPending ? "Saving..." : "Save & continue"}
