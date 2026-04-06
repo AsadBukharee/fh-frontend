@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 import {
 
   File,
@@ -38,15 +39,14 @@ import {
   Pencil,
   User,
   Link,
-
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
 import LazyImage from "./Dialog/LazyImage"
 import EnhancedCompetencyModal from "./Dialog/EnhancedCompetencyModal"
 import CombinedLicenseDialog from "./Dialog/CombinedDialog"
-
-
+import CombinedTachoDialog from "./Dialog/CombinedTachoDialog"
 
 // Fixed DEFAULT_DOCUMENTS to match API response - Moved outside component to prevent recreation
 const DEFAULT_DOCUMENTS = [
@@ -90,7 +90,6 @@ interface ProfessionalCompetencyTabProps {
   competencyData: any[]
   formatDate: (date: string | null) => string
   isPdfUrl: (url: string) => boolean
-  showToast: (message: string, type: string) => void
   cookies: any
   API_URL: string
   driverId: number
@@ -102,6 +101,41 @@ interface ProfessionalCompetencyTabProps {
   lastDriverLicenseCheckCodeDate?: string
   lastDriverTachoDownload?: string
 }
+
+// Utility to pick the best/latest document for each type
+const getLatestDocumentsByType = (data: any[]) => {
+  if (!data || data.length === 0) return [];
+
+  const statusPriority: Record<string, number> = {
+    approved: 0,
+    pending: 1,
+    not_approved: 2
+  };
+
+  const sorted = [...data].sort((a, b) => {
+    const priorityA = statusPriority[a.request_status] ?? 3;
+    const priorityB = statusPriority[b.request_status] ?? 3;
+
+    if (priorityA !== priorityB) return priorityA - priorityB;
+
+    // If both have same status, prioritize those with documents
+    if (a.has_document !== b.has_document) return a.has_document ? -1 : 1;
+
+    // Newest first by updated_at or id
+    const timeA = new Date(a.updated_at || 0).getTime();
+    const timeB = new Date(b.updated_at || 0).getTime();
+
+    if (timeA !== timeB) return timeB - timeA;
+    return (b.id || 0) - (a.id || 0);
+  });
+
+  const seenTypes = new Set<string>();
+  return sorted.filter(doc => {
+    if (seenTypes.has(doc.document_type)) return false;
+    seenTypes.add(doc.document_type);
+    return true;
+  });
+};
 
 // Optimized state reducer for better performance
 type ModalState = {
@@ -203,11 +237,8 @@ const EnhancedCompetencyCard = ({
   handleCardClick,
   isPdfUrl,
   formatDate,
-  getStatusColor,
-  getStatusIcon,
   license_number,
   license_issue_number,
-  onOpenCombinedDialog,
 }: {
   competency: any;
   cardImageIndex: number;
@@ -215,11 +246,8 @@ const EnhancedCompetencyCard = ({
   handleCardClick: (competency: any) => void;
   isPdfUrl: (url: string) => boolean;
   formatDate: (date: string | null) => string;
-  getStatusColor: (status: string) => string;
-  getStatusIcon: (status: string) => React.ReactNode;
   license_number: string;
   license_issue_number: string;
-  onOpenCombinedDialog?: () => void;
 }) => {
   const isLicense = competency.document_type === "driving-license" ||
     competency.document_type === "d-d1-category";
@@ -249,36 +277,27 @@ const EnhancedCompetencyCard = ({
     });
   }, [competency.id, setCardImageIndexes]);
 
-  const handleCombinedClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onOpenCombinedDialog) {
-      onOpenCombinedDialog();
-    }
-  }, [onOpenCombinedDialog]);
-
   const renderImageCarousel = useMemo(() => {
-    if (!competency.has_document || !competency.urls?.[0]) return null;
+    if (!competency.urls?.[0]) return null;
 
     return (
-      <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden group">
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-10"></div>
-
+      <div className="relative h-56 overflow-hidden rounded-2xl group/carousel">
         <div className="relative h-full">
-          {competency.urls.map((url: string, index: number) => (
+          {competency.urls?.map((url: string, index: number) => (
             <div
               key={`${competency.id}-${index}`}
               className={`absolute inset-0 transition-opacity duration-300 ${index === cardImageIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
             >
               {isPdfUrl(url) ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-indigo-100">
-                  <FileText className="h-20 w-20 text-orange-600 opacity-50" />
+                <div className="absolute inset-0 flex items-center justify-center bg-[#FDE4E7]">
+                  <FileText className="h-16 w-16 text-[#E11D48] opacity-50" />
                 </div>
               ) : (
                 <LazyImage
                   src={url}
                   alt={`${competency.document_name} - ${index + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-300"
+                  className="w-full h-full object-cover"
                 />
               )}
             </div>
@@ -289,9 +308,9 @@ const EnhancedCompetencyCard = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleCardImageNavigation('prev', competency.urls.length);
+                  handleCardImageNavigation('prev', competency.urls?.length || 0);
                 }}
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 z-20 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 z-20 p-2 bg-white/80 hover:bg-white text-gray-800 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity shadow-sm"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -299,15 +318,15 @@ const EnhancedCompetencyCard = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleCardImageNavigation('next', competency.urls.length);
+                  handleCardImageNavigation('next', competency.urls?.length || 0);
                 }}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 z-20 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 z-20 p-2 bg-white/80 hover:bg-white text-gray-800 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity shadow-sm"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
 
-              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-20 flex gap-1.5">
-                {competency.urls.map((_: any, index: number) => (
+              <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 z-20 flex gap-1.5">
+                {competency.urls?.map((_: any, index: number) => (
                   <button
                     key={index}
                     onClick={(e) => {
@@ -315,208 +334,140 @@ const EnhancedCompetencyCard = ({
                       handleCardImageClick(index);
                     }}
                     className={`w-1.5 h-1.5 rounded-full transition-all ${index === cardImageIndex
-                      ? 'bg-white scale-125'
-                      : 'bg-white/50 hover:bg-white/80'
+                      ? 'bg-[#FF7E67] scale-125'
+                      : 'bg-white/60 hover:bg-white'
                       }`}
-                    aria-label={`View image ${index + 1}`}
                   />
                 ))}
-              </div>
-
-              <div className="absolute top-2 left-2 z-20 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                {cardImageIndex + 1}/{competency.urls.length}
               </div>
             </>
           )}
         </div>
-
-        <Badge
-          className={cn(
-            "absolute top-3 right-3 z-20 px-3 py-1.5 text-xs font-semibold border shadow-lg backdrop-blur-sm inline-flex items-center gap-1.5",
-            getStatusColor(competency.request_status || "pending"),
-          )}
-        >
-          {getStatusIcon(competency.request_status || "pending")}
-          {(competency.request_status || "pending").replace("_", " ").toUpperCase()}
-        </Badge>
       </div>
     );
-  }, [competency, cardImageIndex, isPdfUrl, hasMultipleImages, handleCardImageNavigation, handleCardImageClick, getStatusColor, getStatusIcon]);
+  }, [competency, cardImageIndex, isPdfUrl, hasMultipleImages, handleCardImageNavigation, handleCardImageClick]);
+
+  const status = competency.request_status || "pending";
+  const statusLabel = status.replace("_", " ").charAt(0).toUpperCase() + status.replace("_", " ").slice(1);
+
+  if (!competency.has_document) {
+    return (
+      <Card
+        className={cn(
+          "group transition-all duration-500 border border-gray-100 rounded-[2.5rem] bg-white overflow-hidden p-8 flex flex-col items-center justify-center gap-6 min-h-[400px] cursor-pointer",
+          "hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)] hover:border-[#FF7E67]/30"
+        )}
+        onClick={() => handleCardClick(competency)}
+      >
+        <h3 className="font-bold text-2xl text-gray-900 tracking-tight text-center">
+          {competency.document_name}
+        </h3>
+
+        <div className="w-24 h-24 bg-[#F59E0B] rounded-[2rem] flex items-center justify-center shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform duration-500">
+          <Upload className="h-10 w-10 text-white" />
+        </div>
+
+        <div className="space-y-1 text-center">
+          <p className="font-bold text-lg text-gray-900">Click to upload document</p>
+          <p className="text-sm font-medium text-gray-400">
+            {competency.has_expiry ? "Requires expiry data" : "No expiry required"}
+          </p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card
       className={cn(
-        "group cursor-pointer transition-all duration-300 border-2 relative overflow-hidden",
-        competency.has_document
-          ? "hover:shadow-2xl border-green-200 hover:border-orange-400 bg-white hover:scale-[1.02]"
-          : "border-dashed border-red-600 bg-gray-50/50 hover:border-orange-400 hover:bg-orange-50/50",
-        isLicense && "border-2 border-blue-200 hover:border-blue-400"
+        "group transition-all duration-500 border border-gray-100 rounded-[2.5rem] bg-white overflow-hidden p-4 flex flex-col gap-4",
+        "hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)] hover:border-gray-200"
       )}
       onClick={() => handleCardClick(competency)}
     >
-      {isLicense && onOpenCombinedDialog && (
-        <div className="absolute top-3 left-3 z-20">
-          <Button
-            size="sm"
-            onClick={handleCombinedClick}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs px-2 py-1 h-auto"
+      {/* Top Image Section */}
+      <div className="relative">
+        {renderImageCarousel}
+      </div>
+
+      <div className="flex flex-col gap-4 px-1">
+        {/* Title and Status Badge */}
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-xl text-gray-900 leading-tight tracking-tight">
+            {competency.document_name}
+          </h3>
+          <Badge
+            className={cn(
+              "rounded-full px-4 py-1 text-[11px] font-bold border-none shadow-none",
+              status === "approved" ? "bg-[#E6F4EA] text-[#1E8E3E]" :
+                status === "not_approved" ? "bg-[#FCE8E6] text-[#D93025]" :
+                  "bg-[#FEF7E0] text-[#F9AB00]"
+            )}
           >
-            <Link className="h-3 w-3 mr-1" />
-            Combined
-          </Button>
+            {statusLabel}
+          </Badge>
         </div>
-      )}
 
-      {renderImageCarousel}
-
-      <CardContent className="p-5 space-y-3 relative">
-        {!competency.has_document && (
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/10 to-indigo-500/10 rounded-bl-full transform translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform"></div>
-        )}
-
-        <div className="flex items-start justify-between relative z-10">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <div
-                className={cn(
-                  "p-2.5 rounded-xl transition-all shadow-sm",
-                  competency.has_document
-                    ? "bg-gradient-to-br from-orange-500 to-indigo-500 group-hover:shadow-md"
-                    : "bg-gray-300 group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-indigo-500",
-                  isLicense && "bg-gradient-to-br from-blue-500 to-indigo-500"
-                )}
-              >
-                {competency.has_document ? (
-                  <FileText className="h-5 w-5 text-white" />
-                ) : (
-                  <Upload className="h-5 w-5 text-gray-600 group-hover:text-white transition-colors" />
-                )}
+        {/* Expiry Date Row */}
+        {competency.has_expiry && (
+          <div className="flex items-center justify-between bg-[#F8F9FA] rounded-2xl p-3.5 border border-gray-50">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-white shadow-sm border border-gray-100 text-gray-500">
+                <Calendar className="h-4 w-4" />
               </div>
+              <span className="font-medium text-[13px] text-gray-600">Expiry Date</span>
             </div>
-            <h3
-              className={cn(
-                "font-bold text-lg mb-1 line-clamp-2 transition-colors leading-tight",
-                competency.has_document
-                  ? "text-gray-900"
-                  : "text-gray-600 group-hover:text-orange-700",
-                isLicense && "text-blue-900"
-              )}
-            >
-              {competency.document_name}
-            </h3>
-            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
-              {competency.document_type?.replace("-", " ")}
-            </p>
+            <span className="font-bold text-[14px] text-[#F59E0B]">
+              {competency.expiry_date ? formatDate(competency.expiry_date) : "Not Set"}
+            </span>
           </div>
-        </div>
+        )}
 
-        {competency.has_document ? (
-          <>
-            <Separator className="bg-orange-100" />
-            <div className="space-y-2">
-              {competency.has_expiry && competency.expiry_date && (
-                <div className="flex items-center gap-2 text-sm text-gray-700 bg-gradient-to-r from-orange-50 to-indigo-50 rounded-lg p-2.5 border border-orange-100">
-                  <Calendar className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                  <span className="font-medium text-xs">
-                    {competency.document_type === "last-driver-check-code"
-                      ? "Last Check Code Date:"
-                      : competency.document_type === "last-tacho-download"
-                        ? "Last Download Date:"
-                        : "Expires:"}
-                  </span>
-                  <span className="font-bold text-orange-700 ml-auto">{formatDate(competency.expiry_date)}</span>
-                </div>
-              )}
-
-              {competency.description && (
-                <div className="text-xs p-2 rounded bg-gray-50 border border-gray-200">
-                  <div className="flex items-start gap-2">
-                    <Info className="h-3 w-3 text-gray-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-600 line-clamp-2">{competency.description}</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 text-sm flex-wrap">
-                {competency.modules && competency.modules.length > 0 && (
-                  <div className="flex items-center gap-1.5 text-gray-700 bg-indigo-50 rounded-lg px-2.5 py-1.5 border border-indigo-100">
-                    <BookOpen className="h-3.5 w-3.5 text-indigo-600" />
-                    <span className="font-bold text-xs">{competency.modules.length}</span>
-                    <span className="text-xs">Module{competency.modules.length !== 1 ? "s" : ""}</span>
-                  </div>
-                )}
-
-                {competency.document_type === "driving-license" && (
-                  <div className="flex justify-between w-full gap-2 mt-2">
-                    {/* License Number */}
-                    <div className="border-gray-200 border w-full p-2 bg-gray-50 rounded-lg">
-                      <label className="block text-xs text-gray-500 mb-1">
-                        License Number
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg">
-                          <IdCard className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <p className="text-md text-gray-900">
-                          {license_number || "Not provided"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Issue Number */}
-                    <div className="border-gray-200 border w-full p-2 bg-gray-50 rounded-lg">
-                      <label className="block text-xs text-gray-500 mb-1">
-                        Issue Number
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg">
-                          <Key className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <p className="text-md text-gray-900">
-                          {license_issue_number || "Not provided"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-
-                {competency.has_document && (
-                  <div className="flex items-center gap-1.5 text-gray-700 bg-green-50 rounded-lg px-2.5 py-1.5 border border-green-100 mt-2">
-                    <FileCheck className="h-3.5 w-3.5 text-green-600" />
-                    <span className="font-bold text-xs">{competency.urls?.length || 0}</span>
-                    <span className="text-xs">Image{competency.urls?.length !== 1 ? "s" : ""}</span>
-                  </div>
-                )}
+        {/* License Specific Info */}
+        {competency.document_type === "driving-license" && (license_number || license_issue_number) && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">License#</span>
+              <div className="bg-[#FFF0EE] text-[#FF7E67] font-bold text-[13px] px-4 py-2.5 rounded-2xl text-center shadow-sm">
+                {license_number || "---"}
               </div>
             </div>
-            <Button
-              variant="ghost"
-              className="w-full text-orange-600 hover:text-white hover:bg-gradient-to-r hover:from-orange-600 hover:to-indigo-600 font-semibold text-sm py-2 mt-2 transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCardClick(competency);
-              }}
-            >
-              View Full Details
-              <ExternalLink className="h-4 w-4 ml-2" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <Separator className="bg-gray-200" />
-            <div className="py-6 text-center">
-              <Plus className="h-10 w-10 text-gray-400 mx-auto mb-3 group-hover:text-orange-500 group-hover:scale-110 transition-all" />
-              <p className="text-sm font-semibold text-gray-600 group-hover:text-orange-700 transition-colors mb-1">
-                Click to upload document
-              </p>
-              <p className="text-xs text-gray-500">
-                {competency.has_expiry ? "📅 Requires expiry date" : "📄 No expiry required"}
-              </p>
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Issue#</span>
+              <div className="bg-[#FFF0EE] text-[#FF7E67] font-bold text-[13px] px-4 py-2.5 rounded-2xl text-center shadow-sm">
+                {license_issue_number || "---"}
+              </div>
             </div>
-          </>
+          </div>
         )}
-      </CardContent>
+
+        {/* Footer Utilities */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-full border border-gray-100">
+              <ImageIcon className="h-3.5 w-3.5 text-gray-400" />
+              <span className="text-xs font-bold text-gray-600">{competency.urls?.length || 0}</span>
+            </div>
+          </div>
+          <Switch
+            checked={competency.has_document}
+            className="data-[state=checked]:bg-[#FF7E67] scale-90"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+
+        {/* Action Button */}
+        <Button
+          className="w-full bg-[#FDE4E7] hover:bg-[#FBCCD2] text-[#E11D48] font-bold text-sm h-12 rounded-2xl shadow-none border-none transition-all duration-300 flex items-center justify-center gap-2"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCardClick(competency);
+          }}
+        >
+          View Detail
+          <ExternalLink className="h-4 w-4" />
+        </Button>
+      </div>
     </Card>
   );
 };
@@ -528,7 +479,6 @@ export default function ProfessionalCompetencyTab({
   formatDate,
   isPdfUrl,
   driverId,
-  showToast,
   cookies,
   API_URL,
   fetchCompetencyData,
@@ -539,6 +489,9 @@ export default function ProfessionalCompetencyTab({
   lastDriverLicenseCheckCodeDate,
   lastDriverTachoDownload,
 }: ProfessionalCompetencyTabProps) {
+  // Deduplicate and filter data once at the start
+  const latestCompetencyData = useMemo(() => getLatestDocumentsByType(competencyData), [competencyData]);
+
   // Existing modal state reducer
   const [modalState, dispatchModal] = useReducer(modalReducer, {
     selectedCompetency: null,
@@ -566,6 +519,15 @@ export default function ProfessionalCompetencyTab({
   }>({
     driverLicenseData: null,
     dd1CategoryData: null,
+  });
+
+  const [isCombinedTachoDialogOpen, setIsCombinedTachoDialogOpen] = useState(false);
+  const [combinedTachoData, setCombinedTachoData] = useState<{
+    tachoCardData: any;
+    lastTachoDownloadData: any;
+  }>({
+    tachoCardData: null,
+    lastTachoDownloadData: null,
   });
 
   // Existing states
@@ -610,11 +572,11 @@ export default function ProfessionalCompetencyTab({
 
   // Function to open combined dialog
   const handleOpenCombinedDialog = useCallback((competency: any) => {
-    // Find both documents from competencyData
-    const driverLicenseData = competencyData.find(
+    // Find both documents from filtered data
+    const driverLicenseData = latestCompetencyData.find(
       (d: any) => d.document_type === "driving-license"
     );
-    const dd1CategoryData = competencyData.find(
+    const dd1CategoryData = latestCompetencyData.find(
       (d: any) => d.document_type === "d-d1-category"
     );
 
@@ -624,11 +586,27 @@ export default function ProfessionalCompetencyTab({
     });
 
     setIsCombinedDialogOpen(true);
-  }, [competencyData]);
+  }, [latestCompetencyData]);
+
+  const handleOpenCombinedTachoDialog = useCallback((competency: any) => {
+    const tachoCardData = latestCompetencyData.find(
+      (d: any) => d.document_type === "tacho-card"
+    );
+    const lastTachoDownloadData = latestCompetencyData.find(
+      (d: any) => d.document_type === "last-tacho-download"
+    );
+
+    setCombinedTachoData({
+      tachoCardData: tachoCardData || null,
+      lastTachoDownloadData: lastTachoDownloadData || null,
+    });
+
+    setIsCombinedTachoDialogOpen(true);
+  }, [latestCompetencyData]);
 
   // Existing functions
   const getCompletedDocumentsList = useCallback(() => {
-    const uploadedMap = new Map(competencyData.map((d) => [d.document_type, d]))
+    const uploadedMap = new Map(latestCompetencyData.map((d) => [d.document_type, d]))
 
     return DEFAULT_DOCUMENTS.map(defaultDoc => {
       const apiDoc = uploadedMap.get(defaultDoc.document_type)
@@ -666,7 +644,7 @@ export default function ProfessionalCompetencyTab({
       }
       return doc;
     })
-  }, [competencyData, lastDriverLicenseCheckCodeDate, lastDriverTachoDownload])
+  }, [latestCompetencyData, lastDriverLicenseCheckCodeDate, lastDriverTachoDownload])
 
   // Update license info when props change
   useEffect(() => {
@@ -690,6 +668,16 @@ export default function ProfessionalCompetencyTab({
     // If it's a license document and we're not in edit mode, open combined dialog
     if (isLicenseDocument && !modalState.isEditing) {
       handleOpenCombinedDialog(competency);
+      return;
+    }
+
+    // Check if this is one of the tacho documents
+    const isTachoDocument =
+      competency.document_type === "tacho-card" ||
+      competency.document_type === "last-tacho-download";
+
+    if (isTachoDocument && !modalState.isEditing) {
+      handleOpenCombinedTachoDialog(competency);
       return;
     }
 
@@ -744,7 +732,7 @@ export default function ProfessionalCompetencyTab({
       payload: competency.request_status === "not_approved" || competency.request_status === "pending"
     });
     dispatchModal({ type: 'SET_DIRECT_STATUS_EDITING', payload: false });
-  }, [handleOpenCombinedDialog, modalState.isEditing]);
+  }, [handleOpenCombinedDialog, handleOpenCombinedTachoDialog, modalState.isEditing]);
 
   // Existing functions remain the same...
   const checkOtherDocument = useCallback(async () => {
@@ -902,9 +890,9 @@ export default function ProfessionalCompetencyTab({
         }
       });
 
-      showToast("Document uploaded successfully", "success")
+      toast.success("Document uploaded successfully")
     },
-    [modalState.editData, showToast],
+    [modalState.editData],
   );
 
   const handleModuleChange = useCallback((index: number, field: string, value: string) => {
@@ -984,17 +972,16 @@ export default function ProfessionalCompetencyTab({
       );
 
       if (updateResponse.ok) {
-        showToast(
-          `${modalState.editData.document_type === "driving-license" ? "D/D1 Category" : "Driving License"} marked for update`,
-          "success"
+        toast.success(
+          `${modalState.editData.document_type === "driving-license" ? "D/D1 Category" : "Driving License"} marked for update`
         );
         fetchCompetencyData();
       }
     } catch (error) {
       console.error("Error updating related document:", error);
-      showToast("Failed to update related document", "error");
+      toast.error("Failed to update related document");
     }
-  }, [modalState.editData, documentDependencies, API_URL, cookies, showToast, fetchCompetencyData, originalExpiryDate]);
+  }, [modalState.editData, documentDependencies, API_URL, cookies, fetchCompetencyData, originalExpiryDate]);
 
   const saveChanges = useCallback(async () => {
     if (!modalState.editData) return;
@@ -1122,7 +1109,7 @@ export default function ProfessionalCompetencyTab({
       }
 
       if (responseData.success || response.status === 200 || response.status === 201) {
-        showToast("Professional competency saved successfully", "success")
+        toast.success("Professional competency saved successfully")
         dispatchModal({ type: 'RESET_MODAL' });
         setUploadRequired(false)
         setHasUploadedNewDocument(false)
@@ -1138,11 +1125,11 @@ export default function ProfessionalCompetencyTab({
       }
     } catch (error) {
       console.error("Error saving competency:", error)
-      showToast(error instanceof Error ? error.message : "Failed to save", "error")
+      toast.error(error instanceof Error ? error.message : "Failed to save")
     } finally {
       dispatchModal({ type: 'SET_SAVING', payload: false });
     }
-  }, [modalState.editData, driverId, driverLicenseInfo, originalLicenseInfo, API_URL, cookies, showToast, fetchCompetencyData, fetchDriverData]);
+  }, [modalState.editData, driverId, driverLicenseInfo, originalLicenseInfo, API_URL, cookies, fetchCompetencyData, fetchDriverData]);
 
   const handleSave = useCallback(async () => {
     if (!modalState.editData) return;
@@ -1157,20 +1144,30 @@ export default function ProfessionalCompetencyTab({
     const isIssueNumberChanged = driverLicenseInfo.license_issue_number !== originalLicenseInfo.license_issue_number;
 
     const isDrivingLicense = modalState.editData.document_type === "driving-license";
-    const hasCriticalChanges = isExpiryDateChanged ||
-      (isDrivingLicense && (isLicenseNumberChanged || isIssueNumberChanged));
+    const hasCriticalInfoChanged = isLicenseNumberChanged || isIssueNumberChanged;
 
-    if (hasCriticalChanges && modalState.editData.has_document) {
+    // Requirement 1: If expiry date (or critical info) changed, REQUIRE a new upload
+    if ((isExpiryDateChanged || (isDrivingLicense && hasCriticalInfoChanged)) && !hasUploadedNewDocument) {
       dispatchModal({
         type: 'SET_FORM_ERROR',
-        payload: { field: 'expiry_date', value: "Please upload updated documents or set a reminder" }
+        payload: { field: 'expiry_date', value: "Please upload updated documents" }
       });
 
-      if (isDrivingLicense && (isLicenseNumberChanged || isIssueNumberChanged)) {
-        showToast("Please upload updated documents when changing license information", "error");
+      if (isDrivingLicense && hasCriticalInfoChanged) {
+        toast.error("License information changed. Please upload a new document image.");
       } else {
-        showToast("Please upload updated documents or set a reminder before saving", "error");
+        toast.error("Expiry date changed. Please upload a new document image matching the new date.");
       }
+      return;
+    }
+
+    // Requirement 2: If a new document was uploaded, REQUIRE an expiry date update
+    if (hasUploadedNewDocument && !isExpiryDateChanged && modalState.editData.has_expiry) {
+      dispatchModal({
+        type: 'SET_FORM_ERROR',
+        payload: { field: 'expiry_date', value: "Please update/verify the expiry date" }
+      });
+      toast.error("New document uploaded. Please update the expiry date to match the new document.");
       return;
     }
 
@@ -1184,13 +1181,13 @@ export default function ProfessionalCompetencyTab({
           type: 'SET_FORM_ERROR',
           payload: { field: 'status_description', value: "Please provide a reason for this status" }
         });
-        showToast("Please provide a status description or reason", "error");
+        toast.error("Please provide a status description or reason");
         return;
       }
     }
 
     await saveChanges();
-  }, [modalState.editData, modalState.isEditing, originalExpiryDate, driverLicenseInfo, originalLicenseInfo, saveChanges, showToast, hasUploadedNewDocument]);
+  }, [modalState.editData, modalState.isEditing, originalExpiryDate, driverLicenseInfo, originalLicenseInfo, saveChanges, hasUploadedNewDocument]);
 
   const openReminderDialog = useCallback(() => {
     if (!modalState.editData) return;
@@ -1244,7 +1241,7 @@ export default function ProfessionalCompetencyTab({
       }
 
       if (responseData.success || response.status === 200) {
-        showToast("Status updated successfully", "success")
+        toast.success("Status updated successfully")
         dispatchModal({ type: 'SET_DIRECT_STATUS_EDITING', payload: false });
         dispatchModal({
           type: 'SET_STATUS_UPDATE_DATA',
@@ -1266,11 +1263,11 @@ export default function ProfessionalCompetencyTab({
       }
     } catch (error) {
       console.error("Error updating status:", error)
-      showToast(error instanceof Error ? error.message : "Failed to update status", "error")
+      toast.error(error instanceof Error ? error.message : "Failed to update status")
     } finally {
       dispatchModal({ type: 'SET_SAVING', payload: false });
     }
-  }, [modalState.editData, modalState.statusUpdateData, API_URL, cookies, showToast, fetchCompetencyData]);
+  }, [modalState.editData, modalState.statusUpdateData, API_URL, cookies, fetchCompetencyData]);
 
   const getStatusColor = useCallback((status: string) => {
     switch (status) {
@@ -1327,24 +1324,14 @@ export default function ProfessionalCompetencyTab({
           handleCardClick={handleCardClick}
           isPdfUrl={isPdfUrl}
           formatDate={formatDate}
-          getStatusColor={getStatusColor}
-          getStatusIcon={getStatusIcon}
           license_number={licenseNumber}
           license_issue_number={licenseIssueNumber}
-          onOpenCombinedDialog={
-            (competency.document_type === "driving-license" ||
-              competency.document_type === "d-d1-category")
-              ? () => handleOpenCombinedDialog(competency)
-              : undefined
-          }
         />
       );
     }),
     [allDocuments, cardImageIndexes, handleCardClick, handleOpenCombinedDialog,
-      isPdfUrl, formatDate, getStatusColor, getStatusIcon, licenseNumber, licenseIssueNumber]
+      isPdfUrl, formatDate, licenseNumber, licenseIssueNumber]
   );
-
-
 
   return (
     <div className="space-y-6">
@@ -1384,7 +1371,6 @@ export default function ProfessionalCompetencyTab({
         driverLicenseData={combinedLicenseData.driverLicenseData}
         dd1CategoryData={combinedLicenseData.dd1CategoryData}
         driverId={driverId}
-        showToast={showToast}
         cookies={cookies}
         API_URL={API_URL}
         formatDate={formatDate}
@@ -1393,6 +1379,22 @@ export default function ProfessionalCompetencyTab({
         driverName={driverName}
         licenseNumber={licenseNumber}
         licenseIssueNumber={licenseIssueNumber}
+        fetchDriverData={fetchDriverData}
+      />
+
+      {/* Combined Tacho Dialog */}
+      <CombinedTachoDialog
+        isOpen={isCombinedTachoDialogOpen}
+        onOpenChange={setIsCombinedTachoDialogOpen}
+        tachoCardData={combinedTachoData.tachoCardData}
+        lastTachoDownloadData={combinedTachoData.lastTachoDownloadData}
+        driverId={driverId}
+        cookies={cookies}
+        API_URL={API_URL}
+        formatDate={formatDate}
+        isPdfUrl={isPdfUrl}
+        fetchCompetencyData={fetchCompetencyData}
+        driverName={driverName}
         fetchDriverData={fetchDriverData}
       />
 
@@ -1407,7 +1409,6 @@ export default function ProfessionalCompetencyTab({
         modalState={modalState}
         dispatchModal={dispatchModal}
         driverId={driverId}
-        showToast={showToast}
         cookies={cookies}
         API_URL={API_URL}
         formatDate={formatDate}
@@ -1415,7 +1416,7 @@ export default function ProfessionalCompetencyTab({
         fetchCompetencyData={fetchCompetencyData}
         driverLicenseInfo={driverLicenseInfo}
         originalLicenseInfo={originalLicenseInfo}
-        driverLicenseData={competencyData.find((d: any) => d.document_type === "driving-license")}
+        driverLicenseData={latestCompetencyData.find((d: any) => d.document_type === "driving-license")}
         handleInputChange={handleInputChange}
         handleLicenseInfoChange={handleLicenseInfoChange}
         handleFileUpload={handleFileUpload}
