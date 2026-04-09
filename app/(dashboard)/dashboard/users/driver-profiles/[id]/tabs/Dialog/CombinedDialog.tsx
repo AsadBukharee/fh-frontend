@@ -13,10 +13,14 @@ import {
   Upload,
   Clock,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import dynamic from 'next/dynamic'
 import { toast } from "sonner"
+import ImagePreviewDialog from "./ImagePreviewDialog"
+import { Eye } from "lucide-react"
 
 // Lazy load heavy components
 const FileUploaderLazy = dynamic(() => import("@/components/Media/MediaUpload"), {
@@ -81,6 +85,12 @@ export default function CombinedLicenseDialog({
   const [currentStep, setCurrentStep] = useState(1); // 1 = DL (Front), 2 = DD1 (Back)
   const [saving, setSaving] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
+
+  // Preview state
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [initialPreviewIdx, setInitialPreviewIdx] = useState(0);
+  const [currentSwipeIdx, setCurrentSwipeIdx] = useState(0);
 
   const [formData, setFormData] = useState<CombinedLicenseFormData>({
     license_number: licenseNumber || "",
@@ -390,27 +400,113 @@ export default function CombinedLicenseDialog({
               <p className="text-xs text-gray-400 mt-1">Manage {currentDocName} documentation</p>
             </div>
 
-            <Card className="w-full h-64 rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm relative group bg-gray-50 flex items-center justify-center">
-              {currentUrl ? (
-                isPdfUrl(currentUrl) ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <FileText className="h-20 w-20 text-[#E11D48] opacity-50" />
-                    <span className="font-bold text-gray-700">PDF Document</span>
-                  </div>
-                ) : (
-                  <img src={currentUrl} alt="Preview" className="w-full h-full object-cover" />
-                )
-              ) : (
-                <div className="text-center p-8">
-                  <Upload className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-400 font-medium">No document uploaded</p>
-                </div>
-              )}
+            <div className="w-full relative group/carousel h-[380px] rounded-[2.5rem] overflow-hidden bg-gray-50 border border-gray-100 shadow-sm p-4">
+              <div className="relative h-full w-full rounded-[2rem] overflow-hidden">
+                {/* Carousel Slides */}
+                {[0, 1].map((idx) => {
+                  const url = idx === 0 ? formData.dl_url : formData.dd1_url;
+                  const isMissing = !url && !(idx === 0 ? formData.dl_has_document : formData.dd1_has_document);
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "absolute inset-0 transition-all duration-500 ease-in-out transform",
+                        currentSwipeIdx === idx ? "opacity-100 translate-x-0 scale-100" : (idx < currentSwipeIdx ? "opacity-0 -translate-x-full scale-95" : "opacity-0 translate-x-full scale-95")
+                      )}
+                    >
+                      {url ? (
+                        isPdfUrl(url) ? (
+                          <div className="flex flex-col items-center justify-center h-full gap-3 bg-[#FDE4E7]">
+                            <FileText className="h-16 w-16 text-[#E11D48] opacity-50" />
+                            <span className="font-bold text-[#E11D48] uppercase tracking-widest text-xs">PDF DOCUMENT</span>
+                          </div>
+                        ) : (
+                          <div 
+                            className="relative w-full h-full cursor-pointer group/img"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewImages([formData.dl_url, formData.dd1_url].filter(Boolean));
+                              setInitialPreviewIdx(idx);
+                              setIsPreviewOpen(true);
+                            }}
+                          >
+                            <img src={url} alt={idx === 0 ? "DL" : "DD1"} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                              <Eye className="text-white h-12 w-12" />
+                            </div>
+                          </div>
+                        )
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full gap-6 text-center p-8 bg-white border-2 border-dashed border-gray-100 rounded-[2rem]">
+                          <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center border border-gray-100 group-hover:scale-110 transition-transform duration-500">
+                            <Upload className="h-10 w-10 text-gray-200" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-lg font-bold text-gray-900">{idx === 0 ? "Driving License Missing" : "D/D1 Category Missing"}</p>
+                            <p className="text-sm font-medium text-gray-400">Click upload to add document</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-md text-white text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider">
-                {currentStep === 1 ? "Front of License" : "Back of License"}
+                {/* Pagination Dots */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                   {[0, 1].map((idx) => (
+                     <button
+                       key={idx}
+                       onClick={() => setCurrentSwipeIdx(idx)}
+                       className={cn(
+                         "w-2 h-2 rounded-full transition-all duration-300",
+                         currentSwipeIdx === idx ? "bg-[#FF6B35] w-8" : "bg-black/20 hover:bg-black/40"
+                       )}
+                     />
+                   ))}
+                </div>
+
+                {/* Info Badge */}
+                <div className="absolute top-6 left-6 z-20">
+                  <div className="bg-black/50 backdrop-blur-md px-5 py-2 rounded-full text-white text-[11px] font-bold uppercase tracking-widest">
+                    {currentSwipeIdx === 0 ? "Step 1: License" : "Step 2: D/D1"}
+                  </div>
+                </div>
+
+                {/* Upload Action */}
+                <Button
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentStep(currentSwipeIdx + 1);
+                    setShowUploader(true);
+                  }}
+                  className="absolute top-6 right-6 z-20 h-11 w-11 bg-white shadow-xl border-none text-[#FF6B35] hover:bg-white hover:scale-110 transition-all rounded-xl"
+                >
+                  <Upload className="h-5 w-5" />
+                </Button>
               </div>
-            </Card>
+
+              {/* Navigation Arrows */}
+              <button
+                onClick={() => setCurrentSwipeIdx(0)}
+                className={cn(
+                  "absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-white/90 backdrop-blur shadow-lg rounded-xl text-gray-800 transition-all hover:bg-white",
+                  currentSwipeIdx === 0 ? "opacity-0 pointer-events-none" : "opacity-100"
+                )}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setCurrentSwipeIdx(1)}
+                className={cn(
+                  "absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-white/90 backdrop-blur shadow-lg rounded-xl text-gray-800 transition-all hover:bg-white",
+                  currentSwipeIdx === 1 ? "opacity-0 pointer-events-none" : "opacity-100"
+                )}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
 
             <div className="flex gap-3 w-full mt-6">
               <Button
@@ -548,6 +644,15 @@ export default function CombinedLicenseDialog({
             </div>
           </div>
         </div>
+
+        {/* Global Image Preview Dialog */}
+        <ImagePreviewDialog
+          isOpen={isPreviewOpen}
+          onOpenChange={setIsPreviewOpen}
+          images={previewImages}
+          initialIndex={initialPreviewIdx}
+          title={currentDocName}
+        />
 
         {/* Media Upload Modal */}
         <Dialog open={showUploader} onOpenChange={setShowUploader}>

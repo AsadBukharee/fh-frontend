@@ -10,6 +10,10 @@ import {
   X,
   CheckCircle,
   AlertCircle,
+  AlertTriangle,
+  XCircle,
+  Clock,
+  Bell,
   Mail
 } from "lucide-react";
 // Add Dialog components
@@ -25,7 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import API_URL from "@/app/utils/ENV";
-import { formatDmy } from "@/lib/utils";
+import { formatDmy, cn } from "@/lib/utils";
 import ProfessionalCompetencyTab from "./tabs/ProfessionalCompetencyTab";
 import DriverDetailTab from "./tabs/DriverDetailTab";
 import SignAgreementTab from "./tabs/SignAgreementTab";
@@ -200,6 +204,22 @@ export default function DriverDetailPage() {
   const [activeTab, setActiveTab] = useState("driver-detail");
   const [disapproveRemarks, setDisapproveRemarks] = useState("");
   const [isDisapproving, setIsDisapproving] = useState(false);
+  const [warningsDialogOpen, setWarningsDialogOpen] = useState(false);
+
+  /* ── warning helpers ── */
+  const warningCount = driverData?.warnings?.length || 0;
+  const errorCount = driverData?.warnings?.filter((w: string) => w.includes("🔴")).length || 0;
+  const cautionCount = driverData?.warnings?.filter((w: string) => w.includes("⚠️")).length || 0;
+  const pendingCount = driverData?.warnings?.filter((w: string) => w.includes("⏳")).length || 0;
+
+  const getWarningStyle = (w: string) => {
+    if (w.includes("🔴")) return { cls: "bg-red-50 text-red-800 border border-red-200", icon: <XCircle className="h-4 w-4 flex-shrink-0 text-red-500" /> };
+    if (w.includes("⚠️")) return { cls: "bg-orange-50 text-orange-800 border border-orange-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-500" /> };
+    if (w.includes("⏳")) return { cls: "bg-amber-50 text-amber-800 border border-amber-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500" /> };
+    return { cls: "bg-emerald-50 text-emerald-800 border border-emerald-200", icon: <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" /> };
+  };
+
+  const stripEmoji = (w: string) => w.replace(/^[\p{Emoji}\s]+/u, "").trim();
 
   const isPdfUrl = (url: string) => url.toLowerCase().endsWith(".pdf");
   
@@ -637,6 +657,21 @@ export default function DriverDetailPage() {
         <TabsList className="flex justify-start w-full gap-8 bg-[#f9f9f9] py-8 px-6">
           <TabsTrigger value="driver-detail" className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F] transition-colors">
             <User size={16} /> Driver Details
+            {warningCount > 0 && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setWarningsDialogOpen(true); }}
+                className="relative ml-1 group/bell"
+              >
+                <Bell className="h-4 w-4 text-gray-400 group-hover/bell:text-orange-500 transition-colors" />
+                <span className={cn(
+                  "absolute -top-1.5 -right-2 min-w-[16px] h-[16px] flex items-center justify-center rounded-full text-[9px] font-bold text-white px-0.5",
+                  errorCount > 0 ? "bg-red-500" : cautionCount > 0 ? "bg-orange-500" : "bg-amber-500"
+                )}>
+                  {warningCount}
+                </span>
+              </button>
+            )}
           </TabsTrigger>
           <TabsTrigger value="professional-competency" className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F] transition-colors">
             <BadgeCheck size={16} /> Professional Details
@@ -648,6 +683,55 @@ export default function DriverDetailPage() {
             <FileSignature size={16} /> Signed Agreement
           </TabsTrigger>
         </TabsList>
+
+        {/* ── Warnings Dialog ── */}
+        <Dialog open={warningsDialogOpen} onOpenChange={setWarningsDialogOpen}>
+          <DialogContent className="max-w-lg p-0 overflow-hidden border-none rounded-2xl shadow-2xl">
+            <DialogHeader className="px-6 py-5 bg-white border-b border-gray-100">
+              <DialogTitle className="flex items-center gap-3">
+                <div className={cn(
+                  "flex items-center justify-center w-9 h-9 rounded-xl",
+                  errorCount > 0 ? "bg-red-50" : cautionCount > 0 ? "bg-orange-50" : "bg-amber-50"
+                )}>
+                  <Bell className={cn(
+                    "h-5 w-5",
+                    errorCount > 0 ? "text-red-500" : cautionCount > 0 ? "text-orange-500" : "text-amber-500"
+                  )} />
+                </div>
+                <div>
+                  <span className="text-base font-bold text-gray-900">Profile Notifications</span>
+                  <p className="text-xs text-gray-400 font-normal mt-0.5">
+                    {warningCount} item{warningCount !== 1 ? "s" : ""} require attention
+                  </p>
+                </div>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-2.5">
+                {driverData?.warnings?.map((w: string, i: number) => {
+                  const { cls, icon } = getWarningStyle(w);
+                  return (
+                    <div key={i} className={cn("flex items-start gap-3 p-3.5 rounded-xl text-sm font-medium transition-all hover:shadow-sm", cls)}>
+                      <div className="mt-0.5">{icon}</div>
+                      <span className="flex-1 leading-relaxed">{stripEmoji(w)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end px-6 py-4 bg-gray-50/50 border-t border-gray-100">
+              <Button
+                variant="outline"
+                className="rounded-lg h-9 px-6 text-sm border-gray-200 text-gray-600 hover:bg-gray-100"
+                onClick={() => setWarningsDialogOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <TabsContent value="driver-detail">
           <DriverDetailTab

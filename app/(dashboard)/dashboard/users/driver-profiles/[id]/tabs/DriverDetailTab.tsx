@@ -595,7 +595,6 @@ export default function DriverDetailTab({
   /* ──────────────────────────────────────────────────────────────────────── */
   return (
     <div className="w-full p-4 pb-24 space-y-5 bg-transparent">
-      {renderWarnings()}
 
       {/* ══════════════════════ DRIVER DETAILS (read-only card) ══════════════════════ */}
       <SectionCard
@@ -862,15 +861,15 @@ export default function DriverDetailTab({
                       onChange={(e) => setDriverDialogForm((f) => ({ ...f, email: e.target.value }))}
                       className="h-9 rounded-lg border-gray-200 text-sm"
                       placeholder="Email"
-                    />
-                  </div>
+                  />
                 </div>
-
               </div>
+
             </div>
           </div>
+        </div>
 
-          {/* Footer buttons */}
+        {/* Footer buttons */}
           <div className="flex justify-end gap-3 px-8 py-4 border-t border-gray-100 bg-gray-50/50">
             <Button
               variant="outline"
@@ -892,188 +891,189 @@ export default function DriverDetailTab({
 
       {/* ══════════════════════ EMPLOYMENT DETAILS DIALOG ══════════════════════ */}
       <Dialog open={employmentDialogOpen} onOpenChange={setEmploymentDialogOpen}>
-        <DialogContent className="max-w-[1200px] p-0 overflow-hidden border-none rounded-[2.5rem] shadow-2xl">
-          <DialogHeader className="px-10 py-8 bg-white border-b border-gray-100/50">
-            <DialogTitle className="text-2xl font-bold text-gray-900 tracking-tight">Edit Employment Details</DialogTitle>
+        <DialogContent className="max-w-[1100px] w-full p-0 overflow-hidden border-none rounded-[2rem] shadow-2xl">
+          <DialogHeader className="px-8 py-6 bg-white border-b border-gray-100/50">
+            <DialogTitle className="text-xl font-bold text-gray-900 tracking-tight">Edit Employment Details</DialogTitle>
           </DialogHeader>
 
-          <div className="p-10 bg-white">
-            <div className="flex gap-10">
-              {/* Left Column: Holiday Entitlement */}
-              <div className="flex flex-col items-center justify-center p-6 bg-orange-50/30 rounded-2xl border border-orange-100 min-w-[180px]">
-                <span className="text-[11px] font-bold text-gray-900 text-center mb-2 uppercase tracking-wider">Paid Holiday Entitlement</span>
-                <div className="flex items-center gap-4">
-                  <span className="text-7xl font-black text-orange-500 leading-none select-none tracking-tighter">
-                    {employmentDialogForm.paid_holidays || 0}
-                  </span>
-                  <div className="flex flex-col gap-1.5">
-                    <button
-                      onClick={() => setEmploymentDialogForm(f => ({ ...f, paid_holidays: (f.paid_holidays || 0) + 1 }))}
-                      className="p-1 hover:bg-orange-100 rounded-md text-orange-600 transition-colors"
-                    >
-                      <ChevronUp className="h-6 w-6" />
-                    </button>
-                    <button
-                      onClick={() => setEmploymentDialogForm(f => ({ ...f, paid_holidays: Math.max(0, (f.paid_holidays || 0) - 1) }))}
-                      className="p-1 hover:bg-orange-100 rounded-md text-orange-600 transition-colors"
-                    >
-                      <ChevronDown className="h-6 w-6" />
-                    </button>
+          <div className="p-8 bg-white">
+            <div className="flex flex-col gap-8">
+              {/* Row 1: High-level metrics/selectors */}
+              <div className="grid grid-cols-4 gap-8">
+                {/* Paid Holidays (Interactive Cell) */}
+                <div className="flex flex-col gap-1.5 p-3 bg-orange-50/30 rounded-2xl border border-orange-100">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Paid Holidays</label>
+                  <div className="flex items-center justify-between px-2">
+                    <span className="text-3xl font-black text-orange-500 leading-none">
+                      {employmentDialogForm.paid_holidays || 0}
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setEmploymentDialogForm(f => ({ ...f, paid_holidays: Math.max(0, (f.paid_holidays || 0) - 1) }))}
+                        className="p-1 hover:bg-orange-100 rounded-md text-orange-600 transition-colors"
+                      >
+                        <ChevronDown className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => setEmploymentDialogForm(f => ({ ...f, paid_holidays: (f.paid_holidays || 0) + 1 }))}
+                        className="p-1 hover:bg-orange-100 rounded-md text-orange-600 transition-colors"
+                      >
+                        <ChevronUp className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Contract Assigned</label>
+                  <Select
+                    value={employmentDialogForm.contract_id}
+                    onValueChange={(v) => setEmploymentDialogForm(f => ({ ...f, contract_id: v }))}
+                  >
+                    <SelectTrigger className="h-10 rounded-xl bg-gray-50/50 border-gray-200 text-gray-800 font-semibold text-xs">
+                      <SelectValue placeholder="Select Contract" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contracts.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Bright HR Manager</label>
+                  <Select
+                    value={employmentDialogForm.manager_id}
+                    onValueChange={(v) => setEmploymentDialogForm(f => ({ ...f, manager_id: v }))}
+                    disabled={!!activeBrightHR}
+                  >
+                    <SelectTrigger className={cn(
+                      "h-10 rounded-xl border-gray-200 font-semibold text-xs",
+                      !!activeBrightHR ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-50/50 text-gray-800"
+                    )}>
+                      <SelectValue placeholder="Select Manager" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {managers.map(m => <SelectItem key={m.id} value={m.id.toString()}>{m.full_name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Site(s) Assigned</label>
+                  <MultiSelect
+                    options={sites.map(s => ({ value: s.id.toString(), label: s.name }))}
+                    selected={employmentDialogForm.site_ids || []}
+                    onChange={(v) => setEmploymentDialogForm(f => ({ ...f, site_ids: v }))}
+                    placeholder="Select Sites"
+                  />
                 </div>
               </div>
 
-              {/* 4-Column Grid */}
-              <div className="flex-1 flex gap-0">
-                {/* Col 1 */}
-                <div className="flex-1 space-y-6 pr-6">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Contract Assigned</label>
-                    <Select
-                      value={employmentDialogForm.contract_id}
-                      onValueChange={(v) => setEmploymentDialogForm(f => ({ ...f, contract_id: v }))}
-                    >
-                      <SelectTrigger className="h-9 rounded-lg bg-rose-50/50 border-rose-100 text-rose-700 font-semibold text-xs">
-                        <SelectValue placeholder="Select Contract" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {contracts.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                      Bright HR Manager {activeBrightHR && "(Locked)"}
-                    </label>
-                    <Select
-                      value={employmentDialogForm.manager_id}
-                      onValueChange={(v) => setEmploymentDialogForm(f => ({ ...f, manager_id: v }))}
-                      disabled={!!activeBrightHR}
-                    >
-                      <SelectTrigger className={cn(
-                        "h-9 rounded-lg border-orange-100 font-semibold text-xs",
-                        !!activeBrightHR ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "bg-orange-50/50 text-orange-600"
-                      )}>
-                        <SelectValue placeholder="Select Manager" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {managers.map(m => <SelectItem key={m.id} value={m.id.toString()}>{m.full_name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+              {/* Row 2: Dates & Financials */}
+              <div className="grid grid-cols-4 gap-8">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Assign Date</label>
+                  <Input
+                    type="date"
+                    value={employmentDialogForm.assigning_date}
+                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, assigning_date: e.target.value }))}
+                    disabled={!!activeBrightHR}
+                    className={cn(
+                      "h-10 rounded-xl border-gray-200 font-semibold text-xs",
+                      !!activeBrightHR ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-50/50"
+                    )}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Contract Sign Date</label>
+                  <Input
+                    type="date"
+                    value={employmentDialogForm.contract_signing_date}
+                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, contract_signing_date: e.target.value }))}
+                    className="h-10 rounded-xl bg-gray-50/50 border-gray-200 text-gray-800 font-semibold text-xs"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Account No</label>
+                  <Input
+                    value={employmentDialogForm.account_no}
+                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, account_no: e.target.value }))}
+                    className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs"
+                    placeholder="Account No"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Sort Code</label>
+                  <Input
+                    value={employmentDialogForm.sort_code}
+                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, sort_code: e.target.value }))}
+                    className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs"
+                    placeholder="Sort Code"
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Rota, Jobs & Remarks */}
+              <div className="grid grid-cols-4 gap-8">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Rota Start Date</label>
+                  <Input
+                    type="date"
+                    value={employmentDialogForm.rota_start_date}
+                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, rota_start_date: e.target.value }))}
+                    className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Jobs?</label>
+                  <div className="flex items-center justify-between h-10 px-4 bg-gray-50/50 border border-gray-200 rounded-xl">
+                    <span className="text-xs font-semibold text-gray-700">
+                      {employmentDialogForm.have_other_jobs ? "Yes" : "No"}
+                    </span>
+                    <Switch
+                      checked={employmentDialogForm.have_other_jobs}
+                      onCheckedChange={(v) => setEmploymentDialogForm(f => ({ ...f, have_other_jobs: v }))}
+                      className="scale-75"
+                    />
                   </div>
                 </div>
-
-                <div className="w-px bg-gray-100 h-full" />
-
-                {/* Col 2 */}
-                <div className="flex-1 space-y-6 px-6">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Site(s) Assigned</label>
-                    <MultiSelect
-                      options={sites.map(s => ({ value: s.id.toString(), label: s.name }))}
-                      selected={employmentDialogForm.site_ids || []}
-                      onChange={(v) => setEmploymentDialogForm(f => ({ ...f, site_ids: v }))}
-                      placeholder="Select Sites"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                      Assign Date {activeBrightHR && "(Locked)"}
-                    </label>
-                    <Input
-                      type="date"
-                      value={employmentDialogForm.assigning_date}
-                      onChange={(e) => setEmploymentDialogForm(f => ({ ...f, assigning_date: e.target.value }))}
-                      disabled={!!activeBrightHR}
-                      className={cn(
-                        "h-9 rounded-lg border-orange-100 font-semibold text-xs",
-                        !!activeBrightHR ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "bg-orange-50/50 text-orange-600"
-                      )}
-                    />
-                  </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Job Details</label>
+                  <Input
+                    value={employmentDialogForm.have_other_jobs_note}
+                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, have_other_jobs_note: e.target.value }))}
+                    disabled={!employmentDialogForm.have_other_jobs}
+                    className={cn(
+                      "h-10 rounded-xl border-gray-200 font-semibold text-xs",
+                      !employmentDialogForm.have_other_jobs ? "bg-gray-100 text-gray-400 cursor-not-allowed border-dashed" : "bg-gray-50/50 text-gray-700"
+                    )}
+                    placeholder={employmentDialogForm.have_other_jobs ? "Details…" : "N/A"}
+                  />
                 </div>
-
-                <div className="w-px bg-gray-100 h-full" />
-
-                {/* Col 3 */}
-                <div className="flex-1 space-y-6 px-6">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Sign Date</label>
-                    <Input
-                      type="date"
-                      value={employmentDialogForm.contract_signing_date}
-                      onChange={(e) => setEmploymentDialogForm(f => ({ ...f, contract_signing_date: e.target.value }))}
-                      className="h-9 rounded-lg bg-rose-50/50 border-rose-100 text-rose-700 font-semibold text-xs"
-                    />
-                  </div>
-                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Job</label>
-                    <div className="flex items-center gap-3 h-9 px-3 rounded-lg bg-gray-50/80 border border-gray-100">
-                      <Switch
-                        checked={employmentDialogForm.have_other_jobs}
-                        onCheckedChange={(v) => {
-                          setEmploymentDialogForm(f => ({ ...f, have_other_jobs: v }));
-                        }}
-                        className="scale-75"
-                      />
-                      <span className="text-[11px] font-semibold text-gray-600 uppercase">
-                        {employmentDialogForm.have_other_jobs ? "Yes" : "No"}
-                      </span>
-                    </div>
-                  </div>
-                  {employmentDialogForm.have_other_jobs && (
-                    <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1 flex items-center gap-1">
-                        Other Job Details <span className="text-rose-500 font-bold">*</span>
-                      </label>
-                      <Input
-                        value={employmentDialogForm.have_other_jobs_note}
-                        onChange={(e) => setEmploymentDialogForm(f => ({ ...f, have_other_jobs_note: e.target.value }))}
-                        className="h-9 rounded-lg bg-rose-50/20 border-rose-100 text-gray-700 text-xs"
-                        placeholder="Details of other job…"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="w-px bg-gray-100 h-full" />
-
-                {/* Col 4 */}
-                <div className="flex-1 space-y-6 pl-6">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Rota Start Date</label>
-                    <Input
-                      type="date"
-                      value={employmentDialogForm.rota_start_date}
-                      onChange={(e) => setEmploymentDialogForm(f => ({ ...f, rota_start_date: e.target.value }))}
-                      className="h-9 rounded-lg bg-gray-50/80 border border-gray-100 text-gray-700 font-semibold text-xs"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Remarks</label>
-                    <Input
-                      value={employmentDialogForm.remarks}
-                      onChange={(e) => setEmploymentDialogForm(f => ({ ...f, remarks: e.target.value }))}
-                      className="h-9 rounded-lg bg-gray-50/80 border border-gray-100 text-gray-700 font-semibold text-xs"
-                      placeholder="N/A"
-                    />
-                  </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Remarks</label>
+                  <Input
+                    value={employmentDialogForm.remarks}
+                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, remarks: e.target.value }))}
+                    className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs"
+                    placeholder="Remarks"
+                  />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 px-8 py-6 bg-gray-50/50 border-t border-gray-100">
+          <div className="flex justify-end gap-3 px-8 py-4 bg-gray-50/50 border-t border-gray-100">
             <Button
               variant="outline"
-              className="rounded-xl h-10 px-8 text-sm font-bold border-none bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all shadow-sm"
+              className="rounded-lg h-9 px-6 text-xs font-bold border-none bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all shadow-sm"
               onClick={() => setEmploymentDialogOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              className="rounded-xl h-10 px-8 text-sm font-bold bg-[#FFE4D9] hover:bg-[#FFD5C2] text-[#FF6B3D] border-none transition-all shadow-sm"
+              className="rounded-lg h-9 px-6 text-xs font-bold bg-[#FFE4D9] hover:bg-[#FFD5C2] text-[#FF6B3D] border-none transition-all shadow-sm"
               onClick={handleEmploymentDialogSave}
             >
               Update Changes
@@ -1084,108 +1084,98 @@ export default function DriverDetailTab({
 
       {/* ══════════════════════ NEXT OF KIN DIALOG ══════════════════════ */}
       <Dialog open={nextOfKinDialogOpen} onOpenChange={setNextOfKinDialogOpen}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden border-none rounded-[2rem] shadow-2xl">
-          <DialogHeader className="px-8 py-6 bg-white border-b border-gray-100/50">
-            <DialogTitle className="text-xl font-bold text-gray-900 tracking-tight">Edit Next of Kin</DialogTitle>
+        <DialogContent className="max-w-3xl w-full rounded-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-8 pt-6 pb-4 border-b border-gray-100">
+            <DialogTitle className="text-base font-bold text-gray-900">Edit Next of Kin</DialogTitle>
           </DialogHeader>
-
-          <div className="p-8 bg-white">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+          <div className="px-8 py-6">
+            <div className="flex flex-col gap-5">
               {/* Row 1 */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">First Name</label>
-                <Input
-                  value={nextOfKinDialogForm.next_of_kin_first_name}
-                  onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_first_name: e.target.value }))}
-                  className="h-9 rounded-lg bg-gray-50/80 border border-gray-100 text-gray-700 font-semibold text-xs"
-                  placeholder="First name"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Last Name</label>
-                <Input
-                  value={nextOfKinDialogForm.next_of_kin_last_name}
-                  onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_last_name: e.target.value }))}
-                  className="h-9 rounded-lg bg-gray-50/80 border border-gray-100 text-gray-700 font-semibold text-xs"
-                  placeholder="Last name"
-                />
+              <div className="grid grid-cols-3 gap-6">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">First Name</label>
+                  <Input
+                    value={nextOfKinDialogForm.next_of_kin_first_name}
+                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_first_name: e.target.value }))}
+                    className="h-9 rounded-lg border-gray-200 text-sm"
+                    placeholder="First name"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Last Name</label>
+                  <Input
+                    value={nextOfKinDialogForm.next_of_kin_last_name}
+                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_last_name: e.target.value }))}
+                    className="h-9 rounded-lg border-gray-200 text-sm"
+                    placeholder="Last name"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Phone Number</label>
+                  <Input
+                    value={nextOfKinDialogForm.next_of_kin_contact}
+                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_contact: e.target.value }))}
+                    className="h-9 rounded-lg border-gray-200 text-sm"
+                    placeholder="Phone"
+                  />
+                </div>
               </div>
 
               {/* Row 2 */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Phone Number</label>
-                <Input
-                  value={nextOfKinDialogForm.next_of_kin_contact}
-                  onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_contact: e.target.value }))}
-                  className="h-9 rounded-lg bg-gray-50/80 border border-gray-100 text-gray-700 font-semibold text-xs"
-                  placeholder="Phone"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Email Address</label>
-                <Input
-                  type="email"
-                  value={nextOfKinDialogForm.next_of_kin_email}
-                  onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_email: e.target.value }))}
-                  className="h-9 rounded-lg bg-gray-50/80 border border-gray-100 text-gray-700 font-semibold text-xs"
-                  placeholder="Email"
-                />
-              </div>
-
-              {/* Row 3 */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Relationship</label>
-                <Input
-                  value={nextOfKinDialogForm.next_of_kin_relationship}
-                  onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_relationship: e.target.value }))}
-                  className="h-9 rounded-lg bg-emerald-50/50 border-emerald-100 text-emerald-700 font-semibold text-xs"
-                  placeholder="e.g. Spouse"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Address</label>
-                <Input
-                  value={nextOfKinDialogForm.next_of_kin_address}
-                  onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_address: e.target.value }))}
-                  className="h-9 rounded-lg bg-gray-50/80 border border-gray-100 text-gray-700 font-semibold text-xs"
-                  placeholder="Address"
-                />
-              </div>
-
-              {/* Row 4: Note (Full width) */}
-              <div className="col-span-2 flex flex-col gap-1.5 pt-2 border-t border-gray-50">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Additional Notes</label>
-                <Textarea
-                  value={nextOfKinDialogForm.next_of_kin_note}
-                  onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_note: e.target.value }))}
-                  className="rounded-lg bg-gray-50/50 border-gray-100 text-gray-600 text-xs min-h-[80px]"
-                  placeholder="Any additional notes…"
-                />
+              <div className="grid grid-cols-3 gap-6">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Relationship</label>
+                  <Input
+                    value={nextOfKinDialogForm.next_of_kin_relationship}
+                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_relationship: e.target.value }))}
+                    className="h-9 rounded-lg border-gray-200 text-sm"
+                    placeholder="e.g. Spouse"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Email Address</label>
+                  <Input
+                    type="email"
+                    value={nextOfKinDialogForm.next_of_kin_email}
+                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_email: e.target.value }))}
+                    className="h-9 rounded-lg border-gray-200 text-sm"
+                    placeholder="Email"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Address</label>
+                  <Input
+                    value={nextOfKinDialogForm.next_of_kin_address}
+                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_address: e.target.value }))}
+                    className="h-9 rounded-lg border-gray-200 text-sm"
+                    placeholder="Address"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="flex justify-end gap-3 px-8 py-6 bg-gray-50/50 border-t border-gray-100">
+          <div className="flex justify-end gap-3 px-8 py-4 border-t border-gray-100 bg-gray-50/50">
             <Button
               variant="outline"
-              className="rounded-xl h-10 px-8 text-sm font-bold border-none bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all shadow-sm"
+              className="rounded-lg h-9 px-6 text-sm border-gray-200 text-gray-600 hover:bg-gray-100"
               onClick={() => setNextOfKinDialogOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              className="rounded-xl h-10 px-8 text-sm font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border-none transition-all shadow-sm"
+              className="rounded-lg h-9 px-6 text-sm bg-rose-400 hover:bg-rose-500 text-white border-0"
               onClick={handleNextOfKinDialogSave}
+              disabled={saving}
             >
-              Update Changes
+              {saving ? "Saving…" : "Update Changes"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
 
-      {/* ══════════════════════ EMPLOYMENT DETAILS ══════════════════════ */}
+      {/* ══════════════════════ EMPLOYMENT DETAILS (Matching Dialog Layout) ══════════════════════ */}
       <SectionCard
         title="Employment Details"
         isEditing={false}
@@ -1194,146 +1184,92 @@ export default function DriverDetailTab({
         onCancel={() => { }}
         onSave={() => { }}
       >
-        {/* Row 1 */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 mb-5">
-          <div className="flex-1">
+        <div className="flex flex-col gap-8">
+          {/* Row 1: High-level metrics */}
+          <div className="grid grid-cols-4 gap-8">
+            <div className="flex flex-col gap-1.5 p-3 bg-orange-50/30 rounded-2xl border border-orange-100 min-w-0">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Paid Holidays</span>
+              <div className="flex items-baseline gap-1 pl-1">
+                <span className="text-3xl font-black text-orange-500 leading-none">
+                  {driverData?.user?.paid_holidays ?? 0}
+                </span>
+                <span className="text-[10px] font-bold text-orange-400 uppercase">Days</span>
+              </div>
+            </div>
+
             <FieldCell
-              label="Contract Sign Date"
-              value={
-                driverData?.user?.contract_signing_date
-                  ? formatDate(driverData.user.contract_signing_date)
-                  : "—"
-              }
-              editing={false}
-              fieldKey="contract_signing_date"
-              type="date"
-              onChange={(v) => handleInputChange("contract_signing_date", v)}
-            />
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            {/* Contract Type badge */}
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-                Contract Type
-              </span>
-              {contractType ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit bg-rose-100 text-rose-700 border border-rose-200">
+              label="Contract Assigned"
+              value={contractType ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-100">
                   {contractType}
                 </span>
-              ) : (
-                <span className="text-sm text-gray-400">—</span>
-              )}
-            </div>
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            <FieldCell
-              label="Account Number"
-              value={driverData?.account_no || "—"}
+              ) : "—"}
             />
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            <FieldCell
-              label="Bright HR Allocation Date"
-              value={
-                activeBrightHR?.assigning_date
-                  ? formatDate(activeBrightHR.assigning_date)
-                  : "—"
-              }
-            />
-          </div>
-        </div>
 
-        {/* Row 2 */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 mb-5">
-          <div className="flex-1">
-            <FieldCell
-              label="Rota start Date"
-              value={
-                driverData?.user?.rota_start_date
-                  ? formatDate(driverData.user.rota_start_date)
-                  : "—"
-              }
-            />
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            {/* Assigned Sites */}
             <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-                Assigned Sites
-              </span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit bg-orange-100 text-orange-700 border border-orange-200 max-w-full truncate">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Bright HR Manager</span>
+              {activeBrightHR ? (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-yellow-50 text-yellow-800 border border-yellow-100 ml-1">
+                  {activeBrightHR.manager_name}
+                </span>
+              ) : <span className="text-sm text-gray-400 ml-1">—</span>}
+            </div>
+
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Site(s) Assigned</span>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-orange-50 text-orange-700 border border-orange-200 ml-1 max-w-full truncate">
                 {renderAssignedSites()}
               </span>
             </div>
           </div>
-          <VDivider />
-          <div className="flex-1">
-            {/* Sort Code with pink highlight */}
+
+          {/* Row 2: Dates & Financials */}
+          <div className="grid grid-cols-4 gap-8">
+            <FieldCell
+              label="Assign Date"
+              value={activeBrightHR?.assigning_date ? formatDate(activeBrightHR.assigning_date) : "—"}
+            />
+            <FieldCell
+              label="Contract Sign Date"
+              value={driverData?.user?.contract_signing_date ? formatDate(driverData.user.contract_signing_date) : "—"}
+            />
+            <FieldCell label="Account No" value={driverData?.account_no || "—"} />
             <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Sort Code</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit bg-rose-100 text-rose-600 border border-rose-200">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Sort Code</span>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-rose-50 text-rose-600 border border-rose-100 ml-1">
                 {driverData?.sort_code || "—"}
               </span>
             </div>
           </div>
-          <VDivider />
-          <div className="flex-1">
-            {/* Bright HR Manager with yellow highlight */}
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-                Bright HR Manager
-              </span>
-              {activeBrightHR ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit bg-yellow-100 text-yellow-800 border border-yellow-200">
-                  {activeBrightHR.manager_name}
-                </span>
-              ) : (
-                <span className="text-sm text-gray-400">—</span>
-              )}
-            </div>
-          </div>
-        </div>
 
-        {/* Row 3 */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-0">
-          <div className="flex-1">
+          {/* Row 3: Rota, Jobs & Remarks */}
+          <div className="grid grid-cols-4 gap-8">
             <FieldCell
-              label="Paid Holidays"
-              value={`${driverData?.user?.paid_holidays ?? 0} Days`}
+              label="Rota Start Date"
+              value={driverData?.user?.rota_start_date ? formatDate(driverData.user.rota_start_date) : "—"}
             />
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            {/* Has Others Job */}
             <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-                Has Others Job
-              </span>
-              <span className="text-sm font-medium text-gray-700">
-                {driverData?.have_other_jobs_note || (driverData?.have_other_jobs ? "Yes" : "—")}
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Jobs?</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-gray-100 text-gray-700 border border-gray-200 ml-1">
+                {driverData?.have_other_jobs ? "Yes" : "No"}
               </span>
             </div>
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            {/* Remarks */}
             <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Remarks</span>
-              <span className="text-sm font-medium text-gray-700 line-clamp-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Job Details</span>
+              <span className="text-[11px] font-semibold text-gray-700 truncate ml-1">
+                {driverData?.have_other_jobs_note || "—"}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Remarks</span>
+              <span className="text-[11px] font-semibold text-gray-700 truncate ml-1">
                 {driverData?.remarks || "—"}
               </span>
             </div>
           </div>
-          <VDivider />
-          {/* Spacer column */}
-          <div className="flex-1" />
         </div>
-
       </SectionCard>
+
 
       {/* ══════════════════════ NEXT OF KIN ══════════════════════ */}
       <SectionCard

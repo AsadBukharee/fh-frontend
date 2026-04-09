@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   Calendar,
   Edit,
+  Briefcase,
+  Clock,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -31,8 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import { toast as sonnerToast, toast } from "sonner";
-import { format } from "date-fns";
-import { Checkbox } from "@/components/ui/checkbox";
+import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 import {
   Dialog,
   DialogContent,
@@ -214,8 +215,8 @@ const getHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
 });
 
-const formatDate = (d: string | null) =>
-  d ? format(new Date(d), "dd-MM-yyyy") : "—";
+const formatDate = (d: string | null | undefined) =>
+  formatToDDMMYYYY(d);
 
 const getEndpoint = (key: DocumentKey, id?: number): string => {
   const cfg = docConfig[key];
@@ -507,13 +508,14 @@ function DynamicUploadDialog({
           </div>
 
           {cfg.fields.includes("applicable") && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50/50">
+              <Label htmlFor="applicable" className="font-medium">Document is Applicable</Label>
+              <Switch
                 id="applicable"
                 checked={formData.applicable ?? true}
                 onCheckedChange={(v) => setFormData({ ...formData, applicable: v })}
+                className="data-[state=checked]:bg-green-500"
               />
-              <Label htmlFor="applicable">Applicable</Label>
             </div>
           )}
           {cfg.fields.includes("expiry") && (
@@ -641,7 +643,7 @@ function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: Documen
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 animate-in fade-in zoom-in-95 duration-300">
         <DialogHeader className="relative bg-[#F15A29] p-8 pb-6 border-b border-white/10">
-        
+
 
           <div className="flex justify-between items-start w-full gap-4 pr-10">
             <div className="space-y-3 flex-1">
@@ -784,9 +786,9 @@ function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: Documen
 /* ────────────────────── Main Component ────────────────────── */
 export default function SignAgreementAdminTab() {
   const { id } = useParams();
-  const driver_id=id as string;
+  const driver_id = id as string;
   // const searchParams=useSearchParams();
-  
+
   // alert(user_id)
   const searchParams = useSearchParams();
   const userId = searchParams.get("user_id")
@@ -916,91 +918,91 @@ export default function SignAgreementAdminTab() {
   };
 
   const toggleApplicable = async (key: DocumentKey) => {
-  const doc = docs[key];
-  const cfg = docConfig[key];
-  const newApplicable = !doc.isApplicable;
+    const doc = docs[key];
+    const cfg = docConfig[key];
+    const newApplicable = !doc.isApplicable;
 
-  try {
-    let endpoint = "";
-    let method = "";
-    const payload: any = {
-      driver_id: Number(userId),
-      is_applicable: newApplicable,
-    };
+    try {
+      let endpoint = "";
+      let method = "";
+      const payload: any = {
+        driver_id: Number(userId),
+        is_applicable: newApplicable,
+      };
 
-    // Case 1: Document already exists → simple PATCH
-    if (doc.id) {
-      endpoint = getEndpoint(key, doc.id);
-      method = "PATCH";
-      // Only send what we need
-      Object.assign(payload, { is_applicable: newApplicable });
-    }
-    // Case 2: No document yet → we CREATE one just to save applicability
-    else {
-      endpoint = getEndpoint(key); // list/create endpoint
-      method = "POST";
-
-      // Add minimal required fields depending on document type
-      if (key === "nightWorker") {
-        Object.assign(payload, {
-          is_night_worker: true,
-          admin_uploaded: false,
-          agreement_date: new Date().toISOString().split("T")[0], // today
-        });
+      // Case 1: Document already exists → simple PATCH
+      if (doc.id) {
+        endpoint = getEndpoint(key, doc.id);
+        method = "PATCH";
+        // Only send what we need
+        Object.assign(payload, { is_applicable: newApplicable });
       }
+      // Case 2: No document yet → we CREATE one just to save applicability
+      else {
+        endpoint = getEndpoint(key); // list/create endpoint
+        method = "POST";
 
-      if (key === "pensionInfo") {
-        Object.assign(payload, {
-          eligible: true,
-          auto_enrollment: true,
-          current_status: "not_uploaded", // since no file yet
-        });
-      }
-
-      // For normal signed agreements (contract, NDA, handbook, etc.)
-      if (!cfg.apiKey) {
-        const docName = documentNames.find((d) => d.name === cfg.title);
-        if (!docName) {
-          sonnerToast.error(`Document "${cfg.title}" not found in system`);
-          return;
+        // Add minimal required fields depending on document type
+        if (key === "nightWorker") {
+          Object.assign(payload, {
+            is_night_worker: true,
+            admin_uploaded: false,
+            agreement_date: new Date().toISOString().split("T")[0], // today
+          });
         }
 
-        Object.assign(payload, {
-          document_name_id: docName.id,
-          name: cfg.title,
-          category: cfg.category,
-          status: "pending",
-          priority: 1,
-          document_type: "signable",
-          requires_signature: true,
-          is_signed: false,
-          link: null,
-          document_link: null,
-        });
+        if (key === "pensionInfo") {
+          Object.assign(payload, {
+            eligible: true,
+            auto_enrollment: true,
+            current_status: "not_uploaded", // since no file yet
+          });
+        }
+
+        // For normal signed agreements (contract, NDA, handbook, etc.)
+        if (!cfg.apiKey) {
+          const docName = documentNames.find((d) => d.name === cfg.title);
+          if (!docName) {
+            sonnerToast.error(`Document "${cfg.title}" not found in system`);
+            return;
+          }
+
+          Object.assign(payload, {
+            document_name_id: docName.id,
+            name: cfg.title,
+            category: cfg.category,
+            status: "pending",
+            priority: 1,
+            document_type: "signable",
+            requires_signature: true,
+            is_signed: false,
+            link: null,
+            document_link: null,
+          });
+        }
       }
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: getHeaders(token),
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to save: ${errorText || res.statusText}`);
+      }
+
+      await reload(); // Refresh all documents
+
+      sonnerToast.success(
+        `${cfg.title} is now ${newApplicable ? "Applicable" : "Not Applicable"}`
+      );
+    } catch (err: any) {
+      console.error("toggleApplicable error:", err);
+      sonnerToast.error(err.message || "Failed to update applicability");
     }
-
-    const res = await fetch(endpoint, {
-      method,
-      headers: getHeaders(token),
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Failed to save: ${errorText || res.statusText}`);
-    }
-
-    await reload(); // Refresh all documents
-
-    sonnerToast.success(
-      `${cfg.title} is now ${newApplicable ? "Applicable" : "Not Applicable"}`
-    );
-  } catch (err: any) {
-    console.error("toggleApplicable error:", err);
-    sonnerToast.error(err.message || "Failed to update applicability");
-  }
-};
+  };
 
   const deleteDoc = async (id?: number, key?: DocumentKey) => {
     if (!id || !key) return;
@@ -1018,13 +1020,13 @@ export default function SignAgreementAdminTab() {
     );
   }
 
-return (
+  return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-4 md:p-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <FileText className="h-6 w-6 text-gray-700" />
         <h1 className="text-xl font-semibold text-gray-900">
-          Signed Agreements – <span className="text-orange-600"><span className="text-black">Driver </span>{ name ?name:`# ${userId}`}</span>
+          Signed Agreements – <span className="text-orange-600"><span className="text-black">Driver </span>{name ? name : `# ${userId}`}</span>
         </h1>
       </div>
 
@@ -1041,150 +1043,145 @@ return (
             ? isImage
               ? fileUrl
               : fileUrl?.endsWith(".pdf")
-              ? `https://api.dicebear.com/7.x/shapes/svg?seed=pdf&backgroundColor=ff6b35`
-              : null
+                ? `https://api.dicebear.com/7.x/shapes/svg?seed=pdf&backgroundColor=ff6b35`
+                : null
             : null;
 
           return (
             <Card
               key={key}
-              className={`overflow-hidden bg-white rounded-xl border border-gray-200 transition-all hover:shadow-lg ${
-                !d.isApplicable ? "opacity-50" : ""
-              }`}
+              className={`overflow-hidden bg-white rounded-[2rem] border border-gray-100 shadow-sm transition-all hover:shadow-md flex flex-col h-full ${!d.isApplicable ? "opacity-50" : ""}`}
             >
-              {/* Image/Preview Area */}
-              <div 
-                className="h-44 bg-gray-100 relative overflow-hidden cursor-pointer group"
-                onClick={() => uploaded && setDetail({ open: true, key: k })}
-              >
-                {uploaded ? (
-                  previewUrl ? (
-                    isImage ? (
-                      <img 
-                        src={previewUrl} 
-                        alt={cfg.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <FileText className="h-16 w-16 text-[#F15A29]" />
+              {/* Top Section: Photo / Placeholder */}
+              <div className="p-4 pb-2">
+                <div className="relative overflow-hidden rounded-2xl h-[170px]">
+                  {uploaded ? (
+                    <>
+                      <div
+                        className="w-full h-full cursor-pointer"
+                        onClick={() => setDetail({ open: true, key: k })}
+                      >
+                        {isImage ? (
+                          <img
+                            src={fileUrl!}
+                            alt={cfg.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full bg-gray-50 border border-gray-100">
+                            <FileText className="h-12 w-12 text-gray-200" />
+                          </div>
+                        )}
                       </div>
-                    )
+                      {/* Trash Overlay */}
+                      <button
+                        className="absolute top-3 right-3 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors z-10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteDoc(d.id, k);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-white" />
+                      </button>
+                    </>
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-[#F15A29]">
-                      <FileText className="h-16 w-16" />
-                    </div>
-                  )
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full">
-                    <div className="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center mb-3">
-                      <Upload className="h-10 w-10 text-orange-400" />
-                    </div>
-                    <span className="text-sm text-gray-500">Drag & Drop file here</span>
-                    <span className="text-xs text-gray-400 mt-1">or click upload button</span>
-                  </div>
-                )}
-                
-                {/* Delete button overlay for uploaded docs */}
-                {uploaded && (
-                  <button
-                    className="absolute top-3 right-3 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteDoc(d.id, k);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-white" />
-                  </button>
-                )}
-              </div>
-
-              {/* Content Area */}
-              <div className="p-4 space-y-3">
-                {/* Title & Toggle */}
-                <div className="flex justify-between items-start gap-2">
-                  <h3 className="font-semibold text-sm text-gray-900 line-clamp-1">{cfg.title}</h3>
-                  {/* {cfg.fields.includes("applicable") && ( */}
-                    <Switch
-                      checked={d.isApplicable}
-                      onCheckedChange={() => toggleApplicable(k)}
-                      // className="data-[state=checked]:bg-green-500"
-                    />
-                  {/* )} */}
-                </div>
-
-                {/* Category Badge */}
-                {d.categoryLabel && (
-                  <div className="flex items-center gap-2 text-xs">
-                    <FileText className="h-3.5 w-3.5 text-gray-400" />
-                    <span className="text-gray-600">{d.categoryLabel}</span>
-                  </div>
-                )}
-
-                {/* Status Badge */}
-                <div className="flex items-center justify-between">
-                  {getStatusBadge(d)}
-                  
-                  {/* Date info */}
-                  {uploaded && (
-                    <div className="text-xs text-gray-500">
-                      {d.uploadDate && formatDate(d.uploadDate)}
+                    /* Not uploaded: Dashed border area */
+                    <div className="flex flex-col items-center justify-center h-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-6">
+                      <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center mb-3">
+                        <Upload className="h-7 w-7 text-orange-500" />
+                      </div>
+                      <span className="text-[15px] font-semibold text-gray-900 leading-tight">Drag & Drop file here</span>
+                      <span className="text-xs text-gray-400 mt-1">or click upload button</span>
                     </div>
                   )}
                 </div>
+              </div>
 
-                {/* Additional metadata for uploaded docs */}
+              {/* Content Area */}
+              <div className="px-5 pb-5 pt-2 flex-1 flex flex-col space-y-4">
+                {/* Header: Title + Switch */}
+                <div className="flex justify-between items-center gap-2">
+                  <h3 className="font-bold text-[15px] text-gray-900 leading-tight">{cfg.title}</h3>
+                  <Switch
+                    checked={d.isApplicable}
+                    onCheckedChange={() => toggleApplicable(k)}
+                    className="data-[state=checked]:bg-green-500 flex-shrink-0"
+                  />
+                </div>
+
+                {/* Not uploaded status pill */}
+                {!uploaded && (
+                  <div className="mt-[-8px]">
+                    <span className="inline-block px-3 py-1 rounded-full bg-gray-100 text-gray-400 text-[11px] font-semibold border border-gray-50">
+                      Not uploaded
+                    </span>
+                  </div>
+                )}
+
+                {/* Metadata Rows (Uploaded State) */}
                 {uploaded && (
-                  <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
-                    {k === "nightWorker" && (d as NightWorkerDoc).contractSigningDate && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400">Contract Date:</span>
-                        <span>{formatDate((d as NightWorkerDoc).contractSigningDate ?? null)}</span>
+                  <div className="space-y-4 pt-1">
+                    {/* Contract Date Pill */}
+                    <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-gray-50/80 border border-gray-50 text-[13px]">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium">Contract Date</span>
                       </div>
-                    )}
-                    {k === "contractOfEmployment" && (d as ContractDoc).contractDate && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400">Contract Date:</span>
-                        <span>{formatDate((d as ContractDoc).contractDate ?? null)}</span>
+                      <span className="font-bold text-orange-500">
+                        {formatDate(
+                          (k === "contractOfEmployment") ? (d as ContractDoc).contractDate :
+                          (k === "nightWorker") ? (d as NightWorkerDoc).expiryDate :
+                          (k === "vehicleFamiliarisation") ? (d as ExpiryApplicableDoc).expiryDate :
+                          (d.uploadDate)
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Employment Row */}
+                    <div className="flex items-center justify-between text-[13px] px-1">
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <Briefcase className="h-4 w-4 text-gray-600" />
+                        <span className="font-medium">Employment</span>
                       </div>
-                    )}
+                      <span className="px-3 py-1 rounded-full bg-orange-50 text-orange-500 text-[10px] font-bold border border-orange-100">
+                        Pending
+                      </span>
+                    </div>
                   </div>
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-3 pt-2 mt-auto">
                   {!uploaded ? (
                     <>
                       <Button
                         size="sm"
-                        className="flex-1 bg-[#F15A29] hover:bg-orange-600 text-white"
+                        className="flex-1 bg-[#F15A29] hover:bg-orange-600 text-white rounded-xl h-12 text-sm font-bold shadow-sm transition-all active:scale-95"
                         disabled={!documentNames.length && !cfg.apiKey}
                         onClick={(e) => {
                           e.stopPropagation();
                           setUploadDialog({ open: true, key: k });
                         }}
                       >
-                        <Upload className="h-4 w-4 mr-1.5" />
+                        <Upload className="h-4 w-4 mr-2" />
                         Upload
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="flex-1 text-orange-600 border-orange-200 hover:bg-orange-50"
+                        className="flex-1 bg-red-50/50 hover:bg-red-50 text-red-500 rounded-xl h-12 text-sm font-semibold transition-all active:scale-95 border-none"
                         onClick={(e) => {
                           e.stopPropagation();
                           openTaskDialog(cfg.title);
                         }}
                       >
-                        <AlertCircle className="h-4 w-4 mr-1.5" />
+                        <Clock className="h-4 w-4 mr-2" />
                         Later
                       </Button>
                     </>
                   ) : (
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="flex-1"
+                      className="flex-1 bg-red-50/50 hover:bg-red-50 text-red-500 rounded-xl h-12 text-sm font-bold transition-all active:scale-95 border-none"
                       onClick={(e) => {
                         e.stopPropagation();
                         setUploadDialog({
@@ -1202,7 +1199,7 @@ return (
                         });
                       }}
                     >
-                      Update
+                      Update <Edit className="ml-2 h-4 w-4" />
                     </Button>
                   )}
                 </div>

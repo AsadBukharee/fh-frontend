@@ -47,6 +47,7 @@ import LazyImage from "./Dialog/LazyImage"
 import EnhancedCompetencyModal from "./Dialog/EnhancedCompetencyModal"
 import CombinedLicenseDialog from "./Dialog/CombinedDialog"
 import CombinedTachoDialog from "./Dialog/CombinedTachoDialog"
+import ImagePreviewDialog from "./Dialog/ImagePreviewDialog"
 
 // Fixed DEFAULT_DOCUMENTS to match API response - Moved outside component to prevent recreation
 const DEFAULT_DOCUMENTS = [
@@ -239,6 +240,8 @@ const EnhancedCompetencyCard = ({
   formatDate,
   license_number,
   license_issue_number,
+  onMaximize,
+  onToggleApplicability,
 }: {
   competency: any;
   cardImageIndex: number;
@@ -248,6 +251,8 @@ const EnhancedCompetencyCard = ({
   formatDate: (date: string | null) => string;
   license_number: string;
   license_issue_number: string;
+  onMaximize: (urls: string[], index: number, title: string) => void;
+  onToggleApplicability?: (id: number, isApplicable: boolean) => void;
 }) => {
   const isLicense = competency.document_type === "driving-license" ||
     competency.document_type === "d-d1-category";
@@ -325,6 +330,16 @@ const EnhancedCompetencyCard = ({
                 <ChevronRight className="h-4 w-4" />
               </button>
 
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMaximize(competency.urls, cardImageIndex, competency.document_name);
+                }}
+                className="absolute top-3 right-3 z-20 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full opacity-0 group-hover/carousel:opacity-100 transition-all scale-75 group-hover/carousel:scale-100"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+
               <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 z-20 flex gap-1.5">
                 {competency.urls?.map((_: any, index: number) => (
                   <button
@@ -342,10 +357,23 @@ const EnhancedCompetencyCard = ({
               </div>
             </>
           )}
+
+          {/* Always show maximize if there is at least one image */}
+          {!hasMultipleImages && competency.urls?.[0] && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMaximize(competency.urls, 0, competency.document_name);
+              }}
+              className="absolute top-3 right-3 z-20 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full opacity-0 group-hover/carousel:opacity-100 transition-all scale-75 group-hover/carousel:scale-100"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     );
-  }, [competency, cardImageIndex, isPdfUrl, hasMultipleImages, handleCardImageNavigation, handleCardImageClick]);
+  }, [competency, cardImageIndex, isPdfUrl, hasMultipleImages, handleCardImageNavigation, handleCardImageClick, onMaximize]);
 
   const status = competency.request_status || "pending";
   const statusLabel = status.replace("_", " ").charAt(0).toUpperCase() + status.replace("_", " ").slice(1);
@@ -354,7 +382,7 @@ const EnhancedCompetencyCard = ({
     return (
       <Card
         className={cn(
-          "group transition-all duration-500 border border-gray-100 rounded-[2.5rem] bg-white overflow-hidden p-8 flex flex-col items-center justify-center gap-6 min-h-[400px] cursor-pointer",
+          "group transition-all duration-500 border border-gray-100 rounded-[2.5rem] bg-white overflow-hidden p-8 flex flex-col items-center justify-center gap-6 min-h-[450px] cursor-pointer",
           "hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)] hover:border-[#FF7E67]/30"
         )}
         onClick={() => handleCardClick(competency)}
@@ -370,7 +398,7 @@ const EnhancedCompetencyCard = ({
         <div className="space-y-1 text-center">
           <p className="font-bold text-lg text-gray-900">Click to upload document</p>
           <p className="text-sm font-medium text-gray-400">
-            {competency.has_expiry ? "Requires expiry data" : "No expiry required"}
+            {/* {competency.has_expiry ? "Requires expiry data" : "No expiry required"} */}
           </p>
         </div>
       </Card>
@@ -380,7 +408,8 @@ const EnhancedCompetencyCard = ({
   return (
     <Card
       className={cn(
-        "group transition-all duration-500 border border-gray-100 rounded-[2.5rem] bg-white overflow-hidden p-4 flex flex-col gap-4",
+        "group transition-all shadow-md duration-500 border border-gray-100 rounded-[2.5rem] bg-white overflow-hidden p-4 flex flex-col gap-4 h-full min-h-[450px]",
+        !competency.is_applicable && "opacity-60 grayscale-[0.2]",
         "hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)] hover:border-gray-200"
       )}
       onClick={() => handleCardClick(competency)}
@@ -390,7 +419,7 @@ const EnhancedCompetencyCard = ({
         {renderImageCarousel}
       </div>
 
-      <div className="flex flex-col gap-4 px-1">
+      <div className="flex flex-col flex-1 gap-4 px-1">
         {/* Title and Status Badge */}
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-xl text-gray-900 leading-tight tracking-tight">
@@ -450,7 +479,8 @@ const EnhancedCompetencyCard = ({
             </div>
           </div>
           <Switch
-            checked={competency.has_document}
+            checked={competency.is_applicable}
+            onCheckedChange={(checked) => onToggleApplicability?.(competency.id || 0, checked)}
             className="data-[state=checked]:bg-[#FF7E67] scale-90"
             onClick={(e) => e.stopPropagation()}
           />
@@ -458,14 +488,14 @@ const EnhancedCompetencyCard = ({
 
         {/* Action Button */}
         <Button
-          className="w-full bg-[#FDE4E7] hover:bg-[#FBCCD2] text-[#E11D48] font-bold text-sm h-12 rounded-2xl shadow-none border-none transition-all duration-300 flex items-center justify-center gap-2"
+          className="w-full mt-auto bg-[#FDE4E7] hover:bg-[#FBCCD2] text-[#E11D48] font-bold text-sm h-12 rounded-2xl shadow-none border-none transition-all duration-300 flex items-center justify-center gap-2 group/btn"
           onClick={(e) => {
             e.stopPropagation();
             handleCardClick(competency);
           }}
         >
           View Detail
-          <ExternalLink className="h-4 w-4" />
+          <ExternalLink className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5" />
         </Button>
       </div>
     </Card>
@@ -569,6 +599,19 @@ export default function ProfessionalCompetencyTab({
   });
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
   const [syncAction, setSyncAction] = useState<"update" | "skip">("skip");
+
+  // Preview state
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [initialPreviewIdx, setInitialPreviewIdx] = useState(0);
+  const [previewTitle, setPreviewTitle] = useState("");
+
+  const handleMaximize = useCallback((urls: string[], index: number, title: string) => {
+    setPreviewImages(urls);
+    setInitialPreviewIdx(index);
+    setPreviewTitle(title);
+    setIsPreviewOpen(true);
+  }, []);
 
   // Function to open combined dialog
   const handleOpenCombinedDialog = useCallback((competency: any) => {
@@ -682,7 +725,13 @@ export default function ProfessionalCompetencyTab({
     }
 
     // Original logic for other documents or when editing
-    const modules = competency.modules || [];
+    const modules = [...(competency.modules || [])];
+    if (competency.document_type === "cpc-card") {
+      while (modules.length < 5) {
+        modules.push({ module_name: "", expiry_date: "", notes: "" });
+      }
+    }
+
     let normalizedNextFiveModules: string[] = [];
 
     if (competency.next_five_modules && competency.next_five_modules.length > 0) {
@@ -1051,18 +1100,22 @@ export default function ProfessionalCompetencyTab({
         fetchDriverData();
       }
 
-      const modulesData = modalState.editData.modules.map((m: any) => ({
+      const modulesData = (modalState.editData.modules || []).map((m: any) => ({
         ...(m.id ? { id: m.id } : {}),
-        module_name: m.module_name,
-        description: m.description,
-        expiry_date: m.expiry_date || null,
+        module_name: typeof m === 'string' ? m : (m.module_name || ""),
+        description: typeof m === 'string' ? "" : (m.description || m.notes || ""),
+        expiry_date: typeof m === 'string' ? null : (m.expiry_date || null),
       }))
 
-      const filteredNextFiveModules = modalState.editData.next_five_modules
-        .filter((m: string) => m && m.trim() !== "")
-        .map((m: string, index: number) => ({
-          module_name: m,
-          module_number: index + 1
+      const filteredNextFiveModules = (modalState.editData.next_five_modules || [])
+        .filter((m: any) => {
+          const name = typeof m === 'string' ? m : m?.module_name;
+          return name && typeof name === 'string' && name.trim() !== "";
+        })
+        .map((m: any, index: number) => ({
+          module_name: typeof m === 'string' ? m : m.module_name,
+          module_number: index + 1,
+          expiry_date: typeof m === 'string' ? null : (m.expiry_date || null)
         }))
 
       const isSpecialDocument = modalState.editData.document_type === "last-driver-check-code" ||
@@ -1072,7 +1125,7 @@ export default function ProfessionalCompetencyTab({
         driver: driverId,
         document_name: modalState.editData.document_name,
         document_type: modalState.editData.document_type,
-        has_expiry: isSpecialDocument ? false : (modalState.editData.has_expiry || !!modalState.editData.expiry_date),
+        has_expiry: isSpecialDocument ? false : modalState.editData.has_expiry,
         description: modalState.editData.description || "",
         status_description: modalState.editData.status_description || "",
         status_reason: modalState.editData.status_reason || "",
@@ -1133,6 +1186,17 @@ export default function ProfessionalCompetencyTab({
 
   const handleSave = useCallback(async () => {
     if (!modalState.editData) return;
+
+    // CPC Module Validation: Enforce 5 modules for current CPC
+    if (modalState.editData.document_type === "cpc-card") {
+      const currentModules = modalState.editData.modules || [];
+      const incompleteModule = currentModules.find((m: any, i: number) => i < 5 && (!m.module_name?.trim() || !m.expiry_date));
+
+      if (incompleteModule || currentModules.length < 5) {
+        toast.error("Please ensure all 5 CPC modules have a Name and Expiry Date before saving.");
+        return;
+      }
+    }
 
     if (hasUploadedNewDocument) {
       await saveChanges();
@@ -1295,6 +1359,32 @@ export default function ProfessionalCompetencyTab({
     }
   }, []);
 
+  const handleToggleApplicability = useCallback(async (id: number, isApplicable: boolean) => {
+    if (!id) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/profiles/professional-competency/${id}/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({ is_applicable: isApplicable }),
+      });
+
+      if (response.ok) {
+        toast.success(`Marked as ${isApplicable ? 'applicable' : 'not applicable'}`);
+        fetchCompetencyData();
+      } else {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to update applicability");
+      }
+    } catch (error) {
+      console.error("Error updating applicability:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update applicability");
+    }
+  }, [API_URL, cookies, fetchCompetencyData]);
+
   const openPdfModal = useCallback((url: string) => {
     setSelectedPdfUrl(url)
     setIsPdfModalOpen(true)
@@ -1326,11 +1416,13 @@ export default function ProfessionalCompetencyTab({
           formatDate={formatDate}
           license_number={licenseNumber}
           license_issue_number={licenseIssueNumber}
+          onMaximize={handleMaximize}
+          onToggleApplicability={handleToggleApplicability}
         />
       );
     }),
     [allDocuments, cardImageIndexes, handleCardClick, handleOpenCombinedDialog,
-      isPdfUrl, formatDate, licenseNumber, licenseIssueNumber]
+      isPdfUrl, formatDate, licenseNumber, licenseIssueNumber, handleMaximize, handleToggleApplicability]
   );
 
   return (
@@ -1721,6 +1813,15 @@ export default function ProfessionalCompetencyTab({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Global Image Preview Dialog */}
+      <ImagePreviewDialog
+        isOpen={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        images={previewImages}
+        initialIndex={initialPreviewIdx}
+        title={previewTitle}
+      />
     </div>
   )
 }
