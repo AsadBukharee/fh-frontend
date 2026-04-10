@@ -28,11 +28,11 @@ const FileUploaderLazy = dynamic(() => import("@/components/Media/MediaUpload"),
   ssr: false
 })
 
-interface CombinedLicenseDialogProps {
+interface CombinedTachoDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  driverLicenseData: any;
-  dd1CategoryData: any;
+  tachoCardData: any;
+  lastTachoDownloadData: any;
   driverId: number;
   cookies: any;
   API_URL: string;
@@ -40,37 +40,32 @@ interface CombinedLicenseDialogProps {
   isPdfUrl: (url: string) => boolean;
   fetchCompetencyData: () => void;
   driverName: string;
-  licenseNumber: string;
-  licenseIssueNumber: string;
   fetchDriverData: () => void;
 }
 
-type CombinedLicenseFormData = {
-  license_number: string;
-  license_issue_number: string;
+type CombinedTachoFormData = {
+  tacho_expiry_date: string;
+  tacho_status: string;
+  tacho_status_description: string;
+  tacho_description: string;
+  tacho_has_document: boolean;
+  tacho_url_front: string;
+  tacho_url_back: string;
 
-  dl_expiry_date: string;
-  dl_status: string;
-  dl_status_reason: string;
-  dl_status_description: string;
-  dl_description: string;
-  dl_has_document: boolean;
-  dl_url: string;
-
-  dd1_expiry_date: string;
-  dd1_status: string;
-  dd1_status_reason: string;
-  dd1_status_description: string;
-  dd1_description: string;
-  dd1_has_document: boolean;
-  dd1_url: string;
+  download_date: string;
+  download_status: string;
+  download_status_description: string;
+  download_description: string;
+  download_has_document: boolean;
+  download_url_front: string;
+  download_url_back: string;
 };
 
-export default function CombinedLicenseDialog({
+export default function CombinedTachoDialog({
   isOpen,
   onOpenChange,
-  driverLicenseData,
-  dd1CategoryData,
+  tachoCardData,
+  lastTachoDownloadData,
   driverId,
   cookies,
   API_URL,
@@ -78,13 +73,12 @@ export default function CombinedLicenseDialog({
   isPdfUrl,
   fetchCompetencyData,
   driverName,
-  licenseNumber,
-  licenseIssueNumber,
   fetchDriverData,
-}: CombinedLicenseDialogProps) {
-  const [currentStep, setCurrentStep] = useState(1); // 1 = DL (Front), 2 = DD1 (Back)
+}: CombinedTachoDialogProps) {
+  const [currentStep, setCurrentStep] = useState(1); // 1 = Tacho Card, 2 = Last Tacho Download
   const [saving, setSaving] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
+  const [uploadingSide, setUploadingSide] = useState<'front' | 'back'>('front');
 
   // Preview state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -92,59 +86,51 @@ export default function CombinedLicenseDialog({
   const [initialPreviewIdx, setInitialPreviewIdx] = useState(0);
   const [currentSwipeIdx, setCurrentSwipeIdx] = useState(0);
 
-  const [formData, setFormData] = useState<CombinedLicenseFormData>({
-    license_number: licenseNumber || "",
-    license_issue_number: licenseIssueNumber || "",
+  const [formData, setFormData] = useState<CombinedTachoFormData>({
+    tacho_expiry_date: tachoCardData?.expiry_date || "",
+    tacho_status: tachoCardData?.request_status || "pending",
+    tacho_status_description: tachoCardData?.status_description || "",
+    tacho_description: tachoCardData?.description || "",
+    tacho_has_document: tachoCardData?.has_document || false,
+    tacho_url_front: tachoCardData?.urls?.[0] || "",
+    tacho_url_back: tachoCardData?.urls?.[1] || "",
 
-    dl_expiry_date: driverLicenseData?.expiry_date || "",
-    dl_status: driverLicenseData?.request_status || "pending",
-    dl_status_reason: driverLicenseData?.status_reason || "",
-    dl_status_description: driverLicenseData?.status_description || "",
-    dl_description: driverLicenseData?.description || "",
-    dl_has_document: driverLicenseData?.has_document || false,
-    dl_url: driverLicenseData?.urls?.[0] || "",
-
-    dd1_expiry_date: dd1CategoryData?.expiry_date || "",
-    dd1_status: dd1CategoryData?.request_status || "pending",
-    dd1_status_reason: dd1CategoryData?.status_reason || "",
-    dd1_status_description: dd1CategoryData?.status_description || "",
-    dd1_description: dd1CategoryData?.description || "",
-    dd1_has_document: dd1CategoryData?.has_document || false,
-    dd1_url: dd1CategoryData?.urls?.[0] || "",
+    download_date: lastTachoDownloadData?.expiry_date || "",
+    download_status: lastTachoDownloadData?.request_status || "pending",
+    download_status_description: lastTachoDownloadData?.status_description || "",
+    download_description: lastTachoDownloadData?.description || "",
+    download_has_document: lastTachoDownloadData?.has_document || false,
+    download_url_front: lastTachoDownloadData?.urls?.[0] || "",
+    download_url_back: lastTachoDownloadData?.urls?.[1] || "",
   });
 
-  // Track if dialog was opened to prevent resetting currentStep on data updates
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize data when dialog opens
   useEffect(() => {
     if (isOpen && !isInitialized) {
       setFormData({
-        license_number: licenseNumber || "",
-        license_issue_number: licenseIssueNumber || "",
+        tacho_expiry_date: tachoCardData?.expiry_date || "",
+        tacho_status: tachoCardData?.request_status || "pending",
+        tacho_status_description: tachoCardData?.status_description || "",
+        tacho_description: tachoCardData?.description || "",
+        tacho_has_document: tachoCardData?.has_document || false,
+        tacho_url_front: tachoCardData?.urls?.[0] || "",
+        tacho_url_back: tachoCardData?.urls?.[1] || "",
 
-        dl_expiry_date: driverLicenseData?.expiry_date || "",
-        dl_status: driverLicenseData?.request_status || "pending",
-        dl_status_reason: driverLicenseData?.status_reason || "",
-        dl_status_description: driverLicenseData?.status_description || "",
-        dl_description: driverLicenseData?.description || "",
-        dl_has_document: driverLicenseData?.has_document || false,
-        dl_url: driverLicenseData?.urls?.[0] || "",
-
-        dd1_expiry_date: dd1CategoryData?.expiry_date || "",
-        dd1_status: dd1CategoryData?.request_status || "pending",
-        dd1_status_reason: dd1CategoryData?.status_reason || "",
-        dd1_status_description: dd1CategoryData?.status_description || "",
-        dd1_description: dd1CategoryData?.description || "",
-        dd1_has_document: dd1CategoryData?.has_document || false,
-        dd1_url: dd1CategoryData?.urls?.[0] || "",
+        download_date: lastTachoDownloadData?.expiry_date || "",
+        download_status: lastTachoDownloadData?.request_status || "pending",
+        download_status_description: lastTachoDownloadData?.status_description || "",
+        download_description: lastTachoDownloadData?.description || "",
+        download_has_document: lastTachoDownloadData?.has_document || false,
+        download_url_front: lastTachoDownloadData?.urls?.[0] || "",
+        download_url_back: lastTachoDownloadData?.urls?.[1] || "",
       });
       setCurrentStep(1);
       setIsInitialized(true);
     } else if (!isOpen) {
       setIsInitialized(false);
     }
-  }, [isOpen, driverLicenseData, dd1CategoryData, licenseNumber, licenseIssueNumber, isInitialized]);
+  }, [isOpen, tachoCardData, lastTachoDownloadData, isInitialized]);
 
   const handleFormChange = useCallback((field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -152,136 +138,102 @@ export default function CombinedLicenseDialog({
 
   const handleFileUpload = useCallback((url: string) => {
     if (currentStep === 1) {
-      setFormData(prev => ({ ...prev, dl_url: url, dl_has_document: true }));
+      if (uploadingSide === 'front') {
+        setFormData(prev => ({ ...prev, tacho_url_front: url, tacho_has_document: true }));
+      } else {
+        setFormData(prev => ({ ...prev, tacho_url_back: url, tacho_has_document: true }));
+      }
     } else {
-      setFormData(prev => ({ ...prev, dd1_url: url, dd1_has_document: true }));
+      if (uploadingSide === 'front') {
+        setFormData(prev => ({ ...prev, download_url_front: url, download_has_document: true }));
+      } else {
+        setFormData(prev => ({ ...prev, download_url_back: url, download_has_document: true }));
+      }
     }
     setShowUploader(false);
     toast.success(`Document uploaded successfully`);
-  }, [currentStep]);
+  }, [currentStep, uploadingSide]);
 
-  const handleSave = useCallback(async (isFinal = false) => {
-    // Validation for current step immediately
-    const isDL = currentStep === 1;
+  const handleSave = useCallback(async () => {
+    const isTacho = currentStep === 1;
 
     // Change Detection
-    const initialDlUrl = driverLicenseData?.urls?.[0] || "";
-    const initialDd1Url = dd1CategoryData?.urls?.[0] || "";
-    const initialDlExpiry = driverLicenseData?.expiry_date || "";
-    const initialDd1Expiry = dd1CategoryData?.expiry_date || "";
+    const initialTachoUrl = tachoCardData?.urls?.[0] || "";
+    const initialDownloadUrl = lastTachoDownloadData?.urls?.[0] || "";
+    const initialTachoExpiry = tachoCardData?.expiry_date || "";
+    const initialDownloadDate = lastTachoDownloadData?.expiry_date || "";
 
-    const isLicenseNumberChanged = formData.license_number !== (licenseNumber || "");
-    const isIssueNumberChanged = formData.license_issue_number !== (licenseIssueNumber || "");
-    const isLicenseInfoChanged = isLicenseNumberChanged || isIssueNumberChanged;
+    const isTachoExpiryChanged = formData.tacho_expiry_date !== initialTachoExpiry;
+    const isTachoUrlChanged = formData.tacho_url_front !== initialTachoUrl || formData.tacho_url_back !== (tachoCardData?.urls?.[1] || "");
 
-    const isDlExpiryChanged = formData.dl_expiry_date !== initialDlExpiry;
-    const isDlUrlChanged = formData.dl_url !== initialDlUrl;
+    const isDownloadDateChanged = formData.download_date !== initialDownloadDate;
+    const isDownloadUrlChanged = formData.download_url_front !== initialDownloadUrl || formData.download_url_back !== (lastTachoDownloadData?.urls?.[1] || "");
 
-    const isDd1ExpiryChanged = formData.dd1_expiry_date !== initialDd1Expiry;
-    const isDd1UrlChanged = formData.dd1_url !== initialDd1Url;
-
-    if (isDL) {
-      if (!formData.license_number) {
-        toast.error("Please enter License Number");
+    if (isTacho) {
+      if (!formData.tacho_expiry_date) {
+        toast.error("Please enter Tacho Card Expiry Date");
         return;
       }
-      if (!formData.dl_expiry_date) {
-        toast.error("Please enter Driving License Expiry Date");
-        return;
-      }
-
-      // If License info changed, REQUIRE BOTH expiry update and new document
-      if (isLicenseInfoChanged) {
-        if (!isDlExpiryChanged) {
-          toast.error("License number changed. Please update the Driving License (Front) expiry date.");
-          return;
-        }
-        if (!isDlUrlChanged) {
-          toast.error("License number changed. Please upload a new Driving License (Front) image.");
-          return;
-        }
-      }
+      
       // If ONLY expiry date changed, REQUIRE a new document
-      else if (isDlExpiryChanged && !isDlUrlChanged) {
-        toast.error("Expiry date changed. Please upload a new Driving License (Front) image matching the new date.");
+      if (isTachoExpiryChanged && !isTachoUrlChanged) {
+        toast.error("Tacho Card expiry changed. Please upload a new Tacho Card image matching the new date.");
         return;
       }
       // If ONLY document changed, REQUIRE expiry date update
-      else if (isDlUrlChanged && !isDlExpiryChanged) {
-        toast.error("New document uploaded. Please update the Driving License (Front) expiry date to match the document.");
+      if (isTachoUrlChanged && !isTachoExpiryChanged) {
+        toast.error("New Tacho Card image uploaded. Please update/verify the expiry date.");
         return;
       }
 
-      if (!formData.dl_url && !formData.dl_has_document) {
-        toast.error("Please upload Driving License (Front) document");
+      if (!formData.tacho_url_front && !formData.tacho_has_document) {
+        toast.error("Please upload Tacho Card Front document");
         return;
       }
 
-      // Step 1: Just move to step 2, NO API CALLS
+      // Step 1: Just move to step 2
       setCurrentStep(2);
       return;
     }
 
-    // Step 2: FINAL SAVE (Both DL and D/D1)
-
-    // Before saving, ensure Step 1 is still valid (in case they went back and changed something)
-    if (isLicenseInfoChanged) {
-      if (!isDlExpiryChanged || !isDlUrlChanged) {
-        toast.error("License number changed. Please update the Driving License (Front) details and upload a new image.");
-        setCurrentStep(1);
-        return;
-      }
-    } else if (isDlExpiryChanged && !isDlUrlChanged) {
-      toast.error("Driving License expiry changed. Please upload a new image for the Front of the license.");
+    // Step 2: FINAL SAVE (Both Tacho Card and Last Tacho Download)
+    
+    // Re-verify Step 1 in case of changes
+    if (isTachoExpiryChanged && !isTachoUrlChanged) {
+      toast.error("Tacho Card expiry changed. Please upload a new image in Step 1.");
       setCurrentStep(1);
       return;
-    } else if (isDlUrlChanged && !isDlExpiryChanged) {
-      toast.error("New Driving License image uploaded. Please update the expiry date in Step 1.");
+    }
+    if (isTachoUrlChanged && !isTachoExpiryChanged) {
+      toast.error("New Tacho Card image uploaded. Please update the expiry date in Step 1.");
       setCurrentStep(1);
       return;
     }
 
-    if (!formData.dd1_expiry_date) {
-      toast.error("Please enter D/D1 Category Expiry Date");
+    if (!formData.download_date) {
+      toast.error("Please enter Download Date");
       return;
     }
 
-    // If License info changed, REQUIRE BOTH expiry update and new document for D/D1
-    if (isLicenseInfoChanged) {
-      if (!isDd1ExpiryChanged) {
-        toast.error("License number changed. Please update the D/D1 Category (Back) expiry date.");
-        return;
-      }
-      if (!isDd1UrlChanged) {
-        toast.error("License number changed. Please upload a new D/D1 Category (Back) image.");
-        return;
-      }
-    }
-    // If ONLY D/D1 expiry changed, REQUIRE a new document
-    else if (isDd1ExpiryChanged && !isDd1UrlChanged) {
-      toast.error("D/D1 Category expiry changed. Please upload a new D/D1 Category (Back) image.");
+    // If ONLY download date changed, REQUIRE a new document
+    if (isDownloadDateChanged && !isDownloadUrlChanged) {
+      toast.error("Download date changed. Please upload a new Tacho download document matching the new date.");
       return;
     }
-    // If ONLY D/D1 document changed, REQUIRE expiry date update
-    else if (isDd1UrlChanged && !isDd1ExpiryChanged) {
-      toast.error("New D/D1 Category image uploaded. Please update the expiry date.");
-      return;
-    }
-
-    if (!formData.dd1_url && !formData.dd1_has_document) {
-      toast.error("Please upload D/D1 Category (Back) document");
+    // If ONLY download document changed, REQUIRE date update
+    if (isDownloadUrlChanged && !isDownloadDateChanged) {
+      toast.error("New Tacho download document uploaded. Please update/verify the download date.");
       return;
     }
 
     // Validation for status description
-    if (formData.dl_status !== "approved" && !formData.dl_status_description) {
-      toast.error("Please provide a reason/description for the Driving License status");
+    if (formData.tacho_status !== "approved" && !formData.tacho_status_description) {
+      toast.error("Please provide a reason/description for the Tacho Card status");
       setCurrentStep(1);
       return;
     }
-
-    if (formData.dd1_status !== "approved" && !formData.dd1_status_description) {
-      toast.error("Please provide a reason/description for the D/D1 Category status");
+    if (formData.download_status !== "approved" && !formData.download_status_description) {
+      toast.error("Please provide a reason/description for the Download status");
       setCurrentStep(2);
       return;
     }
@@ -289,9 +241,8 @@ export default function CombinedLicenseDialog({
     setSaving(true);
 
     try {
-
-      // 1. Save License Numbers (Profile update)
-      if (formData.license_number !== licenseNumber || formData.license_issue_number !== licenseIssueNumber) {
+      // 1. Profile Sync for Last Tacho Download Date
+      if (isDownloadDateChanged) {
         await fetch(`${API_URL}/api/profiles/driver/${driverId}/`, {
           method: "PATCH",
           headers: {
@@ -299,73 +250,68 @@ export default function CombinedLicenseDialog({
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
           body: JSON.stringify({
-            license_number: formData.license_number,
-            license_issue_number: formData.license_issue_number,
+            last_driver_tacho_download: formData.download_date,
           }),
         });
       }
 
-      // 2. Save Driving License Document
-      const dlPayload = {
+      // 2. Save Tacho Card Document
+      const tachoPayload = {
         driver: driverId,
-        document_name: "Driving License",
-        document_type: "driving-license",
+        document_name: "Tacho Card",
+        document_type: "tacho-card",
         has_expiry: true,
-        description: formData.dl_description || "",
-        status_description: formData.dl_status_description || "",
-        status_reason: formData.dl_status_reason || "",
-        expiry_date: formData.dl_expiry_date || null,
-        has_document: !!formData.dl_url || formData.dl_has_document,
-        urls: [formData.dl_url].filter(Boolean),
-        request_status: formData.dl_status || "pending",
+        description: formData.tacho_description || "",
+        status_description: formData.tacho_status_description || "",
+        expiry_date: formData.tacho_expiry_date || null,
+        has_document: !!formData.tacho_url_front || !!formData.tacho_url_back || formData.tacho_has_document,
+        urls: [formData.tacho_url_front, formData.tacho_url_back].filter(Boolean),
+        request_status: formData.tacho_status || "pending",
       };
 
-      const dlId = driverLicenseData?.id;
-      const dlEndpoint = dlId
-        ? `${API_URL}/api/profiles/professional-competency/${dlId}/`
+      const tachoId = tachoCardData?.id;
+      const tachoEndpoint = tachoId
+        ? `${API_URL}/api/profiles/professional-competency/${tachoId}/`
         : `${API_URL}/api/profiles/professional-competency/`;
 
-      await fetch(dlEndpoint, {
-        method: dlId ? "PUT" : "POST",
+      await fetch(tachoEndpoint, {
+        method: tachoId ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
-        body: JSON.stringify(dlPayload),
+        body: JSON.stringify(tachoPayload),
       });
 
-      // 3. Save D/D1 Category Document
-      const dd1Payload = {
+      // 3. Save Last Tacho Download Document
+      const downloadPayload = {
         driver: driverId,
-        document_name: "D / D1 Category",
-        document_type: "d-d1-category",
+        document_name: "Last Tacho Download",
+        document_type: "last-tacho-download",
         has_expiry: true,
-        description: formData.dd1_description || "",
-        status_description: formData.dd1_status_description || "",
-        status_reason: formData.dd1_status_reason || "",
-        expiry_date: formData.dd1_expiry_date || null,
-        has_document: !!formData.dd1_url || formData.dd1_has_document,
-        urls: [formData.dd1_url].filter(Boolean),
-        request_status: formData.dd1_status || "pending",
+        description: formData.download_description || "",
+        status_description: formData.download_status_description || "",
+        expiry_date: formData.download_date || null,
+        has_document: !!formData.download_url_front || !!formData.download_url_back || formData.download_has_document,
+        urls: [formData.download_url_front, formData.download_url_back].filter(Boolean),
+        request_status: formData.download_status || "pending",
       };
 
-      const dd1Id = dd1CategoryData?.id;
-      const dd1Endpoint = dd1Id
-        ? `${API_URL}/api/profiles/professional-competency/${dd1Id}/`
+      const downloadId = lastTachoDownloadData?.id;
+      const downloadEndpoint = downloadId
+        ? `${API_URL}/api/profiles/professional-competency/${downloadId}/`
         : `${API_URL}/api/profiles/professional-competency/`;
 
-      await fetch(dd1Endpoint, {
-        method: dd1Id ? "PUT" : "POST",
+      await fetch(downloadEndpoint, {
+        method: downloadId ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${cookies.get("access_token")}`,
         },
-        body: JSON.stringify(dd1Payload),
+        body: JSON.stringify(downloadPayload),
       });
 
-      toast.success("Driving License and D/D1 Category updated successfully");
-
-      // Complete and Refresh
+      toast.success("Tacho documents updated successfully");
       onOpenChange(false);
       fetchCompetencyData();
       fetchDriverData();
@@ -377,17 +323,17 @@ export default function CombinedLicenseDialog({
       setSaving(false);
     }
   }, [
-    currentStep, formData, driverLicenseData, dd1CategoryData,
+    currentStep, formData, tachoCardData, lastTachoDownloadData,
     driverId, API_URL, cookies, fetchCompetencyData,
-    fetchDriverData, onOpenChange, licenseNumber, licenseIssueNumber
+    fetchDriverData, onOpenChange
   ]);
 
-  const currentDocName = currentStep === 1 ? "Driving License" : "D/D1 Category";
-  const currentUrl = currentStep === 1 ? formData.dl_url : formData.dd1_url;
-  const currentStatus = currentStep === 1 ? formData.dl_status : formData.dd1_status;
-  const currentStatusReason = currentStep === 1 ? formData.dl_status_reason : formData.dd1_status_reason;
-  const currentStatusDesc = currentStep === 1 ? formData.dl_status_description : formData.dd1_status_description;
-  const currentDesc = currentStep === 1 ? formData.dl_description : formData.dd1_description;
+  const currentDocName = currentStep === 1 ? "Tacho Card" : "Last Tacho Download";
+  const currentStatus = currentStep === 1 ? formData.tacho_status : formData.download_status;
+  const currentStatusDesc = currentStep === 1 ? formData.tacho_status_description : formData.download_status_description;
+  const currentDesc = currentStep === 1 ? formData.tacho_description : formData.download_description;
+  const currentUrlFront = currentStep === 1 ? formData.tacho_url_front : formData.download_url_front;
+  const currentUrlBack = currentStep === 1 ? formData.tacho_url_back : formData.download_url_back;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -400,12 +346,12 @@ export default function CombinedLicenseDialog({
               <p className="text-xs text-gray-400 mt-1">Manage {currentDocName} documentation</p>
             </div>
 
+            <div className="w-full space-y-4">
             <div className="w-full relative group/carousel h-[380px] rounded-[2.5rem] overflow-hidden bg-gray-50 border border-gray-100 shadow-sm p-4">
               <div className="relative h-full w-full rounded-[2rem] overflow-hidden">
                 {/* Carousel Slides */}
                 {[0, 1].map((idx) => {
-                  const url = idx === 0 ? formData.dl_url : formData.dd1_url;
-                  const isMissing = !url && !(idx === 0 ? formData.dl_has_document : formData.dd1_has_document);
+                  const url = idx === 0 ? currentUrlFront : currentUrlBack;
                   
                   return (
                     <div
@@ -426,12 +372,13 @@ export default function CombinedLicenseDialog({
                             className="relative w-full h-full cursor-pointer group/img"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setPreviewImages([formData.dl_url, formData.dd1_url].filter(Boolean));
-                              setInitialPreviewIdx(idx);
+                              const urls = [currentUrlFront, currentUrlBack].filter(Boolean);
+                              setPreviewImages(urls);
+                              setInitialPreviewIdx(urls.indexOf(url));
                               setIsPreviewOpen(true);
                             }}
                           >
-                            <img src={url} alt={idx === 0 ? "DL" : "DD1"} className="w-full h-full object-cover" />
+                            <img src={url} alt={idx === 0 ? "Front" : "Back"} className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                               <Eye className="text-white h-12 w-12" />
                             </div>
@@ -443,7 +390,7 @@ export default function CombinedLicenseDialog({
                             <Upload className="h-10 w-10 text-gray-200" />
                           </div>
                           <div className="space-y-1">
-                            <p className="text-lg font-bold text-gray-900">{idx === 0 ? "Driving License Missing" : "D/D1 Category Missing"}</p>
+                            <p className="text-lg font-bold text-gray-900">{idx === 0 ? "Front Page Missing" : "Back Page Missing"}</p>
                             <p className="text-sm font-medium text-gray-400">Click upload to add document</p>
                           </div>
                         </div>
@@ -460,7 +407,7 @@ export default function CombinedLicenseDialog({
                        onClick={() => setCurrentSwipeIdx(idx)}
                        className={cn(
                          "w-2 h-2 rounded-full transition-all duration-300",
-                         currentSwipeIdx === idx ? "bg-[#FF6B35] w-8" : "bg-black/20 hover:bg-black/40"
+                         currentSwipeIdx === idx ? "bg-[#FF6B35] w-8 shadow-[0_0_10px_rgba(255,107,53,0.3)]" : "bg-black/20 hover:bg-black/40"
                        )}
                      />
                    ))}
@@ -469,7 +416,7 @@ export default function CombinedLicenseDialog({
                 {/* Info Badge */}
                 <div className="absolute top-6 left-6 z-20">
                   <div className="bg-black/50 backdrop-blur-md px-5 py-2 rounded-full text-white text-[11px] font-bold uppercase tracking-widest">
-                    {currentSwipeIdx === 0 ? "Step 1: License" : "Step 2: D/D1"}
+                    {currentSwipeIdx === 0 ? "Front Side" : "Back Side"}
                   </div>
                 </div>
 
@@ -478,7 +425,7 @@ export default function CombinedLicenseDialog({
                   size="icon"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setCurrentStep(currentSwipeIdx + 1);
+                    setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
                     setShowUploader(true);
                   }}
                   className="absolute top-6 right-6 z-20 h-11 w-11 bg-white shadow-xl border-none text-[#FF6B35] hover:bg-white hover:scale-110 transition-all rounded-xl"
@@ -507,6 +454,7 @@ export default function CombinedLicenseDialog({
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
+            </div>
 
             <div className="flex gap-3 w-full mt-6">
               <Button
@@ -522,32 +470,15 @@ export default function CombinedLicenseDialog({
           {/* Right Column: Form Fields */}
           <div className="p-8 bg-white border-l border-gray-50 h-[550px] overflow-y-auto">
             <div className="space-y-6">
-              {/* License Inputs (Visible on both steps but shared context) */}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-[13px] font-bold text-gray-800 ml-1">License No</Label>
-                  <Input
-                    value={formData.license_number}
-                    onChange={(e) => handleFormChange("license_number", e.target.value)}
-                    className="h-12 border-gray-100 rounded-xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium px-4"
-                    placeholder="Enter License No"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[13px] font-bold text-gray-800 ml-1">Issue No</Label>
-                  <Input
-                    value={formData.license_issue_number}
-                    onChange={(e) => handleFormChange("license_issue_number", e.target.value)}
-                    className="h-12 border-gray-100 rounded-xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium px-4"
-                    placeholder="Enter Issue No"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[13px] font-bold text-gray-800 ml-1">Expiry Date</Label>
+                  <Label className="text-[13px] font-bold text-gray-800 ml-1">
+                    {currentStep === 1 ? "Expiry Date" : "Download Date"}
+                  </Label>
                   <Input
                     type="date"
-                    value={currentStep === 1 ? formData.dl_expiry_date : formData.dd1_expiry_date}
-                    onChange={(e) => handleFormChange(currentStep === 1 ? "dl_expiry_date" : "dd1_expiry_date", e.target.value)}
+                    value={currentStep === 1 ? formData.tacho_expiry_date : formData.download_date}
+                    onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_expiry_date" : "download_date", e.target.value)}
                     className="h-11 border-gray-100 rounded-xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium px-4"
                   />
                 </div>
@@ -558,7 +489,7 @@ export default function CombinedLicenseDialog({
                 <Label className="text-[13px] font-bold text-gray-800 ml-1">Status</Label>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => handleFormChange(currentStep === 1 ? "dl_status" : "dd1_status", "approved")}
+                    onClick={() => handleFormChange(currentStep === 1 ? "tacho_status" : "download_status", "approved")}
                     className={cn(
                       "flex-1 py-3 rounded-full text-sm font-bold transition-all border outline-none",
                       currentStatus === "approved"
@@ -569,7 +500,7 @@ export default function CombinedLicenseDialog({
                     Active
                   </button>
                   <button
-                    onClick={() => handleFormChange(currentStep === 1 ? "dl_status" : "dd1_status", "pending")}
+                    onClick={() => handleFormChange(currentStep === 1 ? "tacho_status" : "download_status", "pending")}
                     className={cn(
                       "flex-1 py-3 rounded-full text-sm font-bold transition-all border outline-none",
                       currentStatus === "pending"
@@ -580,7 +511,7 @@ export default function CombinedLicenseDialog({
                     Pending
                   </button>
                   <button
-                    onClick={() => handleFormChange(currentStep === 1 ? "dl_status" : "dd1_status", "not_approved")}
+                    onClick={() => handleFormChange(currentStep === 1 ? "tacho_status" : "download_status", "not_approved")}
                     className={cn(
                       "flex-1 py-3 rounded-full text-sm font-bold transition-all border outline-none",
                       currentStatus === "not_approved"
@@ -600,7 +531,7 @@ export default function CombinedLicenseDialog({
                     <Label className="text-[13px] font-bold text-gray-800 ml-1">Status Description</Label>
                     <Textarea
                       value={currentStatusDesc}
-                      onChange={(e) => handleFormChange(currentStep === 1 ? "dl_status_description" : "dd1_status_description", e.target.value)}
+                      onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_status_description" : "download_status_description", e.target.value)}
                       className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
                       placeholder={`Explain why this document is ${currentStatus === "pending" ? "pending" : "rejected"}...`}
                     />
@@ -613,7 +544,7 @@ export default function CombinedLicenseDialog({
                 <Label className="text-[13px] font-bold text-gray-800 ml-1">General Description</Label>
                 <Textarea
                   value={currentDesc}
-                  onChange={(e) => handleFormChange(currentStep === 1 ? "dl_description" : "dd1_description", e.target.value)}
+                  onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_description" : "download_description", e.target.value)}
                   className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
                   placeholder="General notes about the document..."
                 />
@@ -629,7 +560,7 @@ export default function CombinedLicenseDialog({
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => handleSave(currentStep === 2)}
+                  onClick={handleSave}
                   disabled={saving}
                   className="flex-1 h-12 bg-[#FFD8CD] hover:bg-[#FFC9BB] text-[#FF6B35] font-bold rounded-2xl transition-all shadow-sm"
                 >
@@ -658,9 +589,9 @@ export default function CombinedLicenseDialog({
         <Dialog open={showUploader} onOpenChange={setShowUploader}>
           <DialogContent className="w-fit">
             <DialogHeader>
-              <DialogTitle>Upload {currentDocName}</DialogTitle>
+              <DialogTitle>Upload {uploadingSide === 'front' ? 'FrontSide' : 'BackSide'} of {currentDocName}</DialogTitle>
               <DialogDescription>
-                Upload the {currentStep === 1 ? "Front" : "Back"} of your license.
+                Upload the {uploadingSide === 'front' ? 'Front' : 'Back'} side of your {currentDocName} document.
               </DialogDescription>
             </DialogHeader>
             <FileUploaderLazy

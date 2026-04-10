@@ -431,8 +431,8 @@ export default function VehiclesPage() {
 
       {/* Add Vehicle Dialog */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-xl">
-        <DialogHeader>
+      <DialogContent className="max-w-[1000px] w-[1000px] max-h-[90vh] p-0 overflow-hidden rounded-2xl shadow-xl">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle className="text-2xl font-semibold">Add Vehicle</DialogTitle>
           <DialogDescription className="text-muted-foreground">
             Fill in the details to register a new vehicle into the system.
