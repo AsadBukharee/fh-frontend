@@ -383,16 +383,16 @@ function AddVehicleStepperForm({ onClose, vehicleId }: AddVehicleStepperFormProp
 
   return (
     <TooltipProvider>
-      <div className="max-w-7xl h-[500px] flex flex-col">
+      <div className="w-full max-w-7xl mx-auto flex flex-col h-[calc(90vh-120px)] min-h-[500px] relative">
 
         {/* ── Step tabs ── */}
-        <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b bg-card/60 backdrop-blur-md">
+        <div className="flex-shrink-0 px-6 pt-2 pb-4 border-b bg-card/60 backdrop-blur-md">
           <StepperTabs labels={STEP_META.map((s) => s.label)} />
         </div>
 
         {/* ── Content area ── */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="p-6 space-y-5 mb-10">
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-6 space-y-5">
             {/* Step header */}
             <div>
               <h2 className="text-xl font-bold text-foreground">{meta.label}</h2>
@@ -405,8 +405,8 @@ function AddVehicleStepperForm({ onClose, vehicleId }: AddVehicleStepperFormProp
         </div>
 
         {/* ── Footer navigation ── */}
-        <div className="flex-shrink-0 fixed bottom-0 z-20 w-[96%] border-t bg-card/80 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-4 px-6 py-4">
+        <div className="flex-shrink-0 sticky bottom-0 z-20 w-full border-t bg-card/80 backdrop-blur-xl mt-auto">
+          <div className="flex items-center justify-between gap-4 px-4 md:px-6 py-4">
             {/* Left — Back + Reset */}
             <div className="flex items-center gap-2">
               <Button

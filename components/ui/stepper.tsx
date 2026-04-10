@@ -112,8 +112,18 @@ function StepperTabs({
 
   return (
     <div className={cn("relative w-full", className)} {...props}>
+      {/* Mobile Step Indicator */}
+      <div className="md:hidden flex items-center justify-between mb-4 px-2">
+        <span className="text-sm font-bold text-[#e53339]">
+          Step {currentStep + 1}
+        </span>
+        <span className="text-sm font-medium text-foreground">
+          {safeLabels[currentStep]}
+        </span>
+      </div>
+
       {/* Background Line (Gray) */}
-      <div className="absolute top-5 left-10 right-10 h-0.5 bg-gray-300" />
+      <div className="absolute top-5 md:top-5 left-10 right-10 h-0.5 bg-gray-300" />
 
       {/* Progress Line (Red) - Smoothly grows from left */}
       <div
@@ -155,19 +165,19 @@ function StepperTabs({
                 )}
               </div>
 
-              {/* Label */}
-              <span
-                className={cn(
-                  "text-xs font-medium whitespace-nowrap transition-colors duration-300",
-                  isCurrent ? "text-[#e53339]" : isCompleted ? "text-black" : "text-gray-400"
-                )}
-              >
-                {label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+               {/* Label */}
+               <span
+                 className={cn(
+                   "text-xs font-medium whitespace-nowrap transition-colors duration-300 hidden md:block",
+                   isCurrent ? "text-[#e53339]" : isCompleted ? "text-black" : "text-gray-400"
+                 )}
+               >
+                 {label}
+               </span>
+             </div>
+           );
+         })}
+       </div>
     </div>
   );
 }

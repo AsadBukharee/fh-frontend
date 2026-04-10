@@ -1,7 +1,7 @@
 "use client"
 
 import { formatDmy } from "@/lib/utils"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { TooltipProvider } from "../ui/tooltip"
 import { Plus, RefreshCcw, Search, Eye, Pencil, Trash2, MoreHorizontal, MapPin, AlertTriangle, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
@@ -22,7 +22,6 @@ import {
 import { toast } from "../ui/use-toast"
 import { useCookies } from "next-client-cookies"
 import AddLocation from "./AddLocation"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import API_URL from "@/app/utils/ENV"
 import ExportButton from "@/app/utils/ExportButton"
@@ -31,8 +30,10 @@ import ExportButton from "@/app/utils/ExportButton"
 interface Location {
   id: number
   name: string
+  associated_location: number | null
+  is_loca_group: boolean
   is_maintenance: boolean
-  zipcode: string
+  zipcode: string | null
   address: string | null
   custom_order: number
   lat: number | null
@@ -40,6 +41,15 @@ interface Location {
   created_at: string
   updated_at: string
 }
+
+// Theme-aligned palette: brand goes #f85032 → #e73827 → #662D8C
+const THEME_COLORS = [
+  { bg: "#fff4f2", border: "#f85032" },  // brand red-orange
+  { bg: "#f5f0ff", border: "#662D8C" },  // brand purple
+  { bg: "#fff8ed", border: "#f5a623" },  // warm amber
+  { bg: "#fdf0ff", border: "#9b59b6" },  // violet
+  { bg: "#fff0f6", border: "#e91e8c" },  // deep pink
+]
 
 const LocationTabs = () => {
   const [open, setOpen] = useState<boolean>(false)
@@ -55,17 +65,43 @@ const LocationTabs = () => {
   const [sortBy, setSortBy] = useState<"name" | "zipcode" | "custom_order">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "maintenance">("all")
+  const [associatedFilter, setAssociatedFilter] = useState<string>("all")
   const [orderRange, setOrderRange] = useState<{ min: string; max: string }>({ min: "", max: "" })
   const [showTable, setShowTable] = useState<boolean>(true)
   const cookies = useCookies()
   const token = cookies.get("access_token")
+
+  // Build a stable color map from actual data: each unique associated_location ID gets a theme color
+  const groupColorMap = useMemo(() => {
+    const map = new Map<number, { bg: string; border: string }>()
+    let idx = 0
+    locations.forEach((loc) => {
+      if (loc.associated_location !== null && !map.has(loc.associated_location)) {
+        map.set(loc.associated_location, THEME_COLORS[idx % THEME_COLORS.length])
+        idx++
+      }
+    })
+    return map
+  }, [locations])
+
+  const getRowStyle = (location: Location): React.CSSProperties => {
+    if (location.is_loca_group && !location.associated_location) {
+      // Root group: bold brand red-orange highlight
+      return { backgroundColor: "#fff4f2", borderLeft: "4px solid #f85032", fontWeight: 600 }
+    }
+    if (location.associated_location) {
+      const color = groupColorMap.get(location.associated_location)
+      if (color) return { backgroundColor: color.bg, borderLeft: `4px solid ${color.border}` }
+    }
+    return { borderLeft: "4px solid transparent" }
+  }
 
   useEffect(() => {
     const filtered = locations.filter((location) => {
       // Search filter
       const matchesSearch =
         location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        location.zipcode.includes(searchTerm) ||
+        (location.zipcode || "").includes(searchTerm) ||
         (location.address && location.address.toLowerCase().includes(searchTerm.toLowerCase()))
 
       // Status filter
@@ -81,12 +117,18 @@ const LocationTabs = () => {
         (!minOrder || location.custom_order >= minOrder) &&
         (!maxOrder || location.custom_order <= maxOrder)
 
-      return matchesSearch && matchesStatus && matchesOrder
+      // Associated Location Filter
+      const matchesAssociated =
+        associatedFilter === "all" ||
+        (associatedFilter === "none" && location.associated_location === null) ||
+        (associatedFilter !== "none" && location.associated_location === Number(associatedFilter))
+
+      return matchesSearch && matchesStatus && matchesOrder && matchesAssociated
     })
 
     filtered.sort((a, b) => {
-      let aValue = a[sortBy]
-      let bValue = b[sortBy]
+      let aValue = a[sortBy] ?? ""
+      let bValue = b[sortBy] ?? ""
 
       if (typeof aValue === "string") aValue = aValue.toLowerCase()
       if (typeof bValue === "string") bValue = bValue.toLowerCase()
@@ -99,7 +141,7 @@ const LocationTabs = () => {
     })
 
     setFilteredLocations(filtered)
-  }, [locations, searchTerm, sortBy, sortOrder, statusFilter, orderRange])
+  }, [locations, searchTerm, sortBy, sortOrder, statusFilter, associatedFilter, orderRange])
 
   // Fetch locations from the API
   const fetchLocations = async () => {
@@ -143,6 +185,7 @@ const LocationTabs = () => {
   const handleLocationAdded = () => {
     setShowTable(false)
     setOpen(false)
+    setEditModalOpen(false)
     fetchLocations()
     setShowTable(true)
   }
@@ -226,10 +269,10 @@ const LocationTabs = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+      <div className="flex justify-center items-center p-8 min-h-screen bg-gray-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600 text-lg">Loading Locations...</p>
+          <p className="text-gray-600 text-lg text-left">Loading Locations...</p>
         </div>
       </div>
     )
@@ -253,16 +296,16 @@ const LocationTabs = () => {
 
   return (
     <TooltipProvider>
-      <section className="p-4 md:p-8 bg-white min-h-screen">
+      <section className="p-4 md:p-8 bg-white min-h-screen text-left">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          <div className="flex flex-col sm:flex-row justify-start items-start mb-6 gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Locations</h1>
               <p className="text-sm text-gray-600 mt-1">
                 Manage your {locations.length} location{locations.length !== 1 ? "s" : ""}
               </p>
             </div>
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-3 items-start">
               <ExportButton data={filteredLocations} fileName="Location_data" />
               <Button
                 variant="outline"
@@ -277,7 +320,7 @@ const LocationTabs = () => {
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
                   <Button
-                    className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
+                    className="flex items-center justify-start gap-2 rounded-lg px-4 py-2 text-white font-medium shadow-md transition-all duration-300 hover:opacity-90"
                     style={{
                       background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
                       width: 'auto',
@@ -288,18 +331,18 @@ const LocationTabs = () => {
                     Add Location
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[500px] overflow-y-auto p-6 bg-white rounded-lg">
+                <DialogContent className="max-w-2xl max-h-[500px] overflow-y-auto p-6 bg-white rounded-lg">
                   <DialogHeader>
                     <DialogTitle className="text-lg font-semibold">Add New Location</DialogTitle>
                   </DialogHeader>
-                  <AddLocation onSuccess={handleLocationAdded} />
+                  <AddLocation onSuccess={handleLocationAdded} onCancel={() => setOpen(false)} />
                 </DialogContent>
               </Dialog>
             </div>
           </div>
 
-          <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap">
-            <div className="relative flex-1 max-w-md">
+          <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-start flex-wrap">
+            <div className="relative flex-1 max-w-md text-left">
               <Search className="absolute left-3 z-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search locations by name, zipcode, or address..."
@@ -308,7 +351,7 @@ const LocationTabs = () => {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-start">
               <Select value={statusFilter} onValueChange={(value: "all" | "active" | "maintenance") => setStatusFilter(value)}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Filter by status" />
@@ -317,6 +360,24 @@ const LocationTabs = () => {
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Associated Location Filter */}
+              <Select value={associatedFilter} onValueChange={setAssociatedFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by Group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Groups</SelectItem>
+                  <SelectItem value="none">No Association</SelectItem>
+                  {locations
+                    .filter((loc) => loc.is_loca_group)
+                    .map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id.toString()}>
+                        Group: {loc.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
               <Input
@@ -372,94 +433,89 @@ const LocationTabs = () => {
           </div>
 
           {showTable && (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50">
-                    <TableHead className="font-semibold">ID</TableHead>
-                    <TableHead className="font-semibold">Name</TableHead>
-                    <TableHead className="font-semibold">Location</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold">Order</TableHead>
-                    <TableHead className="font-semibold text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead className="bg-gray-50/50">
+                  <tr className="border-b border-gray-100">
+                    <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-500">Name</th>
+                    <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-500">Location</th>
+                    <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-500">Status</th>
+                    <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-500">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {filteredLocations.length > 0 ? (
                     filteredLocations.map((location) => (
-                      <TableRow key={location.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium">{location.id}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
+                      <tr
+                        key={location.id}
+                        className="group transition-all duration-200 border-b border-gray-50 last:border-0"
+                        style={getRowStyle(location)}
+                      >
+                        <td className="px-6 py-4 text-left">
+                          <div className="flex items-center justify-start gap-2">
                             <MapPin className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium">{location.name}</span>
+                            <span className="font-medium text-gray-900">{location.name}</span>
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="px-6 py-4">
                           <div className="text-sm">
-                            <div className="font-medium">{location.zipcode}</div>
+                            <div className="font-medium text-gray-900">{location.zipcode}</div>
                             {location.address && (
-                              <div className="text-gray-500 truncate max-w-xs">{location.address}</div>
+                              <div className="text-gray-500 truncate max-w-[200px]">{location.address}</div>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="px-6 py-4">
                           <Badge
                             variant={location.is_maintenance ? "destructive" : "default"}
-                            className={
-                              location.is_maintenance ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                            }
+                            className={`${location.is_maintenance ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                              } inline-flex shadow-sm`}
                           >
                             {location.is_maintenance ? "Maintenance" : "Active"}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full text-sm font-medium">
-                            {location.custom_order}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
+                        </td>
+                        <td className="px-6 py-4">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white shadow-sm border border-gray-100 rounded-lg">
+                                <MoreHorizontal className="h-4 w-4 text-gray-500" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleView(location)}>
+                            <DropdownMenuContent align="start" className="w-40">
+                              <DropdownMenuItem onClick={() => handleView(location)} className="cursor-pointer">
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEdit(location)}>
+                              <DropdownMenuItem onClick={() => handleEdit(location)} className="cursor-pointer">
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDeleteConfirm(location)} className="text-red-600">
+                              <DropdownMenuItem onClick={() => handleDeleteConfirm(location)} className="text-red-600 cursor-pointer">
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))
                   ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center">
-                        <div className="flex flex-col items-center gap-2 text-gray-500">
-                          <MapPin className="w-8 h-8" />
-                          <p className="text-lg font-medium">No locations found</p>
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-left bg-gray-50/20">
+                        <div className="flex flex-col items-center gap-2 text-gray-400">
+                          <MapPin className="w-8 h-8 opacity-20" />
+                          <p className="text-lg font-medium text-gray-500">No locations found</p>
                           <p className="text-sm">
                             {searchTerm || statusFilter !== "all" || orderRange.min || orderRange.max
                               ? "Try adjusting your filters or search terms"
                               : "Get started by adding your first location"}
                           </p>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   )}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -540,11 +596,11 @@ const LocationTabs = () => {
           </Dialog>
 
           <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-            <DialogContent className="max-w-3xl max-h-[500px] overflow-y-auto p-6 bg-white rounded-lg">
+            <DialogContent className="max-w-2xl max-h-[500px] overflow-y-auto p-6 bg-white rounded-lg">
               <DialogHeader>
                 <DialogTitle className="text-lg font-semibold">Edit Location: {selectedLocation?.name}</DialogTitle>
               </DialogHeader>
-              <AddLocation editLocation={selectedLocation} onSuccess={handleLocationAdded} />
+              <AddLocation key={selectedLocation?.id || "new"} editLocation={selectedLocation} onSuccess={handleLocationAdded} onCancel={() => setEditModalOpen(false)} />
             </DialogContent>
           </Dialog>
 
