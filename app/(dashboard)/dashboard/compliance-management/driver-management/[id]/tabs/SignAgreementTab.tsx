@@ -14,7 +14,12 @@ import {
   Edit,
   Briefcase,
   Clock,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Check,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -432,356 +437,257 @@ function useDriverDocuments(userId: string, token: string) {
   return { docs, loading, reload };
 }
 
-/* ────────────────────── Dynamic Upload Dialog ────────────────────── */
-interface DynamicUploadDialogProps {
-  keyName: DocumentKey;
-  onUpload: (key: DocumentKey, url: string, formData: any) => Promise<void>;
-  open: boolean;
-  onClose: () => void;
-  docs: DocMap;
-  initialValues?: Record<string, any>;
-}
-
-function DynamicUploadDialog({
-  keyName,
-  onUpload,
-  open,
-  onClose,
-  docs,
-  initialValues,
-}: DynamicUploadDialogProps) {
-  const cfg = docConfig[keyName];
-  const [fileUrl, setFileUrl] = useState<string | null>(docs[keyName].link ?? null);
-  const [formData, setFormData] = useState<Record<string, any>>(initialValues ?? {});
-
-  useEffect(() => {
-    setFileUrl(docs[keyName].link ?? null);
-    setFormData(initialValues ?? {});
-  }, [keyName, docs, initialValues]);
-
-  const handleSubmit = async () => {
-    if (!fileUrl && cfg.requiresFormOnOptOut !== true) {
-      sonnerToast.error("Please upload a document");
-      return;
-    }
-
-    if (keyName === "pensionInfo" && formData.optOut && !fileUrl) {
-      sonnerToast.error("Opt Out requires form upload");
-      return;
-    }
-
-    if (cfg.fields.includes("signing") && !formData.signingDate) {
-      sonnerToast.error("Contract signing date is required");
-      return;
-    }
-
-    if (cfg.fields.includes("start") && !formData.startDate) {
-      sonnerToast.error("Employment start date is required");
-      return;
-    }
-
-    if (cfg.fields.includes("contract") && !formData.contractDate) {
-      sonnerToast.error("Contract date is required");
-      return;
-    }
-
-    await onUpload(keyName, fileUrl || "", formData);
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{docs[keyName].id ? "Update" : "Upload"} {cfg.title}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Document *</Label>
-            <FileUploader
-              id={`upload-${keyName}`}
-              onUploadSuccess={(url) => setFileUrl(url)}
-            />
-            {fileUrl && (
-              <p className="text-xs text-green-600 mt-1">File ready: {fileUrl.split("/").pop()}</p>
-            )}
-          </div>
-
-          {cfg.fields.includes("applicable") && (
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50/50">
-              <Label htmlFor="applicable" className="font-medium">Document is Applicable</Label>
-              <Switch
-                id="applicable"
-                checked={formData.applicable ?? true}
-                onCheckedChange={(v) => setFormData({ ...formData, applicable: v })}
-                className="data-[state=checked]:bg-green-500"
-              />
-            </div>
-          )}
-          {cfg.fields.includes("expiry") && (
-            <div>
-              <Label>Expiry Date</Label>
-              <Input
-                type="date"
-                value={formData.expiryDate || ""}
-                onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-              />
-            </div>
-          )}
-          {cfg.fields.includes("signing") && (
-            <div>
-              <Label>Contract Signing Date *</Label>
-              <Input
-                type="date"
-                value={formData.signingDate || ""}
-                onChange={(e) => setFormData({ ...formData, signingDate: e.target.value })}
-              />
-            </div>
-          )}
-          {cfg.fields.includes("start") && (
-            <div>
-              <Label>Employment Start Date *</Label>
-              <Input
-                type="date"
-                value={formData.startDate || ""}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              />
-            </div>
-          )}
-          {cfg.fields.includes("contract") && (
-            <div>
-              <Label>Contract Date *</Label>
-              <Input
-                type="date"
-                value={formData.contractDate || ""}
-                onChange={(e) => setFormData({ ...formData, contractDate: e.target.value })}
-              />
-            </div>
-          )}
-          {keyName === "pensionInfo" && (
-            <div className="space-y-3">
-              <Label>Pension Status *</Label>
-              <div className="flex gap-6 p-3 border rounded-md">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="pension"
-                    checked={formData.optIn === true}
-                    onChange={() => setFormData({ optIn: true, optOut: false })}
-                  />
-                  <span>Opt In</span>
-                </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="pension"
-                    checked={formData.optOut === true}
-                    onChange={() => setFormData({ optIn: false, optOut: true })}
-                  />
-                  <span>Opt Out (requires form)</span>
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>Save</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 /* ────────────────────── Shared Document Detail Dialog ────────────────────── */
 interface DocumentDetailDialogProps {
   doc: {
-    id: string
-    link?: string
+    id?: number
+    link?: string | null
     driver?: { full_name: string; email: string }
     isApplicable?: boolean
-    agreement_date?: string
-    contractSigningDate?: string
-    contractStartDate?: string
-    contractDate?: string
-    expiryDate?: string
+    agreement_date?: string | null
+    contractSigningDate?: string | null
+    contractStartDate?: string | null
+    contractDate?: string | null
+    expiryDate?: string | null
     isNightWorker?: boolean
-    uploadDate?: string
+    uploadDate?: string | null
     current_status?: string
+    [key: string]: any
   }
-  cfg: { title: string }
+  cfg: {
+    title: string
+    fields: ("applicable" | "expiry" | "signing" | "start" | "optIn" | "optOut" | "contract")[]
+  }
   onClose: () => void
-  onDelete: () => void
-  onUpdate: () => void
+  onSave: (formData: any, fileUrl: string | null) => Promise<void>
+  onLater?: () => void
+  onDelete?: () => void
 }
 
 
 
 
-function DocumentDetailDialog({ doc, cfg, onClose, onDelete, onUpdate }: DocumentDetailDialogProps) {
-  const fileUrl = doc.link
-  const isImage = fileUrl && /\.(jpe?g|png|gif|webp)$/i.test(fileUrl)
-  const isPdf = fileUrl && fileUrl.toLowerCase().endsWith(".pdf")
+function DocumentDetailDialog({ doc, cfg, onClose, onSave, onLater, onDelete }: DocumentDetailDialogProps) {
+  const [fileUrl, setFileUrl] = useState<string | null>(doc.link ?? null);
+  const [formData, setFormData] = useState<Record<string, any>>({
+    applicable: doc.isApplicable ?? true,
+    expiryDate: doc.expiryDate ?? "",
+    signingDate: doc.contractSigningDate ?? doc.signingDate ?? "",
+    startDate: doc.contractStartDate ?? doc.startDate ?? "",
+    contractDate: doc.contractDate ?? "",
+    optIn: doc.optIn ?? false,
+    optOut: doc.optOut ?? false,
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [showUploader, setShowUploader] = useState(false);
 
-  const getStatusStyles = (status?: string) => {
-    const baseClass = "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-    switch (status?.toLowerCase()) {
-      case "active":
-      case "approved":
-        return `${baseClass} bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50`
-      case "pending":
-        return `${baseClass} bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50`
-      case "expired":
-      case "rejected":
-        return `${baseClass} bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800/50`
-      default:
-        return `${baseClass} bg-slate-100 text-slate-700 dark:bg-slate-800/50 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50`
+  const isImage = fileUrl && /\.(jpe?g|png|gif|webp)$/i.test(fileUrl);
+  const isPdf = fileUrl && fileUrl.toLowerCase().endsWith(".pdf");
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(formData, fileUrl);
+      onClose();
+    } catch (error) {
+      console.error("Failed to save:", error);
+    } finally {
+      setIsSaving(false);
     }
-  }
+  };
+
+  const handleUploadSuccess = (url: string) => {
+    setFileUrl(url);
+    setShowUploader(false);
+  };
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 animate-in fade-in zoom-in-95 duration-300">
-        <DialogHeader className="relative bg-[#F15A29] p-8 pb-6 border-b border-white/10">
-
-
-          <div className="flex justify-between items-start w-full gap-4 pr-10">
-            <div className="space-y-3 flex-1">
-              <DialogTitle className="text-3xl font-bold text-white leading-tight">{cfg.title}</DialogTitle>
-
-              {doc.driver && (
-                <DialogDescription className="flex items-center gap-2 text-slate-300/90">
-                  <User className="w-4 h-4 flex-shrink-0" />
-                  <span className="font-medium">{doc.driver.full_name}</span>
-                  <span className="text-slate-400">•</span>
-                  <span className="text-slate-400">{doc.driver.email}</span>
-                </DialogDescription>
-              )}
-            </div>
-
-            {doc.current_status && (
-              <div className={getStatusStyles(doc.current_status)}>
-                {doc.current_status?.toLowerCase() === "active" || doc.current_status?.toLowerCase() === "approved" ? (
-                  <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-                ) : doc.current_status?.toLowerCase() === "expired" ? (
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                ) : null}
-                {doc.current_status}
+    <>
+      <Dialog open onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-white rounded-[2rem] border-none shadow-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 h-full min-h-[550px]">
+            {/* Left Column: Image Preview Style from Reference */}
+            <div className="p-8 flex flex-col items-center bg-white border-r border-gray-50 overflow-y-auto custom-scrollbar">
+              <div className="w-full text-left mb-6">
+                <h2 className="text-3xl font-bold text-gray-900 leading-tight">{cfg.title}</h2>
+                <p className="text-sm text-gray-400 mt-1 font-medium">Review and update document details</p>
               </div>
-            )}
-          </div>
-        </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-200px)]">
-          <div className="p-8 space-y-8">
-            {fileUrl && (
-              <div className="space-y-3">
-                <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <div className="w-1 h-4 bg-[#F15A29] rounded-full"></div>
-                  Document Preview
-                </h3>
-                <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 shadow-lg hover:shadow-xl transition-all duration-300">
-                  {isImage ? (
-                    <img
-                      src={fileUrl || "/placeholder.svg"}
-                      alt={cfg.title}
-                      className="w-full h-auto max-h-[400px] object-contain p-6"
-                      crossOrigin="anonymous"
-                    />
-                  ) : isPdf ? (
-                    <iframe src={fileUrl} className="w-full h-[400px] border-0" title="PDF Preview" />
+              <div className="w-full relative group/carousel h-[380px] rounded-[2.5rem] overflow-hidden bg-gray-50 border border-gray-100 shadow-sm p-4">
+                <div className="relative h-full w-full rounded-[2rem] overflow-hidden">
+                  {fileUrl ? (
+                    isImage ? (
+                      <div className="relative w-full h-full cursor-pointer group/img">
+                        <img src={fileUrl} alt={cfg.title} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                          <Eye className="text-white h-12 w-12" />
+                        </div>
+                      </div>
+                    ) : isPdf ? (
+                      <div className="flex flex-col items-center justify-center h-full gap-3 bg-[#FDE4E7]">
+                        <FileText className="h-16 w-16 text-[#E11D48] opacity-50" />
+                        <span className="font-bold text-[#E11D48] uppercase tracking-widest text-xs">PDF DOCUMENT</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full gap-3 bg-gray-50">
+                        <FileText className="h-16 w-16 text-gray-200" />
+                      </div>
+                    )
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                      <FileText className="h-16 w-16 mb-3 opacity-30" />
-                      <span className="text-sm font-medium">No preview available for this file type</span>
+                    <div className="flex flex-col items-center justify-center h-full gap-6 text-center p-8 bg-white border-2 border-dashed border-gray-100 rounded-[2rem]">
+                      <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center border border-gray-100 group-hover:scale-110 transition-transform duration-500">
+                        <Upload className="h-10 w-10 text-gray-200" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-lg font-bold text-gray-900">Document Missing</p>
+                        <p className="text-sm font-medium text-gray-400 leading-tight px-4">Click the upload icon to add a document</p>
+                      </div>
                     </div>
                   )}
+
+                  {/* Upload Action overlay */}
+                  <div className="absolute top-6 right-6 z-20">
+                    <Button
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowUploader(true);
+                      }}
+                      className="h-12 w-12 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border-none text-[#F15A29] hover:bg-white hover:scale-110 active:scale-95 transition-all"
+                    >
+                      <Upload className="h-6 w-6" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            <div className="space-y-4">
-              <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <div className="w-1 h-4 bg-[#F15A29] rounded-full"></div>
-                Document Details
-              </h3>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[
-                  { label: "ID", value: doc.id, icon: null },
-                  { label: "Status", value: doc.current_status, icon: CheckCircle2 },
-                  { label: "Applicable", value: doc.isApplicable ? "Yes" : "No", icon: null },
-                  {
-                    label: "Agreement Date",
-                    value: doc.agreement_date && formatDate(doc.agreement_date),
-                    icon: Calendar,
-                  },
-                  {
-                    label: "Signing Date",
-                    value: doc.contractSigningDate && formatDate(doc.contractSigningDate),
-                    icon: Calendar,
-                  },
-                  {
-                    label: "Start Date",
-                    value: doc.contractStartDate && formatDate(doc.contractStartDate),
-                    icon: Calendar,
-                  },
-                  { label: "Contract Date", value: doc.contractDate && formatDate(doc.contractDate), icon: Calendar },
-                  { label: "Expiry Date", value: doc.expiryDate && formatDate(doc.expiryDate), icon: Calendar },
-                  {
-                    label: "Night Worker",
-                    value: doc.isNightWorker !== undefined ? (doc.isNightWorker ? "Yes" : "No") : null,
-                    icon: null,
-                  },
-                  { label: "Uploaded", value: doc.uploadDate && formatDate(doc.uploadDate), icon: Calendar },
-                ]
-                  .filter(item => item.value != null)
-                  .map(({ label, value, icon: Icon }) => (
-                    <div
-                      key={label}
-                      className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all duration-200 hover:shadow-md"
-                    >
-                      <div className="flex items-start gap-2 mb-2">
-                        {Icon && <Icon className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0 mt-0.5" />}
-                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          {label}
-                        </label>
-                      </div>
-                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">{value}</div>
+            {/* Right Column: Form Fields from Reference Style */}
+            <div className="p-10 bg-white border-l border-gray-50 flex flex-col justify-between">
+              <div className="space-y-8">
+                {/* Conditional Fields based on cfg.fields */}
+                {cfg.fields.includes("start") && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Employment Start Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.startDate || ""}
+                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                      className="h-12 border-gray-100 rounded-xl focus:ring-[#F15A29] focus:border-[#F15A29] font-medium px-4 bg-white"
+                    />
+                  </div>
+                )}
+
+                {cfg.fields.includes("contract") && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Contract Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.contractDate || ""}
+                      onChange={(e) => setFormData({ ...formData, contractDate: e.target.value })}
+                      className="h-12 border-gray-100 rounded-xl focus:ring-[#F15A29] focus:border-[#F15A29] font-medium px-4 bg-white"
+                    />
+                  </div>
+                )}
+
+                {cfg.fields.includes("expiry") && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Expiry Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.expiryDate || ""}
+                      onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                      className="h-12 border-gray-100 rounded-xl focus:ring-[#F15A29] focus:border-[#F15A29] font-medium px-4 bg-white"
+                    />
+                  </div>
+                )}
+
+                {/* Status Section mimicking reference logic */}
+                {(cfg.fields.includes("optIn") || cfg.fields.includes("optOut")) && (
+                  <div className="space-y-3">
+                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Pension Status</Label>
+                    <div className="flex gap-3">
+                      {[
+                        { val: "in", label: "Opt In", check: formData.optIn },
+                        { val: "out", label: "Opt Out", check: formData.optOut }
+                      ].map((s) => (
+                        <button
+                          key={s.val}
+                          onClick={() => setFormData({ ...formData, optIn: s.val === "in", optOut: s.val === "out" })}
+                          type="button"
+                          className={cn(
+                            "flex-1 py-3 rounded-full text-sm font-bold transition-all border outline-none",
+                            s.check
+                              ? "bg-[#E6F4EA] text-[#1E8E3E] border-[#1E8E3E]/20"
+                              : "bg-white text-gray-400 border-gray-100 hover:bg-gray-50"
+                          )}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                )}
+
+                {/* Applicable Toggle matching reference */}
+                {cfg.fields.includes("applicable") && (
+                  <div className="flex items-center justify-between bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                    <div className="space-y-0.5">
+                      <Label className="text-[13px] font-bold text-gray-800">Is Applicable</Label>
+                      <p className="text-[10px] text-gray-400 font-medium">Toggle if this document applies</p>
+                    </div>
+                    <Switch
+                      checked={formData.applicable}
+                      onCheckedChange={(checked) => setFormData({ ...formData, applicable: checked })}
+                      className="data-[state=checked]:bg-[#F15A29] scale-90"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Buttons Style from Reference */}
+              <div className="flex gap-4 pt-6 mt-8">
+                <Button
+                  variant="ghost"
+                  onClick={onClose}
+                  className="flex-1 h-14 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl transition-all"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex-1 h-14 bg-[#FFD8CD] hover:bg-[#FFC9BB] text-[#F15A29] font-bold rounded-2xl shadow-sm transform active:scale-[0.98] transition-all"
+                >
+                  {isSaving ? "Saving..." : "Save"}
+                </Button>
               </div>
             </div>
           </div>
-        </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
-        <DialogFooter className="p-6 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="rounded-lg border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 bg-transparent"
-          >
-            Close
-          </Button>
-          <Button
-            onClick={onUpdate}
-            className="rounded-lg bg-[#F15A29] text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
-          >
-            <Edit className="w-4 h-4" />
-            Update
-          </Button>
-          <Button
-            onClick={onDelete}
-            variant="destructive"
-            className="rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
+      {/* Nested Upload Modal Overlay - Same style as reference */}
+      <Dialog open={showUploader} onOpenChange={setShowUploader}>
+        <DialogContent className="w-fit bg-white rounded-[2rem] p-8 border-none shadow-2xl">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl font-bold">Upload Document</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Please upload a clear image of the {cfg.title}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-gray-50 rounded-3xl p-6 border-2 border-dashed border-gray-100">
+            <FileUploader
+              onUploadSuccess={handleUploadSuccess}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
+
 
 /* ────────────────────── Main Component ────────────────────── */
 export default function SignAgreementAdminTab() {
@@ -1130,9 +1036,9 @@ export default function SignAgreementAdminTab() {
                       <span className="font-bold text-orange-500">
                         {formatDate(
                           (k === "contractOfEmployment") ? (d as ContractDoc).contractDate :
-                          (k === "nightWorker") ? (d as NightWorkerDoc).expiryDate :
-                          (k === "vehicleFamiliarisation") ? (d as ExpiryApplicableDoc).expiryDate :
-                          (d.uploadDate)
+                            (k === "nightWorker") ? (d as NightWorkerDoc).expiryDate :
+                              (k === "vehicleFamiliarisation") ? (d as ExpiryApplicableDoc).expiryDate :
+                                (d.uploadDate)
                         )}
                       </span>
                     </div>
@@ -1160,7 +1066,7 @@ export default function SignAgreementAdminTab() {
                         disabled={!documentNames.length && !cfg.apiKey}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setUploadDialog({ open: true, key: k });
+                          setDetail({ open: true, key: k });
                         }}
                       >
                         <Upload className="h-4 w-4 mr-2" />
@@ -1184,19 +1090,7 @@ export default function SignAgreementAdminTab() {
                       className="flex-1 bg-red-50/50 hover:bg-red-50 text-red-500 rounded-xl h-12 text-sm font-bold transition-all active:scale-95 border-none"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setUploadDialog({
-                          open: true,
-                          key: k,
-                          initial: {
-                            applicable: d.isApplicable,
-                            expiryDate: (d as any).expiryDate ?? "",
-                            signingDate: (d as any).contractSigningDate ?? (d as any).signingDate ?? "",
-                            startDate: (d as any).contractStartDate ?? (d as any).startDate ?? "",
-                            contractDate: (d as any).contractDate ?? "",
-                            optIn: (d as PensionDoc).optIn,
-                            optOut: (d as PensionDoc).optOut,
-                          },
-                        });
+                        setDetail({ open: true, key: k });
                       }}
                     >
                       Update <Edit className="ml-2 h-4 w-4" />
@@ -1229,44 +1123,22 @@ export default function SignAgreementAdminTab() {
           doc={docs[detail.key] as any}
           cfg={docConfig[detail.key]}
           onClose={() => setDetail({ open: false, key: null })}
+          onSave={(formData, fileUrl) => uploadDocument(detail.key!, fileUrl || "", formData)}
+          onLater={() => {
+            if (detail.key) {
+              openTaskDialog(docConfig[detail.key].title);
+              setDetail({ open: false, key: null });
+            }
+          }}
           onDelete={() => {
             if (detail.key !== null) {
               deleteDoc(docs[detail.key].id, detail.key);
             }
             setDetail({ open: false, key: null });
           }}
-          onUpdate={() => {
-            if (detail.key !== null) {
-              const d = docs[detail.key];
-              setUploadDialog({
-                open: true,
-                key: detail.key,
-                initial: {
-                  applicable: d.isApplicable,
-                  expiryDate: (d as any).expiryDate ?? "",
-                  signingDate: (d as any).contractSigningDate ?? (d as any).signingDate ?? "",
-                  startDate: (d as any).contractStartDate ?? (d as any).startDate ?? "",
-                  contractDate: (d as any).contractDate ?? "",
-                  optIn: (d as PensionDoc).optIn,
-                  optOut: (d as PensionDoc).optOut,
-                },
-              });
-            }
-            setDetail({ open: false, key: null });
-          }}
         />
       )}
 
-      {uploadDialog.open && uploadDialog.key && (
-        <DynamicUploadDialog
-          keyName={uploadDialog.key}
-          onUpload={uploadDocument}
-          open={uploadDialog.open}
-          onClose={() => setUploadDialog({ open: false, key: null, initial: undefined })}
-          docs={docs}
-          initialValues={uploadDialog.initial}
-        />
-      )}
 
       <CreateTaskDialog
         isOpen={taskDialog.open}

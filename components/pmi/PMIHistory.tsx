@@ -162,7 +162,7 @@ const StatusCell: FC<StatusCellProps> = ({
 
   if (type === "status") {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-start">
 
         <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
           {status || "N/A"}
@@ -174,7 +174,7 @@ const StatusCell: FC<StatusCellProps> = ({
 
   if (type === "number") {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-start">
 
         <div
           onDoubleClick={handleDoubleClick}
@@ -192,7 +192,7 @@ const StatusCell: FC<StatusCellProps> = ({
 
   if (type === "date") {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-start">
 
         <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
           {status || "N/A"}
@@ -203,7 +203,7 @@ const StatusCell: FC<StatusCellProps> = ({
   }
 
   return (
-    <div className="flex items-center justify-center">
+    <div className="flex items-center justify-start">
 
       <div onDoubleClick={handleDoubleClick} className="cursor-pointer">
         {status || "N/A"}
@@ -698,33 +698,33 @@ const PMIHistory: FC = () => {
 
                       <TableHead
                         colSpan={tyreColumns.length}
-                        className="text-center bg-blue-50 border-l border-r border-blue-200"
+                        className="text-left bg-blue-50 border-l border-r border-blue-200"
                       >
                         Tyre Pressure (PSI)
                       </TableHead>
                       <TableHead
                         colSpan={tyreColumns.length}
-                        className="text-center bg-green-50 border-l border-r border-green-200"
+                        className="text-left bg-green-50 border-l border-r border-green-200"
                       >
                         Tyre Depth (mm)
                       </TableHead>
                       <TableHead>Defects</TableHead>
                       <TableHead>Driver Defects</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
+                      <TableHead className="text-left">Actions</TableHead>
                     </TableRow>
                     <TableRow>
                       <TableHead></TableHead>
                       <TableHead></TableHead>
                       <TableHead></TableHead>
                       {tyreColumns.map((col) => (
-                        <TableHead key={col} className="text-center bg-blue-25">
+                        <TableHead key={col} className="text-left bg-blue-25">
                           {col}
                         </TableHead>
                       ))}
                       {tyreColumns.map((col) => (
                         <TableHead
                           key={col}
-                          className="text-center bg-green-25"
+                          className="text-left bg-green-25"
                         >
                           {col}
                         </TableHead>
@@ -755,7 +755,7 @@ const PMIHistory: FC = () => {
                     </TableHead>
 
                     {tyreColumns.map((col) => (
-                      <TableHead key={col} className="text-center">
+                      <TableHead key={col} className="text-left">
                         {col}
                       </TableHead>
                     ))}
@@ -783,7 +783,7 @@ const PMIHistory: FC = () => {
                     </TableHead>
 
                     {tyreColumns.map((col) => (
-                      <TableHead key={col} className="text-center">
+                      <TableHead key={col} className="text-left">
                         {col}
                       </TableHead>
                     ))}
@@ -817,17 +817,17 @@ const PMIHistory: FC = () => {
                       {sortConfig?.key === "status" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-                    <TableHead className="text-center">
+                    <TableHead className="text-left">
                       Brake Test Not Recorded
                     </TableHead>
-                    <TableHead className="text-center">
+                    <TableHead className="text-left">
                       Brake Test Report Attached
                     </TableHead>
-                    <TableHead className="text-center">
+                    <TableHead className="text-left">
                       Maintenance Error Answer
                     </TableHead>
                     <TableHead>Defects</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
+                    <TableHead className="text-left">Actions</TableHead>
                   </TableRow>
                 )}
               </TableHeader>
@@ -863,7 +863,7 @@ const PMIHistory: FC = () => {
                             <TableCell
                               key={col}
                               className={cn(
-                                "text-center",
+                                "text-left",
                                 getSafetyColor(row.tyre_pressure[col], "tyre_pressure")
                               )}
                             >
@@ -903,7 +903,7 @@ const PMIHistory: FC = () => {
                               value={row.driver_info?.defects || "N/A"}
                             />
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-left">
                             <ActionMenu
                               row={row}
 
@@ -926,7 +926,7 @@ const PMIHistory: FC = () => {
                             <TableCell
                               key={col}
                               className={cn(
-                                "text-center",
+                                "text-left",
                                 getSafetyColor(row.tyre_depth[col], "tyre_depth")
                               )}
                             >
@@ -943,7 +943,7 @@ const PMIHistory: FC = () => {
                           <TableCell>
                             <BadgeList value={row.defects || "N/A"} />
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-left">
                             <ActionMenu
                               row={row}
 
@@ -978,7 +978,7 @@ const PMIHistory: FC = () => {
                           <TableCell>
                             <BadgeList value={row.defects || "N/A"} />
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-left">
                             <ActionMenu
                               row={row}
 
@@ -997,7 +997,7 @@ const PMIHistory: FC = () => {
                             {row.vehicle_reg}
                           </TableCell>
                           <TableCell>{getStatusBadge(row.status)}</TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-left">
                             <StatusCell
                               status={row.brake_test_not_recorded}
                               rowId={row.id}
@@ -1007,7 +1007,7 @@ const PMIHistory: FC = () => {
                               type="status"
                             />
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-left">
                             <StatusCell
                               status={row.brake_test_report_attached}
                               rowId={row.id}
@@ -1017,7 +1017,7 @@ const PMIHistory: FC = () => {
                               type="status"
                             />
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-left">
                             <StatusCell
                               status={row.maintenance_error_answer}
                               rowId={row.id}
@@ -1030,7 +1030,7 @@ const PMIHistory: FC = () => {
                           <TableCell>
                             <BadgeList value={row.defects || "N/A"} />
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-left">
                             <ActionMenu
                               row={row}
 

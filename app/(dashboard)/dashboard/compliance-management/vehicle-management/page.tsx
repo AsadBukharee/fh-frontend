@@ -226,12 +226,7 @@ export default function VehicleDashboard() {
   } | null>(null);
   const [newPmiLocationValue, setNewPmiLocationValue] = useState("");
 
-  const [sweepDialogOpen, setSweepDialogOpen] = useState(false);
   const [isSweeping, setIsSweeping] = useState(false);
-  const [sweepTitle, setSweepTitle] = useState("Maintenance Notice");
-  const [sweepMessage, setSweepMessage] = useState(
-    "System maintenance scheduled at midnight.",
-  );
 
   const cookies = useCookies();
 
@@ -1452,11 +1447,6 @@ export default function VehicleDashboard() {
   };
 
   const performSweepAudit = async () => {
-    if (!sweepTitle.trim() || !sweepMessage.trim()) {
-      toast.error("Please fill in title and message");
-      return;
-    }
-
     setIsSweeping(true);
     try {
       const nowIso = new Date().toISOString();
@@ -1470,8 +1460,8 @@ export default function VehicleDashboard() {
             Authorization: `Bearer ${cookies.get("access_token")}`,
           },
           body: JSON.stringify({
-            title: sweepTitle.trim(),
-            message: sweepMessage.trim(),
+            title: "Maintenance Notice",
+            message: "System maintenance scheduled at midnight.",
             datetime: nowIso,
           }),
         },
@@ -1484,10 +1474,6 @@ export default function VehicleDashboard() {
 
       const result = await response.json();
       toast.success(result.message || "Sweep audit triggered successfully!");
-
-      setSweepDialogOpen(false);
-      setSweepTitle("Maintenance Notice");
-      setSweepMessage("System maintenance scheduled at midnight.");
     } catch (error) {
       console.error("Sweep audit error:", error);
       toast.error(
@@ -1781,80 +1767,19 @@ export default function VehicleDashboard() {
           </div>
 
           <div className="flex gap-3">
-            <Dialog open={sweepDialogOpen} onOpenChange={setSweepDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  disabled={loading || isUpdating || isSweeping}
-                  variant="outline"
-                  className="bg-orange-500 hover:bg-orange-600 cursor-pointer text-white hover:text-white"
-                  size="sm"
-                >
-                  <Play
-                    className={`w-4 h-4 mr-2 ${isSweeping ? "animate-spin" : ""
-                      }`}
-                  />
-                  Sweep Audit
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Trigger Sweep Vehicle Audit</DialogTitle>
-                  <DialogDescription>
-                    This will immediately run a vehicle compliance sweep using
-                    the current date and time ({new Date().toLocaleString()}).
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input
-                      id="title"
-                      value={sweepTitle}
-                      onChange={(e) => setSweepTitle(e.target.value)}
-                      placeholder="e.g. Maintenance Notice"
-                      disabled={isSweeping}
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="message">Message</Label>
-                    <Textarea
-                      id="message"
-                      value={sweepMessage}
-                      onChange={(e) => setSweepMessage(e.target.value)}
-                      placeholder="Describe the reason..."
-                      rows={4}
-                      disabled={isSweeping}
-                    />
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setSweepDialogOpen(false)}
-                    disabled={isSweeping}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={performSweepAudit}
-                    disabled={isSweeping}
-                    className="bg-orange-600 hover:bg-orange-700"
-                  >
-                    {isSweeping ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Triggering...
-                      </>
-                    ) : (
-                      "Trigger Now"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button
+              onClick={performSweepAudit}
+              disabled={loading || isUpdating || isSweeping}
+              variant="outline"
+              className="bg-orange-500 hover:bg-orange-600 cursor-pointer text-white hover:text-white"
+              size="sm"
+            >
+              <Play
+                className={`w-4 h-4 mr-2 ${isSweeping ? "animate-spin" : ""
+                  }`}
+              />
+              Sweep Audit
+            </Button>
 
             <Button
               onClick={fetchData}
@@ -1979,9 +1904,9 @@ export default function VehicleDashboard() {
                       {visibleColumns.showMOT && (
                         <th
                           colSpan={6}
-                          className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-orange-500 bg-orange-100 border-x border-gray-200 sticky top-0 z-40"
+                          className="min-w-[240px] px-4 py-3 text-left text-sm font-semibold text-orange-500 bg-orange-100 border-x border-gray-200 sticky top-0 z-40"
                         >
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-start gap-2">
                             <Calendar className="w-4 h-4" />
                             MOT Information
                           </div>
@@ -1993,9 +1918,9 @@ export default function VehicleDashboard() {
                           colSpan={
                             activeFilter === "PMI Inspection" ? 11 : 5
                           }
-                          className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200 sticky top-0 z-40"
+                          className="min-w-[240px] px-4 py-3 text-left text-sm font-semibold text-rose-900 bg-rose-50 border-x border-gray-200 sticky top-0 z-40"
                         >
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-start gap-2">
                             <Wrench className="w-4 h-4" />
                             PMI Information
                           </div>
@@ -2005,9 +1930,9 @@ export default function VehicleDashboard() {
                       {visibleColumns.showTacho && (
                         <th
                           colSpan={2}
-                          className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-blue-900 bg-blue-50 border-x border-gray-200 sticky top-0 z-40"
+                          className="min-w-[240px] px-4 py-3 text-left text-sm font-semibold text-blue-900 bg-blue-50 border-x border-gray-200 sticky top-0 z-40"
                         >
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-start gap-2">
                             <Download className="w-4 h-4" />
                             Vehicle Tacho Download Information
                           </div>
@@ -2017,9 +1942,9 @@ export default function VehicleDashboard() {
                       {visibleColumns.showTyre && (
                         <th
                           colSpan={2}
-                          className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-purple-900 bg-purple-50 border-x border-gray-200 sticky top-0 z-40"
+                          className="min-w-[240px] px-4 py-3 text-left text-sm font-semibold text-purple-900 bg-purple-50 border-x border-gray-200 sticky top-0 z-40"
                         >
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-start gap-2">
                             <Circle className="w-4 h-4" />
                             Tyre Maintenance Information
                           </div>
@@ -2029,9 +1954,9 @@ export default function VehicleDashboard() {
                       {visibleColumns.showInsurance && (
                         <th
                           colSpan={2}
-                          className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-green-900 bg-green-50 border-x border-gray-200 sticky top-0 z-40"
+                          className="min-w-[240px] px-4 py-3 text-left text-sm font-semibold text-green-900 bg-green-50 border-x border-gray-200 sticky top-0 z-40"
                         >
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-start gap-2">
                             <Shield className="w-4 h-4" />
                             Insurance & Tax Information
                           </div>
@@ -2041,9 +1966,9 @@ export default function VehicleDashboard() {
                       {visibleColumns.showCalibrations && (
                         <th
                           colSpan={4}
-                          className="min-w-[240px] px-4 py-3 text-center text-sm font-semibold text-yellow-900 bg-yellow-50 border-x border-gray-200 sticky top-0 z-40"
+                          className="min-w-[240px] px-4 py-3 text-left text-sm font-semibold text-yellow-900 bg-yellow-50 border-x border-gray-200 sticky top-0 z-40"
                         >
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-start gap-2">
                             <Settings className="w-4 h-4" />
                             Vehicle Tacho & Loller Calibration Information
                           </div>
@@ -2054,22 +1979,22 @@ export default function VehicleDashboard() {
                     <tr className="bg-white border-y-2 border-gray-300 sticky top-[61px] z-40">
                       {visibleColumns.showMOT && (
                         <>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                             MOT Status
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                             MOT Expiry Date
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                             Book Next MOT From
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                             Next MOT Booked Date
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-orange-50/30 sticky top-[61px]">
                             Time
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-orange-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-x border-gray-200 bg-orange-50/30 sticky top-[61px]">
                             <div className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
                               Location
@@ -2080,19 +2005,19 @@ export default function VehicleDashboard() {
 
                       {visibleColumns.showPMI && (
                         <>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
                             PMI Status
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
                             Last PMI Date
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
                             PMI Expiry Date
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-rose-50/30 sticky top-[61px]">
                             Next PMI Booked Date
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-rose-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-x border-gray-200 bg-rose-50/30 sticky top-[61px]">
                             <div className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
                               Location
@@ -2104,7 +2029,7 @@ export default function VehicleDashboard() {
                               {plannedDateKeys.map((key, index) => (
                                 <th
                                   key={key}
-                                  className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-rose-50/30 sticky top-[61px]"
+                                  className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-rose-50/30 sticky top-[61px]"
                                 >
                                   {key
                                     .replace("_", " ")
@@ -2118,10 +2043,10 @@ export default function VehicleDashboard() {
 
                       {visibleColumns.showTacho && (
                         <>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-blue-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-blue-50/30 sticky top-[61px]">
                             Last Vehicle Tacho Download
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-blue-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-x border-gray-200 bg-blue-50/30 sticky top-[61px]">
                             Next Vehicle Tacho Download
                           </th>
                         </>
@@ -2129,10 +2054,10 @@ export default function VehicleDashboard() {
 
                       {visibleColumns.showTyre && (
                         <>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-purple-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-purple-50/30 sticky top-[61px]">
                             Last Tyre Check
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-purple-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-x border-gray-200 bg-purple-50/30 sticky top-[61px]">
                             Next Tyre Check
                           </th>
                         </>
@@ -2140,10 +2065,10 @@ export default function VehicleDashboard() {
 
                       {visibleColumns.showInsurance && (
                         <>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-green-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-green-50/30 sticky top-[61px]">
                             Insurance Expiry
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-green-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-x border-gray-200 bg-green-50/30 sticky top-[61px]">
                             Tax Expiry
                           </th>
                         </>
@@ -2151,16 +2076,16 @@ export default function VehicleDashboard() {
 
                       {visibleColumns.showCalibrations && (
                         <>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-yellow-50/30 sticky top-[61px]">
                             Tacho Calibration Expiry
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-yellow-50/30 sticky top-[61px]">
                             Next Tacho Calib Date
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-gray-200 bg-yellow-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-gray-200 bg-yellow-50/30 sticky top-[61px]">
                             Loller Calibration Expiry
                           </th>
-                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 border-l border-x border-gray-200 bg-yellow-50/30 sticky top-[61px]">
+                          <th className="min-w-[150px] px-3 py-3 text-xs font-medium text-gray-700 text-left border-l border-x border-gray-200 bg-yellow-50/30 sticky top-[61px]">
                             Next Loller Calib Date
                           </th>
                         </>
@@ -2253,7 +2178,7 @@ export default function VehicleDashboard() {
                                 {plannedDateKeys.map((key) => (
                                   <td
                                     key={key}
-                                    className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200 bg-rose-50/30"
+                                    className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200 bg-rose-50/30"
                                   >
                                     <DateDisplay
                                       date={row.pmi?.hover?.[key] || null}
@@ -2271,7 +2196,7 @@ export default function VehicleDashboard() {
 
                         {visibleColumns.showTacho && (
                           <>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                               <DateDisplay
                                 date={row.tacho?.last_download ?? null}
                                 isBlackText={true}
@@ -2279,7 +2204,7 @@ export default function VehicleDashboard() {
                                 {formatDate(row.tacho?.last_download, false)}
                               </DateDisplay>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-x border-gray-200">
                               <DateDisplay
                                 date={row.tacho?.next_download ?? null}
                                 fieldType="booking"
@@ -2298,7 +2223,7 @@ export default function VehicleDashboard() {
 
                         {visibleColumns.showTyre && (
                           <>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                               <DateDisplay
                                 date={row.tyre?.last_check ?? null}
                                 isBlackText={true}
@@ -2306,7 +2231,7 @@ export default function VehicleDashboard() {
                                 {formatDate(row.tyre?.last_check, false)}
                               </DateDisplay>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-x border-gray-200">
                               <DateDisplay
                                 date={row.tyre?.next_check ?? null}
                                 fieldType="booking"
@@ -2325,7 +2250,7 @@ export default function VehicleDashboard() {
 
                         {visibleColumns.showInsurance && (
                           <>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                               <DateDisplay
                                 date={row.insurance?.insurance_expiry ?? null}
                                 fieldType="insurance_expiry"
@@ -2338,7 +2263,7 @@ export default function VehicleDashboard() {
                                 )}
                               </DateDisplay>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-x border-gray-200">
                               <DateDisplay
                                 date={row.insurance?.tax_expiry ?? null}
                                 fieldType="tax_expiry"
@@ -2353,24 +2278,24 @@ export default function VehicleDashboard() {
 
                         {visibleColumns.showCalibrations && (
                           <>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                               <DateDisplay
                                 date={
                                   row.calibration?.tacho_calibration_expiry ??
                                   null
                                 }
                                 isBlackText={true}
-                              >
+                                >
                                 {formatDate(
                                   row.calibration?.tacho_calibration_expiry,
                                   false,
                                 )}
                               </DateDisplay>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                               {renderTachoCalibrationDate(row)}
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                               <DateDisplay
                                 date={
                                   row.calibration?.loller_test_expiry_date ??
@@ -2384,7 +2309,7 @@ export default function VehicleDashboard() {
                                 )}
                               </DateDisplay>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-700 text-center border-l border-x border-gray-200">
+                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-x border-gray-200">
                               {renderLollerCalibrationDate(row)}
                             </td>
                           </>
