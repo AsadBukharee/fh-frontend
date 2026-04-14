@@ -17,15 +17,13 @@ import {
   CheckCircle,
   Clock,
   User,
-  MapPin,
-  Gauge,
+
   Signature,
   Camera,
   Printer,
   RotateCcw
 } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 import {
   Dialog,
@@ -37,12 +35,12 @@ import SignatureCanvas from 'react-signature-canvas';
 import { useCookies } from 'next-client-cookies';
 
 // Import Types and Components
-import { 
-  Answer, 
-  FollowupAnswer, 
-  WalkaroundData, 
+import {
+  Answer,
+  FollowupAnswer,
+  WalkaroundData,
   StepData,
-  Steps 
+  Steps
 } from '@/components/walkaround/types';
 import { PrintReportButton } from '@/components/walkaround/Walkaroundpdf';
 
@@ -287,14 +285,14 @@ const ActivityLogsModal = ({
               </tr>
             </thead>
             <tbody>
-              ${activityLogs.map(log => 
-                "<tr>" +
-                  "<td>" + new Date(log.created_at).toLocaleString() + "</td>" +
-                  "<td>" + log.user_name + "</td>" +
-                  "<td style='text-transform: capitalize; font-weight: 600;'>" + log.action + "</td>" +
-                  "<td>" + log.details + "</td>" +
-                "</tr>"
-              ).join('')}
+              ${activityLogs.map(log =>
+      "<tr>" +
+      "<td>" + new Date(log.created_at).toLocaleString() + "</td>" +
+      "<td>" + log.user_name + "</td>" +
+      "<td style='text-transform: capitalize; font-weight: 600;'>" + log.action + "</td>" +
+      "<td>" + log.details + "</td>" +
+      "</tr>"
+    ).join('')}
             </tbody>
           </table>
           <script>
@@ -686,7 +684,7 @@ const VehicleInspectionDashboard = () => {
             time={previewSignature.time}
           />
         )}
-        
+
         {activeLogs && (
           <ActivityLogsModal
             isOpen={!!activeLogs}
@@ -921,7 +919,7 @@ const StepCard = ({
             <div className="pr-6 border-r border-gray-100">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-gray-900 uppercase tracking-tight">Driver</p>
-              
+
               </div>
               <div className="space-y-4">
                 <div>
@@ -971,16 +969,16 @@ const StepCard = ({
             <div className="pl-6">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-gray-900 uppercase tracking-tight">CP</p>
-                
+
               </div>
               <div className="space-y-4">
-              
+
                 <div>
                   <p className="text-[10px] text-gray-400 font-semibold mb-1 uppercase">Note (Required)</p>
                   {
                     cp_signature?.note ? (
                       <p className="text-xs text-gray-700 bg-gray-50/50 p-2 rounded border border-gray-100/50 min-h-[40px]">
-                        {cp_signature.note} 
+                        {cp_signature.note}
                       </p>
                     ) : (
                       <p className="text-xs text-gray-500 italic bg-gray-50/50 p-2 rounded border border-gray-100/50 min-h-[40px]">

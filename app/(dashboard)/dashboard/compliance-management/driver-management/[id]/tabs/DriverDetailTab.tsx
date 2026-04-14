@@ -32,6 +32,12 @@ import ImageUploader from "@/components/Media/UploadImage";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface DriverDetailTabProps {
   driverData: any;
@@ -141,6 +147,7 @@ function FieldCell({
   onChange,
   type = "text",
   children,
+  truncate = false,
 }: {
   label: string;
   value: string | React.ReactNode;
@@ -151,6 +158,7 @@ function FieldCell({
   onChange?: (v: string) => void;
   type?: string;
   children?: React.ReactNode;
+  truncate?: boolean;
 }) {
   const badgeClasses: Record<string, string> = {
     orange: "bg-orange-100 text-orange-700 border border-orange-200",
@@ -160,13 +168,9 @@ function FieldCell({
     gray: "bg-gray-100 text-gray-700 border border-gray-200",
   };
 
-  return (
-    <div className="flex flex-col gap-1 min-w-0">
-      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
-        {label}
-      </span>
-
-      {editing && fieldKey && onChange ? (
+  const renderValue = () => {
+    if (editing && fieldKey && onChange) {
+      return (
         <Input
           type={type}
           value={typeof value === "string" ? value : ""}
@@ -174,9 +178,13 @@ function FieldCell({
           className="h-8 rounded-lg border-gray-300 text-sm"
           placeholder={label}
         />
-      ) : children ? (
-        children
-      ) : highlight ? (
+      );
+    }
+
+    if (children) return children;
+
+    if (highlight) {
+      return (
         <span
           className={cn(
             "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit",
@@ -185,11 +193,47 @@ function FieldCell({
         >
           {value}
         </span>
-      ) : email ? (
-        <span className="text-sm font-medium text-orange-500 truncate">{value || "—"}</span>
-      ) : (
-        <span className="text-sm font-medium text-gray-800 truncate">{value || "—"}</span>
-      )}
+      );
+    }
+
+    const textValue = typeof value === "string" ? value : "";
+    const displayValue = textValue || "—";
+    const isTruncated = truncate && textValue.length > 10;
+    const finalDisplayValue = isTruncated ? textValue.substring(0, 10) + "..." : displayValue;
+
+    const content = (
+      <span className={cn(
+        "text-sm font-medium truncate",
+        email ? "text-orange-500" : "text-gray-800"
+      )}>
+        {finalDisplayValue}
+      </span>
+    );
+
+    if (isTruncated) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="cursor-help w-fit max-w-full overflow-hidden">
+              {content}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className="bg-slate-900 text-white border-none">
+            <p className="text-xs">{textValue}</p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return content;
+  };
+
+  return (
+    <div className="flex flex-col gap-1 min-w-0">
+      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+        {label}
+      </span>
+      {renderValue()}
     </div>
   );
 }
@@ -594,7 +638,8 @@ export default function DriverDetailTab({
 
   /* ──────────────────────────────────────────────────────────────────────── */
   return (
-    <div className="w-full p-4 pb-24 space-y-5 bg-transparent">
+    <TooltipProvider>
+      <div className="w-full p-4 pb-24 space-y-5 bg-transparent">
 
       {/* ══════════════════════ DRIVER DETAILS (read-only card) ══════════════════════ */}
       <SectionCard
@@ -670,13 +715,13 @@ export default function DriverDetailTab({
                 </div>
               </div>
               <VDivider />
-              <div className="flex-1"><FieldCell label="Address" value={driverData?.address || "—"} /></div>
+              <div className="flex-1"><FieldCell label="Address" value={driverData?.address || "—"} truncate /></div>
               <VDivider />
               <div className="flex-1"><FieldCell label="Phone Number" value={driverData?.phone || "—"} /></div>
             </div>
             {/* Row 2 */}
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-0">
-              <div className="flex-1"><FieldCell label="Last Name" value={getLastName()} /></div>
+              <div className="flex-1"><FieldCell label="Last Name" value={getLastName()} truncate /></div>
               <VDivider />
               <div className="flex-1">
                 <FieldCell label="NI Number" value={driverData?.national_insurance_no || "—"} highlight="pink" />
@@ -687,7 +732,7 @@ export default function DriverDetailTab({
               </div>
               <VDivider />
               <div className="flex-1">
-                <FieldCell label="Email Address" value={driverData?.user?.email || "—"} email />
+                <FieldCell label="Email Address" value={driverData?.user?.email || "—"} email truncate />
               </div>
             </div>
           </div>
@@ -861,15 +906,15 @@ export default function DriverDetailTab({
                       onChange={(e) => setDriverDialogForm((f) => ({ ...f, email: e.target.value }))}
                       className="h-9 rounded-lg border-gray-200 text-sm"
                       placeholder="Email"
-                  />
+                    />
+                  </div>
                 </div>
-              </div>
 
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Footer buttons */}
+          {/* Footer buttons */}
           <div className="flex justify-end gap-3 px-8 py-4 border-t border-gray-100 bg-gray-50/50">
             <Button
               variant="outline"
@@ -1319,25 +1364,25 @@ export default function DriverDetailTab({
             <FieldCell
               label="Second Name"
               value={driverData?.next_of_kin_name?.split(" ").slice(1).join(" ") || "—"}
+              truncate
             />
           </div>
           <VDivider />
           <div className="flex-1">
             {/* Email with orange text */}
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-                Email Address
-              </span>
-              <span className="text-sm font-medium text-orange-500 truncate">
-                {driverData?.next_of_kin_email || "—"}
-              </span>
-            </div>
+            <FieldCell
+              label="Email Address"
+              value={driverData?.next_of_kin_email || "—"}
+              email
+              truncate
+            />
           </div>
           <VDivider />
           <div className="flex-1">
             <FieldCell
               label="Address"
               value={driverData?.next_of_kin_address || "—"}
+              truncate
             />
           </div>
         </div>
@@ -1355,5 +1400,6 @@ export default function DriverDetailTab({
 
 
     </div>
+    </TooltipProvider>
   );
 }

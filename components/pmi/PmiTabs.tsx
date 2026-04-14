@@ -261,11 +261,11 @@ const StatusCell: FC<StatusCellProps> = ({
   };
 
   const inputClass =
-    "w-[80px] text-center border-0 bg-transparent focus:ring-1 focus:ring-orange-500 rounded px-2 py-1";
+    "w-[80px] text-left border-0 bg-transparent focus:ring-1 focus:ring-orange-500 rounded px-2 py-1";
 
   if (type === "status") {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-start">
         {isEditing ? (
           <div className="flex items-center gap-1">
             <Select
@@ -303,7 +303,7 @@ const StatusCell: FC<StatusCellProps> = ({
 
   if (type === "number") {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-start">
         {isEditing ? (
           <div className="flex items-center gap-1">
             <input
@@ -340,7 +340,7 @@ const StatusCell: FC<StatusCellProps> = ({
 
   if (type === "date") {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-start">
         {isEditing ? (
           <div className="flex items-center gap-1">
             <Input
@@ -370,7 +370,7 @@ const StatusCell: FC<StatusCellProps> = ({
   }
 
   return (
-    <div className="flex items-center justify-center">
+    <div className="flex items-center justify-start">
       {isEditing ? (
         <div className="flex items-center gap-1">
           <Input
@@ -1065,18 +1065,18 @@ const PMITabs: FC = () => {
 
                       <TableHead
                         colSpan={tyreColumns.length}
-                        className="text-center bg-orange-50 border-l border-r border-orange-200"
+                        className="text-left bg-orange-50 border-l border-r border-orange-200"
                       >
                         Tyre Pressure (PSI)
                       </TableHead>
                       <TableHead
                         colSpan={tyreColumns.length}
-                        className="text-center bg-green-50 border-l border-r border-green-200"
+                        className="text-left bg-green-50 border-l border-r border-green-200"
                       >
                         Tyre Depth (mm)
                       </TableHead>
                       <TableHead>Defects</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
+                      <TableHead className="text-left">Actions</TableHead>
                     </TableRow>
                     <TableRow>
                       <TableHead></TableHead>
@@ -1085,7 +1085,7 @@ const PMITabs: FC = () => {
                       {tyreColumns.map((col) => (
                         <TableHead
                           key={col}
-                          className="text-center bg-orange-25"
+                          className="text-left bg-orange-25"
                         >
                           {col}
                         </TableHead>
@@ -1093,7 +1093,7 @@ const PMITabs: FC = () => {
                       {tyreColumns.map((col) => (
                         <TableHead
                           key={col}
-                          className="text-center bg-green-25"
+                          className="text-left bg-green-25"
                         >
                           {col}
                         </TableHead>
@@ -1123,12 +1123,12 @@ const PMITabs: FC = () => {
                     </TableHead>
 
                     {tyreColumns.map((col) => (
-                      <TableHead key={col} className="text-center">
+                      <TableHead key={col} className="text-left">
                         {col}
                       </TableHead>
                     ))}
                     <TableHead>Defects</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
+                    <TableHead className="text-left">Actions</TableHead>
                   </TableRow>
                 )}
                 {activeTab === "Tyre Depth" && (
@@ -1151,12 +1151,12 @@ const PMITabs: FC = () => {
                     </TableHead>
 
                     {tyreColumns.map((col) => (
-                      <TableHead key={col} className="text-center">
+                      <TableHead key={col} className="text-left">
                         {col}
                       </TableHead>
                     ))}
                     <TableHead>Defects</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
+                    <TableHead className="text-left">Actions</TableHead>
                   </TableRow>
                 )}
                 {activeTab === "Tyre Dates" && (
@@ -1179,12 +1179,12 @@ const PMITabs: FC = () => {
                     </TableHead>
 
                     {tyreColumns.map((col) => (
-                      <TableHead key={col} className="text-center">
+                      <TableHead key={col} className="text-left">
                         {col}
                       </TableHead>
                     ))}
                     <TableHead>Defects</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
+                    <TableHead className="text-left">Actions</TableHead>
                   </TableRow>
                 )}
                 {activeTab === "Others" && (
@@ -1213,17 +1213,17 @@ const PMITabs: FC = () => {
                       {sortConfig?.key === "status" &&
                         (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableHead>
-                    <TableHead className="text-center">
+                    <TableHead className="text-left">
                       Brake Test Not Recorded
                     </TableHead>
-                    <TableHead className="text-center">
+                    <TableHead className="text-left">
                       Brake Test Report Attached
                     </TableHead>
-                    <TableHead className="text-center">
+                    <TableHead className="text-left">
                       Maintenance Error Answer
                     </TableHead>
                     <TableHead>Defects</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
+                    <TableHead className="text-left">Actions</TableHead>
                   </TableRow>
                 )}
               </TableHeader>
@@ -1237,7 +1237,7 @@ const PMITabs: FC = () => {
                           {row.vehicle_reg}
                         </TableCell>
                         {tyreColumns.map((col) => (
-                          <TableCell key={col} className="text-center">
+                          <TableCell key={col} className="text-left">
                             <StatusCell
                               status={row.tyre_pressure[col]}
                               rowId={row.id}
@@ -1250,7 +1250,7 @@ const PMITabs: FC = () => {
                           </TableCell>
                         ))}
                         {tyreColumns.map((col) => (
-                          <TableCell key={col} className="text-center">
+                          <TableCell key={col} className="text-left">
                             <StatusCell
                               status={row.tyre_depth[col]}
                               rowId={row.id}
@@ -1265,7 +1265,7 @@ const PMITabs: FC = () => {
                         <TableCell>
                           <BadgeList value={row.defects || "N/A"} />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-left">
                           <ActionMenu
                             row={row}
                             onEdit={handleEdit}
@@ -1288,7 +1288,7 @@ const PMITabs: FC = () => {
                         </TableCell>
                         <TableCell>{getStatusBadge(row.status)}</TableCell>
                         {tyreColumns.map((col) => (
-                          <TableCell key={col} className="text-center">
+                          <TableCell key={col} className="text-left">
                             <StatusCell
                               status={row.tyre_pressure[col]}
                               rowId={row.id}
@@ -1303,7 +1303,7 @@ const PMITabs: FC = () => {
                         <TableCell>
                           <BadgeList value={row.defects || "N/A"} />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-left">
                           <ActionMenu
                             row={row}
                             onEdit={handleEdit}
@@ -1326,7 +1326,7 @@ const PMITabs: FC = () => {
                         </TableCell>
                         <TableCell>{getStatusBadge(row.status)}</TableCell>
                         {tyreColumns.map((col) => (
-                          <TableCell key={col} className="text-center">
+                          <TableCell key={col} className="text-left">
                             <StatusCell
                               status={row.tyre_depth[col]}
                               rowId={row.id}
@@ -1341,7 +1341,7 @@ const PMITabs: FC = () => {
                         <TableCell>
                           <BadgeList value={row.defects || "N/A"} />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-left">
                           <ActionMenu
                             row={row}
                             onEdit={handleEdit}
@@ -1364,7 +1364,7 @@ const PMITabs: FC = () => {
                         </TableCell>
                         <TableCell>{getStatusBadge(row.status)}</TableCell>
                         {tyreColumns.map((col) => (
-                          <TableCell key={col} className="text-center">
+                          <TableCell key={col} className="text-left">
                             <StatusCell
                               status={row.tyre_dates?.[col]}
                               rowId={row.id}
@@ -1379,7 +1379,7 @@ const PMITabs: FC = () => {
                         <TableCell>
                           <BadgeList value={row.defects || "N/A"} />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-left">
                           <ActionMenu
                             row={row}
                             onEdit={handleEdit}
@@ -1401,7 +1401,7 @@ const PMITabs: FC = () => {
                           {row.vehicle_reg}
                         </TableCell>
                         <TableCell>{getStatusBadge(row.status)}</TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-left">
                           <StatusCell
                             status={row.brake_test_not_recorded}
                             rowId={row.id}
@@ -1412,7 +1412,7 @@ const PMITabs: FC = () => {
                             type="status"
                           />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-left">
                           <StatusCell
                             status={row.brake_test_report_attached}
                             rowId={row.id}
@@ -1423,7 +1423,7 @@ const PMITabs: FC = () => {
                             type="status"
                           />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-left">
                           <StatusCell
                             status={row.maintenance_error_answer}
                             rowId={row.id}
@@ -1437,7 +1437,7 @@ const PMITabs: FC = () => {
                         <TableCell>
                           <BadgeList value={row.defects || "N/A"} />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-left">
                           <ActionMenu
                             row={row}
                             onEdit={handleEdit}

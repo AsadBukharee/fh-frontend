@@ -278,11 +278,10 @@ export function Header() {
 
     return (
       <div
-        className={`group relative p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
-          task.is_overdue 
-            ? "bg-red-50 border-red-200 hover:border-red-300" 
-            : "bg-white border-gray-200 hover:border-gray-300"
-        }`}
+        className={`group relative p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${task.is_overdue
+          ? "bg-red-50 border-red-200 hover:border-red-300"
+          : "bg-white border-gray-200 hover:border-gray-300"
+          }`}
       >
         <Link
           href={`/dashboard/tasks/task-management/${task.id}`}
@@ -328,7 +327,7 @@ export function Header() {
           <div className="flex flex-col gap-1 text-xs">
             <div className="flex items-center gap-1 text-gray-600">
               <User className="h-3 w-3" />
-              <span className="font-medium">{task.assigned_to.full_name}</span>
+              <span className="font-medium">{task.assigned_to?.full_name}</span>
             </div>
             <div className="flex items-center gap-1 text-gray-500">
               <Calendar className="h-3 w-3" />
@@ -372,7 +371,7 @@ export function Header() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2 justify-evenly">
           <SearchBar />
-          <AssignSite/>
+          <AssignSite />
           {/* <TimeZone/> */}
           <UkTime />
         </div>
@@ -387,11 +386,10 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className={`relative w-10 h-10 rounded-full flex justify-center items-center transition-all ${
-                    count > 0 
-                      ? "bg-red-100 hover:bg-red-200 text-red-700" 
-                      : "bg-gray-100 hover:bg-gray-200"
-                  }`}
+                  className={`relative w-10 h-10 rounded-full flex justify-center items-center transition-all ${count > 0
+                    ? "bg-red-100 hover:bg-red-200 text-red-700"
+                    : "bg-gray-100 hover:bg-gray-200"
+                    }`}
                   title={label}
                 >
                   <Icon className="w-5 h-5" />
@@ -466,8 +464,8 @@ export function Header() {
                                 >
                                   <span className="truncate max-w-[120px]">{sub}</span>
                                   {tasks.length > 0 && (
-                                    <Badge 
-                                      variant="secondary" 
+                                    <Badge
+                                      variant="secondary"
                                       className="ml-2 h-5 min-w-[20px] rounded-full px-1.5 text-xs data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700"
                                     >
                                       {tasks.length}

@@ -613,9 +613,7 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
             <Text style={styles.headerTitle}>
               Walkaround Details <Text style={{ color: '#ea580c' }}>{String(stepNumber).padStart(2, "0")}</Text>
             </Text>
-            <Text style={styles.headerSubtitle}>
-              Chain ID: #{walkaround.parent ?? "—"} · Latest Step: {stepNumber} of {stepNumber}
-            </Text>
+
           </View>
 
           <View style={[styles.badge,
@@ -777,11 +775,7 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
           <View style={styles.column}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginRight: 8 }}>
               <Text style={styles.sectionTitle}>Driver</Text>
-              {defected_count > 0 && (
-                <View style={styles.sigBadgeRed}>
-                  <Text>⚠ Major Roadworthy Defect</Text>
-                </View>
-              )}
+
             </View>
             <View style={{ marginBottom: 12, marginRight: 8 }}>
               <Text style={styles.label}>Reported Defects</Text>
@@ -817,9 +811,7 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
           <View style={[styles.column, { paddingLeft: 10, borderLeftWidth: 1, borderLeftColor: '#f1f5f9' }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={styles.sectionTitle}>CP</Text>
-              <View style={defected_count > 0 ? styles.sigBadgeOrange : [styles.badge, styles.statusBadge]}>
-                <Text>{defected_count > 0 ? "⚠ Minor Roadworthy Defect" : "✓ Roadworthy Complete"}</Text>
-              </View>
+
             </View>
             <View style={{ marginBottom: 12 }}>
               <Text style={styles.label}>Reported Defects</Text>
@@ -964,9 +956,7 @@ export const PrintReportButton = ({ stepDataList, onRefresh }: { stepDataList: S
                         <h2 style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 2px;">
                           Walkaround Details <span style="color: #f97316;">${String(step.stepNumber).padStart(2, '0')}</span>
                         </h2>
-                        <p style="font-size: 11px; color: #94a3b8;">
-                          Chain ID: #${walkaround.parent ?? '—'} &middot; Latest Step: ${step.stepNumber} of ${step.stepNumber}
-                        </p>
+                    
                       </div>
                       <div style="text-align: right;">
                         <p style="font-size: 11px; color: #94a3b8;">
@@ -1088,7 +1078,7 @@ export const PrintReportButton = ({ stepDataList, onRefresh }: { stepDataList: S
                       <div style="border-right: 1px solid #f1f5f9; padding: 20px 24px 20px 0;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                           <p style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0f172a; letter-spacing: 0.025em;">Driver</p>
-                          ${defected_count > 0 ? '<span class="print-badge-red-solid">⚠ Major Roadworthy Defect</span>' : ''}
+
                         </div>
                         
                         <div style="margin-bottom: 16px;">
@@ -1125,9 +1115,7 @@ export const PrintReportButton = ({ stepDataList, onRefresh }: { stepDataList: S
                       <div style="padding: 20px 0 20px 24px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                           <p style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0f172a; letter-spacing: 0.025em;">CP</p>
-                          <span class="${defected_count > 0 ? 'print-badge-orange-solid' : 'print-badge-completed'}">
-                            ${defected_count > 0 ? '⚠ Minor Roadworthy Defect' : '✓ Roadworthy Complete'}
-                          </span>
+                         
                         </div>
 
                         <div style="margin-bottom: 16px;">
@@ -1219,43 +1207,43 @@ export const PrintReportButton = ({ stepDataList, onRefresh }: { stepDataList: S
           )}
 
           <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              onClick={() => setShowPrintDialog(true)}
-              size="icon"
-              className="h-14 w-14 rounded-full bg-orange-600 hover:bg-orange-700 text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-            >
-              <Printer className="h-6 w-6" />
+            <TooltipTrigger asChild>
+              <Button
+                onClick={() => setShowPrintDialog(true)}
+                size="icon"
+                className="h-14 w-14 rounded-full bg-orange-600 hover:bg-orange-700 text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+              >
+                <Printer className="h-6 w-6" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="bg-slate-900 text-white border-none">
+              <p className="text-xs font-bold">Print Report</p>
+            </TooltipContent>
+          </Tooltip>
+
+
+        </TooltipProvider>
+      </div>
+
+      <Dialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Print Report Options</DialogTitle>
+            <DialogDescription>
+              Would you like to include the inspection images in the printed report?
+              Including images provides more context but will increase the document length.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex sm:justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => handlePrint(false)}>
+              Print without Images
             </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left" className="bg-slate-900 text-white border-none">
-            <p className="text-xs font-bold">Print Report</p>
-          </TooltipContent>
-        </Tooltip>
-
-
-      </TooltipProvider>
-    </div>
-
-    <Dialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Print Report Options</DialogTitle>
-          <DialogDescription>
-            Would you like to include the inspection images in the printed report?
-            Including images provides more context but will increase the document length.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="flex sm:justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={() => handlePrint(false)}>
-            Print without Images
-          </Button>
-          <Button onClick={() => handlePrint(true)} className="bg-orange-600 hover:bg-orange-700 text-white">
-            Print with Images
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <Button onClick={() => handlePrint(true)} className="bg-orange-600 hover:bg-orange-700 text-white">
+              Print with Images
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

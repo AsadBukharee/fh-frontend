@@ -44,6 +44,7 @@ interface Driver {
     license_number: string | null;
     role: string;
   };
+  national_insurance_no: string | null;
   profile_status: string;
   driver_compliance: {
     driver_licence_expiry: string | null;
@@ -124,7 +125,15 @@ const FIELD_CONFIG = {
     'pmi_booked_date',
     'next_tacho_calibration_date',
     'next_loller_calibration_date'
-  ]
+  ],
+
+  // Extra compliance fields
+  VEHICLE_FAMILIARISATION: 'vehicle_familiarisation_walkaround_refresher_expiry',
+  EMPLOYMENT_START: 'employment_start_date',
+  PROBATION_REVIEW: 'six_months_probation_review',
+  ANNIVERSARY_1: 'first_anniversary',
+  ANNIVERSARY_2: 'second_anniversary',
+  ANNIVERSARY_3: 'third_anniversary',
 } as const;
 
 // Sticky header and name column styles
@@ -158,7 +167,7 @@ const CPCModulesDialog = ({ driver }: { driver: Driver }) => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button className="ml-2 inline-flex items-center justify-center text-blue-600 hover:text-blue-800 focus:outline-none transition-colors">
+        <button className="ml-2 inline-flex items-center justify-start text-blue-600 hover:text-blue-800 focus:outline-none transition-colors">
           <GraduationCap className="h-4 w-4" />
           <span className="sr-only">View CPC modules</span>
         </button>
@@ -170,16 +179,40 @@ const CPCModulesDialog = ({ driver }: { driver: Driver }) => {
             CPC Modules - {driver.user.full_name}
           </DialogTitle>
         </DialogHeader>
-        <div className="mt-4">
+        <div className="mt-4 space-y-6">
           <div className="overflow-x-auto">
-            <table className="min-w-full border text-sm text-center">
+            <h3 className="font-semibold text-gray-900 mb-2">Current Modules</h3>
+            <table className="min-w-full border text-sm text-left">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border px-2 py-1 text-center">No</th>
-                  <th className="border px-2 py-1 text-center">Current Module Name</th>
-                  <th className="border px-2 py-1 text-center">Expiry Date</th>
-                  <th className="border px-2 py-1 text-center">Future Module Name</th>
-                  <th className="border px-2 py-1 text-center">Status</th>
+                  <th className="border px-2 py-1 text-left w-12">No</th>
+                  <th className="border px-2 py-1 text-left">Module Name</th>
+                  <th className="border px-2 py-1 text-left">Expiry Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[0, 1, 2, 3, 4].map(i => {
+                  const current = currentModules[i];
+                  return (
+                    <tr key={`current-${i}`} className="bg-white">
+                      <td className="border px-2 py-1 text-left">{i + 1}</td>
+                      <td className="border px-2 py-1 text-left">{current ? current.module_name : ''}</td>
+                      <td className="border px-2 py-1 text-left">{current && current.expiry_date ? new Date(current.expiry_date).toLocaleDateString('en-GB') : ''}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="overflow-x-auto">
+            <h3 className="font-semibold text-gray-900 mb-2">Future Modules</h3>
+            <table className="min-w-full border text-sm text-left">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border px-2 py-1 text-left w-12">No</th>
+                  <th className="border px-2 py-1 text-left">Module Name</th>
+                  <th className="border px-2 py-1 text-left">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -189,18 +222,16 @@ const CPCModulesDialog = ({ driver }: { driver: Driver }) => {
                   const expiryDate = current ? current.expiry_date : null;
                   const statusObj = getModuleStatus(expiryDate);
                   return (
-                    <tr key={i} className={future ? statusObj.bg : 'bg-white'}>
-                      <td className="border px-2 py-1 text-center">{i + 1}</td>
-                      <td className="border px-2 py-1 text-center">{current ? current.module_name : ''}</td>
-                      <td className="border px-2 py-1 text-center">{current && current.expiry_date ? new Date(current.expiry_date).toLocaleDateString('en-GB') : ''}</td>
-                      <td className="border px-2 py-1 text-center">{future ? future.module_name : ''}</td>
-                      <td className={`border px-2 py-1 text-center ${statusObj.color}`}>{future ? statusObj.status : ''}</td>
+                    <tr key={`future-${i}`} className={future ? statusObj.bg : 'bg-white'}>
+                      <td className="border px-2 py-1 text-left">{i + 1}</td>
+                      <td className="border px-2 py-1 text-left">{future ? future.module_name : ''}</td>
+                      <td className={`border px-2 py-1 text-left ${statusObj.color}`}>{future ? statusObj.status : ''}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-            <div className="mt-2 text-xs text-gray-500">These dates are linked to the expiry dates of current CPC modules</div>
+            <div className="mt-2 text-xs text-gray-500">Status dates are linked to the expiry dates of current CPC modules</div>
           </div>
         </div>
       </DialogContent>
@@ -467,6 +498,17 @@ const DriverManagementPage = () => {
         }
       }
 
+      // Vehicle Familiarisation Refresher
+      if (field === 'vehicle_familiarisation_walkaround_refresher_expiry') {
+        if (daysUntilExpiry >= 90) {
+          return { colorClass: 'bg-green-50 text-green-700', label: '', hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
+        } else if (daysUntilExpiry >= 45) {
+          return { colorClass: 'bg-amber-50 text-amber-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
+        } else {
+          return { colorClass: 'bg-red-50 text-red-700', label: `${daysUntilExpiry} days`, hoverText: `Expiry = ${daysUntilExpiry} Days Left` };
+        }
+      }
+
       // Last Tacho Download: Light gray background
       if (field === 'last_driver_tacho_download') {
         const daysAgo = Math.abs(daysUntilExpiry);
@@ -520,7 +562,7 @@ const DriverManagementPage = () => {
     if (FIELD_CONFIG.TBC_FIELDS.includes(field as typeof FIELD_CONFIG.TBC_FIELDS[number])) {
       if (!value) {
         return (
-          <TableCell className="bg-gray-50 text-gray-500 italic whitespace-nowrap">
+          <TableCell className="bg-gray-50 text-gray-500 italic whitespace-nowrap text-left">
             {displayValue}
           </TableCell>
         );
@@ -530,7 +572,7 @@ const DriverManagementPage = () => {
     // If value is null/empty and not a TBC field, show "NA" with no special styling
     if (!value) {
       return (
-        <TableCell className="whitespace-nowrap text-gray-400">
+        <TableCell className="whitespace-nowrap text-gray-400 text-left">
           {displayValue}
         </TableCell>
       );
@@ -541,7 +583,7 @@ const DriverManagementPage = () => {
     // Special handling for Last Tacho Download and Last Driver Check (always show in gray)
     if (field === FIELD_CONFIG.LAST_TACHO_DOWNLOAD || field === FIELD_CONFIG.LAST_DRIVER_CHECK) {
       return (
-        <TableCell className="bg-gray-50 text-gray-900 whitespace-nowrap">
+        <TableCell className="bg-gray-50 text-gray-900 whitespace-nowrap text-left">
           <Popover>
             <PopoverTrigger asChild>
               <span className="cursor-pointer hover:underline">
@@ -561,11 +603,11 @@ const DriverManagementPage = () => {
     // Special handling for CPC Card Expiry - Add icon and dialog
     if (field === 'cpc_card_expiry') {
       return (
-        <TableCell className={`whitespace-nowrap ${colorClass}`}>
-          <div className="flex items-center">
+        <TableCell className={`whitespace-nowrap ${colorClass} text-left`}>
+          <div className="flex items-center justify-start">
             <Popover>
               <PopoverTrigger asChild>
-                <span className="cursor-pointer hover:underline flex items-center">
+                <span className="cursor-pointer hover:underline flex items-center justify-start">
                   {displayValue}
                 </span>
               </PopoverTrigger>
@@ -592,10 +634,10 @@ const DriverManagementPage = () => {
     }
 
     return (
-      <TableCell className={`whitespace-nowrap ${colorClass}`}>
+      <TableCell className={`whitespace-nowrap ${colorClass} text-left`}>
         <Popover>
           <PopoverTrigger asChild>
-            <span className="cursor-pointer hover:underline flex items-center">
+            <span className="cursor-pointer hover:underline flex items-center justify-start">
               {displayValue}
             </span>
           </PopoverTrigger>
@@ -646,6 +688,13 @@ const DriverManagementPage = () => {
                     <br />- 10+ days: Green
                     <br />- 2-9 days: Amber
                     <br />- Under 2 days: Red
+                  </>
+                ) : field === 'vehicle_familiarisation_walkaround_refresher_expiry' ? (
+                  <>
+                    <strong>Vehicle Fam Rules:</strong>
+                    <br />- 90+ days: Green
+                    <br />- 45-89 days: Amber
+                    <br />- Under 45 days: Red
                   </>
                 ) : null}
               </div>
@@ -712,7 +761,7 @@ const DriverManagementPage = () => {
     }
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-start mt-6 gap-8">
         <div className="text-sm text-gray-600">
           Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, pagination.count)} of {pagination.count} drivers
         </div>
@@ -868,42 +917,49 @@ const DriverManagementPage = () => {
             position: 'relative'
           }}
         >
-          <Table ref={tableRef} className="border-collapse text-center">
+          <Table ref={tableRef} className="border-collapse text-left">
             <TableHeader>
               <TableRow className="bg-gray-50">
                 {/* Fixed Header Cells */}
-                <TableHead className={`min-w-[200px] ${stickyHeaderClass} ${stickyNameClass} font-semibold text-center`}>Driver Name</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>License No.</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>License Expiry</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>D/D1 Expiry</TableHead>
-                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-center`}>Last Driver Check Code</TableHead>
-                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-center`}>Next Driver Check Code Due</TableHead>
-                <TableHead className={`min-w-[200px] ${stickyHeaderClass} font-semibold text-center`}>CPC Card Expiry</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>Tacho Expiry</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>Last Tacho DL</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>Next Tacho DL</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-center`}>DBS Expiry</TableHead>
-                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-center`}>Night Worker Assessment</TableHead>
+                <TableHead className={`min-w-[200px] ${stickyHeaderClass} ${stickyNameClass} font-semibold text-left`}>Driver Name</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>License No.</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>NI Number</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>License Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>D/D1 Expiry</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>Last Driver Check Code</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>Next Driver Check Code Due</TableHead>
+                <TableHead className={`min-w-[200px] ${stickyHeaderClass} font-semibold text-left`}>CPC Card Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>Tacho Expiry</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>Last Tacho DL</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>Next Tacho DL</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>DBS Expiry</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>Night Worker Assessment</TableHead>
+                <TableHead className={`min-w-[200px] ${stickyHeaderClass} font-semibold text-left`}>Vehicle Fam Walkaround</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>Employment Start Date</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>Probation Review</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>1st Anniversary</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>2nd Anniversary</TableHead>
+                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>3rd Anniversary</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
+                  <TableCell colSpan={19} className="text-left py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-0 text-blue-600" />
                   </TableCell>
                 </TableRow>
               ) : drivers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-12 text-gray-500">
+                  <TableCell colSpan={19} className="text-left py-12 text-gray-500">
                     No drivers found matching your filters.
                   </TableCell>
                 </TableRow>
               ) : (
                 drivers.map((driver) => (
-                  <TableRow key={driver.id} className="hover:bg-gray-50 text-center">
+                  <TableRow key={driver.id} className="hover:bg-gray-50 text-left">
                     {/* Fixed Driver Name Column */}
-                    <TableCell className={`font-medium ${stickyNameClass} bg-white text-center`}>
+                    <TableCell className={`font-medium ${stickyNameClass} bg-white text-left`}>
                       <Link
                         href={`/dashboard/compliance-management/driver-management/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`}
                         className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
@@ -913,8 +969,11 @@ const DriverManagementPage = () => {
                     </TableCell>
 
                     {/* Regular Cells */}
-                    <TableCell className="whitespace-nowrap text-center">
+                    <TableCell className="whitespace-nowrap text-left">
                       {driver.user.license_number || "NA"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-left">
+                      {driver.national_insurance_no || "NA"}
                     </TableCell>
                     {renderDateCell('driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                     {renderDateCell('d_d1_expiry', driver.driver_compliance.d_d1_expiry, driver)}
@@ -926,6 +985,12 @@ const DriverManagementPage = () => {
                     {renderDateCell('next_driver_tacho_download', driver.driver_compliance.next_driver_tacho_download, driver)}
                     {renderDateCell('dbs_expiry_date', driver.driver_compliance.dbs_expiry_date, driver)}
                     {renderDateCell('night_worker_assessment_expiry', driver.driver_compliance.night_worker_assessment_expiry, driver)}
+                    {renderDateCell('vehicle_familiarisation_walkaround_refresher_expiry', driver.driver_compliance.vehicle_familiarisation_walkaround_refresher_expiry, driver)}
+                    {renderDateCell('employment_start_date', driver.driver_compliance.employment_start_date, driver)}
+                    {renderDateCell('six_months_probation_review', driver.driver_compliance.six_months_probation_review, driver)}
+                    {renderDateCell('first_anniversary', driver.driver_compliance.first_anniversary, driver)}
+                    {renderDateCell('second_anniversary', driver.driver_compliance.second_anniversary, driver)}
+                    {renderDateCell('third_anniversary', driver.driver_compliance.third_anniversary, driver)}
                   </TableRow>
                 ))
               )}

@@ -3,7 +3,7 @@
 import { formatDmy } from "@/lib/utils"
 import { useState, useEffect, useMemo } from "react"
 import { TooltipProvider } from "../ui/tooltip"
-import { Plus, RefreshCcw, Search, Eye, Pencil, Trash2, MoreHorizontal, MapPin, AlertTriangle, X } from "lucide-react"
+import { Plus, RefreshCcw, Search, Eye, Pencil, Trash2, MoreHorizontal, MapPin, AlertTriangle, X, CornerDownRight, Folder, FolderTree } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -32,29 +32,23 @@ interface Location {
   name: string
   associated_location: number | null
   is_loca_group: boolean
+  is_base: boolean
   is_maintenance: boolean
   zipcode: string | null
   address: string | null
   custom_order: number
   lat: number | null
   lon: number | null
+  site: number | null
   created_at: string
   updated_at: string
 }
-
-// Theme-aligned palette: brand goes #f85032 → #e73827 → #662D8C
-const THEME_COLORS = [
-  { bg: "#fff4f2", border: "#f85032" },  // brand red-orange
-  { bg: "#f5f0ff", border: "#662D8C" },  // brand purple
-  { bg: "#fff8ed", border: "#f5a623" },  // warm amber
-  { bg: "#fdf0ff", border: "#9b59b6" },  // violet
-  { bg: "#fff0f6", border: "#e91e8c" },  // deep pink
-]
 
 const LocationTabs = () => {
   const [open, setOpen] = useState<boolean>(false)
   const [viewModalOpen, setViewModalOpen] = useState<boolean>(false)
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false)
+  const [addSubLocationOpen, setAddSubLocationOpen] = useState<boolean>(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false)
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
@@ -65,35 +59,27 @@ const LocationTabs = () => {
   const [sortBy, setSortBy] = useState<"name" | "zipcode" | "custom_order">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "maintenance">("all")
-  const [associatedFilter, setAssociatedFilter] = useState<string>("all")
   const [orderRange, setOrderRange] = useState<{ min: string; max: string }>({ min: "", max: "" })
   const [showTable, setShowTable] = useState<boolean>(true)
+  const [sites, setSites] = useState<{ id: number, name: string }[]>([])
+  const [siteFilter, setSiteFilter] = useState<string>("all")
   const cookies = useCookies()
   const token = cookies.get("access_token")
 
-  // Build a stable color map from actual data: each unique associated_location ID gets a theme color
-  const groupColorMap = useMemo(() => {
-    const map = new Map<number, { bg: string; border: string }>()
-    let idx = 0
-    locations.forEach((loc) => {
-      if (loc.associated_location !== null && !map.has(loc.associated_location)) {
-        map.set(loc.associated_location, THEME_COLORS[idx % THEME_COLORS.length])
-        idx++
+  const fetchSites = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/sites/list-names/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const result = await response.json()
+      if (result.success) {
+        setSites(result.data)
       }
-    })
-    return map
-  }, [locations])
-
-  const getRowStyle = (location: Location): React.CSSProperties => {
-    if (location.is_loca_group && !location.associated_location) {
-      // Root group: bold brand red-orange highlight
-      return { backgroundColor: "#fff4f2", borderLeft: "4px solid #f85032", fontWeight: 600 }
+    } catch (err) {
+      console.error("Failed to fetch sites", err)
     }
-    if (location.associated_location) {
-      const color = groupColorMap.get(location.associated_location)
-      if (color) return { backgroundColor: color.bg, borderLeft: `4px solid ${color.border}` }
-    }
-    return { borderLeft: "4px solid transparent" }
   }
 
   useEffect(() => {
@@ -105,10 +91,12 @@ const LocationTabs = () => {
         (location.address && location.address.toLowerCase().includes(searchTerm.toLowerCase()))
 
       // Status filter
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && !location.is_maintenance) ||
-        (statusFilter === "maintenance" && location.is_maintenance)
+
+
+      // Site filter
+      const matchesSite =
+        siteFilter === "all" ||
+        (location.site !== null && location.site.toString() === siteFilter)
 
       // Custom order range filter
       const minOrder = orderRange.min ? parseInt(orderRange.min) : null
@@ -117,16 +105,15 @@ const LocationTabs = () => {
         (!minOrder || location.custom_order >= minOrder) &&
         (!maxOrder || location.custom_order <= maxOrder)
 
-      // Associated Location Filter
-      const matchesAssociated =
-        associatedFilter === "all" ||
-        (associatedFilter === "none" && location.associated_location === null) ||
-        (associatedFilter !== "none" && location.associated_location === Number(associatedFilter))
 
-      return matchesSearch && matchesStatus && matchesOrder && matchesAssociated
+      return matchesSearch && matchesOrder && matchesSite
     })
 
     filtered.sort((a, b) => {
+      // Always prioritize base locations to show at the top
+      if (a.is_base && !b.is_base) return -1;
+      if (!a.is_base && b.is_base) return 1;
+
       let aValue = a[sortBy] ?? ""
       let bValue = b[sortBy] ?? ""
 
@@ -141,7 +128,34 @@ const LocationTabs = () => {
     })
 
     setFilteredLocations(filtered)
-  }, [locations, searchTerm, sortBy, sortOrder, statusFilter, associatedFilter, orderRange])
+  }, [locations, searchTerm, sortBy, sortOrder, statusFilter, orderRange, siteFilter])
+
+  const hierarchicalLocations = useMemo(() => {
+    const roots = filteredLocations.filter(loc => !loc.associated_location);
+    const children = filteredLocations.filter(loc => loc.associated_location);
+
+    const result: (Location & { isSub?: boolean })[] = [];
+    const addedIds = new Set<number>();
+
+    roots.forEach(root => {
+      result.push(root);
+      addedIds.add(root.id);
+
+      const subLocs = children.filter(child => child.associated_location === root.id);
+      subLocs.forEach(sub => {
+        result.push({ ...sub, isSub: true });
+        addedIds.add(sub.id);
+      });
+    });
+
+    children.forEach(child => {
+      if (!addedIds.has(child.id)) {
+        result.push({ ...child, isSub: true });
+      }
+    });
+
+    return result;
+  }, [filteredLocations]);
 
   // Fetch locations from the API
   const fetchLocations = async () => {
@@ -186,6 +200,7 @@ const LocationTabs = () => {
     setShowTable(false)
     setOpen(false)
     setEditModalOpen(false)
+    setAddSubLocationOpen(false)
     fetchLocations()
     setShowTable(true)
   }
@@ -243,6 +258,11 @@ const LocationTabs = () => {
     setDeleteDialogOpen(true)
   }
 
+  const handleAddSubLocation = (location: Location) => {
+    setSelectedLocation(location)
+    setAddSubLocationOpen(true)
+  }
+
   const handleSort = (column: "name" | "zipcode" | "custom_order") => {
     if (sortBy === column) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc")
@@ -255,12 +275,14 @@ const LocationTabs = () => {
   const handleResetFilters = () => {
     setSearchTerm("")
     setStatusFilter("all")
+    setSiteFilter("all")
     setOrderRange({ min: "", max: "" })
   }
 
   useEffect(() => {
     if (token) {
       fetchLocations()
+      fetchSites()
     } else {
       setError("No access token found")
       setLoading(false)
@@ -352,6 +374,17 @@ const LocationTabs = () => {
               />
             </div>
             <div className="flex gap-2 items-start">
+              <Select value={siteFilter} onValueChange={(value: string) => setSiteFilter(value)}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Filter by site" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sites</SelectItem>
+                  {sites.map((site) => (
+                    <SelectItem key={site.id} value={site.id.toString()}>{site.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={(value: "all" | "active" | "maintenance") => setStatusFilter(value)}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Filter by status" />
@@ -363,23 +396,7 @@ const LocationTabs = () => {
                 </SelectContent>
               </Select>
 
-              {/* Associated Location Filter */}
-              <Select value={associatedFilter} onValueChange={setAssociatedFilter}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Filter by Group" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Groups</SelectItem>
-                  <SelectItem value="none">No Association</SelectItem>
-                  {locations
-                    .filter((loc) => loc.is_loca_group)
-                    .map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id.toString()}>
-                        Group: {loc.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+
               <Input
                 type="number"
                 placeholder="Min Order"
@@ -439,41 +456,69 @@ const LocationTabs = () => {
                   <tr className="border-b border-gray-100">
                     <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-500">Name</th>
                     <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-500">Location</th>
-                    <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-500">Status</th>
                     <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLocations.length > 0 ? (
-                    filteredLocations.map((location) => (
+                  {hierarchicalLocations.length > 0 ? (
+                    hierarchicalLocations.map((location) => (
                       <tr
                         key={location.id}
-                        className="group transition-all duration-200 border-b border-gray-50 last:border-0"
-                        style={getRowStyle(location)}
+                        className={`group transition-all duration-200 border-b border-gray-50 last:border-0 ${location.isSub ? "bg-gray-50/30" : ""}`}
                       >
-                        <td className="px-6 py-4 text-left">
+                        <td className={`px-6 py-4 text-left ${location.isSub ? "pl-14" : ""}`}>
                           <div className="flex items-center justify-start gap-2">
-                            <MapPin className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium text-gray-900">{location.name}</span>
+                            {location.isSub ? (
+                              <CornerDownRight className="w-4 h-4 text-gray-400" />
+                            ) : location.is_loca_group ? (
+                              <FolderTree className="w-4 h-4 text-orange-500" />
+                            ) : location.is_base ? (
+                              <MapPin className="w-4 h-4 text-red-400" />
+                            ) : (
+                              <MapPin className="w-4 h-4 text-gray-400" />
+                            )}
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <span className={`${location.is_base || (!location.isSub && location.is_loca_group) ? "font-bold text-gray-950" : "font-medium text-gray-900"}`}>
+                                  {location.name}
+                                </span>
+                                {location.is_loca_group && !location.isSub && (
+                                  <Badge variant="outline" className="text-[10px] py-0 h-4 bg-orange-50 text-orange-700 border-orange-200">
+                                    Group
+                                  </Badge>
+                                )}
+                                {location.isSub && (
+                                  <Badge variant="outline" className="text-[10px] py-0 h-4 bg-blue-50 text-blue-700 border-blue-200">
+                                    Sub
+                                  </Badge>
+                                )}
+                                {location.is_base && (
+                                  <Badge variant="outline" className="text-[10px] py-0 h-4 bg-green-50 text-green-700 border-green-200">
+                                    Base
+                                  </Badge>
+                                )}
+                              </div>
+                              {location.isSub && !filteredLocations.some(l => l.id === location.associated_location) && (
+                                <span className="text-[10px] text-gray-400 italic">
+                                  Parent ID: {location.associated_location}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm">
-                            <div className="font-medium text-gray-900">{location.zipcode}</div>
+                            <div className={`${location.is_base ? "font-bold text-gray-950" : "font-medium text-gray-900"}`}>
+                              {location.zipcode}
+                            </div>
                             {location.address && (
-                              <div className="text-gray-500 truncate max-w-[200px]">{location.address}</div>
+                              <div className={`${location.is_base ? "font-semibold text-gray-700" : "text-gray-500"} truncate max-w-[250px]`}>
+                                {location.address}
+                              </div>
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <Badge
-                            variant={location.is_maintenance ? "destructive" : "default"}
-                            className={`${location.is_maintenance ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                              } inline-flex shadow-sm`}
-                          >
-                            {location.is_maintenance ? "Maintenance" : "Active"}
-                          </Badge>
-                        </td>
+
                         <td className="px-6 py-4">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -490,6 +535,12 @@ const LocationTabs = () => {
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
+                              {location.is_loca_group && (
+                                <DropdownMenuItem onClick={() => handleAddSubLocation(location)} className="cursor-pointer">
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Add Sub Location
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => handleDeleteConfirm(location)} className="text-red-600 cursor-pointer">
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -601,6 +652,20 @@ const LocationTabs = () => {
                 <DialogTitle className="text-lg font-semibold">Edit Location: {selectedLocation?.name}</DialogTitle>
               </DialogHeader>
               <AddLocation key={selectedLocation?.id || "new"} editLocation={selectedLocation} onSuccess={handleLocationAdded} onCancel={() => setEditModalOpen(false)} />
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={addSubLocationOpen} onOpenChange={setAddSubLocationOpen}>
+            <DialogContent className="max-w-2xl max-h-[500px] overflow-y-auto p-6 bg-white rounded-lg">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-semibold text-left">Add Sub Location to: {selectedLocation?.name}</DialogTitle>
+              </DialogHeader>
+              <AddLocation
+                associatedLocationId={selectedLocation?.id}
+                siteId={selectedLocation?.site || undefined}
+                onSuccess={handleLocationAdded}
+                onCancel={() => setAddSubLocationOpen(false)}
+              />
             </DialogContent>
           </Dialog>
 

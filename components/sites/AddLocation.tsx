@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { debounce } from "lodash"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
-import { Loader2, MapPin, Building2, Hash, CheckCircle, ChevronDown } from "lucide-react"
+import { toast } from "sonner"
+import { Loader2, MapPin, Building2, CheckCircle } from "lucide-react"
 import { useCookies } from "next-client-cookies"
 import API_URL from "@/app/utils/ENV"
 import {
@@ -24,16 +24,18 @@ import {
 
 interface LocationPayload {
   name: string
-  associated_location: number | null
-  is_loca_group: boolean
+  is_base: boolean
   is_maintenance: boolean
   zipcode: string | null
+  is_loca_group: boolean
   address: string | null
   custom_order: number
   lat: number | null
   lon: number | null
   created_at: string
   updated_at: string
+  associated_location: number | null
+  site: number | null
 }
 
 interface Suggestion {
@@ -42,6 +44,7 @@ interface Suggestion {
   lon: string
   address: {
     postcode?: string
+    postal_code?: string
   }
 }
 
@@ -57,6 +60,7 @@ interface AddLocationProps {
     id: number
     name: string
     associated_location: number | null
+    is_base: boolean
     is_loca_group: boolean
     is_maintenance: boolean
     zipcode: string | null
@@ -64,18 +68,21 @@ interface AddLocationProps {
     custom_order: number
     lat: number | null
     lon: number | null
+    site: number | null
     created_at: string
     updated_at: string
   } | null
+  associatedLocationId?: number
+  siteId?: number
   onCancel?: () => void
   onSuccess?: () => void
 }
 
-const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuccess }) => {
+const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuccess, associatedLocationId, siteId }) => {
   const [formData, setFormData] = useState<LocationPayload>({
     name: editLocation?.name || "",
-    associated_location: editLocation?.associated_location ?? null,
-    is_loca_group: editLocation?.is_loca_group || false,
+    is_loca_group: associatedLocationId ? false : true,
+    is_base: associatedLocationId ? false : (editLocation?.is_base || false),
     is_maintenance: editLocation?.is_maintenance || false,
     zipcode: editLocation?.zipcode || "",
     address: editLocation?.address || "",
@@ -84,59 +91,42 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
     lon: editLocation?.lon ?? null,
     created_at: editLocation?.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    associated_location: associatedLocationId || editLocation?.associated_location || null,
+    site: siteId || editLocation?.site || null,
   })
 
-  const [locations, setLocations] = useState<any[]>([])
   const [fetchingLocations, setFetchingLocations] = useState(false)
 
   useEffect(() => {
     if (editLocation) {
       setFormData({
         name: editLocation.name,
-        associated_location: editLocation.associated_location,
-        is_loca_group: editLocation.is_loca_group,
+        is_base: editLocation.associated_location ? false : editLocation.is_base,
         is_maintenance: editLocation.is_maintenance,
         zipcode: editLocation.zipcode,
         address: editLocation.address || "",
+        is_loca_group: editLocation.associated_location ? false : true,
         custom_order: editLocation.custom_order,
         lat: editLocation.lat,
         lon: editLocation.lon,
         created_at: editLocation.created_at,
         updated_at: new Date().toISOString(),
+        associated_location: editLocation.associated_location,
+        site: editLocation.site,
       })
     }
   }, [editLocation])
 
-  const { toast } = useToast()
   const token = useCookies().get("access_token")
 
-  const fetchExistingLocations = useCallback(async () => {
-    setFetchingLocations(true)
-    try {
-      const response = await fetch(`${API_URL}/activity/locations/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      const result = await response.json()
-      if (result.success) {
-        setLocations(result.data)
-      }
-    } catch (err) {
-      console.error("Failed to fetch locations", err)
-    } finally {
-      setFetchingLocations(false)
-    }
-  }, [token])
 
-  useEffect(() => {
-    fetchExistingLocations()
-  }, [fetchExistingLocations])
+
 
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
+  const searchIdRef = useRef(0)
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -174,7 +164,9 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
         return
       }
 
+      const currentSearchId = ++searchIdRef.current
       setLoading(true)
+      setFetchingLocations(true)
       try {
         const response = await fetch(
           `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
@@ -192,15 +184,21 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
         }
 
         const data: Suggestion[] = await response.json()
-        setSuggestions(data.filter((item) => item.address.postcode))
+        
+        // Only update if this is still the most recent search
+        if (currentSearchId === searchIdRef.current) {
+          setSuggestions(data.filter((item) => {
+            const hasPostcode = item.address?.postcode || item.address?.postal_code || /([Gg][Ii][Rr] 0[Aa]{2})|((([A-Za-z][0-9]{1,2})|(([A-Za-z][A-Ha-hJ-Yj-y][0-9]{1,2})|(([A-Za-z][0-9][A-Za-z])|([A-Za-z][A-Ha-hJ-Yj-y][0-9][A-Za-z]?))))\s?[0-9][A-Za-z]{2})/.test(item.display_name)
+            return hasPostcode
+          }))
+        }
       } catch (err) {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description: "Failed to fetch location suggestions",
-          variant: "destructive",
         })
       } finally {
         setLoading(false)
+        setFetchingLocations(false)
       }
     },
     [toast],
@@ -221,11 +219,6 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
         updated_at: new Date().toISOString(),
       }
 
-      // Logic: if is_loca_group is disabled, reset associated_location to null
-      if (field === "is_loca_group" && value === false) {
-        newData.associated_location = null
-      }
-
       return newData
     })
 
@@ -241,32 +234,49 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
   }
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
-    const postcode = suggestion.address.postcode || ""
-    handleInputChange("zipcode", postcode)
+    // Invalidate any pending searches
+    searchIdRef.current++
 
-    // Always auto-fill address from suggestion
-    handleInputChange("address", suggestion.display_name)
+    let postcode = (suggestion.address?.postcode || suggestion.address?.postal_code || "").toUpperCase()
+    
+    // Fallback: Try to extract postcode from display_name using regex
+    if (!postcode) {
+      const ukPostcodeRegex = /(([Gg][Ii][Rr] 0[Aa]{2})|((([A-Za-z][0-9]{1,2})|(([A-Za-z][A-Ha-hJ-Yj-y][0-9]{1,2})|(([A-Za-z][0-9][A-Za-z])|([A-Za-z][A-Ha-hJ-Yj-y][0-9][A-Za-z]?))))\s?[0-9][A-Za-z]{2}))/
+      const match = suggestion.display_name.match(ukPostcodeRegex)
+      if (match) {
+        postcode = match[0].toUpperCase()
+      }
+    }
 
-    // Capture lat/lon from the Nominatim suggestion
-    if (suggestion.lat && suggestion.lon) {
-      setFormData((prev) => ({
+    setFormData((prev) => ({
+      ...prev,
+      zipcode: postcode,
+      address: suggestion.display_name,
+      lat: suggestion.lat ? parseFloat(suggestion.lat) : prev.lat,
+      lon: suggestion.lon ? parseFloat(suggestion.lon) : prev.lon,
+      updated_at: new Date().toISOString(),
+    }))
+
+    // Clear validation errors for these fields as they are now populated correctly
+    if (errors.zipcode || errors.address) {
+      setErrors((prev) => ({
         ...prev,
-        lat: parseFloat(suggestion.lat),
-        lon: parseFloat(suggestion.lon),
+        zipcode: undefined,
+        address: undefined,
       }))
     }
 
     setSuggestions([])
+    setLoading(false)
+    setFetchingLocations(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) {
-      toast({
-        title: "Validation Error",
+      toast.error("Validation Error", {
         description: "Please fix the errors below",
-        variant: "destructive",
       })
       return
     }
@@ -283,7 +293,7 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
         method,
         headers: {
           "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
 
         },
         body: JSON.stringify(formData),
@@ -293,34 +303,33 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
         throw new Error(`Failed to ${editLocation ? "update" : "create"} location`)
       }
 
-      toast({
-        title: "Success!",
+      toast.success("Success!", {
         description: `Location has been ${editLocation ? "updated" : "added"} successfully`,
       })
 
       if (!editLocation) {
-        setFormData({
-          name: "",
-          associated_location: null,
-          is_loca_group: false,
-          is_maintenance: false,
-          zipcode: "",
-          address: "",
-          custom_order: 1,
-          lat: null,
-          lon: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+          setFormData({
+            name: "",
+            is_base: false,
+            is_maintenance: false,
+            zipcode: "",
+            address: "",
+            is_loca_group: associatedLocationId ? false : true,
+            custom_order: 1,
+            lat: null,
+            lon: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            associated_location: associatedLocationId || null,
+            site: siteId || null,
+          })
       }
       setErrors({})
 
       onSuccess?.()
     } catch (err) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: `Failed to ${editLocation ? "update" : "add"} location. Please try again.`,
-        variant: "destructive",
       })
     } finally {
       setSubmitting(false)
@@ -332,30 +341,34 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
     if (editLocation) {
       setFormData({
         name: editLocation.name,
-        associated_location: editLocation.associated_location,
-        is_loca_group: editLocation.is_loca_group,
+        is_base: editLocation.is_base,
         is_maintenance: editLocation.is_maintenance,
         zipcode: editLocation.zipcode,
         address: editLocation.address || "",
+        is_loca_group: editLocation.associated_location ? false : true,
         custom_order: editLocation.custom_order,
         lat: editLocation.lat,
         lon: editLocation.lon,
         created_at: editLocation.created_at,
         updated_at: new Date().toISOString(),
+        associated_location: editLocation.associated_location,
+        site: editLocation.site,
       })
     } else {
       setFormData({
         name: "",
-        associated_location: null,
-        is_loca_group: false,
+        is_base: false,
         is_maintenance: false,
         zipcode: "",
+        is_loca_group: associatedLocationId ? false : true,
         address: "",
         custom_order: 1,
         lat: null,
         lon: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        associated_location: associatedLocationId || null,
+        site: siteId || null,
       })
     }
     setErrors({})
@@ -421,10 +434,17 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
                   {suggestions.map((suggestion, index) => (
                     <div
                       key={index}
-                      onClick={() => handleSuggestionClick(suggestion)}
+                      onMouseDown={(e) => {
+                        e.preventDefault() // Prevent input blur before selection
+                        handleSuggestionClick(suggestion)
+                      }}
                       className="p-2 cursor-pointer hover:bg-accent transition-colors border-b last:border-b-0 text-xs"
                     >
-                      <div className="font-medium">{suggestion.address.postcode}</div>
+                      <div className="font-medium">
+                        {suggestion.address?.postcode || 
+                         suggestion.address?.postal_code || 
+                         suggestion.display_name.match(/(([Gg][Ii][Rr] 0[Aa]{2})|((([A-Za-z][0-9]{1,2})|(([A-Za-z][A-Ha-hJ-Yj-y][0-9]{1,2})|(([A-Za-z][0-9][A-Za-z])|([A-Za-z][A-Ha-hJ-Yj-y][0-9][A-Za-z]?))))\s?[0-9][A-Za-z]{2}))/)?.[0]}
+                      </div>
                       <div className="text-[10px] text-muted-foreground truncate">{suggestion.display_name}</div>
                     </div>
                   ))}
@@ -447,46 +467,23 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 pt-2">
-              <div className="flex items-center justify-between p-3 border rounded-md bg-muted/20">
-                <div className="space-y-0.5">
-                  <Label htmlFor="is_loca_group" className="text-xs font-semibold">
-                    Location Group
-                  </Label>
-                  <p className="text-[10px] text-muted-foreground">Is this a group?</p>
-                </div>
-                <Switch
-                  id="is_loca_group"
-                  checked={formData.is_loca_group}
-                  onCheckedChange={(checked) => handleInputChange("is_loca_group", checked)}
-                  className="scale-90"
-                />
-              </div>
+                {!formData.associated_location && (
+                  <div className="flex items-center justify-between p-3 border rounded-md bg-muted/20">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="is_base" className="text-xs font-semibold">
+                        Base Location
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">Is this a base location?</p>
+                    </div>
+                    <Switch
+                      id="is_base"
+                      checked={formData.is_base}
+                      onCheckedChange={(checked) => handleInputChange("is_base", checked)}
+                      className="scale-90"
+                    />
+                  </div>
+                )}
 
-              {formData.is_loca_group && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="associated_location" className="text-xs font-semibold">
-                    Associated Location
-                  </Label>
-                  <Select
-                    value={formData.associated_location?.toString() || "none"}
-                    onValueChange={(value) => handleInputChange("associated_location", value === "none" ? null : Number.parseInt(value))}
-                  >
-                    <SelectTrigger id="associated_location" className="w-full h-9">
-                      <SelectValue placeholder="Select parent location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {locations
-                        .filter((loc) => loc.id !== editLocation?.id)
-                        .map((loc) => (
-                          <SelectItem key={loc.id} value={loc.id.toString()}>
-                            {loc.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
 
               <div className="flex items-center justify-between p-3 border rounded-md bg-muted/20">
                 <div className="space-y-0.5">

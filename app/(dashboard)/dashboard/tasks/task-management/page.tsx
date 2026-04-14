@@ -677,8 +677,8 @@ const Page = () => {
               <TableHead>Description</TableHead>
               <TableHead>Task Type</TableHead>
               <TableHead>Priority</TableHead>
+              <TableHead>Created By</TableHead>
               <TableHead>Assigned To</TableHead>
-              <TableHead>Assigned By</TableHead>
               <TableHead>Created</TableHead>
               <TableHead>Deadline</TableHead>
               <TableHead>Status</TableHead>
@@ -707,8 +707,8 @@ const Page = () => {
                   </Badge>
                 </TableCell>
 
-                <TableCell>{task.assigned_to?.full_name}</TableCell>
                 <TableCell>{task.assigned_by?.full_name}</TableCell>
+                <TableCell>{task.assigned_to?.full_name}</TableCell>
 
                 <TableCell>
                   {formatToDDMMYYYY(task.created_at)}
