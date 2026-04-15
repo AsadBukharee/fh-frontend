@@ -112,14 +112,15 @@ function optimisticRemoveTask(
 /* -------------------------------------------------
    Priority Badge Component
    ------------------------------------------------- */
-const PriorityBadge = ({ priority }: { priority: "low" | "medium" | "high" }) => {
-  const colors = {
+const PriorityBadge = ({ priority }: { priority: "low" | "medium" | "high" | undefined | null }) => {
+  const colors: Record<string, string> = {
     low: "bg-blue-100 text-blue-700 border-blue-200",
     medium: "bg-yellow-100 text-yellow-700 border-yellow-200",
     high: "bg-orange-100 text-orange-700 border-orange-200",
   };
+  if (!priority) return null;
   return (
-    <Badge variant="outline" className={`text-xs ${colors[priority]}`}>
+    <Badge variant="outline" className={`text-xs ${colors[priority] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}>
       {priority.toUpperCase()}
     </Badge>
   );
@@ -325,14 +326,26 @@ export function Header() {
         {/* ---- FOOTER WITH ICONS ---- */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
           <div className="flex flex-col gap-1 text-xs">
-            <div className="flex items-center gap-1 text-gray-600">
-              <User className="h-3 w-3" />
-              <span className="font-medium">{task.assigned_to?.full_name}</span>
-            </div>
-            <div className="flex items-center gap-1 text-gray-500">
-              <Calendar className="h-3 w-3" />
-              <span>{format(parseISO(task.deadline), "MMM dd, yyyy")}</span>
-            </div>
+            {task.assigned_to?.full_name && (
+              <div className="flex items-center gap-1 text-gray-600">
+                <User className="h-3 w-3" />
+                <span className="font-medium">{task.assigned_to.full_name}</span>
+              </div>
+            )}
+            {task.deadline && (
+              <div className="flex items-center gap-1 text-gray-500">
+                <Calendar className="h-3 w-3" />
+                <span>
+                  {(() => {
+                    try {
+                      return format(parseISO(task.deadline), "MMM dd, yyyy");
+                    } catch {
+                      return task.deadline;
+                    }
+                  })()}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-1">
