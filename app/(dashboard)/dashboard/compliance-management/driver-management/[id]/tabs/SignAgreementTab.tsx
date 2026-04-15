@@ -909,11 +909,16 @@ export default function SignAgreementAdminTab() {
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-4 md:p-8">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <FileText className="h-6 w-6 text-gray-700" />
-        <h1 className="text-xl font-semibold text-gray-900">
-          Signed Agreements – <span className="text-orange-600"><span className="text-black">Driver </span>{name ? name : `# ${userId}`}</span>
-        </h1>
+      <div className="flex flex-col items-start gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <FileText className="h-6 w-6 text-gray-700" />
+          <h1 className="text-xl font-semibold text-gray-900">
+            <span className="text-orange-600"><span className="text-black">Driver </span>{name ? name : `# ${userId}`}</span>
+          </h1>
+        </div>
+        <p className="text-sm text-gray-500">
+          Manage and review all driver signed agreements
+        </p>
       </div>
 
       {/* Document Grid */}
