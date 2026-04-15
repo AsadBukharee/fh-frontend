@@ -32,7 +32,7 @@ export default function HealthAnswerTab({
 
   const handleCardEditToggle = (healthId: number) => {
     const newEditingCards = new Set(editingCards);
-    
+
     if (newEditingCards.has(healthId)) {
       // Cancel edit - remove from editing set and clear local data
       newEditingCards.delete(healthId);
@@ -56,7 +56,7 @@ export default function HealthAnswerTab({
         }));
       }
     }
-    
+
     setEditingCards(newEditingCards);
   };
 
@@ -67,12 +67,12 @@ export default function HealthAnswerTab({
       Object.keys(editedData).forEach(field => {
         handleCardInputChange(healthId, field, editedData[field]);
       });
-      
+
       // Exit edit mode for this card
       const newEditingCards = new Set(editingCards);
       newEditingCards.delete(healthId);
       setEditingCards(newEditingCards);
-      
+
       // Clear local data for this card
       setLocalEditData((prev: any) => {
         const newData = { ...prev };
@@ -112,7 +112,7 @@ export default function HealthAnswerTab({
           </CardTitle>
         </div>
         <CardDescription className="text-gray-600">
-          Health-related questions and answers - Edit individual cards or all at once
+          Edit Health-related questions and answers
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -124,7 +124,7 @@ export default function HealthAnswerTab({
           (isEditingHealth ? editHealthData : healthData).map((health: any) => {
             const isCardEditing = editingCards.has(health.id);
             const displayData = getHealthDisplayData(health);
-            
+
             return (
               <div
                 key={health.id}
@@ -246,7 +246,7 @@ export default function HealthAnswerTab({
                     <p className="text-sm font-medium text-gray-500">
                       Admin Remarks
                     </p>
-                    
+
                     {isCardEditing || isEditingHealth ? (
                       <Textarea // Using Textarea for multi-line input
                         value={displayData.admin_remarks || ""}

@@ -934,12 +934,7 @@ const DriverManagementPage = () => {
                 <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>Next Tacho DL</TableHead>
                 <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>DBS Expiry</TableHead>
                 <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>Night Worker Assessment</TableHead>
-                <TableHead className={`min-w-[200px] ${stickyHeaderClass} font-semibold text-left`}>Vehicle Fam Walkaround</TableHead>
-                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>Employment Start Date</TableHead>
-                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>Probation Review</TableHead>
-                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>1st Anniversary</TableHead>
-                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>2nd Anniversary</TableHead>
-                <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>3rd Anniversary</TableHead>
+
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -985,12 +980,6 @@ const DriverManagementPage = () => {
                     {renderDateCell('next_driver_tacho_download', driver.driver_compliance.next_driver_tacho_download, driver)}
                     {renderDateCell('dbs_expiry_date', driver.driver_compliance.dbs_expiry_date, driver)}
                     {renderDateCell('night_worker_assessment_expiry', driver.driver_compliance.night_worker_assessment_expiry, driver)}
-                    {renderDateCell('vehicle_familiarisation_walkaround_refresher_expiry', driver.driver_compliance.vehicle_familiarisation_walkaround_refresher_expiry, driver)}
-                    {renderDateCell('employment_start_date', driver.driver_compliance.employment_start_date, driver)}
-                    {renderDateCell('six_months_probation_review', driver.driver_compliance.six_months_probation_review, driver)}
-                    {renderDateCell('first_anniversary', driver.driver_compliance.first_anniversary, driver)}
-                    {renderDateCell('second_anniversary', driver.driver_compliance.second_anniversary, driver)}
-                    {renderDateCell('third_anniversary', driver.driver_compliance.third_anniversary, driver)}
                   </TableRow>
                 ))
               )}

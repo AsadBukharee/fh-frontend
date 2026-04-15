@@ -1439,7 +1439,7 @@ export default function ProfessionalCompetencyTab({
                 Professional Competency
               </CardTitle>
               <CardDescription className="text-gray-600 mt-2 text-base">
-                Manage and review all professional documents and certifications
+                Manage and review all driver documents
               </CardDescription>
             </div>
             <Badge variant="outline" className="px-4 py-2 text-orange-700 border-orange-300">
