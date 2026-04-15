@@ -5,6 +5,12 @@ import API_URL from "@/app/utils/ENV"
 import { useCookies } from "next-client-cookies"
 import { toast } from "sonner"
 import { ChevronDown, Trash2, Edit, Camera, Loader2, GripVertical, Plus } from "lucide-react"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -248,10 +254,6 @@ const WalkaroundQuestionScreen = () => {
             const result = await res.json()
             if (result.success) {
                 setVehicleTypes(result.data)
-                // Auto-select first if available
-                if (result.data.length > 0) {
-                    setSelectedVehicleTypeIds([result.data[0].id.toString()])
-                }
             }
         } catch {
             toast.error("Failed to load vehicle types")
@@ -623,10 +625,14 @@ const WalkaroundQuestionScreen = () => {
 
     // Form fields shared between Add and Edit dialogs
     const renderFormFields = (isEdit: boolean = false) => (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-6">
+            {/* Section: Vehicle Types (edit only) */}
             {isEdit && (
-                <div className="space-y-2 md:col-span-2">
-                    <Label>Vehicle Types</Label>
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Vehicle Types</span>
+                        <div className="flex-1 h-px bg-border" />
+                    </div>
                     <MultiSelect
                         options={vehicleTypeOptions}
                         selected={formData.vehicle_types}
@@ -635,138 +641,187 @@ const WalkaroundQuestionScreen = () => {
                     />
                 </div>
             )}
-            <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="question">Question</Label>
-                <Input
-                    id="question"
-                    value={formData.question}
-                    onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                    placeholder="e.g., Dashboard Warning Lights"
-                />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="instruction">Instruction</Label>
-                <Textarea
-                    id="instruction"
-                    value={formData.instruction}
-                    onChange={(e) => setFormData({ ...formData, instruction: e.target.value })}
-                    placeholder="Instructions for the checker"
-                    rows={2}
-                />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select
-                    value={formData.category_id}
-                    onValueChange={(value) => {
-                        if (!editId) {
-                            // Using the first vehicle type for auto-generation context if multiple are selected
-                            const contextType = addVehicleTypeIds[0] || selectedVehicleTypeIds[0]
-                            updateAutoFields(value, contextType)
-                        } else {
-                            setFormData({ ...formData, category_id: value })
-                        }
-                    }}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {categories?.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id.toString()}>
-                                {cat.name} ({cat.code})
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+
+            {/* Section: Question Content */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Question Details</span>
+                    <div className="flex-1 h-px bg-border" />
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="question" className="text-sm font-medium">
+                        Question <span className="text-destructive">*</span>
+                    </Label>
+                    <Textarea
+                        id="question"
+                        value={formData.question}
+                        onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                        placeholder="e.g., Are all dashboard warning lights functioning correctly?"
+                        rows={3}
+                        className="resize-none leading-relaxed"
+                    />
+                    <p className="text-xs text-muted-foreground">The question shown to the driver during walkaround.</p>
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="instruction" className="text-sm font-medium">Instruction</Label>
+                    <Textarea
+                        id="instruction"
+                        value={formData.instruction}
+                        onChange={(e) => setFormData({ ...formData, instruction: e.target.value })}
+                        placeholder="e.g., Check with engine running and all electrics on"
+                        rows={2}
+                        className="resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">Guidance for the checker on how to verify this item.</p>
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="follow_up_instruction" className="text-sm font-medium">
+                        Follow-up Instruction
+                        {formData.severity === "VARIES" && (
+                            <span className="ml-2 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Required for VARIES</span>
+                        )}
+                    </Label>
+                    <Textarea
+                        id="follow_up_instruction"
+                        value={formData.follow_up_instruction}
+                        onChange={(e) => setFormData({ ...formData, follow_up_instruction: e.target.value })}
+                        placeholder={formData.severity === "VARIES" ? "Enter follow-up instructions (REQUIRED for VARIES severity)" : "e.g., Tick ALL that apply:"}
+                        rows={2}
+                        className="resize-none"
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="note" className="text-sm font-medium">Default Note / Tooltip</Label>
+                    <Textarea
+                        id="note"
+                        value={formData.note}
+                        onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                        placeholder="e.g., Check with engine running"
+                        rows={2}
+                        className="resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">Shown as a tooltip or hint to the driver.</p>
+                </div>
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="severity">Severity</Label>
-                <Select
-                    value={formData.severity}
-                    onValueChange={(value) => setFormData({ ...formData, severity: value })}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select severity" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="VARIES">VARIES</SelectItem>
-                        <SelectItem value="IMMEDIATE">IMMEDIATE</SelectItem>
-                        <SelectItem value="DELAYED">DELAYED</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="note">Default Note / Tooltip</Label>
-                <Textarea
-                    id="note"
-                    value={formData.note}
-                    onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                    placeholder="e.g., Check with engine running"
-                    rows={2}
-                />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="follow_up_instruction">Follow-up Instruction</Label>
-                <Textarea
-                    id="follow_up_instruction"
-                    value={formData.follow_up_instruction}
-                    onChange={(e) => setFormData({ ...formData, follow_up_instruction: e.target.value })}
-                    placeholder={formData.severity === "VARIES" ? "Enter instructions (REQUIRED for VARIES)" : "e.g., Tick ALL that apply:"}
-                    rows={2}
-                />
+            {/* Section: Classification */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Classification</span>
+                    <div className="flex-1 h-px bg-border" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="category" className="text-sm font-medium">
+                            Category <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                            value={formData.category_id}
+                            onValueChange={(value) => {
+                                if (!editId) {
+                                    const contextType = addVehicleTypeIds[0] || selectedVehicleTypeIds[0]
+                                    updateAutoFields(value, contextType)
+                                } else {
+                                    setFormData({ ...formData, category_id: value })
+                                }
+                            }}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categories?.map((cat) => (
+                                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                                        {cat.name} ({cat.code})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="severity" className="text-sm font-medium">
+                            Severity <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                            value={formData.severity}
+                            onValueChange={(value) => setFormData({ ...formData, severity: value })}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select severity" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="VARIES">VARIES</SelectItem>
+                                <SelectItem value="IMMEDIATE">IMMEDIATE</SelectItem>
+                                <SelectItem value="DELAYED">DELAYED</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
             </div>
 
-            <div className="flex items-center gap-3">
-                <Switch
-                    id="take_picture_on_pass"
-                    checked={formData.take_picture_on_pass}
-                    onCheckedChange={(checked) =>
-                        setFormData({ ...formData, take_picture_on_pass: checked })
-                    }
-                />
-                <Label htmlFor="take_picture_on_pass">Photo on Pass</Label>
-            </div>
-            <div className="flex items-center gap-3">
-                <Switch
-                    id="take_picture_on_fail"
-                    checked={formData.take_picture_on_fail}
-                    onCheckedChange={(checked) =>
-                        setFormData({ ...formData, take_picture_on_fail: checked })
-                    }
-                />
-                <Label htmlFor="take_picture_on_fail">Photo on Fail</Label>
-            </div>
-            <div className="flex items-center gap-3">
-                <Switch
-                    id="is_pre_check"
-                    checked={formData.is_pre_check}
-                    onCheckedChange={(checked) =>
-                        setFormData({ ...formData, is_pre_check: checked })
-                    }
-                />
-                <Label htmlFor="is_pre_check">Pre-check Question</Label>
-            </div>
-            <div className="flex items-center gap-3">
-                <Switch
-                    id="on_fail_blocks_walkaround"
-                    checked={formData.on_fail_blocks_walkaround}
-                    onCheckedChange={(checked) =>
-                        setFormData({ ...formData, on_fail_blocks_walkaround: checked })
-                    }
-                />
-                <Label htmlFor="on_fail_blocks_walkaround">Fail Blocks Walkaround</Label>
-            </div>
-            <div className="flex items-center gap-3">
-                <Switch
-                    id="tick_all"
-                    checked={formData.tick_all}
-                    onCheckedChange={(checked) =>
-                        setFormData({ ...formData, tick_all: checked })
-                    }
-                />
-                <Label htmlFor="tick_all">Tick All Applicable</Label>
+            {/* Section: Behaviour Toggles */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Behaviour</span>
+                    <div className="flex-1 h-px bg-border" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label htmlFor="take_picture_on_pass" className="flex items-center justify-between rounded-lg border px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                        <div>
+                            <p className="text-sm font-medium">Photo on Pass</p>
+                            <p className="text-xs text-muted-foreground">Require a photo when passed</p>
+                        </div>
+                        <Switch
+                            id="take_picture_on_pass"
+                            checked={formData.take_picture_on_pass}
+                            onCheckedChange={(checked) => setFormData({ ...formData, take_picture_on_pass: checked })}
+                        />
+                    </label>
+                    <label htmlFor="take_picture_on_fail" className="flex items-center justify-between rounded-lg border px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                        <div>
+                            <p className="text-sm font-medium">Photo on Fail</p>
+                            <p className="text-xs text-muted-foreground">Require a photo when failed</p>
+                        </div>
+                        <Switch
+                            id="take_picture_on_fail"
+                            checked={formData.take_picture_on_fail}
+                            onCheckedChange={(checked) => setFormData({ ...formData, take_picture_on_fail: checked })}
+                        />
+                    </label>
+                    <label htmlFor="is_pre_check" className="flex items-center justify-between rounded-lg border px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                        <div>
+                            <p className="text-sm font-medium">Pre-check Question</p>
+                            <p className="text-xs text-muted-foreground">Shown before walkaround starts</p>
+                        </div>
+                        <Switch
+                            id="is_pre_check"
+                            checked={formData.is_pre_check}
+                            onCheckedChange={(checked) => setFormData({ ...formData, is_pre_check: checked })}
+                        />
+                    </label>
+                    <label htmlFor="on_fail_blocks_walkaround" className="flex items-center justify-between rounded-lg border px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                        <div>
+                            <p className="text-sm font-medium">Fail Blocks Walkaround</p>
+                            <p className="text-xs text-muted-foreground">Prevents completion if failed</p>
+                        </div>
+                        <Switch
+                            id="on_fail_blocks_walkaround"
+                            checked={formData.on_fail_blocks_walkaround}
+                            onCheckedChange={(checked) => setFormData({ ...formData, on_fail_blocks_walkaround: checked })}
+                        />
+                    </label>
+                    <label htmlFor="tick_all" className="flex items-center justify-between rounded-lg border px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors sm:col-span-2">
+                        <div>
+                            <p className="text-sm font-medium">Tick All Applicable</p>
+                            <p className="text-xs text-muted-foreground">Driver must tick all items that apply</p>
+                        </div>
+                        <Switch
+                            id="tick_all"
+                            checked={formData.tick_all}
+                            onCheckedChange={(checked) => setFormData({ ...formData, tick_all: checked })}
+                        />
+                    </label>
+                </div>
             </div>
         </div>
     )
@@ -971,33 +1026,42 @@ const WalkaroundQuestionScreen = () => {
                             Add Question
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-h-[600px] overflow-auto">
-                        <DialogHeader>
-                            <DialogTitle>Add Walkaround Question</DialogTitle>
-                            <DialogDescription>
+                    <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden">
+                        {/* Sticky Header */}
+                        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+                            <DialogTitle className="text-lg font-semibold">Add Walkaround Question</DialogTitle>
+                            <DialogDescription className="text-sm text-muted-foreground">
                                 Create a new walkaround check question.
                             </DialogDescription>
                         </DialogHeader>
-                        <form onSubmit={handleAdd} className="space-y-4 ">
-                            <div className="space-y-2">
-                                <Label>Vehicle Types</Label>
-                                <MultiSelect
-                                    options={vehicleTypeOptions}
-                                    selected={addVehicleTypeIds}
-                                    onChange={(vals) => {
-                                        setAddVehicleTypeIds(vals)
-                                        if (formData.category_id) {
-                                            updateAutoFields(formData.category_id, vals[0])
-                                        }
-                                    }}
-                                    placeholder="Select vehicle types"
-                                />
+                        {/* Scrollable Body */}
+                        <form onSubmit={handleAdd} className="flex flex-col flex-1 min-h-0">
+                            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 min-h-0">
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Vehicle Types</span>
+                                        <div className="flex-1 h-px bg-border" />
+                                    </div>
+                                    <MultiSelect
+                                        options={vehicleTypeOptions}
+                                        selected={addVehicleTypeIds}
+                                        onChange={(vals) => {
+                                            setAddVehicleTypeIds(vals)
+                                            if (formData.category_id) {
+                                                updateAutoFields(formData.category_id, vals[0])
+                                            }
+                                        }}
+                                        placeholder="Select vehicle types"
+                                    />
+                                </div>
+                                {renderFormFields(false)}
                             </div>
-                            {renderFormFields(false)}
-                            <DialogFooter>
+                            {/* Sticky Footer */}
+                            <DialogFooter className="px-6 py-4 border-t bg-muted/30 shrink-0">
+                                <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>Cancel</Button>
                                 <Button type="submit" disabled={saving}>
                                     {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                    {formData.severity === "VARIES" ? "Save & Add Follow-up" : "Save"}
+                                    {formData.severity === "VARIES" ? "Save & Add Follow-up" : "Save Question"}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -1060,7 +1124,21 @@ const WalkaroundQuestionScreen = () => {
                                             <TableCell>
                                                 {(q.category && typeof q.category === 'object') ? q.category?.name : categories.find(c => c.id === q.category)?.name || "—"}
                                             </TableCell>
-                                            <TableCell className="max-w-[300px] truncate">{q.question}</TableCell>
+                                            <TableCell className="max-w-[300px]">
+                                                <TooltipProvider delayDuration={300}>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="block truncate cursor-default">{q.question}</span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent
+                                                            side="top"
+                                                            className="max-w-[400px] whitespace-normal text-sm"
+                                                        >
+                                                            {q.question}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </TableCell>
                                             <TableCell>
                                                 <div className="flex justify-center gap-1">
                                                     {q.take_picture_on_pass && <Camera className="w-4 h-4 text-green-500" />}
@@ -1164,19 +1242,25 @@ const WalkaroundQuestionScreen = () => {
 
             {/* Edit Dialog */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent className=" max-h-[600px] overflow-auto">
-                    <DialogHeader>
-                        <DialogTitle>Edit Walkaround Question</DialogTitle>
-                        <DialogDescription>
-                            Update the question details.
+                <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden">
+                    {/* Sticky Header */}
+                    <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+                        <DialogTitle className="text-lg font-semibold">Edit Walkaround Question</DialogTitle>
+                        <DialogDescription className="text-sm text-muted-foreground">
+                            Update the details below. Scroll to see all fields.
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleUpdate} className="space-y-4">
-                        {renderFormFields(true)}
-                        <DialogFooter>
+                    {/* Scrollable Body */}
+                    <form onSubmit={handleUpdate} className="flex flex-col flex-1 min-h-0">
+                        <div className="flex-1 overflow-y-auto px-6 py-5 min-h-0">
+                            {renderFormFields(true)}
+                        </div>
+                        {/* Sticky Footer */}
+                        <DialogFooter className="px-6 py-4 border-t bg-muted/30 shrink-0">
+                            <Button variant="outline" type="button" onClick={() => setIsEditOpen(false)}>Cancel</Button>
                             <Button type="submit" disabled={saving}>
                                 {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                {formData.severity === "VARIES" ? "Update & Add Follow-up" : "Update"}
+                                {formData.severity === "VARIES" ? "Update & Add Follow-up" : "Save Changes"}
                             </Button>
                         </DialogFooter>
                     </form>
