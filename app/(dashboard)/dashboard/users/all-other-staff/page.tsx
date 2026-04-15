@@ -77,6 +77,7 @@ import AddDriver from "@/components/add-driver/page";
 import { debounce } from "lodash";
 import Link from "next/link";
 import ExportButton from "@/app/utils/ExportButton";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 // Interfaces
 interface Site {
@@ -131,6 +132,7 @@ interface UserForm {
   role: string;
   contractId?: string;
   siteId?: string;
+  siteIds?: string[];
   is_active: boolean;
 }
 
@@ -819,25 +821,12 @@ const EditUserModal = React.memo(
                   <span className="text-sm text-gray-500">Loading sites...</span>
                 </div>
               ) : (
-                <Select
-                  name="site"
-                  value={formData.siteId}
-                  onValueChange={(value) => setFormData({ ...formData, siteId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a site (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Site</SelectItem>
-                    {sites.map((site) => (
-                      <SelectItem key={site.id} value={site.id.toString()}>
-                        <div className="space-y-1">
-                          <div className="font-medium">{site.name}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={sites.map((site) => ({ label: site.name, value: site.id.toString() }))}
+                  selected={formData.siteIds || []}
+                  onChange={(selected: string[]) => setFormData({ ...formData, siteIds: selected })}
+                  placeholder="Select sites (optional)"
+                />
               )}
               <p className="text-sm text-gray-500">
                 Assign a site to define user location or operational area
@@ -1072,6 +1061,7 @@ export default function UsersPage() {
     role: "",
     contractId: "none",
     siteId: "none",
+    siteIds: [],
     is_active: true,
     password: "",
     password_confirm: "",
@@ -1360,19 +1350,30 @@ export default function UsersPage() {
 
   const handleEditUserClick = useCallback((user: User) => {
     setSelectedUser(user);
+    
+    // Find matching role slug, handling case-insensitivity
+    const resolvedRole = user.role
+      ? roles.find(
+          (r) =>
+            r.slug.toLowerCase() === user.role?.toLowerCase() ||
+            r.name.toLowerCase() === user.role?.toLowerCase()
+        )?.slug || user.role.toLowerCase()
+      : "";
+
     setFormData({
       email: user.email,
       full_name: user.full_name,
-      role: user.role || "",
+      role: resolvedRole,
       contractId: user.contract?.id?.toString() || "none",
       siteId: user.site && user.site.length > 0 ? user.site[0].id.toString() : "none",
+      siteIds: user.site ? user.site.map((s) => s.id.toString()) : [],
       is_active: user.is_active,
       password: "",
       password_confirm: "",
     });
     setFormErrors({});
     setIsEditModalOpen(true);
-  }, []);
+  }, [roles]);
 
 
 
@@ -1549,6 +1550,7 @@ export default function UsersPage() {
         role: form.get("role") as string,
         contractId: form.get("contract") as string,
         siteId: form.get("site") as string,
+        siteIds: formData.siteIds || [],
         is_active: (form.get("is_active") as string) === "on",
       };
 
@@ -1601,10 +1603,7 @@ export default function UsersPage() {
               Authorization: `Bearer ${cookies.get("access_token")}`,
             },
             body: JSON.stringify({
-              site_ids:
-                editFormData.siteId && editFormData.siteId !== "none"
-                  ? [Number.parseInt(editFormData.siteId)]
-                  : [],
+              site_ids: editFormData.siteIds ? editFormData.siteIds.map((id) => Number.parseInt(id)) : [],
             }),
           }),
         );

@@ -293,7 +293,7 @@ const WalkaroundFollowUpQuestion = ({
                     <form onSubmit={handleSave} className="space-y-4 pt-4">
                         <div className="grid grid-cols-1 gap-4">
                             {/* Code Field */}
-                            <div className="space-y-2">
+                            {/* <div className="space-y-2">
                                 <Label htmlFor="fu-code">
                                     Code <span className="text-red-500">*</span>
                                 </Label>
@@ -308,7 +308,7 @@ const WalkaroundFollowUpQuestion = ({
                                 {currentEditId && (
                                     <p className="text-xs text-muted-foreground">Code cannot be changed after creation</p>
                                 )}
-                            </div>
+                            </div> */}
 
                             {/* Question/Text Field */}
                             <div className="space-y-2">
@@ -325,7 +325,7 @@ const WalkaroundFollowUpQuestion = ({
                             </div>
 
                             {/* Display Order */}
-                            <div className="space-y-2">
+                            {/* <div className="space-y-2">
                                 <Label htmlFor="fu-order">Display Order</Label>
                                 <Input
                                     id="fu-order"
@@ -335,7 +335,7 @@ const WalkaroundFollowUpQuestion = ({
                                     onChange={(e) => setFormData({ ...formData, display_order: Number(e.target.value) })}
                                     disabled={loadingParent}
                                 />
-                            </div>
+                            </div> */}
 
                             {/* Severity Selection */}
                             <div className="space-y-2">
