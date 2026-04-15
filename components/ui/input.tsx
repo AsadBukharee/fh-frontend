@@ -11,18 +11,6 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
       onChange?.(e)
     }
 
-    const handleClear = () => {
-      setInputValue("")
-      if (onChange) {
-        const event = {
-          target: { value: "" },
-        } as React.ChangeEvent<HTMLInputElement>
-        onChange(event)
-      }
-      if (ref && "current" in ref && ref.current) {
-        ref.current.focus()
-      }
-    }
 
     return (
       <div
@@ -47,16 +35,6 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           {...props}
         />
 
-        {inputValue && (
-          <button
-            type="button"
-            className="absolute right-10 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
-            onClick={handleClear}
-            aria-label="Clear input"
-          >
-            <CircleX className="h-4 w-4" />
-          </button>
-        )}
       </div>
     )
   }

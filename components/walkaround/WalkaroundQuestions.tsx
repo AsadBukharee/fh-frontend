@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useDispatch } from "react-redux"
 import { setWalkaroundVehicle, setWalkaroundDefects, resetWalkaroundState } from "@/app/store/slices/walkaroundSlice"
 import API_URL from "@/app/utils/ENV"
@@ -17,8 +17,24 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import AddMechanicJobDialog from "../mechhanic-job/AddMechanic"
-import AddMechanicDefectDialog from "../mechhanic-job/AddMechanicDefectDialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import SignatureCanvas from "react-signature-canvas"
+import WalkaroundSummary from "./WalkaroundSummary"
+interface Profile {
+  id: number;
+  full_name: string;
+  avatar: string | null;
+  email: string;
+  sites: { id: number; name: string }[];
+}
 
 interface Category {
   id: number
@@ -70,6 +86,7 @@ interface Answer {
   walkaround_id: number
   vehicle: number
   user?: number
+  answer?: "PASS" | "FAIL"
   is_defected: boolean
   description?: string
   prove?: string
@@ -153,8 +170,9 @@ const WalkaroundQuestions: React.FC<{
   vehicleId: number | null
   vehicleTypeId: number | null
   walkaroundId: number | null
+  managers?: Profile[]
   onComplete: () => void
-}> = ({ vehicleId, vehicleTypeId, walkaroundId, onComplete }) => {
+}> = ({ vehicleId, vehicleTypeId, walkaroundId, managers = [], onComplete }) => {
   const [inspectionData, setInspectionData] = useState<InspectionItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -164,11 +182,7 @@ const WalkaroundQuestions: React.FC<{
   const [submitting, setSubmitting] = useState(false)
   const dispatch = useDispatch()
 
-  // Mechanic job flow
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
-  const [showMechanicJobDialog, setShowMechanicJobDialog] = useState(false)
-  const [showDefectsDialog, setShowDefectsDialog] = useState(false)
-  const [newJobId, setNewJobId] = useState<number | null>(null)
+  const [showSummaryDialog, setShowSummaryDialog] = useState(false)
   const [hasDefects, setHasDefects] = useState(false)
   const [prefilledNotes, setPrefilledNotes] = useState("")
 
@@ -206,6 +220,7 @@ const WalkaroundQuestions: React.FC<{
         walkaround_id: WALKAROUND_ID ?? 0,
         vehicle: VEHICLE_ID ?? 0,
         user: Number(cookies.get("user_id")) || undefined,
+        answer: checked ? "FAIL" : "PASS",
         is_defected: checked,
         description: checked ? prev[itemId]?.description || "" : undefined,
         prove: checked ? prev[itemId]?.prove : undefined,
@@ -237,6 +252,9 @@ const WalkaroundQuestions: React.FC<{
 
   const isQuestionComplete = (item: InspectionItem) => {
     const ans = answers[item.id]
+    const isAnswered = ans?.answer === "PASS" || ans?.answer === "FAIL"
+    if (!isAnswered) return false
+
     const isDefected = ans?.is_defected || false
 
     const photoRequired = isDefected ? item.take_picture_on_fail : item.take_picture_on_pass
@@ -380,7 +398,7 @@ const WalkaroundQuestions: React.FC<{
 
       setHasDefects(defectsFound)
       setPrefilledNotes(generateDefectNotes())
-      setShowConfirmDialog(true)
+      setShowSummaryDialog(true)
     } catch (err) {
       console.error(err)
       setError("Failed to submit answers")
@@ -389,11 +407,9 @@ const WalkaroundQuestions: React.FC<{
     }
   }
 
-  const handleCreateJobChoice = (create: boolean) => {
-    setShowConfirmDialog(false)
-    if (create) {
-      setShowMechanicJobDialog(true)
-    } else {
+  const handleSummaryComplete = (success: boolean, status: string) => {
+    setShowSummaryDialog(false)
+    if (success) {
       onComplete()
     }
   }
@@ -433,9 +449,12 @@ const WalkaroundQuestions: React.FC<{
 
   return (
     <>
-      <div className="max-h-[600px] min-w-[650px] overflow-y-auto bg-gray-50 py-6">
-        <div className="max-w-2xl mx-auto px-4">
-          <div className="mb-8 text-center">
+      <Dialog open={!showSummaryDialog} onOpenChange={() => {}} modal>
+        <DialogContent className="min-w-[700px] max-w-4xl p-0 overflow-hidden max-h-[90vh]">
+          <div className="max-h-[85vh] min-w-[650px] flex flex-col bg-gray-50 relative rounded-md overflow-hidden">
+            <div className="flex-1 overflow-y-auto py-6">
+          <div className="max-w-2xl mx-auto px-4 pb-8">
+            <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Vehicle Walkaround Check</h1>
             <p className="text-gray-600">Only mark items that have defects. Everything else is considered OK.</p>
             <div className="mt-4 inline-block bg-orange-50 border border-orange-200 rounded-lg px-6 py-3">
@@ -448,6 +467,7 @@ const WalkaroundQuestions: React.FC<{
           <div className="space-y-6">
             {inspectionData.map((item, index) => {
               const isDefected = answers[item.id]?.is_defected || false
+              const isAnswered = answers[item.id]?.answer === "PASS" || answers[item.id]?.answer === "FAIL"
               const isComplete = isQuestionComplete(item)
               const photoRequired = isDefected ? item.take_picture_on_fail : item.take_picture_on_pass
 
@@ -471,15 +491,33 @@ const WalkaroundQuestions: React.FC<{
                     </div>
                   </div>
 
-                  {/* Mark as Defected Checkbox */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <input
-                      type="checkbox"
-                      checked={isDefected}
-                      onChange={(e) => handleDefectedChange(item.id, e.target.checked)}
-                      className="h-5 w-5 text-orange-600 rounded focus:ring-orange-500"
-                    />
-                    <label className="text-base font-medium text-gray-800">Mark as Defected</label>
+                  {/* Explicit pass/fail answer selection */}
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Select result</p>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleDefectedChange(item.id, false)}
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          isAnswered && !isDefected
+                            ? "bg-green-600 border-green-600 text-white"
+                            : "bg-white border-gray-300 text-gray-700 hover:bg-green-50"
+                        }`}
+                      >
+                        Pass
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDefectedChange(item.id, true)}
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          isDefected
+                            ? "bg-orange-600 border-orange-600 text-white"
+                            : "bg-white border-gray-300 text-gray-700 hover:bg-orange-50"
+                        }`}
+                      >
+                        Fail (Defect)
+                      </button>
+                    </div>
                   </div>
 
                   {/* Show description only when defected */}
@@ -557,10 +595,12 @@ const WalkaroundQuestions: React.FC<{
               )
             })}
           </div>
+          </div>
+        </div>
 
-          {/* Submit Button */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
-            <div className="max-w-2xl mx-auto flex justify-between items-center">
+        {/* Submit Button */}
+        <div className="bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] w-full shrink-0 z-10">
+          <div className="max-w-2xl mx-auto flex justify-between items-center px-4">
               <p className="text-lg font-medium text-gray-700">
                 {completedCount === inspectionData.length ? (
                   <span className="text-green-600">All items checked ✓</span>
@@ -576,46 +616,24 @@ const WalkaroundQuestions: React.FC<{
                 {submitting ? "Submitting..." : <><Upload className="h-5 w-5" /> Submit Walkaround</>}
               </button>
             </div>
+            </div>
           </div>
-        </div>
+        </DialogContent>
+      </Dialog>
 
         {/* Dialogs */}
-        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Mechanic Job?</DialogTitle>
-              <DialogDescription className="text-base">
-                {hasDefects ? "Defects were reported." : "No defects found."}
-                <br /><br />
-                Would you like to create a job ticket now?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => handleCreateJobChoice(false)}>No, Thanks</Button>
-              <Button onClick={() => handleCreateJobChoice(true)}>Yes, Create Job</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <AddMechanicJobDialog
-          isOpen={showMechanicJobDialog}
-          onOpenChange={setShowMechanicJobDialog}
-          onJobAdded={(jobId) => {
-            setShowMechanicJobDialog(false)
-            setNewJobId(jobId)
-            setShowDefectsDialog(true)
-          }}
-          defaultVehicleId={VEHICLE_ID?.toString()}
-          defaultNotes={prefilledNotes}
+        <WalkaroundSummary
+          isOpen={showSummaryDialog}
+          walkaroundId={WALKAROUND_ID}
+          vehicleId={VEHICLE_ID}
+          inspectionDataLength={inspectionData.length}
+          passedCount={inspectionData.length - (hasDefects ? inspectionData.filter(item => answers[item.id]?.is_defected).length : 0)}
+          failedCount={hasDefects ? inspectionData.filter(item => answers[item.id]?.is_defected).length : 0}
+          managers={managers}
+          prefilledNotes={prefilledNotes}
+          hasDefects={hasDefects}
+          onComplete={handleSummaryComplete}
         />
-
-        <AddMechanicDefectDialog
-           showDefectsModal={showDefectsDialog}
-           setShowJobIdModal={setShowDefectsDialog}
-           jobId={newJobId}
-           onComplete={onComplete}
-        />
-      </div>
     </>
   )
 }
