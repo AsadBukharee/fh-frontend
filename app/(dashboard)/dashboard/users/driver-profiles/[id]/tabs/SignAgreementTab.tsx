@@ -112,7 +112,6 @@ interface BaseDoc {
 interface NightWorkerDoc extends BaseDoc {
   expiryDate: string | null;
   contractSigningDate?: string | null;
-  contractStartDate?: string | null;
   isNightWorker?: boolean;
   driver?: { id: number; full_name: string; email: string };
   agreement_date?: string;
@@ -120,7 +119,6 @@ interface NightWorkerDoc extends BaseDoc {
 
 interface ContractDoc extends BaseDoc {
   signingDate: string | null;
-  startDate: string | null;
   contractDate?: string | null; // NEW
 }
 
@@ -153,7 +151,7 @@ const docConfig: Record<
   DocumentKey,
   {
     title: string;
-    fields: ("applicable" | "expiry" | "signing" | "start" | "optIn" | "optOut" | "contract")[];
+    fields: ("applicable" | "expiry" | "signing" | "optIn" | "optOut" | "contract")[];
     category: string;
     requiresFormOnOptOut?: boolean;
     apiKey?: string;
@@ -167,7 +165,7 @@ const docConfig: Record<
   },
   contractOfEmployment: {
     title: "Contract of Employment",
-    fields: ["applicable", "start", "contract"], // Added "applicable"
+    fields: ["applicable", "contract"], // Added "applicable"
     category: "employment",
   },
   pensionInfo: {
@@ -290,7 +288,6 @@ function useDriverDocuments(userId: string, token: string) {
       uploadDate: null,
       isApplicable: true,
       signingDate: null,
-      startDate: null,
       contractDate: null,
     },
     pensionInfo: {
@@ -396,7 +393,6 @@ function useDriverDocuments(userId: string, token: string) {
             ...base,
             expiryDate: apiDoc?.expiry_date ?? null,
             contractSigningDate: apiDoc?.contract_signing_date ?? null,
-            contractStartDate: apiDoc?.contract_start_date ?? null,
             isNightWorker: apiDoc?.is_night_worker ?? true,
             driver: apiDoc?.driver ?? null,
             agreement_date: apiDoc?.agreement_date ?? null,
@@ -405,7 +401,6 @@ function useDriverDocuments(userId: string, token: string) {
           map[k] = {
             ...base,
             signingDate: apiDoc?.contract_signing_date ?? null,
-            startDate: apiDoc?.contract_start_date ?? null,
             contractDate: apiDoc?.contract_date ?? null, // NEW
           } as any;
         } else if (k === "pensionInfo") {
@@ -447,8 +442,7 @@ interface DocumentDetailDialogProps {
     isApplicable?: boolean
     agreement_date?: string | null
     contractSigningDate?: string | null
-    contractStartDate?: string | null
-    contractDate?: string | null
+    contractDate?: string | null,
     expiryDate?: string | null
     isNightWorker?: boolean
     uploadDate?: string | null
@@ -474,7 +468,6 @@ function DocumentDetailDialog({ doc, cfg, onClose, onSave, onLater, onDelete }: 
     applicable: doc.isApplicable ?? true,
     expiryDate: doc.expiryDate ?? "",
     signingDate: doc.contractSigningDate ?? doc.signingDate ?? "",
-    startDate: doc.contractStartDate ?? doc.startDate ?? "",
     contractDate: doc.contractDate ?? "",
     optIn: doc.optIn ?? false,
     optOut: doc.optOut ?? false,
@@ -567,17 +560,6 @@ function DocumentDetailDialog({ doc, cfg, onClose, onSave, onLater, onDelete }: 
             <div className="p-10 bg-white border-l border-gray-50 flex flex-col justify-between">
               <div className="space-y-8">
                 {/* Conditional Fields based on cfg.fields */}
-                {cfg.fields.includes("start") && (
-                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Employment Start Date</Label>
-                    <Input
-                      type="date"
-                      value={formData.startDate || ""}
-                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="h-12 border-gray-100 rounded-xl focus:ring-[#F15A29] focus:border-[#F15A29] font-medium px-4 bg-white"
-                    />
-                  </div>
-                )}
 
                 {cfg.fields.includes("contract") && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -750,7 +732,6 @@ export default function SignAgreementAdminTab() {
 
     if (cfg.fields.includes("expiry")) payload.expiry_date = formData.expiryDate || null;
     if (cfg.fields.includes("signing")) payload.contract_signing_date = formData.signingDate || null;
-    if (cfg.fields.includes("start")) payload.contract_start_date = formData.startDate || null;
     if (cfg.fields.includes("contract")) payload.contract_date = formData.contractDate || null; // NEW
 
     if (key === "nightWorker") {
@@ -801,7 +782,6 @@ export default function SignAgreementAdminTab() {
         };
         if (cfg.fields.includes("expiry")) patch.expiry_date = formData.expiryDate || null;
         if (cfg.fields.includes("signing")) patch.contract_signing_date = formData.signingDate || null;
-        if (cfg.fields.includes("start")) patch.contract_start_date = formData.startDate || null;
         if (cfg.fields.includes("contract")) patch.contract_date = formData.contractDate || null;
 
         Object.assign(payload, patch);
@@ -1027,21 +1007,8 @@ export default function SignAgreementAdminTab() {
                 {/* Metadata Rows (Uploaded State) */}
                 {uploaded && (
                   <div className="space-y-4 pt-1">
-                    {/* Contract Date Pill */}
-                    <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-gray-50/80 border border-gray-50 text-[13px]">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">Contract Date</span>
-                      </div>
-                      <span className="font-bold text-orange-500">
-                        {formatDate(
-                          (k === "contractOfEmployment") ? (d as ContractDoc).contractDate :
-                            (k === "nightWorker") ? (d as NightWorkerDoc).expiryDate :
-                              (k === "vehicleFamiliarisation") ? (d as ExpiryApplicableDoc).expiryDate :
-                                (d.uploadDate)
-                        )}
-                      </span>
-                    </div>
+
+
 
                     {/* Employment Row */}
                     <div className="flex items-center justify-between text-[13px] px-1">
