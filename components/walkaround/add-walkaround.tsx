@@ -249,6 +249,10 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
     if (!formData.mileage) newErrors.mileage = 'Mileage is required.'
     if (!formData.date) newErrors.date = 'Date is required.'
     if (!formData.time) newErrors.time = 'Time is required.'
+    const previousMileage = Number(vehicles.find((v) => v.id.toString() === formData.vehicle)?.last_mileage ?? 0)
+    if (formData.mileage && previousMileage > 0 && Number(formData.mileage) < previousMileage) {
+      newErrors.mileage = `Mileage cannot be less than previous mileage (${previousMileage}).`
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -326,6 +330,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
       .join(' ')
 
   const selectedVehicle = vehicles.find((v) => v.id.toString() === formData.vehicle)
+  const previousMileage = Number(selectedVehicle?.last_mileage ?? 0)
   const requiredFieldsCompleted = Boolean(formData.driver && formData.vehicle && formData.mileage)
 
   return (
@@ -435,9 +440,17 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
               type="number"
               name="mileage"
               value={formData.mileage}
-              onChange={handleFormChange}
+              onChange={(e) => {
+                handleFormChange(e)
+                if (previousMileage > 0 && Number(e.target.value) < previousMileage) {
+                  setErrors((prev) => ({
+                    ...prev,
+                    mileage: `Mileage cannot be less than previous mileage (${previousMileage}).`,
+                  }))
+                }
+              }}
               step="0.1"
-              min="0"
+              min={previousMileage > 0 ? previousMileage : 0}
               placeholder={selectedVehicle?.last_mileage || 'Enter mileage'}
             />
             <p className="mt-1 text-xs text-gray-500">Auto-filled when available. You can edit it.</p>
