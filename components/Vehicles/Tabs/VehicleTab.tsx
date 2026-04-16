@@ -158,6 +158,9 @@ export default function VehiclesPage() {
   })
   const [tempFilters, setTempFilters] = useState({ ...filters })
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [statusForm, setStatusForm] = useState({
     vehicle_roadworthy_status: "",
   })
@@ -403,6 +406,32 @@ export default function VehiclesPage() {
     }
   }
 
+  const handleDeleteVehicle = async () => {
+    if (!vehicleToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`${API_URL}/api/vehicles/${vehicleToDelete.id}/`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete vehicle");
+      }
+
+      showToast("Vehicle deleted successfully", "success");
+      setIsDeleteDialogOpen(false);
+      setVehicleToDelete(null);
+      fetchVehicles();
+    } catch (error) {
+      showToast("Failed to delete vehicle", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleBatchUpload = async () => {
     if (!batchFile) {
       showToast("Please select a file to upload", "error")
@@ -639,6 +668,19 @@ export default function VehiclesPage() {
                                       {vehicle.vehicle_status === "assigned" ? "Unassign Driver" : "Assign Driver"}
                                     </DropdownMenuItem>
                                   )}
+
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      setVehicleToDelete(vehicle);
+                                      setIsDeleteDialogOpen(true);
+                                    }}
+                                    className="text-red-600 focus:text-red-600 focus:bg-red-50 gap-2 cursor-pointer"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete Vehicle
+                                  </DropdownMenuItem>
+
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -948,6 +990,39 @@ export default function VehiclesPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Vehicle?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the vehicle
+                {vehicleToDelete ? ` ${vehicleToDelete.registration_number}` : ''} and remove its data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteVehicle();
+                }}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </div>
     </TooltipProvider>
   )

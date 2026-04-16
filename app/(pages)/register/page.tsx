@@ -44,7 +44,9 @@ export default function Register() {
       try {
         const res = await fetch(`${API_URL}/roles/`);
         const data = await res.json();
-        const roleNames = data.results?.map((role: { name: string }) => role.name) || [];
+        const roleNames = data.data
+          ?.filter((role: { slug: string; name: string }) => role.slug !== 'superadmin' && role.name.toLowerCase() !== 'superadmin')
+          .map((role: { name: string }) => role.name) || [];
         setRoles(roleNames);
       } catch (error) {
         console.error('Error fetching roles:', error);
@@ -63,25 +65,25 @@ export default function Register() {
       showToast('Password must be at least 8 characters long.', 'error');
       return;
     }
-  
+
     // Password alphabet validation
     if (!/[a-zA-Z]/.test(password)) {
       showToast('Password must contain at least one letter.', 'error');
       return;
     }
-  
+
     // Password match validation
     if (password !== confirmPassword) {
       showToast('Passwords do not match!', 'error');
       return;
     }
-  
+
     // Role selection validation
     if (!selectedRole) {
       showToast('Please select a role.', 'error');
       return;
     }
-  
+
     const payload = {
       email,
       full_name: fullName,
@@ -89,7 +91,7 @@ export default function Register() {
       password_confirm: confirmPassword,
       role: selectedRole,
     };
-  
+
     try {
       const response = await fetch(`${API_URL}/auth/register/`, {
         method: 'POST',
@@ -98,16 +100,16 @@ export default function Register() {
         },
         body: JSON.stringify(payload),
       });
-  
+
       const data = await response.json();
-  
+
       if (response.ok) {
         // Store tokens in cookies
         cookies.set('access_token', data.access, { path: '/' });
         cookies.set('refresh_token', data.refresh, { path: '/' });
         cookies.set('user_id', data?.user?.id)
         cookies.set('role', data.role)
-  
+
         showToast('User registered successfully!', 'success');
         // Redirect to a protected route (e.g., dashboard) after successful registration
         router.push('/dashboard');
@@ -226,28 +228,28 @@ export default function Register() {
 
             {/* Sign Up */}
             <GradientButton
-               text={isLoading ? 'Signing up...' : 'Sign up'}
+              text={isLoading ? 'Signing up...' : 'Sign up'}
               width="100%"
-              onClick={() => {}} // onClick is not needed since form submission triggers handleSubmit
+              onClick={() => { }} // onClick is not needed since form submission triggers handleSubmit
             />
           </form>
 
           {/* OR Divider */}
-          <div className="flex items-center my-4">
+          {/* <div className="flex items-center my-4">
             <div className="grow h-px bg-gray-300" />
             <span className="px-2 text-sm text-gray-500">OR</span>
             <div className="grow h-px bg-gray-300" />
-          </div>
+          </div> */}
 
           {/* Social */}
-          <button className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 p-3 rounded-lg text-sm hover:bg-gray-100">
+          {/* <button className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 p-3 rounded-lg text-sm hover:bg-gray-100">
             <Icon icon="flat-color-icons:google" className="text-xl" />
             Sign up with Google
-          </button>
-          <button className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 p-3 rounded-lg text-sm mt-3 hover:bg-gray-100">
+          </button> */}
+          {/* <button className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 p-3 rounded-lg text-sm mt-3 hover:bg-gray-100">
             <Icon icon="mdi:facebook" className="text-xl text-[#1877f2]" />
             Sign up with Facebook
-          </button>
+          </button> */}
 
           {/* Already have account */}
           <p className="text-center text-sm mt-5">

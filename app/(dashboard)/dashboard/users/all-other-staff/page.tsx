@@ -151,6 +151,7 @@ const UserRow = React.memo(
     getTypeColor,
     getStatusColor,
     handleEditUserClick,
+    handleDeleteUserClick,
     buttonRefs,
     handleMouseMove,
   }: {
@@ -159,6 +160,7 @@ const UserRow = React.memo(
     getTypeColor: (roleName: string | undefined | null) => string;
     getStatusColor: (isActive: boolean) => string;
     handleEditUserClick: (user: User) => void;
+    handleDeleteUserClick: (user: User) => void;
     buttonRefs: React.MutableRefObject<{ [key: string]: HTMLButtonElement | null }>;
     handleMouseMove: (key: string) => (e: React.MouseEvent) => void;
   }) => (
@@ -232,6 +234,13 @@ const UserRow = React.memo(
             <DropdownMenuItem onClick={() => handleEditUserClick(user)}>
               <Edit className="w-4 h-4 mr-2" />
               Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => handleDeleteUserClick(user)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
             </DropdownMenuItem>
 
           </DropdownMenuContent>
@@ -1028,6 +1037,9 @@ export default function UsersPage() {
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
@@ -1375,6 +1387,37 @@ export default function UsersPage() {
     setIsEditModalOpen(true);
   }, [roles]);
 
+  const handleDeleteUserClick = useCallback((user: User) => {
+    setUserToDelete(user);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`${API_URL}/users/${userToDelete.id}/`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete user");
+      }
+
+      showToast("User deleted successfully", "success");
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+      fetchUsers(); // Refresh the list
+    } catch (error) {
+      showToast("Failed to delete user", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
 
   const validateAddUserForm = useCallback((formData: FormData): Partial<UserForm> => {
@@ -1595,18 +1638,20 @@ export default function UsersPage() {
           );
         }
 
-        promises.push(
-          fetch(`${API_URL}/users/${selectedUser.id}/allocate-sites/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${cookies.get("access_token")}`,
-            },
-            body: JSON.stringify({
-              site_ids: editFormData.siteIds ? editFormData.siteIds.map((id) => Number.parseInt(id)) : [],
+        if (editFormData.siteIds && editFormData.siteIds.length > 0) {
+          promises.push(
+            fetch(`${API_URL}/users/${selectedUser.id}/allocate-sites/`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${cookies.get("access_token")}`,
+              },
+              body: JSON.stringify({
+                site_ids: editFormData.siteIds.map((id) => Number.parseInt(id)),
+              }),
             }),
-          }),
-        );
+          );
+        }
 
         const responses = await Promise.all(promises);
 
@@ -1858,6 +1903,7 @@ export default function UsersPage() {
                     getTypeColor={getTypeColor}
                     getStatusColor={getStatusColor}
                     handleEditUserClick={handleEditUserClick}
+                    handleDeleteUserClick={handleDeleteUserClick}
                     buttonRefs={buttonRefs}
                     handleMouseMove={handleMouseMove}
                   />
@@ -1988,6 +2034,37 @@ export default function UsersPage() {
         </Dialog>
       )}
 
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user
+              {userToDelete ? ` ${userToDelete.full_name}` : ''} and remove their data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDeleteUser();
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
