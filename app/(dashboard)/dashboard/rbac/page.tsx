@@ -44,6 +44,14 @@ import {
   Headset,
   Save,
   Filter,
+  MapPin,
+  Users,
+  Joystick,
+  List,
+  RefreshCcw,
+  Waypoints,
+  Check,
+  TypeOutline,
   type LucideIcon,
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -101,6 +109,15 @@ const LUCIDE_ICON_MAP: { [key: string]: LucideIcon } = {
   BarChart3,
   TowerControl,
   Headset,
+  MapPin,
+  Users,
+  Joystick,
+  List,
+  RefreshCcw,
+
+  Waypoints,
+  Check,
+  TypeOutline,
 }
 
 const AVAILABLE_ICONS = Object.keys(LUCIDE_ICON_MAP)
@@ -143,11 +160,10 @@ const PermissionCell = memo(
             <button
               key={permKey}
               onClick={() => handleToggle(permKey)}
-              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                isActive
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 ${isActive
                   ? "bg-white border-[1px] border-[#E12B47] text-[#E12B47] shadow-md"
                   : "bg-white text-gray-500 border-[1px] border-gray-300 hover:bg-gray-200"
-              }`}
+                }`}
               title={permKey.charAt(0).toUpperCase() + permKey.slice(1)}
               aria-label={`${permKey} permission for ${resource}`}
             >
@@ -203,7 +219,7 @@ const MenuItemComponent = memo(
       collect: (monitor) => ({ isDragging: monitor.isDragging() }),
     })
 
-    const IconComponent = LUCIDE_ICON_MAP[item.icon] || File
+    const IconComponent = LUCIDE_ICON_MAP[item.icon?.trim()] || File
 
     const handleDoubleClick = useCallback(() => {
       setIsEditing(true)
@@ -280,9 +296,8 @@ const MenuItemComponent = memo(
     return (
       <div
         ref={ref}
-        className={`relative flex flex-col items-start w-[500px] min-h-[50px] gap-2 p-2 my-1 rounded-md border border-gray-200 bg-white shadow-sm transition-all duration-200 ${
-          isDragging ? "opacity-50 border-blue-400 shadow-lg" : "hover:border-blue-300 hover:shadow-md"
-        }`}
+        className={`relative flex flex-col items-start w-[500px] min-h-[50px] gap-2 p-2 my-1 rounded-md border border-gray-200 bg-white shadow-sm transition-all duration-200 ${isDragging ? "opacity-50 border-blue-400 shadow-lg" : "hover:border-blue-300 hover:shadow-md"
+          }`}
         onDoubleClick={handleDoubleClick}
         tabIndex={0}
         role="listitem"
@@ -294,7 +309,7 @@ const MenuItemComponent = memo(
           {isEditing ? (
             <>
               <select
-                value={LUCIDE_ICON_MAP[item.icon] ? item.icon : "File"}
+                value={LUCIDE_ICON_MAP[item.icon?.trim()] ? item.icon?.trim() : "File"}
                 onChange={handleIconChange}
                 className="w-[120px] h-8 border border-gray-300 rounded-md px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -367,7 +382,7 @@ const MenuItemComponent = memo(
   },
 )
 MenuItemComponent.displayName = "MenuItemComponent"
-function formatResourceName(str:string) {
+function formatResourceName(str: string) {
   if (!str) return "";
   const exceptions = ["dvsa", "crh"];
   if (exceptions.includes(str.toLowerCase())) {
@@ -655,13 +670,13 @@ export default function UsersPageOptimized() {
           children: newItems[parentIndex].children.map((child, i) =>
             i === index
               ? {
-                  ...child,
+                ...child,
+                isSelected: !child.isSelected,
+                children: child.children.map((subChild) => ({
+                  ...subChild,
                   isSelected: !child.isSelected,
-                  children: child.children.map((subChild) => ({
-                    ...subChild,
-                    isSelected: !child.isSelected,
-                  })),
-                }
+                })),
+              }
               : child,
           ),
         }
@@ -957,12 +972,13 @@ export default function UsersPageOptimized() {
 
     // Merge fetched menu items with role.menu.items
     const mergeMenuItems = (fetched: MenuItem[], saved: MenuItem[]): MenuItem[] => {
+      if (!fetched) return []
       return fetched.map((fetchedItem) => {
-        const savedItem = saved.find((item) => item.nav === fetchedItem.nav)
+        const savedItem = saved?.find((item) => item.nav === fetchedItem.nav)
         return {
           ...fetchedItem,
           isSelected: savedItem ? savedItem.isSelected : false,
-          children: mergeMenuItems(fetchedItem.children, savedItem?.children || []),
+          children: mergeMenuItems(fetchedItem.children || [], savedItem?.children || []),
         }
       })
     }
@@ -1118,12 +1134,12 @@ export default function UsersPageOptimized() {
                               onCheckedChange={() => handleTempResourceToggle(resource.name.toLowerCase())}
                               id={`resource-${resource.id}`}
                             />
-                           <label 
-  htmlFor={`resource-${resource.id}`} 
-  className="flex-1 cursor-pointer"
->
-  {formatResourceName(resource.name)}
-</label>
+                            <label
+                              htmlFor={`resource-${resource.id}`}
+                              className="flex-1 cursor-pointer"
+                            >
+                              {formatResourceName(resource.name)}
+                            </label>
                           </div>
                         </DropdownMenuItem>
                       ))}
@@ -1170,9 +1186,9 @@ export default function UsersPageOptimized() {
                 </TableHeader>
                 <TableBody>
                   {filteredData?.length > 0 ? (
-                    filteredData.map((user,index) => (
+                    filteredData.map((user, index) => (
                       <TableRow key={user.id} className="hover:bg-gray-50 border-1 border-gray-200">
-                        <TableCell className="font-medium">{index+1}</TableCell>
+                        <TableCell className="font-medium">{index + 1}</TableCell>
                         <TableCell>
                           <Badge className="px-3 py-1 text-sm bg-transparent hover:bg-transparent font-medium text-gray-700">
                             {formatResourceName(user.type)}
@@ -1200,11 +1216,10 @@ export default function UsersPageOptimized() {
                             <button
                               onClick={() => savePermissions(user.id)}
                               disabled={!modifiedPermissions[user.id] || isSaving[user.id]}
-                              className={`p-1 rounded-full ${
-                                modifiedPermissions[user.id] && !isSaving[user.id]
+                              className={`p-1 rounded-full ${modifiedPermissions[user.id] && !isSaving[user.id]
                                   ? "hover:bg-green-100 text-green-600"
                                   : "text-gray-400 cursor-not-allowed"
-                              }`}
+                                }`}
                               title="Save permissions"
                             >
                               {isSaving[user.id] ? <AnimatedLogo /> : <Save className="h-4 w-4" />}
