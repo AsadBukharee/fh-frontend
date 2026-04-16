@@ -5,8 +5,7 @@ import {
   Car, Users, Wrench, Calendar, AlertCircle, CheckCircle,
   Bell, TrendingUp, TrendingDown, Loader2, X, AlertTriangle,
   FileText, Shield, Truck, CheckSquare, XCircle, ArrowUpRight,
-  ArrowDownLeft, UserCheck, UserX, Info, ChevronRight,
-  FileWarning, CarFront, Settings, Activity,
+  ArrowDownLeft, UserCheck, UserX, Info, 
   ToolCase, RefreshCw
 } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
