@@ -60,8 +60,9 @@ import {
   Settings,
   CheckCircle,
   AlertTriangle,
-  EllipsisVertical,
   Menu,
+  Trash2,
+  EllipsisVertical,
 } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -426,6 +427,7 @@ interface DriverActionMenuProps {
   onApprove: () => void;
   onDisapprove: () => void;
   onResendActivation: () => void;
+  onDelete: () => void;
 }
 
 const DriverActionMenu = React.memo(({
@@ -435,6 +437,7 @@ const DriverActionMenu = React.memo(({
   onApprove,
   onDisapprove,
   onResendActivation,
+  onDelete,
 }: DriverActionMenuProps) => {
   const isApproved = driver.profile_status?.toLowerCase() === "approved";
 
@@ -502,7 +505,13 @@ const DriverActionMenu = React.memo(({
           </DropdownMenuItem>
         )}
 
-
+        <DropdownMenuItem
+          onClick={onDelete}
+          className="text-red-600 focus:text-red-600 focus:bg-red-50 gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Driver
+        </DropdownMenuItem>
 
       </DropdownMenuContent>
     </DropdownMenu>
@@ -516,6 +525,8 @@ export default function DriversPage() {
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
   const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
   const [disapproveRemarks, setDisapproveRemarks] = useState("");
   const [isDisapproving, setIsDisapproving] = useState(false);
@@ -1127,7 +1138,10 @@ export default function DriversPage() {
                               setIsDisapproveDialogOpen(true);
                             }}
                             onResendActivation={() => handleResendActivation(driver.user.id)}
-
+                            onDelete={() => {
+                              setDriverToDelete(driver);
+                              setIsDeleteDialogOpen(true);
+                            }}
                           />
                         </div>
                       </td>
@@ -1221,6 +1235,59 @@ export default function DriversPage() {
         />
       )}
 
+
+
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Driver Profile?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the driver
+              {driverToDelete ? ` ${driverToDelete.user.full_name}` : ''} and remove their data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!driverToDelete) return;
+                setIsDeleting(true);
+                try {
+                  const response = await fetch(`${API_URL}/api/profiles/driver/${driverToDelete.id}/`, {
+                    method: "DELETE",
+                    headers: {
+                      Authorization: `Bearer ${cookies.get("access_token")}`,
+                    },
+                  });
+                  if (!response.ok) throw new Error("Failed to delete driver");
+                  showToast("Driver deleted successfully", "success");
+                  setIsDeleteDialogOpen(false);
+                  setDriverToDelete(null);
+                  fetchDrivers();
+                } catch (error) {
+                  showToast("Failed to delete driver", "error");
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
