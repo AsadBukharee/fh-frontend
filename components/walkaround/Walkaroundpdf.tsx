@@ -637,13 +637,17 @@ export const StepPDFDocument = ({ data, stepNumber }: { data: WalkaroundData; st
           </View>
 
           <View style={styles.gridItem}>
-            <Text style={styles.label}>Sites</Text>
+            <Text style={styles.label}>Sites
+              {walkaround.vehicle?.site_allocated?.[0]?.status && (
+                <Text style={[styles.badge, styles.statusBadge, { fontSize: 9, paddingHorizontal: 6 }]}>
+                  {walkaround.vehicle.site_allocated[0].status}
+                </Text>
+              )}
+            </Text>
             <Text style={styles.value}>
               {walkaround.vehicle?.site_allocated?.[0]?.name || 'N/A'}
             </Text>
-            <Text style={[styles.badge, styles.statusBadge, { fontSize: 9, paddingHorizontal: 6 }]}>
-              Active
-            </Text>
+           
           </View>
 
           <View style={styles.gridItem}>
@@ -977,10 +981,11 @@ export const PrintReportButton = ({ stepDataList, onRefresh }: { stepDataList: S
                             <circle cx="17.5" cy="17.5" r="2.5" />
                           </svg>
                           Vehicle Details
-                        </div>
-                        <span class="print-badge ${walkaround.status === 'completed' ? 'print-badge-completed' : 'print-badge-pending'}">
+                           <span class="print-badge ${walkaround.status === 'completed' ? 'print-badge-completed' : 'print-badge-pending'}">
                           ${walkaround.status}
                         </span>
+                        </div>
+                       
                       </div>
 
                       <!-- Sub Row 1 -->
@@ -994,11 +999,13 @@ export const PrintReportButton = ({ stepDataList, onRefresh }: { stepDataList: S
                           <p class="print-value">${walkaround.vehicle?.vehicle_type_name || 'N/A'}</p>
                         </div>
                         <div class="print-info-item" style="border-right: 1px solid #f1f5f9;">
-                          <p class="print-label">Sites</p>
+                          <p class="print-label">Sites
+                              <span style="font-size: 9px; font-weight: 700; color: #15803d; background-color: #f0fdf4; padding: 1px 6px; border-radius: 9999px;">Active</span>
+                          
+                          </p>
                           <div style="display: flex; align-items: center; gap: 6px;">
                             <p class="print-value">${walkaround.vehicle?.site_allocated?.[0]?.name || 'N/A'}</p>
-                            <span style="font-size: 9px; font-weight: 700; color: #15803d; background-color: #f0fdf4; padding: 1px 6px; border-radius: 9999px;">Active</span>
-                          </div>
+                        </div>
                         </div>
                         <div class="print-info-item">
                           <p class="print-label">Current Mileage</p>
@@ -1009,19 +1016,22 @@ export const PrintReportButton = ({ stepDataList, onRefresh }: { stepDataList: S
                       <!-- Sub Row 2 -->
                       <div class="print-info-grid">
                         <div class="print-info-item" style="border-right: 1px solid #f1f5f9;">
-                          <p class="print-label">Driver Name</p>
+                          <p class="print-label">Driver Name
+                               <span style="font-size: 9px; font-weight: 700; color: #15803d; background-color: #f0fdf4; padding: 1px 6px; border-radius: 9999px;">${walkaround.conducted_by.role}</span>
+                          
+                          </p>
                           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
                             <p class="print-value">${walkaround.conducted_by.full_name}</p>
-                            <span style="font-size: 9px; font-weight: 700; color: #15803d; background-color: #f0fdf4; padding: 1px 6px; border-radius: 9999px;">${walkaround.conducted_by.role}</span>
-                          </div>
+                       </div>
                           <p class="print-subvalue">${formatToDDMMYYYY(walkaround.date)} at ${formatTime(walkaround.time)}</p>
                         </div>
                         <div class="print-info-item" style="border-right: 1px solid #f1f5f9;">
-                          <p class="print-label">Manager Name</p>
-                          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
-                            <p class="print-value">${walkaround.walkaround_assignee?.full_name ?? 'Unroad worthy'}</p>
+                          <p class="print-label">Manager Name
                             ${walkaround.walkaround_assignee ? `<span style="font-size: 9px; font-weight: 700; color: #9a3412; background-color: #fffad1; padding: 1px 6px; border-radius: 9999px;">${walkaround.walkaround_assignee.role}</span>` : ''}
-                          </div>
+                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                              <p class="print-value">${walkaround.walkaround_assignee?.full_name ?? 'Unroad worthy'}</p>
+                            </div>
+                          </p>
                           <p class="print-subvalue">${formatToDDMMYYYY(walkaround.date)} at ${formatTime(walkaround.time)}</p>
                         </div>
                         <div class="print-info-item" style="border-right: 1px solid #f1f5f9;">

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCookies } from "next-client-cookies";
 import API_URL from "@/app/utils/ENV";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -14,15 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import SignatureCanvas from "react-signature-canvas";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import WalkaroundQuestions from "./WalkaroundQuestions"; // Import WalkaroundQuestions (assumed to be in the same directory)
+import { Car, Gauge, User, CircleCheck } from "lucide-react";
 
 interface Walkaround {
   id: number;
@@ -80,21 +73,17 @@ const WalkaroundQuestion: React.FC<{
   walkaroundId: number | null;
   vehicleId: number | null;
   vehicleTypeId: number | null;
-}> = ({ isOpen, onComplete, walkaroundId, vehicleId, vehicleTypeId }) => {
+  managers: Profile[];
+}> = ({ isOpen, onComplete, walkaroundId, vehicleId, vehicleTypeId, managers }) => {
+  if (!isOpen) return null;
   return (
-    <Dialog open={isOpen} onOpenChange={() => { }}>
-      <DialogContent className="min-w-[700px]">
-        <DialogHeader>
-          <DialogTitle>Walkaround Questions</DialogTitle>
-        </DialogHeader>
-        <WalkaroundQuestions
-          walkaroundId={walkaroundId}
-          vehicleId={vehicleId}
-          vehicleTypeId={vehicleTypeId}
-          onComplete={onComplete}
-        />
-      </DialogContent>
-    </Dialog>
+    <WalkaroundQuestions
+      walkaroundId={walkaroundId}
+      vehicleId={vehicleId}
+      vehicleTypeId={vehicleTypeId}
+      onComplete={onComplete}
+      managers={managers}
+    />
   );
 };
 
@@ -104,21 +93,19 @@ const PlusWalkaround = ({
   parentId,
   walkaround,
 }: PlusWalkaroundProps) => {
+  const previousMileageBaseline = Math.max(
+    Number(walkaround?.mileage ?? 0),
+    Number(walkaround?.vehicle.last_mileage ?? 0)
+  );
+
   const [formData, setFormData] = useState({
     driver: walkaround?.driver.id.toString() || "",
-    walkaround_assignee: walkaround?.walkaround_assignee
-      ? walkaround.walkaround_assignee
-      : "none",
     vehicle: walkaround?.vehicle.id.toString() || "",
-    date: new Date().toISOString().split("T")[0], // Current date in YYYY-MM-DD format
-    time: new Date().toTimeString().split(" ")[0].slice(0, 5), // Current time in HH:MM format
     mileage: walkaround?.vehicle.last_mileage || "",
-    signature: "",
-    note: walkaround?.notes || "",
-    status: walkaround?.status || "pending",
     walkaround_step: ((walkaround?.walkaround_step || 0) + 1).toString(),
   });
   const [errors, setErrors] = useState<Partial<typeof formData>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [drivers, setDrivers] = useState<Profile[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
@@ -127,19 +114,8 @@ const PlusWalkaround = ({
   const [vehicleId, setVehicleId] = useState<number | null>(null); // Store vehicle ID
   // FIX 5: vehicleTypeId is derived from the walkaround prop — no vehicle API needed
   const [vehicleTypeId, setVehicleTypeId] = useState<number | null>(null);
-  const sigCanvas = useRef<SignatureCanvas>(null);
   const cookies = useCookies();
   const { toast } = useToast();
-  const STATUS_CHOICES: { value: Walkaround["status"]; label: string }[] = [
-    // { value: "pending", label: "Pending" },
-    { value: "completed", label: "Completed" },
-    { value: "failed", label: "Failed" },
-    // { value: "minor_roadworthy_defect", label: "Minor Roadworthy Defect" },
-    // { value: "minor_unroadworthy_defect", label: "Minor Unroadworthy Defect" },
-    // { value: "major_unroadworthy_defect", label: "Major Unroadworthy Defect" },
-    // { value: "in_progress", label: "In Progress" },
-    // { value: "further_work_required", label: "Further Work Required" },
-  ];
 
   // FIX 5: Only fetch drivers and managers — vehicle is pre-known from the walkaround prop
   const fetchProfiles = useCallback(async (
@@ -202,41 +178,26 @@ const PlusWalkaround = ({
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
-  };
-
-  const clearSignature = () => {
-    sigCanvas.current?.clear();
-    setFormData((prev) => ({ ...prev, signature: "" }));
-    setErrors((prev) => ({ ...prev, signature: undefined }));
-  };
-
-  const saveSignature = () => {
-    if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-      const signatureData = sigCanvas.current
-        .getCanvas()
-        .toDataURL("image/png");
-      setFormData((prev) => ({ ...prev, signature: signatureData }));
-      setErrors((prev) => ({ ...prev, signature: undefined }));
-    } else {
-      setErrors((prev) => ({
-        ...prev,
-        signature: "Please provide a signature.",
-      }));
-    }
+    setFormError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    setFormError(null);
     setLoading(true);
 
     const newErrors: Partial<typeof formData> = {};
     if (!formData.driver) newErrors.driver = "Driver is required.";
     if (!formData.vehicle) newErrors.vehicle = "Vehicle is required.";
     if (!formData.mileage) newErrors.mileage = "Mileage is required.";
-    if (!formData.date) newErrors.date = "Date is required.";
-    if (!formData.time) newErrors.time = "Time is required.";
-    if (!formData.signature) newErrors.signature = "Signature is required.";
+    if (
+      formData.mileage &&
+      previousMileageBaseline > 0 &&
+      Number(formData.mileage) < previousMileageBaseline
+    ) {
+      newErrors.mileage = `Mileage cannot be less than previous mileage (${previousMileageBaseline}).`;
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -244,22 +205,20 @@ const PlusWalkaround = ({
       return;
     }
 
+    const now = new Date();
     const payload = {
       driver: parseInt(formData.driver, 10),
       vehicle: parseInt(formData.vehicle, 10),
-      status: formData.status,
+      status: "completed",
       mileage: parseFloat(formData.mileage),
       walkaround_step: parseInt(formData.walkaround_step, 10),
-      walkaround_assignee:
-        formData.walkaround_assignee && formData.walkaround_assignee !== "none"
-          ? parseInt(formData.walkaround_assignee, 10)
-          : null,
+      walkaround_assignee: null,
       conducted_by: parseInt(formData.driver, 10),
       parent: parentId,
-      signature: formData.signature || null,
-      date: formData.date,
-      time: formData.time,
-      note: formData.note || null,
+      signature: null,
+      date: now.toISOString().split("T")[0],
+      time: now.toTimeString().split(" ")[0].slice(0, 5),
+      note: null,
     };
 
     try {
@@ -291,17 +250,23 @@ const PlusWalkaround = ({
         setShowQuestion(true);
       } else {
         const errorData = await response.json();
+        setFormError(
+          errorData.message?.vehicle?.[0] ||
+          errorData.message?.driver?.[0] ||
+          "Failed to add child walkaround"
+        );
         toast({
           title: "Error",
           description:
-            errorData.message.vehicle?.[0] ||
-            errorData.message.driver?.[0] ||
+            errorData.message?.vehicle?.[0] ||
+            errorData.message?.driver?.[0] ||
             "Failed to add child walkaround",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error(error);
+      setFormError("An error occurred while adding the child walkaround");
       toast({
         title: "Error",
         description: "An error occurred while adding the child walkaround",
@@ -316,19 +281,10 @@ const PlusWalkaround = ({
     // Reset form and close everything after questions are completed
     setFormData({
       driver: walkaround?.driver.id.toString() || "",
-      walkaround_assignee: walkaround?.walkaround_assignee
-        ? walkaround.walkaround_assignee
-        : "none",
       vehicle: walkaround?.vehicle.id.toString() || "",
-      date: new Date().toISOString().split("T")[0],
-      time: new Date().toTimeString().split(" ")[0].slice(0, 5),
       mileage: walkaround?.vehicle.last_mileage || "",
-      signature: "",
-      note: walkaround?.notes || "",
-      status: walkaround?.status || "pending",
       walkaround_step: ((walkaround?.walkaround_step || 0) + 1).toString(),
     });
-    sigCanvas.current?.clear();
     setShowQuestion(false);
     refreshWalkarounds();
     setOpen(false);
@@ -336,28 +292,57 @@ const PlusWalkaround = ({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Vehicle — pre-filled & read-only from the parent walkaround prop */}
-        <div>
-          <Label>Vehicle</Label>
-          <div className="flex h-9 w-full items-center rounded-md border border-input bg-gray-100 px-3 py-1 text-sm shadow-sm">
-            {walkaround?.vehicle.registration_number || "N/A"} ({walkaround?.vehicle.vehicles_type_name || "N/A"})
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Plus Walkaround</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Continue with the same guided flow: setup, questions, summary.
+              </p>
+            </div>
+            <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-right">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-orange-700">Progress</p>
+              <p className="text-sm font-semibold text-orange-800">
+                {[Boolean(formData.driver), Boolean(formData.vehicle), Boolean(formData.mileage)].filter(Boolean).length}/3
+              </p>
+            </div>
           </div>
-          {errors.vehicle && (
-            <div className="text-red-500 text-sm">{errors.vehicle}</div>
-          )}
         </div>
 
-        {/* Driver */}
-        <div>
+        {formError && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {formError}
+          </div>
+        )}
+
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+            <Car className="h-4 w-4 text-orange-500" />
+            Step 1: Vehicle
+          </div>
+          <Label>Vehicle</Label>
+          <div className="flex h-11 w-full items-center rounded-md border border-input bg-gray-100 px-3 text-sm">
+            {walkaround?.vehicle.registration_number || "N/A"} ({walkaround?.vehicle.vehicles_type_name || "N/A"})
+          </div>
+          {errors.vehicle && <div className="text-red-500 text-sm">{errors.vehicle}</div>}
+        </div>
+
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+            <User className="h-4 w-4 text-orange-500" />
+            Step 2: Driver
+          </div>
           <Label>Driver</Label>
           <Select
             value={formData.driver}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, driver: value }))
-            }
+            onValueChange={(value) => {
+              setFormData((prev) => ({ ...prev, driver: value }));
+              setErrors((prev) => ({ ...prev, driver: undefined }));
+              setFormError(null);
+            }}
           >
-            <SelectTrigger>
+            <SelectTrigger className="h-11">
               <SelectValue placeholder="Select driver" />
             </SelectTrigger>
             <SelectContent>
@@ -374,156 +359,40 @@ const PlusWalkaround = ({
             Current:{" "}
             {walkaround?.driver.full_name || walkaround?.driver.email || "N/A"}
           </p>
-          {errors.driver && (
-            <div className="text-red-500 text-sm">{errors.driver}</div>
-          )}
+          {errors.driver && <div className="text-red-500 text-sm">{errors.driver}</div>}
         </div>
 
-        {/* Walkaround Assignee */}
-        <div>
-          <Label>Walkaround Assignee</Label>
-          <Select
-            value={formData.walkaround_assignee}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, walkaround_assignee: value }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select assignee" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              {managers.map((manager) => (
-                <SelectItem key={manager.id} value={manager.id.toString()}>
-                  {`${formatName(manager.full_name)} (${manager.sites
-                    .map((site) => site.name)
-                    .join(", ")})`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-sm text-gray-500 mt-1">
-            Current: {walkaround?.walkaround_assignee || "None"}
-          </p>
-          {errors.walkaround_assignee && (
-            <div className="text-red-500 text-sm">
-              {errors.walkaround_assignee}
-            </div>
-          )}
-        </div>
-
-        {/* Mileage */}
-        <div>
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+            <Gauge className="h-4 w-4 text-orange-500" />
+            Step 3: Mileage
+          </div>
           <Label>Mileage</Label>
           <Input
             type="number"
             name="mileage"
             value={formData.mileage}
-            onChange={handleFormChange}
+            onChange={(e) => {
+              handleFormChange(e);
+              if (previousMileageBaseline > 0 && Number(e.target.value) < previousMileageBaseline) {
+                setErrors((prev) => ({
+                  ...prev,
+                  mileage: `Mileage cannot be less than previous mileage (${previousMileageBaseline}).`,
+                }));
+              }
+            }}
             step="0.1"
-            min="0"
+            min={previousMileageBaseline > 0 ? previousMileageBaseline : 0}
           />
           <p className="text-sm text-gray-500 mt-1">
             Previous walkaround: {walkaround?.mileage || "N/A"} | Vehicle&apos;s last recorded: {walkaround?.vehicle.last_mileage || "N/A"}
           </p>
-          {errors.mileage && (
-            <div className="text-red-500 text-sm">{errors.mileage}</div>
-          )}
+          {errors.mileage && <div className="text-red-500 text-sm">{errors.mileage}</div>}
         </div>
 
-        {/* Signature */}
-        <div>
-          <Label>Signature</Label>
-          <div className="border rounded-md">
-            <SignatureCanvas
-              ref={sigCanvas}
-              penColor="black"
-              canvasProps={{ className: "w-full h-40 bg-white" }}
-              onEnd={saveSignature}
-            />
-          </div>
-          <div className="mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={clearSignature}
-              className="mr-2"
-            >
-              Clear Signature
-            </Button>
-          </div>
-          {errors.signature && (
-            <div className="text-red-500 text-sm">{errors.signature}</div>
-          )}
-        </div>
-
-        {/* Note */}
-        <div>
-          <Label>Note</Label>
-          <Textarea
-            name="note"
-            value={formData.note}
-            onChange={handleFormChange}
-          />
-          <p className="text-sm text-gray-500 mt-1">
-            Previous: {walkaround?.notes || "None"}
-          </p>
-          {errors.note && (
-            <div className="text-red-500 text-sm">{errors.note}</div>
-          )}
-        </div>
-
-        {/* Status */}
-        <div>
-          <Label>Status</Label>
-          <Select
-            value={formData.status}
-            onValueChange={(value) =>
-              setFormData((prev) => ({
-                ...prev,
-                status: value as
-                  | "pending"
-                  | "completed"
-                  | "failed"
-                  | "minor_roadworthy_defect"
-                  | "minor_unroadworthy_defect"
-                  | "major_unroadworthy_defect"
-                  | "in_progress"
-                  | "further_work_required",
-              }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_CHOICES.map(({ value, label }) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-sm text-gray-500 mt-1">
-            Previous: {walkaround?.status || "N/A"}
-          </p>
-          {errors.status && (
-            <div className="text-red-500 text-sm">{errors.status}</div>
-          )}
-        </div>
-
-        {/* Walkaround Step */}
-        <div>
-          <Label>Walkaround Step</Label>
-          <Input
-            type="number"
-            value={formData.walkaround_step}
-            disabled
-            className="bg-gray-100"
-          />
-          <p className="text-sm text-gray-500 mt-1">
-            Previous: {walkaround?.walkaround_step || "N/A"}
-          </p>
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm text-gray-600">Next: Questions -&gt; Summary -&gt; Optional Mechanic Job.</p>
+          <p className="mt-1 text-xs text-gray-500">Assignee, signature, and defect notes are completed in summary.</p>
         </div>
 
         <div className="flex justify-end gap-2">
@@ -534,9 +403,14 @@ const PlusWalkaround = ({
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="bg-orange-600 hover:bg-orange-700">
             {loading ? "Adding..." : "Add Child Walkaround"}
           </Button>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+          <CircleCheck className="h-4 w-4 text-green-500" />
+          Same flow as Add Walkaround
         </div>
       </form>
 
@@ -547,6 +421,7 @@ const PlusWalkaround = ({
         walkaroundId={walkaroundId}
         vehicleId={vehicleId}
         vehicleTypeId={vehicleTypeId}
+        managers={managers}
       />
     </>
   );

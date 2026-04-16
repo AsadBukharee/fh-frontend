@@ -453,7 +453,7 @@ export default function UsersPageOptimized() {
   // ============= API FUNCTIONS =============
   const fetchMenuItems = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/roles/get-menu`, {
+      const response = await fetch(`${API_URL}/roles/get-menu?role=superadmin`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
