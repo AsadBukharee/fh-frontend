@@ -790,10 +790,11 @@ const StepCard = ({
                   <circle cx="17.5" cy="17.5" r="2.5" />
                 </svg>
                 Vehicle Details
-              </div>
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${getStatusBadgeClass(walkaround.status)}`}>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${getStatusBadgeClass(walkaround.status)}`}>
                 {walkaround.status}
               </span>
+              </div>
+          
             </div>
 
             {/* Row 1: Registration | Vehicle Type | Sites | Current Mileage */}
@@ -807,14 +808,16 @@ const StepCard = ({
                 <p className="text-sm font-semibold text-gray-900">{walkaround.vehicle?.vehicle_type_name || 'N/A'}</p>
               </div>
               <div className="pr-4">
-                <p className="text-[10px] text-gray-400 mb-0.5">Sites</p>
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-semibold text-gray-900">{walkaround.vehicle?.site_allocated?.[0]?.name || 'N/A'}</p>
-                  {walkaround.vehicle?.site_allocated?.[0]?.status && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                <p className="text-[10px] text-gray-400 mb-0.5">Sites
+                {walkaround.vehicle?.site_allocated?.[0]?.status && (
+                    <span className="text-[10px] font-semibold px-1.5 ml-2 py-0.5 rounded-full bg-green-100 text-green-700">
                       {walkaround.vehicle.site_allocated[0].status}
                     </span>
                   )}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-gray-900">{walkaround.vehicle?.site_allocated?.[0]?.name || 'N/A'}</p>
+              
                 </div>
               </div>
               <div>
@@ -830,30 +833,34 @@ const StepCard = ({
             {/* Row 2: Driver Name | Manager Name | Motion | Total Time */}
             <div className="grid grid-cols-4 gap-0 px-4 py-3">
               <div className="pr-4">
-                <p className="text-[10px] text-gray-400 mb-0.5">Driver Name</p>
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <p className="text-sm font-semibold text-gray-900">{walkaround.conducted_by?.full_name || 'N/A'}</p>
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                <p className="text-[10px] text-gray-400 mb-0.5">Driver Name
+                <span className="text-[10px] font-semibold px-1.5 ml-2 py-0.5 rounded-full bg-green-100 text-green-700">
                     {walkaround.conducted_by?.role || 'Driver'}
                   </span>
+                </p>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <p className="text-sm font-semibold text-gray-900">{walkaround.conducted_by?.full_name || 'N/A'}</p>
+                
                 </div>
                 <p className="text-[10px] text-gray-400">{formatDate(walkaround.date)} at {formatTime(walkaround.time)}</p>
               </div>
               <div className="pr-4">
-                <p className="text-[10px] text-gray-400 mb-0.5">Manager Name</p>
+                <p className="text-[10px] text-gray-400 mb-0.5">Manager Name
+                {walkaround.walkaround_assignee ? (
+                    <span className="text-[10px] font-semibold ml-2 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                      {walkaround.walkaround_assignee.role}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold ml-2 px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
+                      Unroad worthy
+                    </span>
+                  )}
+                </p>
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <p className="text-sm font-semibold text-gray-900">
                     {walkaround.walkaround_assignee?.full_name ?? 'Unroad worthy'}
                   </p>
-                  {walkaround.walkaround_assignee ? (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                      {walkaround.walkaround_assignee.role}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
-                      Unroad worthy
-                    </span>
-                  )}
+            
                 </div>
                 <p className="text-[10px] text-gray-400">{formatDate(walkaround.date)} at {formatTime(walkaround.time)}</p>
               </div>
@@ -1129,7 +1136,6 @@ const AnswerItem = ({
 }) => {
   const [localComments, setLocalComments] = useState<string>(answer.description || '');
   const [hasChanges, setHasChanges] = useState<boolean>(false);
-  const [showComments, setShowComments] = useState<boolean>(false);
 
   useEffect(() => {
     setLocalComments(answer.description || '');
@@ -1145,7 +1151,6 @@ const AnswerItem = ({
     if (answer.id) {
       await onSaveComments(answer.id, localComments, stepNumber);
       setHasChanges(false);
-      setShowComments(false);
     }
   };
 
@@ -1194,54 +1199,14 @@ const AnswerItem = ({
           {/* Defect note */}
           {answer.is_defected && (
             <div className="mt-1.5">
-              {!showComments && answer.description && (
+              { answer.description && (
                 <div className="text-[10px] text-red-600 bg-red-50 border border-red-100 rounded px-2 py-1">
                   {answer.description}
-                  <button
-                    onClick={() => setShowComments(true)}
-                    className="ml-2 text-gray-400 hover:text-gray-600 no-print"
-                  >
-                    Edit
-                  </button>
+                
                 </div>
               )}
-              {showComments && (
-                <div className="space-y-1.5 no-print">
-                  <Textarea
-                    placeholder="Add defect notes..."
-                    className="min-h-[50px] text-xs resize-none"
-                    value={localComments}
-                    onChange={(e) => handleCommentsChange(e.target.value)}
-                    disabled={isSaving}
-                  />
-                  <div className="flex gap-1.5">
-                    <Button
-                      onClick={handleSave}
-                      disabled={isSaving || !hasChanges}
-                      size="sm"
-                      className="bg-orange-500 hover:bg-orange-600 h-6 text-[10px] px-2"
-                    >
-                      {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
-                    </Button>
-                    <Button
-                      onClick={() => { setShowComments(false); setLocalComments(answer.description || ''); setHasChanges(false); }}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 text-[10px]"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {!showComments && !answer.description && (
-                <button
-                  onClick={() => setShowComments(true)}
-                  className="text-[10px] text-gray-400 hover:text-gray-600 no-print"
-                >
-                  + Add note
-                </button>
-              )}
+            
+            
             </div>
           )}
 

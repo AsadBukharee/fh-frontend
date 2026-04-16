@@ -59,6 +59,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, isValid } from "date-fns";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ExportButton from "@/app/utils/ExportButton";
 import CreateTaskDialog from "@/components/task/CreateTaskDialog";
 import ReassignTaskDialog from "@/components/task/ReassignTaskDialog";
@@ -159,6 +160,7 @@ interface Task {
   days_until_deadline: number;
   created_at: string;
   updated_at: string;
+  is_system_generated?: boolean;
 }
 
 interface ApiResponse {
@@ -180,6 +182,7 @@ const Page = () => {
   const [prevPage, setPrevPage] = useState<string | null>(null);
   const [totalTasks, setTotalTasks] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [taskSource, setTaskSource] = useState<"users" | "system">("users");
   const router = useRouter()
 
   // Filters
@@ -475,6 +478,12 @@ const Page = () => {
     return latest.reason ?? "—";
   };
 
+  const filteredTasks = tasks.filter((task) =>
+    taskSource === "system"
+      ? Boolean(task.is_system_generated)
+      : !task.is_system_generated
+  );
+
   // ------------------- RENDER -------------------
   return (
     <div className="container bg-white mx-auto p-4">
@@ -505,7 +514,7 @@ const Page = () => {
           <PlusCircle className="mr-2 h-4 w-4" /> Create Task
         </Button>
 
-        <ExportButton data={tasks} fileName="tasks_export.csv" />
+        <ExportButton data={filteredTasks} fileName="tasks_export.csv" />
         <Button
           onClick={fetchTasks}
           disabled={loading}
@@ -522,6 +531,25 @@ const Page = () => {
 
 
       </div>
+      <Tabs
+        value={taskSource}
+        onValueChange={(value) => setTaskSource(value as "users" | "system")}
+        className="mt-2 w-full"
+      >
+        <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden">
+          <TabsTrigger
+            value="users"
+            className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
+          >
+            Assigned Tasks
+          </TabsTrigger>
+          <TabsTrigger
+            value="system"
+            className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
+          >
+Unassigned Tasks          </TabsTrigger>
+        </TabsList>
+      </Tabs>
       <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
         {/* Task Type */}
         <Button
@@ -690,7 +718,7 @@ const Page = () => {
           </TableHeader>
 
           <TableBody>
-            {tasks.map((task) => (
+            {filteredTasks.map((task) => (
               <TableRow key={task.id}>
                 <TableCell className="font-medium"><Link href={`/dashboard/tasks/task-management/${task.id}`}>{task.title}</Link></TableCell>
                 <TableCell className="max-w-xs truncate">
@@ -769,6 +797,13 @@ const Page = () => {
                 </TableCell>
               </TableRow>
             ))}
+            {filteredTasks.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={13} className="py-6 text-center text-muted-foreground">
+                  No {taskSource === "system" ? "system" : "user"} tasks found.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       )}
