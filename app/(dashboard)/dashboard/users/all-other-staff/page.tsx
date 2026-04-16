@@ -548,25 +548,12 @@ const AddUserModal = React.memo(
                   <span className="text-sm text-gray-500">Loading sites...</span>
                 </div>
               ) : (
-                <Select
-                  name="site"
-                  value={formData.siteId}
-                  onValueChange={(value) => setFormData({ ...formData, siteId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a site (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Site</SelectItem>
-                    {sites.map((site) => (
-                      <SelectItem key={site.id} value={site.id.toString()}>
-                        <div className="space-y-1">
-                          <div className="font-medium">{site.name}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={sites.map((site) => ({ label: site.name, value: site.id.toString() }))}
+                  selected={formData.siteIds || []}
+                  onChange={(selected: string[]) => setFormData({ ...formData, siteIds: selected })}
+                  placeholder="Select sites (optional)"
+                />
               )}
               <p className="text-sm text-gray-500">
                 Assign a site to define user location or operational area
@@ -1350,6 +1337,7 @@ export default function UsersPage() {
         role: roles.find((role) => role.name.toLowerCase() === type.toLowerCase())?.slug || "",
         contractId: "none",
         siteId: "none",
+        siteIds: [],
         is_active: true,
         password: "",
         password_confirm: "",
@@ -1485,8 +1473,8 @@ export default function UsersPage() {
   const handleAddUserSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      const formData = new FormData(e.currentTarget);
-      const errors = validateAddUserForm(formData);
+      const form = new FormData(e.currentTarget);
+      const errors = validateAddUserForm(form);
 
       setFormErrors(errors);
       if (Object.keys(errors).length > 0) {
@@ -1495,13 +1483,13 @@ export default function UsersPage() {
       }
 
       const newUser = {
-        email: formData.get("email") as string,
-        full_name: formData.get("full_name") as string,
-        password: formData.get("password") as string,
-        password_confirm: formData.get("password_confirm") as string,
-        role: formData.get("role") as string,
-        contractId: formData.get("contract") as string | undefined,
-        siteId: formData.get("site") as string | undefined,
+        email: form.get("email") as string,
+        full_name: form.get("full_name") as string,
+        password: form.get("password") as string,
+        password_confirm: form.get("password_confirm") as string,
+        role: form.get("role") as string,
+        contractId: form.get("contract") as string | undefined,
+        siteIds: formData.siteIds || [],
       };
 
       setEditLoading(true);
@@ -1551,7 +1539,7 @@ export default function UsersPage() {
               );
             }
 
-            if (newUser.siteId && newUser.siteId !== "none") {
+            if (newUser.siteIds && newUser.siteIds.length > 0) {
               promises.push(
                 fetch(`${API_URL}/users/${userId}/allocate-sites/`, {
                   method: "POST",
@@ -1559,7 +1547,7 @@ export default function UsersPage() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${cookies.get("access_token")}`,
                   },
-                  body: JSON.stringify({ site_ids: [Number.parseInt(newUser.siteId)] }),
+                  body: JSON.stringify({ site_ids: newUser.siteIds.map((id) => Number.parseInt(id)) }),
                 }),
               );
             }
@@ -1580,7 +1568,7 @@ export default function UsersPage() {
         setEditLoading(false);
       }
     },
-    [cookies, fetchUsers, showToast],
+    [cookies, fetchUsers, showToast, validateAddUserForm, formData],
   );
 
   const handleEditUserSubmit = useCallback(
@@ -1680,7 +1668,7 @@ export default function UsersPage() {
         setEditLoading(false);
       }
     },
-    [cookies, fetchUsers, selectedUser, showToast, validateEditUserForm],
+    [cookies, fetchUsers, selectedUser, showToast, validateEditUserForm, formData],
   );
 
 
