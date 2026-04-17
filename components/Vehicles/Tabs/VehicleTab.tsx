@@ -39,6 +39,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs"
+import {
   Search,
   Eye,
   Trash2,
@@ -138,7 +144,7 @@ interface Vehicle {
   mileage_in_km?: number | null
 }
 
-export default function VehiclesPage() {
+export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
   // const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
@@ -178,7 +184,8 @@ export default function VehiclesPage() {
   const fetchVehicles = useCallback(async () => {
     setLoading(true)
     try {
-      const url = `${API_URL}/api/vehicles/?page=${currentPage}&per_page=${perPage}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
+      const endpoint = activeTab === "unassigned" ? "/api/vehicles/no-site/" : "/api/vehicles/"
+      const url = `${API_URL}${endpoint}?page=${currentPage}&per_page=${perPage}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
         }`
       const response = await fetch(url, {
         headers: {
@@ -226,7 +233,7 @@ export default function VehiclesPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentPage, searchQuery, cookies, showToast])
+  }, [currentPage, searchQuery, cookies, showToast, activeTab])
 
   useEffect(() => {
     fetchVehicles()
@@ -368,9 +375,9 @@ export default function VehiclesPage() {
     setIsFilterDialogOpen(false)
   }
 
- 
 
- 
+
+
 
   const handleAssignClick = (vehicle: Vehicle) => {
     setSelectedVehicleForAssign(vehicle)
@@ -501,9 +508,9 @@ export default function VehiclesPage() {
 
   return (
     <TooltipProvider>
-      <div className="p-6 bg-white min-h-screen">
-        {/* Header */}
-        <header className="bg-white mb-6">
+      <div className="w-full">
+        {/* Header content moved up to accommodate parent tabs */}
+        <header className="bg-white mb-6 pt-2">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Vehicles Management</h1>
@@ -552,6 +559,8 @@ export default function VehiclesPage() {
             />
           </div>
         </header>
+
+
 
         {/* Table */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -630,7 +639,7 @@ export default function VehiclesPage() {
                                     </Link>
                                   </DropdownMenuItem>
 
-                                
+
 
                                   <DropdownMenuSeparator />
 
@@ -670,7 +679,7 @@ export default function VehiclesPage() {
                                   )}
 
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
+                                  <DropdownMenuItem
                                     onClick={() => {
                                       setVehicleToDelete(vehicle);
                                       setIsDeleteDialogOpen(true);
@@ -905,7 +914,7 @@ export default function VehiclesPage() {
           </DialogContent>
         </Dialog>
 
-  
+
         {selectedVehicleForAssign && (
           <AssignDriverDialog
             vehicleId={selectedVehicleForAssign.id}
@@ -1002,7 +1011,7 @@ export default function VehiclesPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction 
+              <AlertDialogAction
                 onClick={(e) => {
                   e.preventDefault();
                   handleDeleteVehicle();

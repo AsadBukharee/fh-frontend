@@ -33,6 +33,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
 
 import {
   Search,
@@ -523,6 +529,7 @@ DriverActionMenu.displayName = "DriverActionMenu";
 export default function DriversPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("assigned");
   const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
@@ -531,6 +538,7 @@ export default function DriversPage() {
   const [disapproveRemarks, setDisapproveRemarks] = useState("");
   const [isDisapproving, setIsDisapproving] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+  const [unassignedDriversCount, setUnassignedDriversCount] = useState<number | null>(null);
 
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -661,7 +669,8 @@ export default function DriversPage() {
     let totalPages = 1;
     try {
       while (page <= totalPages) {
-        const url = `${API_URL}/api/profiles/driver/?page=${page}&per_page=100`;
+        const endpoint = activeTab === "unassigned" ? "/api/profiles/driver/no-site/" : "/api/profiles/driver/";
+        const url = `${API_URL}${endpoint}?page=${page}&per_page=100`;
         const res = await fetch(url, {
           headers: {
             "Content-Type": "application/json",
@@ -683,7 +692,7 @@ export default function DriversPage() {
     } finally {
       setLoading(false);
     }
-  }, [cookies, showToast]);
+  }, [cookies, showToast, activeTab]);
 
   const fetchContracts = useCallback(async () => {
     if (contracts.length) return;
@@ -700,6 +709,22 @@ export default function DriversPage() {
       setContractsLoading(false);
     }
   }, [contracts.length, cookies, showToast]);
+
+  const fetchUnassignedDriversCount = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/profiles/driver/no-site/?page=1&per_page=1`, {
+        headers: { Authorization: `Bearer ${cookies.get("access_token")}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data?.pagination) {
+          setUnassignedDriversCount(json.data.pagination.total_items || json.data.results.length);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch unassigned drivers count:", error);
+    }
+  }, [cookies]);
 
   const fetchSites = useCallback(async () => {
     if (sites.length) return;
@@ -719,7 +744,8 @@ export default function DriversPage() {
 
   useEffect(() => {
     fetchDrivers();
-  }, [fetchDrivers]);
+    fetchUnassignedDriversCount();
+  }, [fetchDrivers, fetchUnassignedDriversCount, activeTab]);
 
   useEffect(() => {
     if (isAddModalOpen) {
@@ -1043,143 +1069,185 @@ export default function DriversPage() {
       {/* Table */}
       {/* Table Section */}
       <div className="p-4 sm:p-6">
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="overflow-x-auto">
-            <div className="min-w-[1100px]">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-                  <tr>
-                    <th className="px-4 py-3 w-16">Index</th>
-                    <th className="px-4 py-3 min-w-[180px]">Driver Name</th>
-                    <th className="px-4 py-3 min-w-[160px]">License No</th>
-                    <th className="px-4 py-3 min-w-[160px]">Contract Type</th>
-                    <th className="px-4 py-3 min-w-[140px]">Phone No</th>
-                    <th className="px-4 py-3 min-w-[110px]">Status</th>
-                    <th className="px-4 py-3 min-w-[140px]">Shift Status</th>
-                    <th className="px-4 py-3 min-w-[100px] text-center">Warnings</th>
-                    <th className="px-4 py-3 w-20 text-right sticky right-0 bg-gray-50 z-10">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {currentDrivers.map((driver, idx) => (
-                    <tr key={driver.id} className="hover:bg-gray-50/70">
-                      <td className="px-4 py-4 font-medium">
-                        {(currentPage - 1) * perPage + idx + 1}
-                      </td>
-                      <td className="px-4 py-4">
-                        <Link
-                          href={`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`}
-                          className="text-orange-600 hover:underline font-medium"
-                        >
-                          {driver.user.full_name}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-4 text-gray-700">
-                        {driver.license_number || "—"}
-                      </td>
-                      <td className="px-4 py-4">
-                        {/* Your contract badge component */}
-                        <Badge variant="outline" className=" border-0 p-2 bg-green-100">{driver.user.contract?.name || "No Contract"}</Badge>
-                      </td>
-                      <td className="px-4 py-4 text-gray-700">
-                        {driver.phone || "—"}
-                      </td>
-                      <td className="px-4 py-4">
-                        {/* Your status badge */}
-                        <Badge
-                          variant={
-                            driver.profile_status?.toLowerCase() === "approved"
-                              ? "default"
-                              : "destructive"
-                          }
-                        >
-                          {driver.profile_status === 'approved' ? "Approved" : "Not Approved"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-4">
-                        {/* Shift status badge */}
-                        {driver.user.shifts_count > 0 ? (
-                          <Badge className="bg-emerald-100 text-emerald-800">
-                            Active ({driver.user.shifts_count})
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Idle</Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        {driver.warnings?.length > 0 ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <Badge variant="outline" className="bg-orange-50 text-orange-700">
-                                  {driver.warnings.length}
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Active Warnings: {driver.warnings.join(", ")}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 sticky right-0 bg-white z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.05)]">
-                        <div className="flex justify-end">
-                          <DriverActionMenu
-                            driver={driver}
-                            onViewProfile={() => window.open(`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`, "_blank")}
-                            onEdit={() => handleEditDriver(driver)}
-                            onApprove={() => handleApproveDriverClick(driver.id)}
-                            onDisapprove={() => {
-                              setSelectedDriver(driver);
-                              setIsDisapproveDialogOpen(true);
-                            }}
-                            onResendActivation={() => handleResendActivation(driver.user.id)}
-                            onDelete={() => {
-                              setDriverToDelete(driver);
-                              setIsDeleteDialogOpen(true);
-                            }}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <Tabs value={activeTab} onValueChange={(v) => {
+          setActiveTab(v);
+          setCurrentPage(1);
+        }} className="w-full">
+          <TabsList className="w-full flex h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden mb-4">
+            <TabsTrigger 
+              value="assigned" 
+              className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
+            >
+              Assigned Sites
+            </TabsTrigger>
+            <TabsTrigger 
+              value="unassigned"
+              className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
+            >
+              Unassigned Sites
+              {unassignedDriversCount !== null && (
+                <Badge className="ml-2 bg-orange-500 hover:bg-orange-600 text-white border-none py-0 px-1.5 h-5 min-w-[20px] justify-center">
+                  {unassignedDriversCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t">
-              <div className="text-sm text-gray-600">
-                Showing {(currentPage - 1) * perPage + 1}–
-                {Math.min(currentPage * perPage, filteredDrivers.length)} of {filteredDrivers.length}
+          <TabsContent value={activeTab} className="mt-0">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div className="overflow-x-auto">
+                <div className="min-w-[1100px]">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+                      <tr>
+                        <th className="px-4 py-3 w-16">Index</th>
+                        <th className="px-4 py-3 min-w-[180px]">Driver Name</th>
+                        <th className="px-4 py-3 min-w-[160px]">License No</th>
+                        <th className="px-4 py-3 min-w-[160px]">Contract Type</th>
+                        <th className="px-4 py-3 min-w-[140px]">Phone No</th>
+                        <th className="px-4 py-3 min-w-[110px]">Status</th>
+                        <th className="px-4 py-3 min-w-[140px]">Shift Status</th>
+                        <th className="px-4 py-3 min-w-[100px] text-center">Warnings</th>
+                        <th className="px-4 py-3 w-20 text-right sticky right-0 bg-gray-50 z-10">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {currentDrivers.length > 0 ? (
+                        currentDrivers.map((driver, idx) => (
+                          <tr key={driver.id} className="hover:bg-gray-50/70">
+                            <td className="px-4 py-4 font-medium">
+                              {(currentPage - 1) * perPage + idx + 1}
+                            </td>
+                            <td className="px-4 py-4">
+                              <Link
+                                href={`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`}
+                                className="text-orange-600 hover:underline font-medium"
+                              >
+                                {driver.user.full_name}
+                              </Link>
+                            </td>
+                            <td className="px-4 py-4 text-gray-700">
+                              {driver.license_number || "—"}
+                            </td>
+                            <td className="px-4 py-4">
+                              {/* Your contract badge component */}
+                              <Badge variant="outline" className=" border-0 p-2 bg-green-100">{driver.user.contract?.name || "No Contract"}</Badge>
+                            </td>
+                            <td className="px-4 py-4 text-gray-700">
+                              {driver.phone || "—"}
+                            </td>
+                            <td className="px-4 py-4">
+                              {/* Your status badge */}
+                              <Badge
+                                variant={
+                                  driver.profile_status?.toLowerCase() === "approved"
+                                    ? "default"
+                                    : "destructive"
+                                }
+                              >
+                                {driver.profile_status === 'approved' ? "Approved" : "Not Approved"}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-4">
+                              {/* Shift status badge */}
+                              {driver.user.shifts_count > 0 ? (
+                                <Badge className="bg-emerald-100 text-emerald-800">
+                                  Active ({driver.user.shifts_count})
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary">Idle</Badge>
+                              )}
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              {driver.warnings?.length > 0 ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Badge variant="outline" className="bg-orange-50 text-orange-700">
+                                        {driver.warnings.length}
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Active Warnings: {driver.warnings.join(", ")}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                <span className="text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-4 sticky right-0 bg-white z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                              <div className="flex justify-end">
+                                <DriverActionMenu
+                                  driver={driver}
+                                  onViewProfile={() => window.open(`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`, "_blank")}
+                                  onEdit={() => handleEditDriver(driver)}
+                                  onApprove={() => handleApproveDriverClick(driver.id)}
+                                  onDisapprove={() => {
+                                    setSelectedDriver(driver);
+                                    setIsDisapproveDialogOpen(true);
+                                  }}
+                                  onResendActivation={() => handleResendActivation(driver.user.id)}
+                                  onDelete={() => {
+                                    setDriverToDelete(driver);
+                                    setIsDeleteDialogOpen(true);
+                                  }}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                            {loading ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                                <p>Loading drivers...</p>
+                              </div>
+                            ) : (
+                              "No drivers found."
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t">
+                  <div className="text-sm text-gray-600">
+                    Showing {(currentPage - 1) * perPage + 1}–
+                    {Math.min(currentPage * perPage, filteredDrivers.length)} of {filteredDrivers.length}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((p) => p - 1)}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Modals */}
