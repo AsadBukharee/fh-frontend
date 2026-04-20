@@ -103,7 +103,7 @@ interface User {
   is_active: boolean;
   contract: { id: number; name: string; description: string } | null;
   site: Site[] | null;
-  role: string | null;
+  role: string | string[] | null;
   shifts_count: number;
   avatar?: string | null;
 }
@@ -135,12 +135,16 @@ interface UserForm {
   full_name: string;
   password?: string;
   password_confirm?: string;
-  role: string;
+  role: string[];
   contractId?: string;
   siteId?: string;
   siteIds?: string[];
   is_active: boolean;
 }
+
+type UserFormErrors = {
+  [K in keyof UserForm]?: string;
+};
 
 interface Filters {
   role: string;
@@ -187,11 +191,23 @@ const UserRow = React.memo(
         </Link>
       </TableCell>
       <TableCell>
-        <Badge className={getTypeColor(user.role)}>
-          {user.role
-            ? roles.find((role) => role.slug === user.role)?.name || user.role
-            : "Unassigned"}
-        </Badge>
+        <div className="flex flex-wrap gap-1">
+          {user.role ? (
+            Array.isArray(user.role) ? (
+              user.role.map((roleSlug) => (
+                <Badge key={roleSlug} className={getTypeColor(roleSlug)}>
+                  {roles.find((r) => r.slug === roleSlug)?.name || roleSlug}
+                </Badge>
+              ))
+            ) : (
+              <Badge className={getTypeColor(user.role)}>
+                {roles.find((role) => role.slug === user.role)?.name || user.role}
+              </Badge>
+            )
+          ) : (
+            <Badge className="bg-gray-100 text-gray-700">Unassigned</Badge>
+          )}
+        </div>
       </TableCell>
       <TableCell>
         {user.contract ? (
@@ -285,7 +301,7 @@ const AddUserModal = React.memo(
     selectedUserType: string | null;
     formData: UserForm;
     setFormData: (data: UserForm) => void;
-    formErrors: Partial<UserForm>;
+    formErrors: UserFormErrors;
     showPassword: boolean;
     setShowPassword: (show: boolean) => void;
     showConfirmPassword: boolean;
@@ -448,40 +464,16 @@ const AddUserModal = React.memo(
                 <Shield className="w-4 h-4" />
                 User Role *
               </Label>
-              <Select
-                name="role"
-                required
-                value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value })}
-              >
-                <SelectTrigger className={formErrors.role ? "border-red-500" : ""}>
-                  <SelectValue placeholder={`Select role (default: ${selectedUserType})`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {rolesLoading ? (
-                    <SelectItem value="loading" disabled>
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading roles...
-                      </div>
-                    </SelectItem>
-                  ) : roles.length === 0 ? (
-                    <SelectItem value="none" disabled>
-                      No roles available
-                    </SelectItem>
-                  ) : (
-                    roles.map((role) => (
-                      <SelectItem key={role.id} value={role.slug}>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getTypeColor(role.slug)} variant="secondary">
-                            {role.name}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <MultiSelect
+                options={roles.map((role) => ({ 
+                  label: role.name, 
+                  value: role.slug
+                }))}
+                selected={formData.role}
+                onChange={(selected: string[]) => setFormData({ ...formData, role: selected })}
+                placeholder="Select user roles"
+                error={!!formErrors.role}
+              />
               {formErrors.role && (
                 <p className="text-sm text-red-500 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
@@ -624,7 +616,7 @@ const EditUserModal = React.memo(
     setIsEditModalOpen: (open: boolean) => void;
     formData: UserForm;
     setFormData: (data: UserForm) => void;
-    formErrors: Partial<UserForm>;
+    formErrors: UserFormErrors;
     roles: Role[];
     rolesLoading: boolean;
     contracts: Contract[];
@@ -705,40 +697,16 @@ const EditUserModal = React.memo(
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-role">User Role</Label>
-                <Select
-                  name="role"
-                  value={formData.role}
-                  onValueChange={(value) => setFormData({ ...formData, role: value })}
-                >
-                  <SelectTrigger className={formErrors.role ? "border-red-500" : ""}>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rolesLoading ? (
-                      <SelectItem value="loading" disabled>
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Loading roles...
-                        </div>
-                      </SelectItem>
-                    ) : roles.length === 0 ? (
-                      <SelectItem value="none" disabled>
-                        No roles available
-                      </SelectItem>
-                    ) : (
-                      roles.map((role) => (
-                        <SelectItem key={role.id} value={role.slug}>
-                          <div className="flex items-center gap-2">
-                            <Badge className={getTypeColor(role.slug)} variant="secondary">
-                              {role.name}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={roles.map((role) => ({ 
+                    label: role.name, 
+                    value: role.slug
+                  }))}
+                  selected={formData.role || []}
+                  onChange={(selected: string[]) => setFormData({ ...formData, role: selected })}
+                  placeholder="Select user roles"
+                  error={!!formErrors.role}
+                />
                 {formErrors.role && (
                   <p className="text-sm text-red-500 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
@@ -1064,7 +1032,7 @@ export default function UsersPage() {
   const [formData, setFormData] = useState<UserForm>({
     email: "",
     full_name: "",
-    role: "",
+    role: [],
     contractId: "none",
     siteId: "none",
     siteIds: [],
@@ -1072,7 +1040,7 @@ export default function UsersPage() {
     password: "",
     password_confirm: "",
   });
-  const [formErrors, setFormErrors] = useState<Partial<UserForm>>({});
+  const [formErrors, setFormErrors] = useState<UserFormErrors>({});
   const perPage = 10;
   const { showToast } = useToast();
   const cookies = useCookies();
@@ -1095,7 +1063,11 @@ export default function UsersPage() {
 
       // Apply role filter
       if (filters.role !== "all") {
-        filteredUsers = filteredUsers.filter((user) => user.role === filters.role);
+        filteredUsers = filteredUsers.filter((user) => 
+          Array.isArray(user.role) 
+            ? user.role.includes(filters.role) 
+            : user.role === filters.role
+        );
       }
 
       // Apply contract filter
@@ -1343,10 +1315,11 @@ export default function UsersPage() {
   const handleAddUserClick = useCallback(
     (type: string) => {
       setSelectedUserType(type);
+      const defaultRole = roles.find((role) => role.name.toLowerCase() === type.toLowerCase())?.slug;
       setFormData({
         email: "",
         full_name: "",
-        role: roles.find((role) => role.name.toLowerCase() === type.toLowerCase())?.slug || "",
+        role: defaultRole ? [defaultRole] : [],
         contractId: "none",
         siteId: "none",
         siteIds: [],
@@ -1363,19 +1336,23 @@ export default function UsersPage() {
   const handleEditUserClick = useCallback((user: User) => {
     setSelectedUser(user);
     
-    // Find matching role slug, handling case-insensitivity
-    const resolvedRole = user.role
-      ? roles.find(
+    let rolesArray: string[] = [];
+    if (Array.isArray(user.role)) {
+      rolesArray = user.role;
+    } else if (user.role) {
+      // Find matching role slug, handling case-insensitivity
+      const resolvedRole = roles.find(
           (r) =>
-            r.slug.toLowerCase() === user.role?.toLowerCase() ||
-            r.name.toLowerCase() === user.role?.toLowerCase()
-        )?.slug || user.role.toLowerCase()
-      : "";
+            r.slug.toLowerCase() === user.role?.toString().toLowerCase() ||
+            r.name.toLowerCase() === user.role?.toString().toLowerCase()
+        )?.slug || user.role.toString().toLowerCase();
+        rolesArray = [resolvedRole];
+    }
 
     setFormData({
       email: user.email,
       full_name: user.full_name,
-      role: resolvedRole,
+      role: rolesArray,
       contractId: user.contract?.id?.toString() || "none",
       siteId: user.site && user.site.length > 0 ? user.site[0].id.toString() : "none",
       siteIds: user.site ? user.site.map((s) => s.id.toString()) : [],
@@ -1420,48 +1397,42 @@ export default function UsersPage() {
 
 
 
-  const validateAddUserForm = useCallback((formData: FormData): Partial<UserForm> => {
-    const errors: Partial<UserForm> = {};
+  const validateAddUserForm = useCallback((data: UserForm): UserFormErrors => {
+    const errors: UserFormErrors = {};
 
-    const email = formData.get("email") as string;
-    const full_name = formData.get("full_name") as string;
-    const password = formData.get("password") as string;
-    const password_confirm = formData.get("password_confirm") as string;
-    const role = formData.get("role") as string;
-
-    if (!email?.trim()) {
+    if (!data.email?.trim()) {
       errors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
       errors.email = "Please enter a valid email address";
     }
 
-    if (!full_name?.trim()) {
+    if (!data.full_name?.trim()) {
       errors.full_name = "Full name is required";
-    } else if (full_name.trim().length < 2) {
+    } else if (data.full_name.trim().length < 2) {
       errors.full_name = "Full name must be at least 2 characters";
     }
 
-    if (!password?.trim()) {
+    if (!data.password?.trim()) {
       errors.password = "Password is required";
-    } else if (password.length < 6) {
+    } else if (data.password.length < 6) {
       errors.password = "Password must be at least 6 characters";
     }
 
-    if (!password_confirm?.trim()) {
+    if (!data.password_confirm?.trim()) {
       errors.password_confirm = "Password confirmation is required";
-    } else if (password !== password_confirm) {
+    } else if (data.password !== data.password_confirm) {
       errors.password_confirm = "Passwords do not match";
     }
 
-    if (!role) {
+    if (!data.role || data.role.length === 0) {
       errors.role = "Role is required";
     }
 
     return errors;
   }, []);
 
-  const validateEditUserForm = useCallback((data: UserForm): Partial<UserForm> => {
-    const errors: Partial<UserForm> = {};
+  const validateEditUserForm = useCallback((data: UserForm): UserFormErrors => {
+    const errors: UserFormErrors = {};
 
     if (!data.email.trim()) {
       errors.email = "Email is required";
@@ -1475,7 +1446,7 @@ export default function UsersPage() {
       errors.full_name = "Full name must be at least 2 characters";
     }
 
-    if (!data.role) {
+    if (!data.role || data.role.length === 0) {
       errors.role = "Role is required";
     }
 
@@ -1485,8 +1456,7 @@ export default function UsersPage() {
   const handleAddUserSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      const form = new FormData(e.currentTarget);
-      const errors = validateAddUserForm(form);
+      const errors = validateAddUserForm(formData);
 
       setFormErrors(errors);
       if (Object.keys(errors).length > 0) {
@@ -1495,12 +1465,12 @@ export default function UsersPage() {
       }
 
       const newUser = {
-        email: form.get("email") as string,
-        full_name: form.get("full_name") as string,
-        password: form.get("password") as string,
-        password_confirm: form.get("password_confirm") as string,
-        role: form.get("role") as string,
-        contractId: form.get("contract") as string | undefined,
+        email: formData.email,
+        full_name: formData.full_name,
+        password: formData.password,
+        password_confirm: formData.password_confirm,
+        role: formData.role,
+        contractId: formData.contractId,
         siteIds: formData.siteIds || [],
       };
 
@@ -1566,7 +1536,7 @@ export default function UsersPage() {
 
             await Promise.all(promises);
 
-            if (newUser.role.toLowerCase() === "driver") {
+            if (newUser.role.some(r => r.toLowerCase() === "driver")) {
               setNewDriverUserId(userId);
               setIsAddDriverModalOpen(true);
             }
@@ -1586,15 +1556,14 @@ export default function UsersPage() {
   const handleEditUserSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      const form = new FormData(e.currentTarget);
       const editFormData: UserForm = {
-        email: form.get("email") as string,
-        full_name: form.get("full_name") as string,
-        role: form.get("role") as string,
-        contractId: form.get("contract") as string,
-        siteId: form.get("site") as string,
+        email: formData.email,
+        full_name: formData.full_name,
+        role: formData.role,
+        contractId: formData.contractId || "none",
+        siteId: formData.siteId || "none",
         siteIds: formData.siteIds || [],
-        is_active: (form.get("is_active") as string) === "on",
+        is_active: formData.is_active,
       };
 
       const errors = validateEditUserForm(editFormData);

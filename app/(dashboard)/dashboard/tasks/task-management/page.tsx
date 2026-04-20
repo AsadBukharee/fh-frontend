@@ -183,6 +183,7 @@ const Page = () => {
   const [totalTasks, setTotalTasks] = useState(0);
   const [loading, setLoading] = useState(false);
   const [taskSource, setTaskSource] = useState<"users" | "system">("users");
+  const [assignedCount, setAssignedCount] = useState<number | null>(null);
   const router = useRouter()
 
   // Filters
@@ -364,6 +365,7 @@ const Page = () => {
     assignedByFilter,
     dateAssignedRange,
     deadlineRange,
+    taskSource,
   ]);
 
   // ------------------- HANDLERS -------------------
@@ -434,7 +436,9 @@ const Page = () => {
     setIsHistoryOpen(true);
   };
 
-  const refresh = () => fetchTasks();
+  const refresh = () => {
+    fetchTasks();
+  };
 
   // ------------------- BADGE HELPERS -------------------
   const priorityBadge = (p: string) => {
@@ -483,6 +487,9 @@ const Page = () => {
       ? Boolean(task.is_system_generated)
       : !task.is_system_generated
   );
+
+  // Count system tasks from current page for badge
+  const unassignedCount = tasks.filter((task) => Boolean(task.is_system_generated)).length;
 
   // ------------------- RENDER -------------------
   return (
@@ -542,12 +549,19 @@ const Page = () => {
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
           >
             Assigned Tasks
+
           </TabsTrigger>
           <TabsTrigger
             value="system"
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
           >
-Unassigned Tasks          </TabsTrigger>
+            Unassigned Tasks
+            {unassignedCount !== null && (
+              <Badge className="ml-2 bg-orange-500 hover:bg-orange-600 text-white border-none py-0 px-1.5 h-5 min-w-[20px] justify-center">
+                {unassignedCount}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
       <div className="mt-6 mb-4 rounded-lg = bg-card p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">

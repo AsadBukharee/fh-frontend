@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { SearchBar } from "./header/SearchBar";
 import { UserProfileDropdown } from "./header/UserProfileDropdown";
 import { Breadcrumbs } from "./header/Breadcrumbs";
@@ -21,6 +21,7 @@ import {
   Eye,
   Trash2,
   X,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -135,7 +136,9 @@ export function Header() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [dropdownSearch, setDropdownSearch] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   /* ----- Fetch ----- */
   useEffect(() => {
@@ -394,7 +397,10 @@ export function Header() {
             <DropdownMenu
               key={key}
               open={openDropdown === key}
-              onOpenChange={(open) => setOpenDropdown(open ? key : null)}
+              onOpenChange={(open) => {
+                setOpenDropdown(open ? key : null);
+                if (!open) setDropdownSearch("");
+              }}
             >
               <DropdownMenuTrigger asChild>
                 <Button
@@ -440,6 +446,32 @@ export function Header() {
                   </Button>
                 </div>
 
+                {/* Search input */}
+                {!loading && !error && (complianceData?.[key]?.count ?? 0) > 0 && (
+                  <div className="px-4 py-2 border-b bg-white">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="Search tasks..."
+                        value={dropdownSearch}
+                        onChange={(e) => setDropdownSearch(e.target.value)}
+                        className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        autoComplete="off"
+                      />
+                      {dropdownSearch && (
+                        <button
+                          onClick={() => setDropdownSearch("")}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {loading ? (
                   <div className="p-8 text-center">
                     <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
@@ -462,7 +494,36 @@ export function Header() {
                         </div>
                       );
                     }
-                    const subCats = Object.entries(cat.items);
+                    const searchLower = dropdownSearch.toLowerCase().trim();
+                    const subCats = Object.entries(cat.items).map(([sub, tasks]) => {
+                      if (!searchLower) return [sub, tasks] as [string, ComplianceTask[]];
+                      const filtered = tasks.filter((t) => {
+                        const haystack = [
+                          t.title,
+                          t.description,
+                          t.assigned_to?.full_name,
+                          t.task_type?.name,
+                          t.reason,
+                          t.status,
+                          t.priority,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
+                          .toLowerCase();
+                        return haystack.includes(searchLower);
+                      });
+                      return [sub, filtered] as [string, ComplianceTask[]];
+                    });
+                    const totalFiltered = subCats.reduce((sum, [, tasks]) => sum + tasks.length, 0);
+                    if (searchLower && totalFiltered === 0) {
+                      return (
+                        <div className="p-8 text-center">
+                          <Search className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                          <p className="text-sm font-medium text-gray-600">No matching tasks</p>
+                          <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
+                        </div>
+                      );
+                    }
                     return (
                       <Tabs defaultValue={subCats[0]?.[0]} className="w-full">
                         {/* Improved TabsList */}

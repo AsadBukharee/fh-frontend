@@ -1,6 +1,4 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +6,7 @@ import { Download, Users, DollarSign, Calendar, Clock, Loader, FileText, FileSpr
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import * as ExcelJS from 'exceljs';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface ReportingRow {
   driver: { id: number; name: string };
@@ -51,206 +50,74 @@ const shiftTypeMap: { [key: string]: { name: string; color: string } } = {
   SUPERVISOR_E: { name: 'Supervisor E', color: 'bg-[#991b1b]' },
 };
 
-export default function Reporting({ refreshKey }: { refreshKey?: number }) {
-  const [filters, setFilters] = useState({
-    contractType: 'ALL',
-    driver: 'ALL',
-    dateFrom: '2026-01-01',
-    dateTo: '2026-01-31',
-    shiftType: 'ALL',
-    displayType: 'DAYS',
-  });
+export default function Reporting({ 
+  refreshKey,
+  initialData,
+  contracts = [],
+  drivers = [],
+  shifts = [],
+  role = ""
+}: { 
+  refreshKey?: number,
+  initialData?: ReportingData | null,
+  contracts?: { id: number; name: string }[],
+  drivers?: { id: number; name: string }[],
+  shifts?: { id: number; name: string }[],
+  role?: string
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [viewType, setViewType] = useState('Days');
-  const [apiData, setApiData] = useState<ReportingData | null>(null);
+  const filters = useMemo(() => ({
+    contractType: searchParams.get('contractType') || 'ALL',
+    driver: searchParams.get('driver') || 'ALL',
+    dateFrom: searchParams.get('dateFrom') || '2026-01-01',
+    dateTo: searchParams.get('dateTo') || '2026-01-31',
+    shiftType: searchParams.get('shiftType') || 'ALL',
+    displayType: searchParams.get('displayType') || 'DAYS',
+  }), [searchParams]);
+
+  const viewType = useMemo(() => {
+    const type = filters.displayType;
+    if (type === 'SALARY') return 'Salary';
+    if (type === 'DAYS') return 'Days';
+    if (type === 'HOURS') return 'Hours';
+    return 'Days';
+  }, [filters.displayType]);
+
+  const [apiData, setApiData] = useState<ReportingData | null>(initialData || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [drivers, setDrivers] = useState<{ id: number; name: string }[]>([]);
-  const [contracts, setContracts] = useState<{ id: number; name: string }[]>([]);
-  const [shifts, setShifts] = useState<{ id: number; name: string }[]>([]);
+  
   const [excelDownloading, setExcelDownloading] = useState(false);
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const cookies = useCookies();
   const token = cookies.get("access_token") || "";
   const user_id = cookies.get("user_id") || "";
 
+  // Update apiData when initialData changes (e.g. on SSR refresh)
+  useEffect(() => {
+    if (initialData) {
+      setApiData(initialData);
+    }
+  }, [initialData]);
+
+  // Security check: Redirect non-admins away from Salary view
+  useEffect(() => {
+    if (role !== 'superadmin' && filters.displayType === 'SALARY') {
+      handleFilterChange('displayType', 'DAYS');
+    }
+  }, [role, filters.displayType]);
+
   const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(key, value);
+    router.push(`?${params.toString()}`, { scroll: false });
   };
 
-  // Fetch filter data (contracts, drivers, shifts)
-  useEffect(() => {
-    const fetchFilterData = async () => {
-      try {
-        const apiHost = API_URL;
-
-        // Fetch contracts
-        const contractsRes = await fetch(`${apiHost}/api/staff/contracts/`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-        });
-        if (contractsRes.ok) {
-          const contractsData = await contractsRes.json();
-          if (Array.isArray(contractsData)) {
-            const contractsList = contractsData.map((c: any) => ({
-              id: c.id,
-              name: c.name,
-            }));
-            setContracts(contractsList);
-          } else if (contractsData.data && Array.isArray(contractsData.data)) {
-            const contractsList = contractsData.data.map((c: any) => ({
-              id: c.id,
-              name: c.name,
-            }));
-            setContracts(contractsList);
-          }
-        }
-
-        // Fetch drivers
-        const driversRes = await fetch(`${apiHost}/api/profiles/list-names/?type=driver`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-        });
-        if (driversRes.ok) {
-          const driversData = await driversRes.json();
-          const driversList = driversData.data
-            ? driversData.data.map((d: any) => ({
-              id: d.id,
-              name: d.full_name,
-            }))
-            : [];
-          setDrivers(driversList);
-        }
-
-        // Fetch shifts
-        const shiftsRes = await fetch(`${apiHost}/api/staff/shifts/?user_id=${user_id}&scope=contract`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-        });
-        if (shiftsRes.ok) {
-          const shiftsData = await shiftsRes.json();
-          if (Array.isArray(shiftsData)) {
-            const shiftsList = shiftsData.map((s: any) => ({
-              id: s.id,
-              name: s.name,
-            }));
-            setShifts(shiftsList);
-          } else if (shiftsData.data && Array.isArray(shiftsData.data)) {
-            const shiftsList = shiftsData.data.map((s: any) => ({
-              id: s.id,
-              name: s.name,
-            }));
-            setShifts(shiftsList);
-          }
-        }
-      } catch (err) {
-        console.log('[v0] Error fetching filter data:', err);
-      }
-    };
-
-    if (token) {
-      fetchFilterData();
-    }
-  }, [token, user_id]);
-
-  // Fetch reporting data
-  // Fetch reporting data
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!token) {
-        setError('Authentication token not found');
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-      try {
-        // Get shift name from the selected shift ID
-        let shiftName = '';
-        if (filters.shiftType !== 'ALL') {
-          const selectedShift = shifts.find(shift =>
-            String(shift.id) === filters.shiftType
-          );
-          if (selectedShift) {
-            shiftName = selectedShift.name;
-          }
-        }
-
-        const params = new URLSearchParams({
-          date_from: filters.dateFrom,
-          date_to: filters.dateTo,
-          display_type: filters.displayType,
-          contract_id: filters.contractType === 'ALL' ? '' : filters.contractType,
-          driver_id: filters.driver === 'ALL' ? '' : filters.driver,
-          shift_type: filters.shiftType === 'ALL' ? '' : filters.shiftType, // Now this is the name
-
-          status: 'ALL',
-          page: '1',
-          page_size: '25',
-        });
-
-        const response = await fetch(
-          `${API_URL}/api/rota/child-rota/reporting/?${params}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-        }
-        );
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error('Authentication failed. Please log in again.');
-          }
-          throw new Error(`Failed to fetch reporting data: ${response.status} ${response.statusText}`);
-        }
-
-        const data: ReportingData = await response.json();
-        
-        // Deduplicate columns if any duplicates exist in the API response
-        if (data.columns) {
-          data.columns = Array.from(new Set(data.columns));
-        }
-        
-        setApiData(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error fetching reporting data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (token) {
-      fetchData();
-    }
-  }, [filters, token, shifts, refreshKey]); // Added 'shifts' and 'refreshKey' to dependencies
+  // Removed client-side fetch in favor of SSR and URL-driven state
   const handleReset = () => {
-    setFilters({
-      contractType: 'ALL',
-      driver: 'ALL',
-      dateFrom: '2026-01-01',
-      dateTo: '2026-01-31',
-      shiftType: 'ALL',
-      displayType: 'DAYS',
-    });
+    router.push('?', { scroll: false });
   };
 
   // Handle PDF download (simple implementation that opens a new window with HTML)
@@ -976,7 +843,7 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
                   onChange={(e) => handleFilterChange('displayType', e.target.value)}
                   className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:border-slate-300 transition text-slate-700 text-sm"
                 >
-                  <option value="SALARY">Salary</option>
+                  {role === 'superadmin' && <option value="SALARY">Salary</option>}
                   <option value="DAYS">Days</option>
                   <option value="HOURS">Hours</option>
                 </select>
@@ -1025,14 +892,13 @@ export default function Reporting({ refreshKey }: { refreshKey?: number }) {
                 { label: 'Salary', value: 'SALARY' },
                 { label: 'Days', value: 'DAYS' },
                 { label: 'Hours', value: 'HOURS' },
-              ].map((type) => (
+              ].filter(type => type.value !== 'SALARY' || role === 'superadmin').map((type) => (
                 <Button
                   key={`view-type-${type.value}`}
                   onClick={() => {
-                    setViewType(type.label);
                     handleFilterChange('displayType', type.value);
                   }}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold transition ${viewType === type.label
+                  className={`px-4 py-2 rounded-full text-sm font-semibold transition ${filters.displayType === type.value
                     ? 'bg-red-500 text-white'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
