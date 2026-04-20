@@ -239,7 +239,7 @@ export function SearchBar() {
         <Input
           ref={inputRef}
           placeholder="Search menu..."
-          className="pl-10 pr-10 h-10 w-full"
+          className="pl-10 pr-10 h-10 w-[200px]"
           value={searchTerm}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
@@ -271,9 +271,8 @@ export function SearchBar() {
                   key={index}
                   href={`/dashboard${item.nav}`}
                   onClick={() => handleResultClick(item.nav)}
-                  className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors ${
-                    activeIndex === index ? "bg-gray-50 dark:bg-gray-700" : ""
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors ${activeIndex === index ? "bg-gray-50 dark:bg-gray-700" : ""
+                    }`}
                 >
                   <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
                     <IconComponent iconName={item.icon} />

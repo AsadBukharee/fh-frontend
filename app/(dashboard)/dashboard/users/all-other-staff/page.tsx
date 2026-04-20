@@ -47,6 +47,12 @@ import {
   AlertDialogFooter,
 } from "@/components/ui/alert-dialog";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Search,
   MoreHorizontal,
   Edit,
@@ -1054,6 +1060,7 @@ export default function UsersPage() {
     site: "all",
     status: "all",
   });
+  const [activeTab, setActiveTab] = useState("assigned");
   const [formData, setFormData] = useState<UserForm>({
     email: "",
     full_name: "",
@@ -1128,11 +1135,16 @@ export default function UsersPage() {
   // Debounced fetch users
   const debouncedFetchUsers = useMemo(
     () =>
-      debounce(async (query: string, page: number) => {
+      debounce(async (query: string, page: number, tab: string) => {
         setLoading(true);
         try {
-          const url = `${API_URL}/users/?drivers=false&page=${page}&per_page=${perPage}${query ? `&q=${encodeURIComponent(query)}` : ""
-            }`;
+          let url = "";
+          if (tab === "unassigned") {
+            url = `${API_URL}/users/no-site/?page=${page}&per_page=${perPage}${query ? `&q=${encodeURIComponent(query)}` : ""}`;
+          } else {
+            url = `${API_URL}/users/?drivers=false&page=${page}&per_page=${perPage}${query ? `&q=${encodeURIComponent(query)}` : ""}`;
+          }
+
           const response = await fetch(url, {
             headers: {
               "Content-Type": "application/json",
@@ -1177,8 +1189,8 @@ export default function UsersPage() {
   }, [rawUsers, filters, searchQuery, perPage, filterUsers]);
 
   const fetchUsers = useCallback(() => {
-    debouncedFetchUsers(searchQuery, currentPage);
-  }, [debouncedFetchUsers, searchQuery, currentPage]);
+    debouncedFetchUsers(searchQuery, currentPage, activeTab);
+  }, [debouncedFetchUsers, searchQuery, currentPage, activeTab]);
 
   const fetchRoles = useCallback(async () => {
     if (roles.length > 0) return; // Cache roles
@@ -1215,7 +1227,7 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers();
     fetchRoles();
-  }, [fetchUsers, fetchRoles]);
+  }, [fetchUsers, fetchRoles, activeTab]);
 
   useEffect(() => {
     if (isEditModalOpen || isModalOpen || isFilterModalOpen) {
@@ -1828,9 +1840,33 @@ export default function UsersPage() {
         </div>
       </header>
 
-      <div className="mb-6">
-        <div
-          className="relative w-80 gradient-border cursor-glow"
+      <Tabs 
+        defaultValue="assigned" 
+        value={activeTab} 
+        onValueChange={(val) => { 
+          setActiveTab(val); 
+          setCurrentPage(1); 
+        }} 
+        className="w-full"
+      >
+        <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden mb-6">
+          <TabsTrigger 
+            value="assigned" 
+            className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 font-medium"
+          >
+            Assigned Sites
+          </TabsTrigger>
+          <TabsTrigger 
+            value="unassigned" 
+            className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 font-medium"
+          >
+            Unassigned Sites
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="flex items-center justify-between mb-6">
+          <div
+            className="relative w-80 gradient-border cursor-glow"
           onMouseMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -1950,6 +1986,8 @@ export default function UsersPage() {
           </Button>
         </div>
       </div>
+
+      </Tabs>
 
       <AddUserModal
         isModalOpen={isModalOpen}
