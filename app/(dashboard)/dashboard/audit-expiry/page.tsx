@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import React from 'react'
 
 const page = () => {
-  return redirect('/dashboard/tasks/task-management')
+    return redirect('/dashboard/audit-expiry/vehicles')
 }
 
 export default page

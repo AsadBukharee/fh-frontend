@@ -6,7 +6,7 @@ const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableE
     <div className={cn("relative w-full overflow-auto", customWrapperClass)}>
       <table
         ref={ref}
-        className={cn("w-full caption-bottom text-sm border border-gray-300 text-center", className)}
+        className={cn("w-full caption-bottom text-sm border border-gray-300 text-left", className)}
         {...props}
       />
     </div>
@@ -69,7 +69,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        "h-12 px-4 text-center align-middle font-medium text-muted-foreground border border-gray-300",
+        "h-12 px-4 text-left align-middle font-medium text-muted-foreground border border-gray-300",
         "odd:bg-[#FFF4F4]/40 even:bg-white",
         "sticky top-0", // Make each header cell sticky
         className,
@@ -85,7 +85,7 @@ const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<
     <td
       ref={ref}
       className={cn(
-        "p-4 align-middle text-center border border-gray-300",
+        "p-4 align-middle text-left border border-gray-300",
         "odd:bg-[#FFF4F4] even:bg-white",
         className,
       )}
@@ -99,7 +99,7 @@ const TableCaption = React.forwardRef<HTMLTableCaptionElement, React.HTMLAttribu
   ({ className, ...props }, ref) => (
     <caption
       ref={ref}
-      className={cn("mt-4 text-sm text-muted-foreground text-center", className)}
+      className={cn("mt-4 text-sm text-muted-foreground text-left", className)}
       {...props}
     />
   ),

@@ -1,11 +1,8 @@
+import { redirect } from 'next/navigation'
 import React from 'react'
 
-const SU = () => {
-  return (
-    <div>
-      
-    </div>
-  )
+const page = () => {
+  return redirect('/dashboard/su-transport/data')
 }
 
-export default SU
+export default page

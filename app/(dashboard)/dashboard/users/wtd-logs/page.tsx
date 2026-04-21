@@ -177,7 +177,7 @@ export default function WTDLogsTable() {
                   {weekHeaders.map((week) => (
                     <th
                       key={week}
-                      className={`px-4 py-3 text-center text-sm font-medium w-24 ${parseInt(week.replace('w', '')) === current_week
+                      className={`px-4 py-3 text-left text-sm font-medium w-24 ${parseInt(week.replace('w', '')) === current_week
                         ? "bg-blue-300 text-blue-800"
                         : "bg-purple-200 text-purple-600"
                         }`}
@@ -185,10 +185,10 @@ export default function WTDLogsTable() {
                       {week.toUpperCase()}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-84 bg-gray-50 z-10">WTD Hours</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-56 bg-gray-50 z-10">Hours Worked</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-28 sticky right-28 bg-gray-50 z-10">WTD Hours Remaining</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 w-32 sticky right-0 bg-gray-50 z-10">Avg Hours P/W Remaining</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 w-28 sticky right-84 bg-gray-50 z-10">WTD Hours</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 w-28 sticky right-56 bg-gray-50 z-10">Hours Worked</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 w-28 sticky right-28 bg-gray-50 z-10">WTD Hours Remaining</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 w-32 sticky right-0 bg-gray-50 z-10">Avg Hours P/W Remaining</th>
                 </tr>
               </thead>
               <tbody>
@@ -207,7 +207,7 @@ export default function WTDLogsTable() {
                         return (
                           <td
                             key={week}
-                            className={`px-4 py-2 text-center text-sm w-24 ${weekData.value === 0
+                            className={`px-4 py-2 text-left text-sm w-24 ${weekData.value === 0
                               ? "text-gray-400 bg-gray-50"
                               : "text-gray-900 bg-purple-50"
                               } ${parseInt(week.replace('w', '')) === current_week
@@ -233,22 +233,22 @@ export default function WTDLogsTable() {
                         )
                       })}
 
-                      <td className="px-4 py-3 text-center text-sm sticky right-84 bg-inherit z-10">
+                      <td className="px-4 py-3 text-left text-sm sticky right-84 bg-inherit z-10">
                         <Badge className="bg-green-100 text-green-600 hover:bg-green-200">
                           {row.max_hours}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center text-sm font-medium sticky right-56 bg-inherit z-10">
+                      <td className="px-4 py-3 text-left text-sm font-medium sticky right-56 bg-inherit z-10">
                         <Badge className={`${row.worked_hrs > 0 ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600"}`}>
                           {row.worked_hrs.toFixed(1)}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center text-sm font-medium sticky right-28 bg-inherit z-10">
+                      <td className="px-4 py-3 text-left text-sm font-medium sticky right-28 bg-inherit z-10">
                         <Badge className={`${row.wtd_hrs < row.max_hours ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
                           {row.wtd_hrs.toFixed(1)}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center text-sm font-medium sticky right-0 bg-inherit z-10">
+                      <td className="px-4 py-3 text-left text-sm font-medium sticky right-0 bg-inherit z-10">
                         <Badge className={`${row.avg_hrs_remaining > 20 ? "bg-orange-100 text-orange-600" : "bg-green-100 text-green-600"}`}>
                           {row.avg_hrs_remaining.toFixed(1)}
                         </Badge>
@@ -257,7 +257,7 @@ export default function WTDLogsTable() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={weekHeaders.length + 7} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={weekHeaders.length + 7} className="px-4 py-8 text-left text-gray-500">
                       No drivers found
                     </td>
                   </tr>
