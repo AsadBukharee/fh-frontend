@@ -47,26 +47,17 @@ const BreadcrumbLink = React.forwardRef<
 >(({ asChild, className, href, children, ...props }, ref) => {
   const Comp = asChild ? Slot : "a"
 
-  // Transform href: Replace "su" with "SU" (case-insensitive)
-  const transformedHref = href
-    ? href.replace(/\bsu\b/gi, "SU")
-    : href
-
   // Transform children: Replace "su" with "SU" if children is a string
   const transformedChildren =
     typeof children === "string"
       ? children.replace(/\bsu\b/gi, "SU")
       : children
 
-  // Debug: Log input and output for verification
-  console.log("BreadcrumbLink - Original href:", href, "Transformed href:", transformedHref);
-  console.log("BreadcrumbLink - Original children:", children, "Transformed children:", transformedChildren);
-
   return (
     <Comp
       ref={ref}
       className={cn("transition-colors hover:text-foreground", className)}
-      href={transformedHref}
+      href={href}
       {...props}
     >
       {transformedChildren}
@@ -84,9 +75,6 @@ const BreadcrumbPage = React.forwardRef<
     typeof children === "string"
       ? children.replace(/\bsu\b/gi, "SU")
       : children
-
-  // Debug: Log input and output for verification
-  console.log("BreadcrumbPage - Original children:", children, "Transformed children:", transformedChildren);
 
   return (
     <span

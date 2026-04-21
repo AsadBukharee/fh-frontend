@@ -1107,8 +1107,8 @@ export default function DriversPage() {
                         <th className="px-4 py-3 min-w-[140px]">Phone No</th>
                         <th className="px-4 py-3 min-w-[110px]">Status</th>
                         <th className="px-4 py-3 min-w-[140px]">Shift Status</th>
-                        <th className="px-4 py-3 min-w-[100px] text-center">Warnings</th>
-                        <th className="px-4 py-3 w-20 text-right sticky right-0 bg-gray-50 z-10">
+                        <th className="px-4 py-3 min-w-[100px] text-left">Warnings</th>
+                        <th className="px-4 py-3 w-20 text-left sticky right-0 bg-gray-50 z-10">
                           Actions
                         </th>
                       </tr>
@@ -1160,7 +1160,7 @@ export default function DriversPage() {
                                 <Badge variant="secondary">Idle</Badge>
                               )}
                             </td>
-                            <td className="px-4 py-4 text-center">
+                            <td className="px-4 py-4 text-left">
                               {driver.warnings?.length > 0 ? (
                                 <TooltipProvider>
                                   <Tooltip>
@@ -1201,7 +1201,7 @@ export default function DriversPage() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                          <td colSpan={9} className="px-4 py-8 text-left text-gray-500">
                             {loading ? (
                               <div className="flex flex-col items-center gap-2">
                                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />

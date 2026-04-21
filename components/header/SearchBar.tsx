@@ -239,7 +239,7 @@ export function SearchBar() {
         <Input
           ref={inputRef}
           placeholder="Search menu..."
-          className="pl-10 pr-10 h-10 w-[200px]"
+          className="pl-10 pr-10 h-[35px] w-[200px]"
           value={searchTerm}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}

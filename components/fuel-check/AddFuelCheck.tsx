@@ -230,7 +230,7 @@ export default function AddFuelLogDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[520px] max-h-[600px] overflow-auto">
         <DialogHeader>
           <DialogTitle>{initialData ? "Edit Fuel Log" : "Add Fuel Log"}</DialogTitle>
         </DialogHeader>

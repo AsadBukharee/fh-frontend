@@ -13,8 +13,6 @@ export function Breadcrumbs() {
   const breadcrumbs = pathSegments.map((segment, index) => {
     // Construct the path
     const path = '/' + pathSegments.slice(0, index + 1).join('/');
-    // Transform "su" to "SU" in the path
-    const transformedPath = path.replace(/\bsu\b/gi, "SU");
 
     // Create the label: Split by hyphens or spaces, capitalize first letter of each word, and transform "su" to "SU"
     const label = segment
@@ -24,7 +22,7 @@ export function Breadcrumbs() {
       .join(' '); // Rejoin with spaces
     const transformedLabel = label.replace(/\bsu\b/gi, "SU");
 
-    return { label: transformedLabel, path: transformedPath };
+    return { label: transformedLabel, path: path };
   });
 
   return (
