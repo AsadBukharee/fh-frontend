@@ -79,10 +79,16 @@ const ViewCardDialog: React.FC<ViewCardDialogProps> = ({ isOpen, onClose, card }
             <span className="font-medium col-span-1">Expiry Date:</span>
             <span className="col-span-3">{formatDmy(card.expiry_date)}</span>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <span className="font-medium col-span-1">PIN:</span>
-            <span className="col-span-3">{card.pin}</span>
-          </div>
+          {(() => {
+            const cookies = useCookies();
+            const role = cookies.get('role');
+            return role === 'superadmin' && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium col-span-1">PIN:</span>
+                <span className="col-span-3">{card.pin}</span>
+              </div>
+            );
+          })()}
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Status:</span>
             <span className="col-span-3">
@@ -437,6 +443,7 @@ export default function CardManagement() {
   const [viewCard, setViewCard] = useState<Card | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const cookies = useCookies()
+  const role = cookies.get('role')
 
   useEffect(() => {
     const fetchCards = async () => {
@@ -776,7 +783,9 @@ export default function CardManagement() {
                   <TableHead className="font-semibold">Title</TableHead>
                   <TableHead className="font-semibold">Card Number</TableHead>
                   <TableHead className="font-semibold">Expiry Date</TableHead>
-                  <TableHead className="font-semibold text-center">PIN</TableHead>
+                  {role === 'superadmin' && (
+                    <TableHead className="font-semibold text-center">PIN</TableHead>
+                  )}
                   <TableHead className="font-semibold text-center">Status</TableHead>
                   <TableHead className="font-semibold text-center">Action</TableHead>
                 </TableRow>
@@ -788,7 +797,9 @@ export default function CardManagement() {
                     <TableCell>{card.title || "N/A"}</TableCell>
                     <TableCell>{card.card_number}</TableCell>
                     <TableCell>{formatDmy(card.expiry_date)}</TableCell>
-                    <TableCell className="text-center">{card.pin}</TableCell>
+                    {role === 'superadmin' && (
+                      <TableCell className="text-center">{card.pin}</TableCell>
+                    )}
                     <TableCell className="text-center">
                       <Badge>
                         {card.is_active ? "Active" : "Inactive"}

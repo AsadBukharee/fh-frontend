@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useState, useEffect } from 'react';
+import { useCookies } from 'next-client-cookies';
 
 interface StockItem {
   id: string;
@@ -47,6 +48,9 @@ interface LowStockAlert {
 }
 
 export default function StockListPage() {
+  const cookies = useCookies();
+  const role = cookies.get('role');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
@@ -237,8 +241,12 @@ export default function StockListPage() {
         {/* Dashboard */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Total Units</CardTitle><Package className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{totalItems}</div></CardContent></Card>
-          <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Current Value</CardTitle><DollarSign className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">£{totalValue.toFixed(2)}</div></CardContent></Card>
-          <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Total Paid</CardTitle><DollarSign className="h-4 w-4 text-green-600" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">£{totalPurchaseCost.toFixed(2)}</div></CardContent></Card>
+          {role === 'superadmin' && (
+            <>
+              <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Current Value</CardTitle><DollarSign className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">£{totalValue.toFixed(2)}</div></CardContent></Card>
+              <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Total Paid</CardTitle><DollarSign className="h-4 w-4 text-green-600" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">£{totalPurchaseCost.toFixed(2)}</div></CardContent></Card>
+            </>
+          )}
           <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Unique Items</CardTitle><TrendingUp className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{currentList.items.length}</div></CardContent></Card>
           <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Low Stock</CardTitle><AlertTriangle className="h-4 w-4 text-orange-600" /></CardHeader><CardContent><div className="text-2xl font-bold text-orange-600">{lowStockItems.length}</div></CardContent></Card>
         </div>
@@ -268,10 +276,14 @@ export default function StockListPage() {
                     <th className="text-left p-3">Item</th>
                     <th className="text-left p-3">Location</th>
                     <th className="text-center p-3">Qty</th>
-                    <th className="text-right p-3">Cost/Item</th>
-                    <th className="text-right p-3">Total Paid</th>
-                    <th className="text-left p-3">VAT</th>
-                    <th className="text-right p-3">Current Value</th>
+                    {role === 'superadmin' && (
+                      <>
+                        <th className="text-right p-3">Cost/Item</th>
+                        <th className="text-right p-3">Total Paid</th>
+                        <th className="text-left p-3">VAT</th>
+                        <th className="text-right p-3">Current Value</th>
+                      </>
+                    )}
                     <th className="text-left p-3">Supplier</th>
                     <th className="text-left p-3">Invoice</th>
                     <th className="text-left p-3">Date</th>
@@ -287,10 +299,14 @@ export default function StockListPage() {
                         <td className="p-3 font-medium">{item.itemName} {low && <Bell className="inline h-4 w-4 text-orange-600 ml-1" />}</td>
                         <td className="p-3">{item.location}</td>
                         <td className="p-3 text-center"><Badge variant={low ? "destructive" : "secondary"}>{item.quantity}</Badge></td>
-                        <td className="p-3 text-right">£{item.costPerItem.toFixed(2)}</td>
-                        <td className="p-3 text-right font-medium">£{item.totalCost.toFixed(2)}</td>
-                        <td className="p-3 text-center"><Badge variant={item.incVat ? "default" : "outline"}>{item.incVat ? "Yes" : "No"}</Badge></td>
-                        <td className="p-3 text-right font-semibold">£{(item.quantity * item.costPerItem).toFixed(2)}</td>
+                        {role === 'superadmin' && (
+                          <>
+                            <td className="p-3 text-right">£{item.costPerItem.toFixed(2)}</td>
+                            <td className="p-3 text-right font-medium">£{item.totalCost.toFixed(2)}</td>
+                            <td className="p-3 text-center"><Badge variant={item.incVat ? "default" : "outline"}>{item.incVat ? "Yes" : "No"}</Badge></td>
+                            <td className="p-3 text-right font-semibold">£{(item.quantity * item.costPerItem).toFixed(2)}</td>
+                          </>
+                        )}
                         <td className="p-3">{item.supplier}</td>
                         <td className="p-3 text-xs font-mono">{item.invoiceNumber || '—'}</td>
                         <td className="p-3 text-xs">{item.purchaseDate}</td>
@@ -307,10 +323,16 @@ export default function StockListPage() {
                   <tr>
                     <td colSpan={2} className="p-3 text-right">TOTALS →</td>
                     <td className="p-3 text-center">{totalItems}</td>
-                    <td></td>
-                    <td className="p-3 text-right">£{totalPurchaseCost.toFixed(2)}</td>
-                    <td></td>
-                    <td className="p-3 text-right">£{totalValue.toFixed(2)}</td>
+                    {role === 'superadmin' ? (
+                      <>
+                        <td></td>
+                        <td className="p-3 text-right">£{totalPurchaseCost.toFixed(2)}</td>
+                        <td></td>
+                        <td className="p-3 text-right">£{totalValue.toFixed(2)}</td>
+                      </>
+                    ) : (
+                      <td colSpan={4}></td>
+                    )}
                     <td colSpan={5}></td>
                   </tr>
                 </tfoot>
@@ -339,14 +361,9 @@ export default function StockListPage() {
               <div className="space-y-2"><Label>Item Name *</Label><Input value={newItem.itemName} onChange={e => setNewItem({ ...newItem, itemName: e.target.value })} /></div>
               <div className="space-y-2"><Label>Location</Label><Input value={newItem.location} onChange={e => setNewItem({ ...newItem, location: e.target.value })} /></div>
               <div className="space-y-2"><Label>Quantity *</Label><Input type="number" min="1" value={newItem.quantity} onChange={e => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 1 })} /></div>
-              <div className="space-y-2"><Label>Total Cost Paid (£) *   <span className=' text-gray-400 text-sm ml-10'> Cost per item ( {newItem.quantity > 0 && newItem.totalCost > 0 ? `£${(newItem.totalCost / newItem.quantity).toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}` : '—'})</span></Label><Input type="number" step="0.01" value={newItem.totalCost || ''} onChange={e => setNewItem({ ...newItem, totalCost: parseFloat(e.target.value) || 0 })} className="font-bold text-lg bg-blue-50" /></div>
-
-              {/* <div className="md:col-span-2 p-5 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border-2 border-blue-300">
-                <Label className="text-lg">Live Cost Per Item</Label>
-                <div className="text-4xl font-black text-blue-700">
-                  {newItem.quantity > 0 && newItem.totalCost > 0 ? `£${(newItem.totalCost / newItem.quantity).toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}` : '—'}
-                </div>
-              </div> */}
+              {role === 'superadmin' && (
+                <div className="space-y-2"><Label>Total Cost Paid (£) *   <span className=' text-gray-400 text-sm ml-10'> Cost per item ( {newItem.quantity > 0 && newItem.totalCost > 0 ? `£${(newItem.totalCost / newItem.quantity).toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}` : '—'})</span></Label><Input type="number" step="0.01" value={newItem.totalCost || ''} onChange={e => setNewItem({ ...newItem, totalCost: parseFloat(e.target.value) || 0 })} className="font-bold text-lg bg-blue-50" /></div>
+              )}
 
               <div className="space-y-2"><Label>Inc VAT</Label><Select value={newItem.incVat ? "yes" : "no"} onValueChange={v => setNewItem({ ...newItem, incVat: v === "yes" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="yes">Yes</SelectItem><SelectItem value="no">No</SelectItem></SelectContent></Select></div>
               <div className="space-y-2"><Label>Purchase Date</Label><Input type="date" value={newItem.purchaseDate} onChange={e => setNewItem({ ...newItem, purchaseDate: e.target.value })} /></div>
@@ -371,14 +388,18 @@ export default function StockListPage() {
                   <div className="space-y-2"><Label>Item Name</Label><Input value={editingItem.itemName} onChange={e => setEditingItem({ ...editingItem, itemName: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Location</Label><Input value={editingItem.location} onChange={e => setEditingItem({ ...editingItem, location: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Quantity</Label><Input type="number" value={editingItem.quantity} onChange={e => setEditingItem({ ...editingItem, quantity: parseInt(e.target.value) || 1 })} /></div>
-                  <div className="space-y-2"><Label>Total Cost Paid (£)</Label><Input type="number" step="0.01" value={editingItem.totalCost} onChange={e => setEditingItem({ ...editingItem, totalCost: parseFloat(e.target.value) || 0 })} className="font-bold bg-blue-50" /></div>
+                  {role === 'superadmin' && (
+                    <>
+                      <div className="space-y-2"><Label>Total Cost Paid (£)</Label><Input type="number" step="0.01" value={editingItem.totalCost} onChange={e => setEditingItem({ ...editingItem, totalCost: parseFloat(e.target.value) || 0 })} className="font-bold bg-blue-50" /></div>
 
-                  <div className="md:col-span-2 p-5 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border-2 border-blue-300">
-                    <Label className="text-lg">Live Cost Per Item</Label>
-                    <div className="text-4xl font-black text-blue-700">
-                      £{(editingItem.totalCost / editingItem.quantity).toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}
-                    </div>
-                  </div>
+                      <div className="md:col-span-2 p-5 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border-2 border-blue-300">
+                        <Label className="text-lg">Live Cost Per Item</Label>
+                        <div className="text-4xl font-black text-blue-700">
+                          £{(editingItem.totalCost / editingItem.quantity).toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   {/* Rest of fields same as Add */}
                   <div className="space-y-2"><Label>Inc VAT</Label><Select value={editingItem.incVat ? "yes" : "no"} onValueChange={v => setEditingItem({ ...editingItem, incVat: v === "yes" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="yes">Yes</SelectItem><SelectItem value="no">No</SelectItem></SelectContent></Select></div>

@@ -131,7 +131,7 @@ export default function Reporting({
     try {
       // Create HTML content for the PDF
       const formatValue = (val: number) => {
-        if (filters.displayType === 'SALARY') return `£${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (role === 'superadmin' && filters.displayType === 'SALARY') return `£${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         if (filters.displayType === 'DAYS') return `${val} days`;
         if (filters.displayType === 'HOURS') return `${val} hours`;
         return val.toString();
@@ -470,7 +470,7 @@ export default function Reporting({
             cell.value = value;
           } else {
             const numValue = Number(value) || 0;
-            if (filters.displayType === 'SALARY') {
+            if (role === 'superadmin' && filters.displayType === 'SALARY') {
               cell.value = numValue;
               cell.numFmt = '£#,##0.00';
             } else if (filters.displayType === 'DAYS') {
@@ -522,7 +522,7 @@ export default function Reporting({
           cell.value = value;
         } else {
           const numValue = Number(value) || 0;
-          if (filters.displayType === 'SALARY') {
+          if (role === 'superadmin' && filters.displayType === 'SALARY') {
             cell.value = numValue;
             cell.numFmt = '£#,##0.00';
           } else if (filters.displayType === 'DAYS') {
@@ -595,7 +595,7 @@ export default function Reporting({
         valueCell.value = numValue;
         valueCell.font = { size: 10, bold: true, color: { argb: 'FF1E293B' } };
         
-        if (metric.label.toLowerCase().includes('salary') || (filters.displayType === 'SALARY' && (metric.label.toLowerCase().includes('total') || metric.label.toLowerCase().includes('pay') || metric.label.toLowerCase().includes('shifts')))) {
+        if (role === 'superadmin' && (metric.label.toLowerCase().includes('salary') || (filters.displayType === 'SALARY' && (metric.label.toLowerCase().includes('total') || metric.label.toLowerCase().includes('pay') || metric.label.toLowerCase().includes('shifts'))))) {
           valueCell.numFmt = '£#,##0.00';
         } else {
           valueCell.numFmt = '#,##0';
@@ -652,7 +652,7 @@ export default function Reporting({
   };
 
   const formatValue = (val: number) => {
-    if (filters.displayType === 'SALARY') {
+    if (role === 'superadmin' && filters.displayType === 'SALARY') {
       return new Intl.NumberFormat('en-GB', {
         style: 'currency',
         currency: 'GBP',

@@ -33,44 +33,61 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  const [position, setPosition] = React.useState({ x: 0, y: 0 })
+  const contentRef = React.useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = React.useState(false)
-  const dragStart = React.useRef({ x: 0, y: 0 })
+  const positionRef = React.useRef({ x: 0, y: 0 })
+  const dragStartRef = React.useRef({ x: 0, y: 0 })
 
-  // Reset position when dialog opens
-  React.useEffect(() => {
-    setPosition({ x: 0, y: 0 })
+  // Merge the external ref with our internal contentRef
+  React.useImperativeHandle(ref, () => contentRef.current!)
+
+  const updateStyle = React.useCallback((isDragging: boolean) => {
+    if (!contentRef.current) return
+    
+    // Disable transitions while dragging to prevent lag
+    contentRef.current.style.transition = isDragging ? "none" : ""
+    contentRef.current.style.willChange = isDragging ? "transform" : "auto"
+    contentRef.current.style.transform = `translate(calc(-50% + ${positionRef.current.x}px), calc(-50% + ${positionRef.current.y}px))`
   }, [])
+
+  // Reset position when dialog opens/closes
+  React.useEffect(() => {
+    positionRef.current = { x: 0, y: 0 }
+    if (contentRef.current) {
+        updateStyle(false)
+    }
+  }, [updateStyle])
 
   const handleMouseDown = React.useCallback(
     (e: React.MouseEvent) => {
-      // Only allow dragging from the header area (data-dialog-drag-handle)
       const target = e.target as HTMLElement
       const handle = target.closest("[data-dialog-drag-handle]")
       if (!handle) return
 
       e.preventDefault()
       setIsDragging(true)
-      dragStart.current = {
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
+      dragStartRef.current = {
+        x: e.clientX - positionRef.current.x,
+        y: e.clientY - positionRef.current.y,
       }
     },
-    [position]
+    []
   )
 
   React.useEffect(() => {
     if (!isDragging) return
 
     const handleMouseMove = (e: MouseEvent) => {
-      setPosition({
-        x: e.clientX - dragStart.current.x,
-        y: e.clientY - dragStart.current.y,
-      })
+      positionRef.current = {
+        x: e.clientX - dragStartRef.current.x,
+        y: e.clientY - dragStartRef.current.y,
+      }
+      updateStyle(true)
     }
 
     const handleMouseUp = () => {
       setIsDragging(false)
+      updateStyle(false)
     }
 
     document.addEventListener("mousemove", handleMouseMove)
@@ -80,19 +97,17 @@ const DialogContent = React.forwardRef<
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [isDragging])
+  }, [isDragging, updateStyle])
 
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
-        ref={ref}
+        ref={contentRef}
         onMouseDown={handleMouseDown}
-        style={{
-          transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
-        }}
         className={cn(
           "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+          isDragging && "cursor-grabbing",
           className
         )}
         {...props}
