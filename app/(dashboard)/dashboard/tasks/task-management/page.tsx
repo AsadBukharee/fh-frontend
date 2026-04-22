@@ -171,6 +171,14 @@ interface ApiResponse {
 }
 
 // ---------------------------------------------------
+// 1. HELPERS
+// ---------------------------------------------------
+const stripHtml = (html: string) => {
+  if (!html) return "—";
+  return html.replace(/<[^>]*>?/gm, '');
+};
+
+// ---------------------------------------------------
 // 2. COMPONENT
 // ---------------------------------------------------
 const Page = () => {
@@ -736,7 +744,7 @@ const Page = () => {
               <TableRow key={task.id}>
                 <TableCell className="font-medium"><Link href={`/dashboard/tasks/task-management/${task.id}`}>{task.title}</Link></TableCell>
                 <TableCell className="max-w-xs truncate">
-                  {task.description}
+                  {stripHtml(task.description)}
                 </TableCell>
                 <TableCell>
                   {task.task_type?.name ?? task.task_type_display ?? "—"}

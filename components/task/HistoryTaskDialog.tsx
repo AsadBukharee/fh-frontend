@@ -71,7 +71,10 @@ const HistoryTaskDialog: React.FC<HistoryTaskDialogProps> = ({
   history,
 }) => {
   const hasHistory = history.length > 0;
-
+  const stripHtml = (html: string) => {
+    if (!html) return "—";
+    return html.replace(/<[^>]*>?/gm, '');
+  };
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
@@ -111,7 +114,7 @@ const HistoryTaskDialog: React.FC<HistoryTaskDialogProps> = ({
                         {getDisplayName(entry)}
                       </TableCell>
                       <TableCell className="max-w-xs truncate text-sm">
-                        {entry.comment || '—'}
+                        {stripHtml(entry.comment)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatToDDMMYYYY(entry.created_at)}
