@@ -98,6 +98,7 @@ export default function VehicleDetailPage() {
   const router = useRouter();
   const cookies = useCookies();
   const token = cookies.get("access_token");
+  const role = cookies.get("role");
   const vehicleId = Array.isArray(id) ? Number(id[0]) : Number(id);
   const [vehicle, setVehicle] = useState<any>(null);
   const [editVehicle, setEditVehicle] = useState<any>(null);
@@ -1046,88 +1047,90 @@ export default function VehicleDetailPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-                  <CreditCard className="w-4 h-4 text-orange-600" />
-                </div>
-                <h3 className="font-semibold text-slate-900">Purchase Info</h3>
-              </div>
-
-              <div className="grid grid-cols-4 gap-x-10 gap-y-6">
-                <Field
-                  label="Purchase Date"
-                  type="date"
-                  value={isEditing ? editVehicle.date_of_purchase : formatDate(vehicle.date_of_purchase)}
-                  isEditing={isEditing}
-                  onChange={(v) => handleInputChange("date_of_purchase", v)}
-                />
-
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-500">Purchased From</p>
-                  {isEditing ? (
-                    <Input
-                      value={editVehicle.purchased_from || ""}
-                      onChange={(e) => handleInputChange("purchased_from", e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  ) : (
-                    <Badge className="bg-red-100 text-red-600">{vehicle.purchased_from || "-"}</Badge>
-                  )}
+            {role === 'superadmin' && (
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <CreditCard className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900">Purchase Info</h3>
                 </div>
 
-                <Field label="Purchase Mileage" value={vehicle.purchase_mileage ? `${vehicle.purchase_mileage} km` : "-"} />
+                <div className="grid grid-cols-4 gap-x-10 gap-y-6">
+                  <Field
+                    label="Purchase Date"
+                    type="date"
+                    value={isEditing ? editVehicle.date_of_purchase : formatDate(vehicle.date_of_purchase)}
+                    isEditing={isEditing}
+                    onChange={(v) => handleInputChange("date_of_purchase", v)}
+                  />
 
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-500">Purchased By</p>
-                  <p className="text-sm font-medium text-slate-900">{vehicle.purchased_by || "-"}</p>
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-500">Purchase Price</p>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={editVehicle.price || ""}
-                      onChange={(e) => handleInputChange("price", e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  ) : (
-                    <Badge className="bg-red-100 text-red-600">£{Number(vehicle.price).toLocaleString()}</Badge>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-500">VAT Amount</p>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={editVehicle.vat_amount || ""}
-                      onChange={(e) => handleInputChange("vat_amount", e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  ) : (
-                    <p className="text-sm font-medium text-slate-900">£{Number(vehicle.vat_amount || 0).toLocaleString()}</p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="space-y-1 flex-1">
-                    <p className="text-xs text-slate-500">Has VAT</p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500">Purchased From</p>
                     {isEditing ? (
-                      <Switch checked={editVehicle.has_vat} onCheckedChange={(c) => handleInputChange("has_vat", c)} />
+                      <Input
+                        value={editVehicle.purchased_from || ""}
+                        onChange={(e) => handleInputChange("purchased_from", e.target.value)}
+                        className="h-9 text-sm"
+                      />
                     ) : (
-                      <Switch checked={vehicle.has_vat} disabled />
+                      <Badge className="bg-red-100 text-red-600">{vehicle.purchased_from || "-"}</Badge>
                     )}
                   </div>
-                </div>
 
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-500">Total Price</p>
-                  <Badge className="bg-emerald-100 text-emerald-700">£{calculateTotalPrice().toLocaleString()}</Badge>
+                  <Field label="Purchase Mileage" value={vehicle.purchase_mileage ? `${vehicle.purchase_mileage} km` : "-"} />
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500">Purchased By</p>
+                    <p className="text-sm font-medium text-slate-900">{vehicle.purchased_by || "-"}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500">Purchase Price</p>
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        value={editVehicle.price || ""}
+                        onChange={(e) => handleInputChange("price", e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    ) : (
+                      <Badge className="bg-red-100 text-red-600">£{Number(vehicle.price).toLocaleString()}</Badge>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500">VAT Amount</p>
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        value={editVehicle.vat_amount || ""}
+                        onChange={(e) => handleInputChange("vat_amount", e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm font-medium text-slate-900">£{Number(vehicle.vat_amount || 0).toLocaleString()}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="space-y-1 flex-1">
+                      <p className="text-xs text-slate-500">Has VAT</p>
+                      {isEditing ? (
+                        <Switch checked={editVehicle.has_vat} onCheckedChange={(c) => handleInputChange("has_vat", c)} />
+                      ) : (
+                        <Switch checked={vehicle.has_vat} disabled />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500">Total Price</p>
+                    <Badge className="bg-emerald-100 text-emerald-700">£{calculateTotalPrice().toLocaleString()}</Badge>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </TabsContent>
 
           {/* Documents Tab */}
@@ -1150,8 +1153,8 @@ export default function VehicleDetailPage() {
                   View Document History
                 </Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {additionalDocuments.map((doc) => {
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {additionalDocuments.filter(doc => doc.key !== 'vehicle_invoice_docs' || role === 'superadmin').map((doc) => {
                   const Icon = doc.icon;
                   const apiDoc = documentsMap.get(doc.docCode);
                   const docUrl = apiDoc ? apiDoc.url : (vehicle[doc.key as keyof typeof vehicle] as string);

@@ -319,7 +319,9 @@ const DriverClockInOut = () => {
   const [error, setError] = useState<string | null>(null);
   const [driverFilter, setDriverFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const token = useCookies().get("access_token") || "";
+  const cookies = useCookies();
+  const token = cookies.get("access_token") || "";
+  const role = cookies.get("role") || "";
 
   // Modal state
   const [isClockInModalOpen, setIsClockInModalOpen] = useState(false);
@@ -761,9 +763,11 @@ const DriverClockInOut = () => {
                       <TableCell>
                         <div>
                           <span className="font-medium">{shift.name}</span>
-                          <div className="text-xs text-gray-500">
-                            £{shift.rate_per_hours}/hr
-                          </div>
+                          {role === 'superadmin' && (
+                            <div className="text-xs text-gray-500">
+                              £{shift.rate_per_hours}/hr
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

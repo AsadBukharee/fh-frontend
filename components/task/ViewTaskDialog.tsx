@@ -11,6 +11,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
+import parse from 'html-react-parser';
+
 interface User {
   id: number;
   email: string;
@@ -75,16 +77,16 @@ const ViewTaskDialog: React.FC<ViewTaskDialogProps> = ({ isOpen, onClose, task }
     }
   };
 
-  const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="flex flex-col">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="font-medium text-gray-900 break-words">{value || 'N/A'}</span>
+  const InfoRow = ({ label, value, fullWidth }: { label: string; value: React.ReactNode; fullWidth?: boolean }) => (
+    <div className={fullWidth ? "col-span-full flex flex-col" : "flex flex-col"}>
+      <span className="text-sm text-muted-foreground mb-1">{label}</span>
+      <div className="font-medium text-gray-900 break-words">{value || 'N/A'}</div>
     </div>
   );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl rounded-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-gray-900">
             {task.title}
@@ -96,8 +98,16 @@ const ViewTaskDialog: React.FC<ViewTaskDialogProps> = ({ isOpen, onClose, task }
 
         <Separator className="my-2" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <InfoRow label="Description" value={task.description} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <InfoRow 
+            label="Description" 
+            fullWidth
+            value={
+              <div className="prose prose-sm max-w-none dark:prose-invert border rounded-md p-3 bg-muted/10">
+                {task.description ? parse(task.description) : <span className="text-muted-foreground italic">No description provided</span>}
+              </div>
+            } 
+          />
           <InfoRow
             label="Assigned To"
             value={`${task.assigned_to.full_name} (${task.assigned_to.email})`}

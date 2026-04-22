@@ -122,6 +122,7 @@ const MechanicDetail: React.FC = () => {
   const [loadingRefData, setLoadingRefData] = useState(false);
 
   const cookies = useCookies();
+  const role = cookies.get('role');
   const { showToast } = useToast();
 
   // Fetch reference data (managers, mechanics, vehicles)
@@ -632,10 +633,12 @@ const MechanicDetail: React.FC = () => {
                   <p className="text-sm text-gray-600">Brand: {part.brand}</p>
                   <p className="text-sm text-gray-600">SKU: {part.sku}</p>
                   <p className="text-sm text-gray-600">Unit: {part.unit}</p>
-                  <div className="mt-2 flex justify-between text-sm">
-                    <span>Cost: ${part.cost_price}</span>
-                    <span>Sale: ${part.sale_price}</span>
-                  </div>
+                  {role === 'superadmin' && (
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span>Cost: ${part.cost_price}</span>
+                      <span>Sale: ${part.sale_price}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

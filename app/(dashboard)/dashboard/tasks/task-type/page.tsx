@@ -23,6 +23,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
+import parse from 'html-react-parser';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
+
+const stripHtml = (html: string) => {
+  if (!html) return "—";
+  return html.replace(/<[^>]*>?/gm, '');
+};
 
 interface TaskType {
   id: number;
@@ -389,7 +396,7 @@ export default function TaskTypeList() {
                         filtered.map((type) => (
                           <TableRow key={type.id}>
                             <TableCell className="font-medium">{type.name}</TableCell>
-                            <TableCell className="max-w-md truncate">{type.description}</TableCell>
+                            <TableCell className="max-w-md truncate">{stripHtml(type.description)}</TableCell>
                             <TableCell className="text-center">
                               <Button
                                 variant="ghost"
@@ -517,12 +524,9 @@ export default function TaskTypeList() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="create-desc">Description</Label>
-              <Textarea
-                id="create-desc"
+              <RichTextEditor
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Describe this task type..."
-                rows={3}
+                onChange={(val) => setForm({ ...form, description: val })}
               />
               {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
             </div>
@@ -566,11 +570,9 @@ export default function TaskTypeList() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-desc">Description</Label>
-              <Textarea
-                id="edit-desc"
+              <RichTextEditor
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={3}
+                onChange={(val) => setForm({ ...form, description: val })}
               />
               {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
             </div>

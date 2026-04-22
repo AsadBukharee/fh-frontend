@@ -262,6 +262,11 @@ export function Header() {
     const [viewing, setViewing] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
+    const stripHtml = (html: string) => {
+      if (!html) return "";
+      return html.replace(/<[^>]*>?/gm, '');
+    };
+
     const handleView = async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -297,7 +302,7 @@ export function Header() {
                 {task.title}
               </h4>
               <p className="text-xs text-gray-600 line-clamp-2 mb-2">
-                {task.description}
+                {stripHtml(task.description)}
               </p>
             </div>
             <div className="flex flex-col gap-1 items-end shrink-0">
@@ -305,7 +310,7 @@ export function Header() {
               {task.is_overdue && (
                 <Badge variant="destructive" className="text-xs">
                   Overdue
-                </Badge>
+                 </Badge>
               )}
             </div>
           </div>
@@ -320,7 +325,7 @@ export function Header() {
             {task.reason && (
               <div className="flex items-center gap-1 text-gray-600">
                 <span className="font-medium">Reason:</span>
-                <span className="truncate max-w-[150px]">{task.reason}</span>
+                <span className="truncate max-w-[150px]">{stripHtml(task.reason)}</span>
               </div>
             )}
           </div>

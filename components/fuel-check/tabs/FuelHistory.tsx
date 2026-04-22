@@ -125,10 +125,16 @@ const ViewFuelLogDialog: React.FC<ViewFuelLogDialogProps> = ({ isOpen, onClose, 
             <span className="font-medium col-span-1">Amount:</span>
             <span className="col-span-3">{log.amount.toFixed(2)} Liters</span>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <span className="font-medium col-span-1">Cost:</span>
-            <span className="col-span-3">£{log.cost.toFixed(2)}</span>
-          </div>
+          {(() => {
+            const cookies = useCookies();
+            const role = cookies.get('role');
+            return role === 'superadmin' && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium col-span-1">Cost:</span>
+                <span className="col-span-3">£{log.cost.toFixed(2)}</span>
+              </div>
+            );
+          })()}
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Notes:</span>
             <span className="col-span-3">{log.notes}</span>
@@ -213,6 +219,7 @@ export default function FuelChecksManagement() {
   const [viewLog, setViewLog] = useState<FuelLog | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const cookies = useCookies()
+  const role = cookies.get('role')
 
   // Fetch drivers
   useEffect(() => {
@@ -679,7 +686,9 @@ export default function FuelChecksManagement() {
                   <TableHead className="font-semibold">Date</TableHead>
                   <TableHead className="font-semibold">Time</TableHead>
                   <TableHead className="font-semibold text-center">Amount (Liters)</TableHead>
-                  <TableHead className="font-semibold text-center">Cost (£)</TableHead>
+                  {role === 'superadmin' && (
+                    <TableHead className="font-semibold text-center">Cost (£)</TableHead>
+                  )}
                   <TableHead className="font-semibold">Card Used</TableHead>
                   <TableHead className="font-semibold">Notes</TableHead>
                   <TableHead className="font-semibold text-center">Action</TableHead>
@@ -693,7 +702,9 @@ export default function FuelChecksManagement() {
                     <TableCell>{formatDmy(log.date)}</TableCell>
                     <TableCell>{log.time}</TableCell>
                     <TableCell className="text-center">{log.amount.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{log.cost.toFixed(2)}</TableCell>
+                    {role === 'superadmin' && (
+                      <TableCell className="text-center">£{log.cost.toFixed(2)}</TableCell>
+                    )}
                     <TableCell>{log.card_data?.title || "N/A"}</TableCell>
                     <TableCell>{log.notes}</TableCell>
                     <TableCell className="text-center">

@@ -4,7 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea'; // <-- Add this
+import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import {
   Select,
   SelectContent,
@@ -239,10 +240,9 @@ const UpdateTaskDialog: React.FC<UpdateTaskDialogProps> = ({
             <label className="block text-sm font-medium text-gray-700">
               Description
             </label>
-            <Input
-              placeholder="Enter task description"
+            <RichTextEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={setDescription}
             />
           </div>
 

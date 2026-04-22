@@ -545,151 +545,159 @@ const ViewFuelLogDialog: React.FC<ViewFuelLogDialogProps> = ({ isOpen, onClose, 
             <DialogTitle>Fuel Log Details</DialogTitle>
             <DialogDescription>View detailed information for fuel log ID: {log.id}</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-medium col-span-1">Vehicle:</span>
-              <span className="col-span-3">
-                {log.vehicle_data ? `${log.vehicle_data.registration_number} (${log.vehicle_data.vehicles_type_name})` : "N/A"}
-              </span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-medium col-span-1">Last Mileage:</span>
-              <span className="col-span-3">{log.vehicle_data?.last_mileage || "N/A"} {log.vehicle_data?.mileage_unit}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-medium col-span-1">Date & Time:</span>
-              <span className="col-span-3">{formatDmy(log.date)} at {log.time}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-medium col-span-1">Driver ID:</span>
-              <span className="col-span-3">{log.driver}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-medium col-span-1">Card:</span>
-              <span className="col-span-3">
-                {log.card_data?.title || "N/A"} ({log.card_data?.card_number || "N/A"})
-              </span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-medium col-span-1">Fuel Amount:</span>
-              <span className="col-span-3">{log.amount.toFixed(2)} Liters</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-medium col-span-1">Cost:</span>
-              <span className="col-span-3">£{log.cost.toFixed(2)}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-medium col-span-1">Notes:</span>
-              <span className="col-span-3 whitespace-pre-wrap">{log.notes || "No notes"}</span>
-            </div>
-            
-            {/* Vehicle Photo Section */}
-            <div className="grid grid-cols-4 items-start gap-4">
-              <span className="font-medium col-span-1">Vehicle Photo:</span>
-              <div className="col-span-3">
-                {log.vehicle_photo ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowVehiclePreview(true)}
-                        className="gap-2"
-                      >
-                        <ZoomIn className="h-4 w-4" />
-                        Preview with Zoom
-                      </Button>
-                      <a
-                        href={log.vehicle_photo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline flex items-center gap-2 text-sm"
-                      >
-                        <ImageIcon className="h-4 w-4" />
-                        Open in new tab
-                      </a>
-                    </div>
-                    <div className="mt-2">
-                      <img 
-                        src={log.vehicle_photo} 
-                        alt="Vehicle" 
-                        className="max-w-full h-auto max-h-48 rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => setShowVehiclePreview(true)}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.src = "https://placehold.co/400x300?text=Vehicle+Image+Not+Found"
-                        }}
-                      />
-                    </div>
+          {(() => {
+            const cookies = useCookies();
+            const role = cookies.get('role');
+            return (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <span className="font-medium col-span-1">Vehicle:</span>
+                  <span className="col-span-3">
+                    {log.vehicle_data ? `${log.vehicle_data.registration_number} (${log.vehicle_data.vehicles_type_name})` : "N/A"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <span className="font-medium col-span-1">Last Mileage:</span>
+                  <span className="col-span-3">{log.vehicle_data?.last_mileage || "N/A"} {log.vehicle_data?.mileage_unit}</span>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <span className="font-medium col-span-1">Date & Time:</span>
+                  <span className="col-span-3">{formatDmy(log.date)} at {log.time}</span>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <span className="font-medium col-span-1">Driver ID:</span>
+                  <span className="col-span-3">{log.driver}</span>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <span className="font-medium col-span-1">Card:</span>
+                  <span className="col-span-3">
+                    {log.card_data?.title || "N/A"} ({log.card_data?.card_number || "N/A"})
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <span className="font-medium col-span-1">Fuel Amount:</span>
+                  <span className="col-span-3">{log.amount.toFixed(2)} Liters</span>
+                </div>
+                {role === 'superadmin' && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <span className="font-medium col-span-1">Cost:</span>
+                    <span className="col-span-3">£{log.cost.toFixed(2)}</span>
                   </div>
-                ) : (
-                  <span className="text-muted-foreground">No vehicle photo available</span>
                 )}
-              </div>
-            </div>
-
-            {/* Receipt Section */}
-            <div className="grid grid-cols-4 items-start gap-4">
-              <span className="font-medium col-span-1">Receipts:</span>
-              <div className="col-span-3">
-                {receiptUrls.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-4 mb-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowReceiptPreview(true)}
-                        className="gap-2"
-                      >
-                        <ZoomIn className="h-4 w-4" />
-                        Preview All Receipts ({receiptUrls.length})
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {receiptUrls.map((url, index) => (
-                        <div key={index} className="space-y-2">
-                          <div className="text-xs font-medium text-muted-foreground">
-                            Receipt #{index + 1}
-                          </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <span className="font-medium col-span-1">Notes:</span>
+                  <span className="col-span-3 whitespace-pre-wrap">{log.notes || "No notes"}</span>
+                </div>
+                
+                {/* Vehicle Photo Section */}
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <span className="font-medium col-span-1">Vehicle Photo:</span>
+                  <div className="col-span-3">
+                    {log.vehicle_photo ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowVehiclePreview(true)}
+                            className="gap-2"
+                          >
+                            <ZoomIn className="h-4 w-4" />
+                            Preview with Zoom
+                          </Button>
+                          <a
+                            href={log.vehicle_photo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-2 text-sm"
+                          >
+                            <ImageIcon className="h-4 w-4" />
+                            Open in new tab
+                          </a>
+                        </div>
+                        <div className="mt-2">
                           <img 
-                            src={url} 
-                            alt={`Receipt ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => setShowReceiptPreview(true)}
+                            src={log.vehicle_photo} 
+                            alt="Vehicle" 
+                            className="max-w-full h-auto max-h-48 rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => setShowVehiclePreview(true)}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
-                              target.src = "https://placehold.co/400x300?text=Receipt+Not+Found"
+                              target.src = "https://placehold.co/400x300?text=Vehicle+Image+Not+Found"
                             }}
                           />
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs"
-                              onClick={() => setShowReceiptPreview(true)}
-                            >
-                              Preview
-                            </Button>
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline text-xs flex items-center gap-1"
-                            >
-                              <FileText className="h-3 w-3" />
-                              Open
-                            </a>
-                          </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">No vehicle photo available</span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-muted-foreground">No receipt available</span>
-                )}
+                </div>
+
+                {/* Receipt Section */}
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <span className="font-medium col-span-1">Receipts:</span>
+                  <div className="col-span-3">
+                    {receiptUrls.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-4 mb-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowReceiptPreview(true)}
+                            className="gap-2"
+                          >
+                            <ZoomIn className="h-4 w-4" />
+                            Preview All Receipts ({receiptUrls.length})
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {receiptUrls.map((url, index) => (
+                            <div key={index} className="space-y-2">
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Receipt #{index + 1}
+                              </div>
+                              <img 
+                                src={url} 
+                                alt={`Receipt ${index + 1}`}
+                                className="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => setShowReceiptPreview(true)}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.src = "https://placehold.co/400x300?text=Receipt+Not+Found"
+                                }}
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={() => setShowReceiptPreview(true)}
+                                >
+                                  Preview
+                                </Button>
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline text-xs flex items-center gap-1"
+                                >
+                                  <FileText className="h-3 w-3" />
+                                  Open
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">No receipt available</span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )
+          })()}
           <div className="flex justify-end">
             <Button variant="outline" onClick={onClose} className="rounded-lg">
               Close
@@ -759,6 +767,7 @@ export default function FuelChecksManagement() {
   const [viewLog, setViewLog] = useState<FuelLog | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const cookies = useCookies()
+  const role = cookies.get('role')
 
   // State for image preview dialogs
   const [showImagePreview, setShowImagePreview] = useState(false)
@@ -1151,37 +1160,41 @@ export default function FuelChecksManagement() {
                       />
                     </div>
 
-                    {/* Fuel Cost From */}
-                    <div className="flex flex-col w-[150px]">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                        Fuel Cost From
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={fuelCostFrom}
-                        onChange={(e) => setFuelCostFrom(e.target.value)}
-                        placeholder="£"
-                        className="h-10 rounded-lg"
-                      />
-                    </div>
+                    {role === 'superadmin' && (
+                      <>
+                        {/* Fuel Cost From */}
+                        <div className="flex flex-col w-[150px]">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            Fuel Cost From
+                          </label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={fuelCostFrom}
+                            onChange={(e) => setFuelCostFrom(e.target.value)}
+                            placeholder="£"
+                            className="h-10 rounded-lg"
+                          />
+                        </div>
 
-                    {/* Fuel Cost To */}
-                    <div className="flex flex-col w-[150px]">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                        Fuel Cost To
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={fuelCostTo}
-                        onChange={(e) => setFuelCostTo(e.target.value)}
-                        placeholder="£"
-                        className="h-10 rounded-lg"
-                      />
-                    </div>
+                        {/* Fuel Cost To */}
+                        <div className="flex flex-col w-[150px]">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            Fuel Cost To
+                          </label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={fuelCostTo}
+                            onChange={(e) => setFuelCostTo(e.target.value)}
+                            placeholder="£"
+                            className="h-10 rounded-lg"
+                          />
+                        </div>
+                      </>
+                    )}
 
                     {/* Vehicle */}
                     <div className="flex flex-col w-[200px]">
@@ -1329,17 +1342,21 @@ export default function FuelChecksManagement() {
                             <X className="h-3 w-3 cursor-pointer" onClick={() => setFuelAmountTo("")} />
                           </Badge>
                         )}
-                        {fuelCostFrom && (
-                          <Badge variant="secondary" className="gap-1">
-                            Cost From: £{fuelCostFrom}
-                            <X className="h-3 w-3 cursor-pointer" onClick={() => setFuelCostFrom("")} />
-                          </Badge>
-                        )}
-                        {fuelCostTo && (
-                          <Badge variant="secondary" className="gap-1">
-                            Cost To: £{fuelCostTo}
-                            <X className="h-3 w-3 cursor-pointer" onClick={() => setFuelCostTo("")} />
-                          </Badge>
+                        {role === 'superadmin' && (
+                          <>
+                            {fuelCostFrom && (
+                              <Badge variant="secondary" className="gap-1">
+                                Cost From: £{fuelCostFrom}
+                                <X className="h-3 w-3 cursor-pointer" onClick={() => setFuelCostFrom("")} />
+                              </Badge>
+                            )}
+                            {fuelCostTo && (
+                              <Badge variant="secondary" className="gap-1">
+                                Cost To: £{fuelCostTo}
+                                <X className="h-3 w-3 cursor-pointer" onClick={() => setFuelCostTo("")} />
+                              </Badge>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -1358,7 +1375,9 @@ export default function FuelChecksManagement() {
                   <TableHead className="font-semibold">Date</TableHead>
                   <TableHead className="font-semibold">Time</TableHead>
                   <TableHead className="font-semibold text-center">Amount (Liters)</TableHead>
-                  <TableHead className="font-semibold text-center">Cost (£)</TableHead>
+                  {role === 'superadmin' && (
+                    <TableHead className="font-semibold text-center">Cost (£)</TableHead>
+                  )}
                   <TableHead className="font-semibold">Card Used</TableHead>
                   <TableHead className="font-semibold">Notes</TableHead>
                   <TableHead className="font-semibold text-center">Vehicle Photo</TableHead>
@@ -1383,7 +1402,9 @@ export default function FuelChecksManagement() {
                       <TableCell>{formatDmy(log.date)}</TableCell>
                       <TableCell>{log.time}</TableCell>
                       <TableCell className="text-center">{log.amount.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">£{log.cost.toFixed(2)}</TableCell>
+                      {role === 'superadmin' && (
+                        <TableCell className="text-center">£{log.cost.toFixed(2)}</TableCell>
+                      )}
                       <TableCell>
                         {log.card_data?.title || "N/A"}
                         <br />

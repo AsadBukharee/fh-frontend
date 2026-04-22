@@ -16,8 +16,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/app/Context/ToastContext";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -330,7 +332,7 @@ export default function AddSiteForm({ onSuccess }: { onSuccess?: () => void }) {
               <div>
                 <Label>Site Name <span className="text-red-600">*</span></Label>
                 <div className="relative">
-                  <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Building2 className="absolute left-3 top-3 z-10 h-4 w-4 text-muted-foreground" />
                   <Input
                     value={state.name}
                     onChange={e => { dispatch({ type: "UPDATE_FIELD", payload: { name: e.target.value } }); setErrors(prev => ({ ...prev, name: "" })); }}
@@ -344,7 +346,7 @@ export default function AddSiteForm({ onSuccess }: { onSuccess?: () => void }) {
               <div>
                 <Label>Postcode <span className="text-red-600">*</span></Label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <MapPin className="absolute left-3 top-3 z-10 h-4 w-4 text-muted-foreground" />
                   <Input
                     value={state.postcode}
                     onChange={e => dispatch({ type: "UPDATE_FIELD", payload: { postcode: e.target.value.toUpperCase() } })}

@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
-import { Textarea } from '../ui/textarea';
+import { RichTextEditor } from '../ui/rich-text-editor';
 
 interface User {
   id: number;
@@ -255,11 +255,9 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
           {/* Description */}
           <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              placeholder="Optional details"
+            <RichTextEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={setDescription}
             />
           </div>
 

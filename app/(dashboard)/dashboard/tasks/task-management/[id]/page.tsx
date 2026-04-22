@@ -38,6 +38,8 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import API_URL from '@/app/utils/ENV';
+import parse from 'html-react-parser';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 // ---------------------------------------------------------------------
 // Types
@@ -469,7 +471,9 @@ export default function TaskDetailPage() {
 
               <h1 className="text-2xl font-bold text-gray-900 leading-tight tracking-tight truncate">{task.title}</h1>
               {task.description && (
-                <p className="mt-1.5 text-sm text-gray-500 line-clamp-2 max-w-2xl">{task.description}</p>
+                <div className="mt-3 prose prose-sm max-w-2xl dark:prose-invert text-gray-600 line-clamp-3">
+                  {parse(task.description)}
+                </div>
               )}
 
               {/* Status + Priority badges */}
@@ -687,12 +691,10 @@ export default function TaskDetailPage() {
             {/* Description */}
             <div className="flex flex-col gap-2">
               <label className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] pl-1">Detailed Description</label>
-              <Textarea
+              <RichTextEditor
                 value={editForm.description}
-                onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value }))}
-                rows={4}
-                className="rounded-2xl border-gray-200 text-sm font-medium resize-none focus:ring-orange-500 focus:border-orange-500 transition-all bg-gray-50/30 p-4 leading-relaxed"
-                placeholder="Provide more context about this task..."
+                onChange={(val) => setEditForm(f => ({ ...f, description: val }))}
+                className="bg-gray-50/30"
               />
             </div>
 

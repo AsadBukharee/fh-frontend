@@ -108,6 +108,7 @@ const ShiftCard = memo(
     saving,
     isSelected,
     onSelect,
+    role,
   }: {
     shift: Shift | ShiftTemplate
     isTemplate?: boolean
@@ -122,6 +123,7 @@ const ShiftCard = memo(
     saving: boolean
     isSelected?: boolean
     onSelect?: (id: number) => void
+    role?: string
   }) => {
     const isEditingThis = isEditing === shift.id
     const assignedContract = shift.contract ? contracts.find((c) => c.id === shift.contract) : null
@@ -191,26 +193,28 @@ const ShiftCard = memo(
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1.5 block">Hourly Rate</label>
-                  <div className="relative">
-                    <HandCoins className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={editedTemplate.rate_per_hours || ""}
-                      onChange={(e) =>
-                        setEditedTemplate({
-                          ...editedTemplate,
-                          rate_per_hours: Number.parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      disabled={saving}
-                      className="pl-9 h-9"
-                      placeholder="0.00"
-                    />
+                {role === 'superadmin' && (
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">Hourly Rate</label>
+                    <div className="relative">
+                      <HandCoins className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editedTemplate.rate_per_hours || ""}
+                        onChange={(e) =>
+                          setEditedTemplate({
+                            ...editedTemplate,
+                            rate_per_hours: Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        disabled={saving}
+                        className="pl-9 h-9"
+                        placeholder="0.00"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1.5 block">Notes (Optional)</label>
@@ -271,9 +275,11 @@ const ShiftCard = memo(
                     </div>
                   </div>
                 </div>
-                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 ml-2 shrink-0">
-                  £{shift.rate_per_hours?.toFixed(2) || "0.00"}
-                </Badge>
+                {role === 'superadmin' && (
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 ml-2 shrink-0">
+                    £{shift.rate_per_hours?.toFixed(2) || "0.00"}
+                  </Badge>
+                )}
               </div>
 
               {assignedContract && (
@@ -372,6 +378,7 @@ const ShiftManagement = () => {
   const [bulkContractId, setBulkContractId] = useState<number | null>(null)
 
   const cookies = useCookies()
+  const role = cookies.get("role")
   const { showToast } = useToast()
 
   const fetchData = useCallback(async () => {
@@ -843,19 +850,21 @@ const ShiftManagement = () => {
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Average Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">£{averageRate.toFixed(2)}</p>
+          {role === 'superadmin' && (
+            <Card className="border border-gray-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Average Rate</p>
+                    <p className="text-2xl font-bold text-gray-900">£{averageRate.toFixed(2)}</p>
+                  </div>
+                  <div className="p-3 bg-emerald-100 rounded-lg">
+                    <HandCoins className="h-6 w-6 text-emerald-600" />
+                  </div>
                 </div>
-                <div className="p-3 bg-emerald-100 rounded-lg">
-                  <HandCoins className="h-6 w-6 text-emerald-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Search and Filter */}
@@ -1014,6 +1023,7 @@ const ShiftManagement = () => {
                             editedTemplate={editedTemplate}
                             setEditedTemplate={setEditedTemplate}
                             saving={saving}
+                            role={role}
                           />
                         ))}
                       </div>
@@ -1144,6 +1154,7 @@ const ShiftManagement = () => {
                     saving={saving}
                     isSelected={selectedTemplates.includes(template.id)}
                     onSelect={handleToggleTemplate}
+                    role={role}
                   />
                 ))}
               </div>
@@ -1206,26 +1217,28 @@ const ShiftManagement = () => {
                   />
                 </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Hourly Rate</label>
-                <div className="relative">
-                  <HandCoins className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newTemplate.rate_per_hours || ""}
-                    onChange={(e) =>
-                      setNewTemplate({
-                        ...newTemplate,
-                        rate_per_hours: Number.parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    disabled={saving}
-                    className="pl-10 h-10"
-                    placeholder="0.00"
-                  />
+              {role === 'superadmin' && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Hourly Rate</label>
+                  <div className="relative">
+                    <HandCoins className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={newTemplate.rate_per_hours || ""}
+                      onChange={(e) =>
+                        setNewTemplate({
+                          ...newTemplate,
+                          rate_per_hours: Number.parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      disabled={saving}
+                      className="pl-10 h-10"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Notes (Optional)</label>
                 <Input

@@ -124,7 +124,9 @@ const ClockInOutHistory = () => {
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [users, setUsers] = useState<User[]>([]);
   const [sites, setSites] = useState<string[]>([]);
-  const token = useCookies().get('access_token') || '';
+  const cookies = useCookies();
+  const token = cookies.get('access_token') || '';
+  const role = cookies.get('role') || '';
   const pageSize = 20;
 
   const today = new Date().toISOString().split('T')[0];
@@ -274,12 +276,17 @@ const ClockInOutHistory = () => {
             </p>
             <p className="text-sm text-gray-500 mt-1">
               {totalRecords} record{totalRecords !== 1 ? 's' : ''} found |
-              Total Hours: {totalFormatedHours || formatHours(totalHours)} |
-              Total Earnings: £{totalEarnings.toFixed(2)}
+              Total Hours: {totalFormatedHours || formatHours(totalHours)}
+              {role === 'superadmin' && (
+                <> | Total Earnings: £{totalEarnings.toFixed(2)}</>
+              )}
             </p>
           </div>
           <div className="flex gap-2">
-            <ExportButton data={filteredLogs} fileName="clock_logs.csv" />
+            <ExportButton
+              data={role === 'superadmin' ? filteredLogs : filteredLogs.map(({ hourlyRate, earnings, ...rest }) => rest)}
+              fileName="clock_logs.csv"
+            />
             <Button
               onClick={() => fetchLogs(currentPage)}
               disabled={loading}
