@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -1028,7 +1029,15 @@ export default function UsersPage() {
     site: "all",
     status: "all",
   });
-  const [activeTab, setActiveTab] = useState("assigned");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams.get("tab") || "assigned";
+
+  const setActiveTab = useCallback((val: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", val);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
   const [formData, setFormData] = useState<UserForm>({
     email: "",
     full_name: "",
@@ -1810,7 +1819,6 @@ export default function UsersPage() {
       </header>
 
       <Tabs 
-        defaultValue="assigned" 
         value={activeTab} 
         onValueChange={(val) => { 
           setActiveTab(val); 

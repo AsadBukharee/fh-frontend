@@ -1,7 +1,8 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import VehiclesPage from "@/components/Vehicles/Tabs/VehicleTab"
 import VehicleTypeTab from "@/components/Vehicles/Tabs/VehicleTypeTab"
@@ -12,6 +13,15 @@ import { Badge } from "@/components/ui/badge"
 export default function Vehciles() {
   const [unassignedCount, setUnassignedCount] = useState<number | null>(null)
   const cookies = useCookies()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const activeTab = searchParams.get("tab") || "assigned"
+
+  const handleTabChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", value)
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }, [searchParams, router])
 
   useEffect(() => {
     const fetchUnassignedCount = async () => {
@@ -39,7 +49,7 @@ export default function Vehciles() {
     <div className="p-6 space-y-4 bg-white">
     
       
-      <Tabs defaultValue="assigned" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden">
           <TabsTrigger
             value="assigned"

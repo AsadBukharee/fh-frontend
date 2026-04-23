@@ -62,7 +62,7 @@ export default function RotaClient({
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue={activeTab} value={activeTab} className="w-full" onValueChange={handleTabChange}>
+      <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
         <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden">
           <TabsTrigger
             value="parent"

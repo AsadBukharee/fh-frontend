@@ -4,12 +4,15 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import {
   Bold,
   Italic,
   Underline as UnderlineIcon,
   List,
   ListOrdered,
+  ListTodo,
   Undo,
   Redo,
 } from 'lucide-react';
@@ -79,6 +82,15 @@ const MenuBar = ({ editor }: { editor: any }) => {
       >
         <ListOrdered className="h-4 w-4" />
       </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => editor.chain().focus().toggleTaskList().run()}
+        className={cn("h-8 w-8 p-0", editor.isActive('taskList') && 'bg-accent text-accent-foreground')}
+        type="button"
+      >
+        <ListTodo className="h-4 w-4" />
+      </Button>
       <div className="w-[1px] h-4 bg-border mx-1 self-center" />
       <Button
         variant="ghost"
@@ -126,6 +138,10 @@ export const RichTextEditor = ({
       Underline,
       Link.configure({
         openOnClick: false,
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
       }),
     ],
     content: value,

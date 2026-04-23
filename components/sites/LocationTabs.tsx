@@ -3,7 +3,7 @@
 import { formatDmy } from "@/lib/utils"
 import { useState, useEffect, useMemo } from "react"
 import { TooltipProvider } from "../ui/tooltip"
-import { Plus, RefreshCcw, Search, Eye, Pencil, Trash2, MoreHorizontal, MapPin, AlertTriangle, X, CornerDownRight, Folder, FolderTree } from "lucide-react"
+import { Plus, RefreshCcw, Search, Eye, Pencil, Trash2, MoreHorizontal, MapPin, AlertTriangle, X, CornerDownRight, Folder, FolderTree, ChevronDown, ChevronRight } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -61,6 +61,19 @@ const LocationTabs = () => {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "maintenance">("all")
   const [orderRange, setOrderRange] = useState<{ min: string; max: string }>({ min: "", max: "" })
   const [showTable, setShowTable] = useState<boolean>(true)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set())
+
+  // Default all groups to collapsed when locations load
+  useEffect(() => {
+    if (locations.length > 0) {
+      const parentIds = new Set(
+        locations
+          .filter(loc => loc.associated_location)
+          .map(loc => loc.associated_location!)
+      );
+      setCollapsedGroups(parentIds);
+    }
+  }, [locations])
   const [sites, setSites] = useState<{ id: number, name: string }[]>([])
   const [siteFilter, setSiteFilter] = useState<string>("all")
   const cookies = useCookies()
@@ -134,18 +147,22 @@ const LocationTabs = () => {
     const roots = filteredLocations.filter(loc => !loc.associated_location);
     const children = filteredLocations.filter(loc => loc.associated_location);
 
-    const result: (Location & { isSub?: boolean })[] = [];
+    const result: (Location & { isSub?: boolean; subCount?: number })[] = [];
     const addedIds = new Set<number>();
 
     roots.forEach(root => {
-      result.push(root);
+      const subLocs = children.filter(child => child.associated_location === root.id);
+      result.push({ ...root, subCount: subLocs.length });
       addedIds.add(root.id);
 
-      const subLocs = children.filter(child => child.associated_location === root.id);
-      subLocs.forEach(sub => {
-        result.push({ ...sub, isSub: true });
-        addedIds.add(sub.id);
-      });
+      if (!collapsedGroups.has(root.id)) {
+        subLocs.forEach(sub => {
+          result.push({ ...sub, isSub: true });
+          addedIds.add(sub.id);
+        });
+      } else {
+        subLocs.forEach(sub => addedIds.add(sub.id));
+      }
     });
 
     children.forEach(child => {
@@ -155,7 +172,19 @@ const LocationTabs = () => {
     });
 
     return result;
-  }, [filteredLocations]);
+  }, [filteredLocations, collapsedGroups]);
+
+  const toggleGroup = (id: number) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   // Fetch locations from the API
   const fetchLocations = async () => {
@@ -470,7 +499,20 @@ const LocationTabs = () => {
                           <div className="flex items-center justify-start gap-2">
                             {location.isSub ? (
                               <CornerDownRight className="w-4 h-4 text-gray-400" />
-                            ) : location.is_loca_group ? (
+                            ) : (location.subCount ?? 0) > 0 ? (
+                              <button
+                                onClick={() => toggleGroup(location.id)}
+                                className="p-0.5 rounded hover:bg-gray-100 transition-colors duration-150 flex-shrink-0"
+                                title={collapsedGroups.has(location.id) ? "Expand sub-locations" : "Collapse sub-locations"}
+                              >
+                                {collapsedGroups.has(location.id) ? (
+                                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                                )}
+                              </button>
+                            ) : null}
+                            {location.isSub ? null : location.is_loca_group ? (
                               <FolderTree className="w-4 h-4 text-orange-500" />
                             ) : location.is_base ? (
                               <MapPin className="w-4 h-4 text-red-400" />
@@ -495,6 +537,11 @@ const LocationTabs = () => {
                                 {location.is_base && (
                                   <Badge variant="outline" className="text-[10px] py-0 h-4 bg-green-50 text-green-700 border-green-200">
                                     Base
+                                  </Badge>
+                                )}
+                                {!location.isSub && collapsedGroups.has(location.id) && (location.subCount ?? 0) > 0 && (
+                                  <Badge variant="outline" className="text-[10px] py-0 h-4 bg-gray-100 text-gray-500 border-gray-200">
+                                    {location.subCount} sub
                                   </Badge>
                                 )}
                               </div>

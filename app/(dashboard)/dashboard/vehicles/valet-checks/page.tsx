@@ -1,5 +1,8 @@
 "use client";
 
+import { useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+
 import {
     Car,
     CheckCircle2,
@@ -110,6 +113,16 @@ function StatsCard({ title, value, icon: Icon, color }: StatsCardProps) {
 }
 
 export default function ValetCheckDashboard() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const activeTab = searchParams.get("tab") || "latest-check";
+
+    const handleTabChange = useCallback((value: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("tab", value);
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [searchParams, router]);
+
     return (
         <div className="min-h-screen bg-[#f8f9fa] p-6 space-y-6 text-sm">
             {/* Header */}
@@ -199,7 +212,7 @@ export default function ValetCheckDashboard() {
 
             {/* Tabs & Secondary Filters */}
             <div className="space-y-4">
-                <Tabs defaultValue="latest-check">
+                <Tabs value={activeTab} onValueChange={handleTabChange}>
                     <TabsList className="h-auto justify-start gap-6 bg-transparent p-0 border-b border-border/50">
                         {["Latest Check", "Outstanding", "History"].map((tab) => (
                             <TabsTrigger
