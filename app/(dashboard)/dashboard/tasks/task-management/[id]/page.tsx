@@ -417,6 +417,47 @@ export default function TaskDetailPage() {
     }
   };
 
+  const handleMarkAsComplete = async () => {
+    if (!task) return;
+    setSaving(true);
+    try {
+      const access_token = cookies.get('access_token');
+      // Attempt PUT as requested, fallback to PATCH if partial updates require it
+      let res = await fetch(`${API_URL}/api/tasks/${id}/`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'completed' }),
+      });
+
+      if (res.status === 405 || res.status === 400 || res.status === 500) {
+        res = await fetch(`${API_URL}/api/tasks/${id}/`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status: 'completed' }),
+        });
+      }
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to update task');
+      }
+
+      const updated: Task = await res.json();
+      setTask(updated);
+      toast.success('Task marked as completed!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to mark task as completed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ----- Loading / Error states -----
   if (loading) return (
     <div className="w-full p-6 flex items-center justify-center min-h-[300px]">
@@ -491,6 +532,16 @@ export default function TaskDetailPage() {
 
             <div className="flex items-center gap-3">
               <VDivider />
+              {task.status !== 'completed' && (
+                <button
+                  onClick={handleMarkAsComplete}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Mark as Complete
+                </button>
+              )}
               <button
                 onClick={openEditDialog}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-gray-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 transition-all shadow-sm active:scale-95"

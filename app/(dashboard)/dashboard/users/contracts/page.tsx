@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, memo } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -348,6 +349,16 @@ const ShiftCard = memo(
 ShiftCard.displayName = "ShiftCard"
 
 const ShiftManagement = () => {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const activeTab = searchParams.get("tab") || "contracts"
+
+  const handleTabChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", value)
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }, [searchParams, router])
+
   const [contracts, setContracts] = useState<Contract[]>([])
   const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplate[]>([])
   const [isEditing, setIsEditing] = useState<number | null>(null)
@@ -881,7 +892,7 @@ const ShiftManagement = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="contracts" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden">
             <TabsTrigger
               value="contracts"

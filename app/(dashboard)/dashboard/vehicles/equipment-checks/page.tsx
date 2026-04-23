@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Search,
   Download,
@@ -93,6 +94,15 @@ const allChecks: Check[] = [
 
 export default function VehicleChecklist() {
   const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams.get('tab') || 'today';
+
+  const handleTabChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
 
   const renderTable = (data: Check[]) => (
     <Table>
@@ -174,7 +184,7 @@ export default function VehicleChecklist() {
         </div>
 
         {/* Tabs using shadcn */}
-        <Tabs defaultValue="today" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
             <TabsTrigger value="today">
               Today checks ({todayChecks.length})

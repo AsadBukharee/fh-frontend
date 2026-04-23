@@ -1,18 +1,28 @@
 
 "use client"
 
-
+import { useCallback } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import LocationTabs from "@/components/sites/LocationTabs"
 import SiteGrid from "@/components/sites/SiteTabs"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 export default function Sites() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const activeTab = searchParams.get("tab") || "parent"
+
+  const handleTabChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", value)
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }, [searchParams, router])
 
   return (
     <div className="p-6 space-y-4 bg-white">
     
       
-      <Tabs defaultValue="parent" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden">
           <TabsTrigger
             value="parent"
