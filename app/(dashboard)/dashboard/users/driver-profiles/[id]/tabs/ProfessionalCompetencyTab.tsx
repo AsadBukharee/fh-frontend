@@ -100,7 +100,9 @@ interface ProfessionalCompetencyTabProps {
   licenseIssueNumber: string
   fetchDriverData: () => void
   lastDriverLicenseCheckCodeDate?: string
-  lastDriverTachoDownload?: string
+  lastDriverTachoDownload?: string;
+  expandedId?: string | string[];
+  handleExpandedChange?: (id: string) => void;
 }
 
 // Utility to pick the best/latest document for each type
@@ -518,6 +520,8 @@ export default function ProfessionalCompetencyTab({
   fetchDriverData,
   lastDriverLicenseCheckCodeDate,
   lastDriverTachoDownload,
+  expandedId,
+  handleExpandedChange,
 }: ProfessionalCompetencyTabProps) {
   // Deduplicate and filter data once at the start
   const latestCompetencyData = useMemo(() => getLatestDocumentsByType(competencyData), [competencyData]);
@@ -710,6 +714,9 @@ export default function ProfessionalCompetencyTab({
 
     // If it's a license document and we're not in edit mode, open combined dialog
     if (isLicenseDocument && !modalState.isEditing) {
+      if (competency.id) {
+        handleExpandedChange?.(`competency-${competency.id}`);
+      }
       handleOpenCombinedDialog(competency);
       return;
     }
@@ -720,6 +727,9 @@ export default function ProfessionalCompetencyTab({
       competency.document_type === "last-tacho-download";
 
     if (isTachoDocument && !modalState.isEditing) {
+      if (competency.id) {
+        handleExpandedChange?.(`competency-${competency.id}`);
+      }
       handleOpenCombinedTachoDialog(competency);
       return;
     }
@@ -776,12 +786,13 @@ export default function ProfessionalCompetencyTab({
     dispatchModal({ type: 'SET_EDITING', payload: false });
     dispatchModal({ type: 'CLEAR_FORM_ERRORS' });
     dispatchModal({ type: 'SET_CURRENT_IMAGE_INDEX', payload: 0 });
-    dispatchModal({
-      type: 'SET_SHOW_STATUS_DESCRIPTION',
-      payload: competency.request_status === "not_approved" || competency.request_status === "pending"
-    });
+    dispatchModal({ type: 'SET_SHOW_STATUS_DESCRIPTION', payload: competency.request_status === "not_approved" || competency.request_status === "pending" });
     dispatchModal({ type: 'SET_DIRECT_STATUS_EDITING', payload: false });
-  }, [handleOpenCombinedDialog, handleOpenCombinedTachoDialog, modalState.isEditing]);
+    
+    if (competency.id) {
+      handleExpandedChange?.(`competency-${competency.id}`);
+    }
+  }, [handleOpenCombinedDialog, handleOpenCombinedTachoDialog, modalState.isEditing, handleExpandedChange]);
 
   // Existing functions remain the same...
   const checkOtherDocument = useCallback(async () => {
@@ -1406,19 +1417,24 @@ export default function ProfessionalCompetencyTab({
       const cardImageIndex = cardImageIndexes[competency.id || 0] || 0;
 
       return (
-        <EnhancedCompetencyCard
-          key={competency.id || competency.document_type}
-          competency={competency}
-          cardImageIndex={cardImageIndex}
-          setCardImageIndexes={setCardImageIndexes}
-          handleCardClick={handleCardClick}
-          isPdfUrl={isPdfUrl}
-          formatDate={formatDate}
-          license_number={licenseNumber}
-          license_issue_number={licenseIssueNumber}
-          onMaximize={handleMaximize}
-          onToggleApplicability={handleToggleApplicability}
-        />
+        <div 
+          key={competency.id || competency.document_type} 
+          id={competency.id ? `competency-${competency.id}` : undefined}
+          className="contents"
+        >
+          <EnhancedCompetencyCard
+            competency={competency}
+            cardImageIndex={cardImageIndex}
+            setCardImageIndexes={setCardImageIndexes}
+            handleCardClick={handleCardClick}
+            isPdfUrl={isPdfUrl}
+            formatDate={formatDate}
+            license_number={licenseNumber}
+            license_issue_number={licenseIssueNumber}
+            onMaximize={handleMaximize}
+            onToggleApplicability={handleToggleApplicability}
+          />
+        </div>
       );
     }),
     [allDocuments, cardImageIndexes, handleCardClick, handleOpenCombinedDialog,

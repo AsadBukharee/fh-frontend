@@ -21,13 +21,17 @@ export function useAutoScroll(loading: boolean, keyPrefix: string, isMultiple = 
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          setExpandedId(parsed);
+          if (isMultiple) {
+            setExpandedId(Array.isArray(parsed) ? parsed : [parsed]);
+          } else {
+            setExpandedId(Array.isArray(parsed) ? parsed[0] : parsed);
+          }
         } catch {
-          setExpandedId(saved);
+          setExpandedId(isMultiple ? [saved] : saved);
         }
       }
     }
-  }, [keyPrefix]);
+  }, [keyPrefix, isMultiple]);
 
   // Handler to update the expanded item and save it to sessionStorage
   const handleExpandedChange = useCallback((value: string | string[] | undefined) => {
@@ -51,20 +55,42 @@ export function useAutoScroll(loading: boolean, keyPrefix: string, isMultiple = 
   // Scroll to expanded item after loading
   useEffect(() => {
     if (!loading && expandedId && shouldScrollRef.current) {
-      const timer = setTimeout(() => {
-        // If it's an array, scroll to the last item (most recently opened usually)
-        const targetId = Array.isArray(expandedId) ? expandedId[expandedId.length - 1] : expandedId;
-        if (targetId) {
-          const el = document.getElementById(targetId);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        }
+      console.log(`[useAutoScroll] Loading finished. Target ID(s):`, expandedId);
+      
+      const targetId = Array.isArray(expandedId) 
+        ? expandedId[expandedId.length - 1] 
+        : expandedId;
+
+      if (!targetId) {
         shouldScrollRef.current = false;
-      }, 300);
-      return () => clearTimeout(timer);
+        return;
+      }
+
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      const attemptScroll = () => {
+        const el = document.getElementById(targetId);
+        if (el) {
+          console.log(`[useAutoScroll] Found element! Scrolling to:`, targetId);
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          shouldScrollRef.current = false;
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(attemptScroll, 100);
+        } else {
+          console.warn(`[useAutoScroll] Could not find element with ID:`, targetId, `after ${maxAttempts} attempts.`);
+          shouldScrollRef.current = false;
+        }
+      };
+
+      const timer = setTimeout(attemptScroll, 300);
+      return () => {
+        clearTimeout(timer);
+        shouldScrollRef.current = false;
+      };
     }
-  }, [loading, expandedId]);
+  }, [loading, expandedId, keyPrefix]);
 
   return { expandedId, handleExpandedChange, setExpandedId };
 }

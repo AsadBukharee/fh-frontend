@@ -4,7 +4,8 @@
 import { formatDmy } from "@/lib/utils"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useAutoScroll } from "@/app/utils/useAutoScroll"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -220,6 +221,8 @@ export default function FuelChecksManagement() {
   const [showFilters, setShowFilters] = useState(false)
   const cookies = useCookies()
   const role = cookies.get('role')
+
+  const { expandedId, handleExpandedChange } = useAutoScroll(loading, "fuel-history-scroll");
 
   // Fetch drivers
   useEffect(() => {
@@ -696,7 +699,7 @@ export default function FuelChecksManagement() {
               </TableHeader>
               <TableBody>
                 {filteredData.map((log) => (
-                  <TableRow key={log.id} className="hover:bg-muted/20">
+                  <TableRow key={log.id} id={`fuel-history-log-${log.id}`} className="hover:bg-muted/20">
                     <TableCell className="font-medium">{log.driver_data.full_name}</TableCell>
                     <TableCell>{log.vehicle?.registration_number || "N/A"}</TableCell>
                     <TableCell>{formatDmy(log.date)}</TableCell>
@@ -722,6 +725,7 @@ export default function FuelChecksManagement() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => {
+                              handleExpandedChange(`fuel-history-log-${log.id}`);
                               setViewLog(log)
                               setIsViewDialogOpen(true)
                             }}
@@ -732,6 +736,7 @@ export default function FuelChecksManagement() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
+                              handleExpandedChange(`fuel-history-log-${log.id}`);
                               setEditLog(log)
                               setIsAddDialogOpen(true)
                             }}

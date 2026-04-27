@@ -5,6 +5,8 @@ import { CookiesProvider } from "next-client-cookies/server";
 import { cookies } from "next/headers"; // ✅ correct import
 import NotificationProvider from "@/components/NotificationProvider";
 import ReduxProvider from "./store/ReduxProvider";
+import FetchInterceptor from "@/components/FetchInterceptor";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Foster Hartley - Vehicle Management",
@@ -29,6 +31,14 @@ export default async function RootLayout({
         <ReduxProvider>
           <CookiesProvider>
             <ToastProvider>
+              <FetchInterceptor />
+              <Toaster
+                position="top-right"
+                richColors
+                expand
+                duration={10000}
+                closeButton
+              />
               <NotificationProvider/>
               {children}
             </ToastProvider>

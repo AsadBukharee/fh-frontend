@@ -16,6 +16,8 @@ interface HealthAnswerTabProps {
   handleHealthEditToggle: () => void;
   handleHealthInputChange: (id: number, field: string, value: boolean | string) => void;
   handleSaveHealth: () => void;
+  expandedId?: string | string[];
+  handleExpandedChange?: (id: string) => void;
 }
 
 export default function HealthAnswerTab({
@@ -25,6 +27,8 @@ export default function HealthAnswerTab({
   savingHealth,
   handleHealthEditToggle,
   handleSaveHealth,
+  expandedId,
+  handleExpandedChange,
 }: HealthAnswerTabProps) {
   // State to track which cards are being edited
   const [editingCards, setEditingCards] = useState<Set<number>>(new Set());
@@ -55,6 +59,10 @@ export default function HealthAnswerTab({
           }
         }));
       }
+    }
+
+    if (!newEditingCards.has(healthId)) {
+      handleExpandedChange?.(`health-card-${healthId}`);
     }
 
     setEditingCards(newEditingCards);
@@ -128,6 +136,7 @@ export default function HealthAnswerTab({
             return (
               <div
                 key={health.id}
+                id={`health-card-${health.id}`}
                 className="bg-gray-50/70 rounded-xl p-6 relative"
               >
                 {/* Edit button for individual card */}

@@ -3,6 +3,7 @@
 import { formatDmy } from "@/lib/utils"
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
+import { useAutoScroll } from "@/app/utils/useAutoScroll"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -776,6 +777,8 @@ export default function FuelChecksManagement() {
   const [previewReceiptUrls, setPreviewReceiptUrls] = useState<string[]>([])
   const [showMultiPreview, setShowMultiPreview] = useState(false)
 
+  const { expandedId, handleExpandedChange } = useAutoScroll(loading, "fuel-check-scroll");
+
   // Fetch drivers
   useEffect(() => {
     const fetchDrivers = async () => {
@@ -1390,7 +1393,7 @@ export default function FuelChecksManagement() {
                   const receiptUrls = log.receipt ? log.receipt.split(',').map(url => url.trim()).filter(url => url) : []
                   
                   return (
-                    <TableRow key={log.id} className="hover:bg-muted/20">
+                    <TableRow key={log.id} id={`fuel-log-${log.id}`} className="hover:bg-muted/20">
                       <TableCell className="font-medium">{log.driver_data.full_name}</TableCell>
                       <TableCell>
                         {log.vehicle_data?.registration_number || "N/A"}
@@ -1492,6 +1495,7 @@ export default function FuelChecksManagement() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
                               onClick={() => {
+                                handleExpandedChange(`fuel-log-${log.id}`);
                                 setViewLog(log)
                                 setIsViewDialogOpen(true)
                               }}
@@ -1502,6 +1506,7 @@ export default function FuelChecksManagement() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
+                                handleExpandedChange(`fuel-log-${log.id}`);
                                 setEditLog(log)
                                 setIsAddDialogOpen(true)
                               }}
