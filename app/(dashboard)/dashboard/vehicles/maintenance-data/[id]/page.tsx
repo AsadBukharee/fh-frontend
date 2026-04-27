@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/accordion";
 import Image from "next/image";
 import ExpiryDates from "@/components/Vehicles/VehicleEditExpiry";
+import { useAutoScroll } from "@/app/utils/useAutoScroll";
 
 interface Vehicle {
   id: number;
@@ -99,6 +100,8 @@ export default function VehicleDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const cookies = useCookies();
   const token = cookies.get("access_token");
+
+  const { expandedId, handleExpandedChange } = useAutoScroll(loading, "vehicle_maintenance_docs");
 
   useEffect(() => {
     const fetchVehicle = async () => {
@@ -685,7 +688,12 @@ export default function VehicleDetailPage() {
             />
             {/* Tyre expiry*/}
             <Card className="p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
-      <Accordion type="single" collapsible>
+      <Accordion 
+        type="single" 
+        collapsible
+        value={expandedId as string}
+        onValueChange={handleExpandedChange}
+      >
         <AccordionItem value="tyre-expiry">
           <AccordionTrigger>
             <span className="text-lg font-semibold text-gray-800">

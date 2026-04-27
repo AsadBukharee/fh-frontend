@@ -39,6 +39,7 @@ import {
 import API_URL from "@/app/utils/ENV";
 import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 import ImageUploader from "@/components/Media/UploadImage";
+import { useAutoScroll } from "@/app/utils/useAutoScroll";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -124,6 +125,8 @@ export default function VehicleDetailPage() {
   const [tyreExpiryDialogOpen, setTyreExpiryDialogOpen] = useState(false);
   const [vehicleDocuments, setVehicleDocuments] = useState<any[]>([]);
   const [documentsMap, setDocumentsMap] = useState<Map<string, any>>(new Map());
+
+  const { expandedId, handleExpandedChange } = useAutoScroll(loading, "vehicle_docs", true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1320,7 +1323,12 @@ export default function VehicleDetailPage() {
                 <h3 className="text-lg font-bold text-slate-900">Compliance Documents</h3>
               </div>
 
-              <Accordion type="multiple" className="space-y-3">
+              <Accordion 
+                type="multiple" 
+                className="space-y-3"
+                value={expandedId as string[]}
+                onValueChange={handleExpandedChange}
+              >
                 {complianceItems.map((item) => {
                   const dateValue = vehicle[item.dateField as keyof typeof vehicle] as string;
                   const docFromVehicle = vehicle[item.docCode as keyof typeof vehicle] as string;

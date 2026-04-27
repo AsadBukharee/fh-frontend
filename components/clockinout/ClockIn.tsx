@@ -39,6 +39,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAutoScroll } from "@/app/utils/useAutoScroll";
 
 // Clock In Reasons
 const CLOCK_IN_REASONS = [
@@ -336,6 +337,8 @@ const DriverClockInOut = () => {
     clockInTime: string | null;
   } | null>(null);
 
+  const { handleExpandedChange } = useAutoScroll(loading, "clockin_table");
+
   // Today's date
   const today = format(new Date(), "yyyy-MM-dd");
 
@@ -409,6 +412,10 @@ const DriverClockInOut = () => {
   const handleClockInConfirm = async (selectedReason: string, customReason: string) => {
     if (!selectedDriver) return;
 
+    // Trigger auto-scroll for this row
+    const rowId = `clocking-row-${selectedDriver.id}-${selectedDriver.rotaId}`;
+    handleExpandedChange(rowId);
+
     try {
       // Get current time in HH:MM format
       const now = new Date();
@@ -449,6 +456,10 @@ const DriverClockInOut = () => {
   // Handle Clock Out confirmation
   const handleClockOutConfirm = async (selectedReason: string, customReason: string) => {
     if (!selectedDriver || !selectedDriver.clockingId) return;
+
+    // Trigger auto-scroll for this row
+    const rowId = `clocking-row-${selectedDriver.id}-${selectedDriver.rotaId}`;
+    handleExpandedChange(rowId);
 
     try {
       // Get current time in HH:MM format
@@ -750,7 +761,7 @@ const DriverClockInOut = () => {
                   const clockOutReason = parseReason(driver.clocking?.clock_out_reason || null);
 
                   return (
-                    <TableRow key={`${driver.user.id}-${driver.child_rota.id}`}>
+                    <TableRow key={`${driver.user.id}-${driver.child_rota.id}`} id={`clocking-row-${driver.user.id}-${driver.child_rota.id}`}>
                       <TableCell className="font-medium">
                         <div className="flex items-start gap-2">
 
