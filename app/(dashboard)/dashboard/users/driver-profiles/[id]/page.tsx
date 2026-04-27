@@ -530,8 +530,12 @@ export default function DriverDetailPage() {
         full_name: `${currentData.first_name} ${currentData.last_name}`.trim(),
         avatar: currentData.avatar || null,
         paid_holidays: currentData.paid_holidays,
-        rota_start_date: currentData.rota_start_date,
-        contract_signing_date: currentData.contract_signing_date,
+        rota_start_date: currentData.rota_start_date || null,
+        contract_signing_date: currentData.contract_signing_date 
+          ? (currentData.contract_signing_date.includes('T') 
+              ? currentData.contract_signing_date 
+              : `${currentData.contract_signing_date}T00:00:00Z`)
+          : null,
       };
       const userResponse = await fetch(`${API_URL}/users/${driverData?.user.id}/`, {
         method: "PATCH",
@@ -543,7 +547,7 @@ export default function DriverDetailPage() {
       const driverPayload = {
         phone: currentData.phone,
         address: currentData.address,
-        date_of_birth: currentData.date_of_birth,
+        date_of_birth: currentData.date_of_birth || null,
         national_insurance_no: currentData.national_insurance_no,
         post_code: currentData.post_code,
         next_of_kin_name: `${currentData.next_of_kin_first_name} ${currentData.next_of_kin_last_name}`.trim(),
