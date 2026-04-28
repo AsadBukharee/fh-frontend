@@ -91,9 +91,9 @@ export default function ComplianceManagementPage() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                // Fetch driver compliance stats
+                // Fetch driver compliance stats with a larger sample for better stats
                 const driverRes = await fetch(
-                    `${API_URL}/api/profiles/driver/compliance/?page=1&page_size=1`,
+                    `${API_URL}/api/profiles/driver/compliance/?page=1&page_size=100`,
                     {
                         headers: {
                             "Content-Type": "application/json",
@@ -103,9 +103,48 @@ export default function ComplianceManagementPage() {
                 );
 
                 let driverTotal = 0;
+                let driverExpired = 0;
+                let driverExpiringSoon = 0;
+
                 if (driverRes.ok) {
                     const driverData = await driverRes.json();
+                    const results = driverData?.data?.results ?? [];
                     driverTotal = driverData?.data?.pagination?.count ?? 0;
+                    
+                    // Simple heuristic for stats based on the fetched sample
+                    results.forEach((d: any) => {
+                        const compliance = d.driver_compliance || {};
+                        const dates = [
+                            compliance.driver_licence_expiry,
+                            compliance.cpc_card_expiry,
+                            compliance.tacho_expiry,
+                            compliance.dbs_expiry_date
+                        ];
+                        
+                        const today = new Date();
+                        const soon = new Date();
+                        soon.setDate(today.getDate() + 30);
+                        
+                        let isExpired = false;
+                        let isExpiringSoon = false;
+                        
+                        dates.forEach(dateStr => {
+                            if (!dateStr) return;
+                            const date = new Date(dateStr);
+                            if (date < today) isExpired = true;
+                            else if (date < soon) isExpiringSoon = true;
+                        });
+                        
+                        if (isExpired) driverExpired++;
+                        else if (isExpiringSoon) driverExpiringSoon++;
+                    });
+
+                    // Extrapolate if we only have a sample
+                    if (driverTotal > results.length && results.length > 0) {
+                        const ratio = driverTotal / results.length;
+                        driverExpired = Math.round(driverExpired * ratio);
+                        driverExpiringSoon = Math.round(driverExpiringSoon * ratio);
+                    }
                 }
 
                 // Fetch vehicle compliance stats
@@ -116,23 +155,35 @@ export default function ComplianceManagementPage() {
                 });
 
                 let vehicleTotal = 0;
+                let vehicleExpired = 0;
+                let vehicleExpiringSoon = 0;
+
                 if (vehicleRes.ok) {
                     const vehicleData = await vehicleRes.json();
-                    vehicleTotal = vehicleData?.data?.mot?.length ?? 0;
+                    const motData = vehicleData?.data?.mot ?? [];
+                    vehicleTotal = motData.length;
+                    
+                    motData.forEach((m: any) => {
+                        if (m.mot_status?.toLowerCase().includes("expired")) {
+                            vehicleExpired++;
+                        } else if (m.mot_status?.toLowerCase().includes("days left") && parseInt(m.mot_status) < 30) {
+                            vehicleExpiringSoon++;
+                        }
+                    });
                 }
 
                 setStats({
                     drivers: {
                         total: driverTotal,
-                        expired: 0,
-                        expiringSoon: 0,
-                        valid: driverTotal,
+                        expired: driverExpired,
+                        expiringSoon: driverExpiringSoon,
+                        valid: Math.max(0, driverTotal - driverExpired - driverExpiringSoon),
                     },
                     vehicles: {
                         total: vehicleTotal,
-                        expired: 0,
-                        expiringSoon: 0,
-                        valid: vehicleTotal,
+                        expired: vehicleExpired,
+                        expiringSoon: vehicleExpiringSoon,
+                        valid: Math.max(0, vehicleTotal - vehicleExpired - vehicleExpiringSoon),
                     },
                 });
             } catch (error) {
