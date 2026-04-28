@@ -887,11 +887,17 @@ export default function UsersPageOptimized() {
         children: item.children.filter((child) => child.isSelected),
       }))
 
+    const initialPermissions = resources.reduce((acc, res) => {
+      const resourceName = res.name.toLowerCase()
+      acc[resourceName] = { view: false, create: false, update: false, delete: false }
+      return acc
+    }, {} as any)
+
     const payload = {
       name: newRoleName,
       slug: newRoleName.toLowerCase().replace(/\s+/g, "-"),
       menu: { items: selectedMenuItems },
-      permissions: { site: { view: false, create: false, update: false, delete: false } },
+      permissions: initialPermissions,
     }
 
     try {
@@ -932,11 +938,14 @@ export default function UsersPageOptimized() {
         children: item.children.filter((child) => child.isSelected),
       }))
 
+    // Preserve existing permissions for the role
+    const currentPermissions = originalPermissions[editingRoleId!] || {}
+
     const payload = {
       name: newRoleName,
       slug: newRoleName.toLowerCase().replace(/\s+/g, "-"),
       menu: { items: selectedMenuItems },
-      permissions: { site: { view: false, create: false, update: false, delete: false } },
+      permissions: currentPermissions,
     }
 
     try {

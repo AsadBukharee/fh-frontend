@@ -366,8 +366,6 @@ export default function DriverDetailTab({
       post_code: driverData?.post_code || "",
       email: driverData?.user?.email || "",
       avatar: driverData?.user?.avatar || "",
-      license_number: driverData?.license_number || "",
-      license_issue_number: driverData?.license_issue_number || "",
     });
     setDriverDialogOpen(true);
   };
@@ -627,22 +625,7 @@ export default function DriverDetailTab({
                     {isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
-                {driverData?.updated_at && (
-                  <div className="flex items-center gap-0.5 text-[10px] text-gray-400 mt-3 text-center leading-tight">
-                    <Clock className="h-2.5 w-2.5 flex-shrink-0" />
-                    <span>
-                      Last active {(() => {
-                        const diff = Math.floor((Date.now() - new Date(driverData.updated_at).getTime()) / 60000);
-                        if (diff < 1) return "just now";
-                        if (diff < 60) return `${diff}m ago`;
-                        const hrs = Math.floor(diff / 60);
-                        if (hrs < 24) return `${hrs}h ago`;
-                        const days = Math.floor(hrs / 24);
-                        return `${days}d ago`;
-                      })()}
-                    </span>
-                  </div>
-                )}
+
               </div>
 
               <div className="flex-1 min-w-0 flex flex-col gap-5">
@@ -677,10 +660,6 @@ export default function DriverDetailTab({
                   <div className="flex-1"><FieldCell label="Post Code" value={driverData?.post_code || "—"} highlight="pink" /></div>
                   <VDivider />
                   <div className="flex-1"><FieldCell label="Email Address" value={driverData?.user?.email || "—"} email truncate /></div>
-                  <VDivider />
-                  <div className="flex-1"><FieldCell label="License Number" value={driverData?.license_number || "—"} highlight="gray" /></div>
-                  <VDivider />
-                  <div className="flex-1"><FieldCell label="License Issue" value={driverData?.license_issue_number || "—"} highlight="gray" /></div>
                 </div>
               </div>
             </div>
@@ -843,10 +822,7 @@ export default function DriverDetailTab({
                     <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Post Code</label><Input value={driverDialogForm.post_code || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, post_code: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Post code" /></div>
                     <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Email Address</label><Input type="email" value={driverDialogForm.email || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, email: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Email" /></div>
                   </div>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">License Number</label><Input value={driverDialogForm.license_number || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, license_number: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="License number" /></div>
-                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">License Issue No</label><Input value={driverDialogForm.license_issue_number || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, license_issue_number: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Issue number" /></div>
-                  </div>
+
                 </div>
               </div>
             </div>
