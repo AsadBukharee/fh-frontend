@@ -200,8 +200,8 @@ const MenuItemComponent = memo(
   }) => {
     const [isEditing, setIsEditing] = useState(false)
     const containerRef = useRef<HTMLDivElement | null>(null)
-    const [tempNav, setTempNav] = useState(item.nav)
-    const [tempName, setTempName] = useState(item.name)
+    const [tempNav, setTempNav] = useState(item?.nav)
+    const [tempName, setTempName] = useState(item?.name)
 
     const [, drop] = useDrop({
       accept: "MENU_ITEM",
@@ -301,15 +301,15 @@ const MenuItemComponent = memo(
         onDoubleClick={handleDoubleClick}
         tabIndex={0}
         role="listitem"
-        aria-label={`Menu item: ${item.name}`}
+        aria-label={`Menu item: ${item?.name}`}
       >
         <div className="flex items-center w-full gap-2">
           <GripVertical className="h-4 w-4 text-gray-400 cursor-grab shrink-0" />
-          <Checkbox checked={item.isSelected} onCheckedChange={handleToggle} className="mr-2" />
+          <Checkbox checked={item?.isSelected} onCheckedChange={handleToggle} className="mr-2" />
           {isEditing ? (
             <>
               <select
-                value={LUCIDE_ICON_MAP[item.icon?.trim()] ? item.icon?.trim() : "File"}
+                value={LUCIDE_ICON_MAP[item?.icon?.trim() || ""] ? item?.icon?.trim() : "File"}
                 onChange={handleIconChange}
                 className="w-[120px] h-8 border border-gray-300 rounded-md px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -331,9 +331,9 @@ const MenuItemComponent = memo(
           ) : (
             <>
               <IconComponent className="h-4 w-4 text-gray-600 shrink-0" />
-              <span className="flex-1 truncate text-sm font-medium">{item.name}</span>
-              <span className="text-xs text-gray-500 truncate" title={item.nav}>
-                {item.nav}
+              <span className="flex-1 truncate text-sm font-medium">{item?.name}</span>
+              <span className="text-xs text-gray-500 truncate" title={item?.nav}>
+                {item?.nav}
               </span>
             </>
           )}
@@ -372,9 +372,9 @@ const MenuItemComponent = memo(
             </div>
           </div>
         )}
-        {item.children && item.children?.length > 0 && (
+        {item?.children && item?.children?.length > 0 && (
           <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">
-            ({item.children?.length} sub-items)
+            ({item?.children?.length} sub-items)
           </div>
         )}
       </div>
@@ -382,16 +382,16 @@ const MenuItemComponent = memo(
   },
 )
 MenuItemComponent.displayName = "MenuItemComponent"
-function formatResourceName(str: string) {
+function formatResourceName(str: string | undefined | null) {
   if (!str) return "";
   const exceptions = ["dvsa", "crh"];
-  if (exceptions.includes(str.toLowerCase())) {
-    return str.toUpperCase();
+  if (exceptions?.includes(str?.toLowerCase())) {
+    return str?.toUpperCase();
   }
   return str
-    .split(" ")
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(" ");
+    ?.split(" ")
+    ?.map(w => w?.charAt(0)?.toUpperCase() + w?.slice(1)?.toLowerCase())
+    ?.join(" ");
 }
 
 // ============= MAIN COMPONENT WITH OPTIMIZATIONS =============
@@ -483,7 +483,7 @@ export default function UsersPageOptimized() {
         throw new Error("Invalid menu data received")
       }
 
-      setMenuItems(apiResponse.menu.items)
+      setMenuItems(apiResponse?.menu?.items || [])
     } catch (error) {
       showToast(error instanceof Error ? error.message : "An error occurred while fetching menu items", "error")
       // Fallback to empty array or handle as needed
@@ -509,37 +509,37 @@ export default function UsersPageOptimized() {
         throw new Error(apiResponse.message || "Invalid API response")
       }
 
-      const { resources, roles } = apiResponse.data
+      const { resources, roles } = apiResponse?.data || {}
       setResources(resources || [])
 
       // Set default to first 3 resources (or fewer if less than 3)
-      const resourceNames = resources.slice(0, 3).map((r) => r.name.toLowerCase())
-      setSelectedResources(resourceNames)
-      setTempSelectedResources(resourceNames)
+      const resourceNames = resources?.slice(0, 3)?.map((r) => r?.name?.toLowerCase())
+      setSelectedResources(resourceNames || [])
+      setTempSelectedResources(resourceNames || [])
 
-      const mappedData: UserData[] = roles.map((role) => ({
-        id: role.id,
-        type: role.name,
-        permissions: Object.keys(role.permissions).reduce((acc, resource) => {
+      const mappedData: UserData[] = roles?.map((role) => ({
+        id: role?.id,
+        type: role?.name,
+        permissions: Object.keys(role?.permissions || {})?.reduce((acc, resource) => {
           acc[resource] = {
-            view: role.permissions[resource]?.view ?? false,
-            create: role.permissions[resource]?.create ?? false,
-            update: role.permissions[resource]?.update ?? false,
-            delete: role.permissions[resource]?.delete ?? false,
+            view: role?.permissions?.[resource]?.view ?? false,
+            create: role?.permissions?.[resource]?.create ?? false,
+            update: role?.permissions?.[resource]?.update ?? false,
+            delete: role?.permissions?.[resource]?.delete ?? false,
           }
           return acc
         }, {} as UserPermissions),
-        menu: { items: role.menu?.items ?? [] },
+        menu: { items: role?.menu?.items ?? [] },
       }))
 
-      const initialPermissions = roles.reduce(
+      const initialPermissions = roles?.reduce(
         (acc, role) => {
-          acc[role.id] = Object.keys(role.permissions).reduce((permAcc, resource) => {
+          acc[role?.id] = Object.keys(role?.permissions || {})?.reduce((permAcc, resource) => {
             permAcc[resource] = {
-              view: role.permissions[resource]?.view ?? false,
-              create: role.permissions[resource]?.create ?? false,
-              update: role.permissions[resource]?.update ?? false,
-              delete: role.permissions[resource]?.delete ?? false,
+              view: role?.permissions?.[resource]?.view ?? false,
+              create: role?.permissions?.[resource]?.create ?? false,
+              update: role?.permissions?.[resource]?.update ?? false,
+              delete: role?.permissions?.[resource]?.delete ?? false,
             }
             return permAcc
           }, {} as UserPermissions)
@@ -561,16 +561,16 @@ export default function UsersPageOptimized() {
   const togglePermission = useCallback(
     (id: number, resource: string, permission: string) => {
       setData((prev) =>
-        prev.map((user) => {
-          if (user.id !== id) return user
+        prev?.map((user) => {
+          if (user?.id !== id) return user
 
-          const currentPermission = user.permissions[resource]?.[permission as keyof Permission] ?? false
+          const currentPermission = user?.permissions?.[resource]?.[permission as keyof Permission] ?? false
           return {
             ...user,
             permissions: {
-              ...user.permissions,
+              ...user?.permissions,
               [resource]: {
-                ...user.permissions[resource],
+                ...user?.permissions?.[resource],
                 [permission]: !currentPermission,
               },
             },
@@ -579,16 +579,16 @@ export default function UsersPageOptimized() {
       )
 
       setModifiedPermissions((prev) => {
-        const user = data.find((u) => u.id === id)
+        const user = data?.find((u) => u?.id === id)
         if (!user) return prev
 
-        const currentPermission = user.permissions[resource]?.[permission as keyof Permission] ?? false
+        const currentPermission = user?.permissions?.[resource]?.[permission as keyof Permission] ?? false
         return {
           ...prev,
           [id]: {
             ...prev[id],
             [resource]: {
-              ...user.permissions[resource],
+              ...user?.permissions?.[resource],
               [permission]: !currentPermission,
             },
           },
@@ -600,7 +600,7 @@ export default function UsersPageOptimized() {
 
   const savePermissions = useCallback(
     async (roleId: number) => {
-      const modified = modifiedPermissions[roleId]
+      const modified = modifiedPermissions?.[roleId]
       if (!modified) {
         showToast("No changes to save.", "info")
         return
@@ -608,14 +608,14 @@ export default function UsersPageOptimized() {
 
       setIsSaving((prev) => ({ ...prev, [roleId]: true }))
       try {
-        const payload = Object.keys(modified).map((resourceName) => {
-          const resource = resourceMap.get(resourceName.toLowerCase())
+        const payload = Object.keys(modified || {})?.map((resourceName) => {
+          const resource = resourceMap?.get(resourceName?.toLowerCase())
           if (!resource) throw new Error(`Resource ${resourceName} not found`)
 
           return {
             role: roleId,
-            resource: resource.id,
-            actions: modified[resourceName],
+            resource: resource?.id,
+            actions: modified?.[resourceName],
           }
         })
 
@@ -655,33 +655,33 @@ export default function UsersPageOptimized() {
     setMenuItems((prevItems) => {
       const newItems = [...prevItems]
       if (parentIndex === null) {
-        const currentSelection = !newItems[index].isSelected
+        const currentSelection = !newItems?.[index]?.isSelected
         newItems[index] = {
-          ...newItems[index],
+          ...newItems?.[index],
           isSelected: currentSelection,
-          children: newItems[index].children.map((child) => ({
+          children: newItems?.[index]?.children?.map((child) => ({
             ...child,
             isSelected: currentSelection,
-          })),
+          })) || [],
         }
       } else {
         newItems[parentIndex] = {
-          ...newItems[parentIndex],
-          children: newItems[parentIndex].children.map((child, i) =>
+          ...newItems?.[parentIndex],
+          children: newItems?.[parentIndex]?.children?.map((child, i) =>
             i === index
               ? {
                 ...child,
-                isSelected: !child.isSelected,
-                children: child.children.map((subChild) => ({
+                isSelected: !child?.isSelected,
+                children: child?.children?.map((subChild: any) => ({
                   ...subChild,
-                  isSelected: !child.isSelected,
-                })),
+                  isSelected: !child?.isSelected,
+                })) || [],
               }
               : child,
-          ),
+          ) || [],
         }
 
-        const hasSelectedChild = newItems[parentIndex].children.some((child) => child.isSelected)
+        const hasSelectedChild = newItems?.[parentIndex]?.children?.some((child) => child?.isSelected)
         newItems[parentIndex].isSelected = hasSelectedChild
       }
       return newItems
@@ -1048,8 +1048,8 @@ export default function UsersPageOptimized() {
   // ============= RENDER FUNCTIONS =============
   const renderMenuItems = useCallback(
     (items: MenuItem[], parentIndex: number | null = null) => {
-      return items.map((item, index) => (
-        <React.Fragment key={item.nav}>
+      return items?.map((item, index) => (
+        <React.Fragment key={item?.nav}>
           <MenuItemComponent
             item={item}
             index={index}
@@ -1060,9 +1060,9 @@ export default function UsersPageOptimized() {
             updateMenuItem={updateMenuItem}
             removeMenuItem={removeMenuItem}
           />
-          {item.children && item.children?.length > 0 && (
+          {item?.children && item?.children?.length > 0 && (
             <div className="border-l border-gray-200 ml-8 pl-2">
-              {renderMenuItems(item.children, parentIndex === null ? index : parentIndex)}
+              {renderMenuItems(item?.children, parentIndex === null ? index : parentIndex)}
             </div>
           )}
         </React.Fragment>
@@ -1130,24 +1130,24 @@ export default function UsersPageOptimized() {
                       </Button>
                     </div>
                     <div className="max-h-60 overflow-y-auto">
-                      {filteredResources.map((resource) => (
+                      {filteredResources?.map((resource) => (
                         <DropdownMenuItem
-                          key={resource.id}
+                          key={resource?.id}
                           asChild
                           className="cursor-pointer"
                           onSelect={(e) => e.preventDefault()}
                         >
                           <div className="flex items-center gap-2">
                             <Checkbox
-                              checked={tempSelectedResources.includes(resource.name.toLowerCase())}
-                              onCheckedChange={() => handleTempResourceToggle(resource.name.toLowerCase())}
-                              id={`resource-${resource.id}`}
+                              checked={tempSelectedResources?.includes(resource?.name?.toLowerCase())}
+                              onCheckedChange={() => handleTempResourceToggle(resource?.name?.toLowerCase())}
+                              id={`resource-${resource?.id}`}
                             />
                             <label
-                              htmlFor={`resource-${resource.id}`}
+                              htmlFor={`resource-${resource?.id}`}
                               className="flex-1 cursor-pointer"
                             >
-                              {formatResourceName(resource.name)}
+                              {formatResourceName(resource?.name)}
                             </label>
                           </div>
                         </DropdownMenuItem>
@@ -1185,7 +1185,7 @@ export default function UsersPageOptimized() {
                   <TableRow className="border-b border-gray-200 bg-gray-50">
                     <TableHead className="w-[50px]">Sr No.</TableHead>
                     <TableHead className="w-[150px]">Role Type</TableHead>
-                    {selectedResources.map((module) => (
+                    {selectedResources?.map((module) => (
                       <TableHead key={module} className="text-center capitalize">
                         {module} Permissions
                       </TableHead>
@@ -1200,16 +1200,16 @@ export default function UsersPageOptimized() {
                         <TableCell className="font-medium">{index + 1}</TableCell>
                         <TableCell>
                           <Badge className="px-3 py-1 text-sm bg-transparent hover:bg-transparent font-medium text-gray-700">
-                            {formatResourceName(user.type)}
+                            {formatResourceName(user?.type)}
                           </Badge>
                         </TableCell>
-                        {selectedResources.map((module) => (
+                        {selectedResources?.map((module) => (
                           <TableCell key={module}>
                             <PermissionCell
-                              userId={user.id}
+                              userId={user?.id}
                               resource={module}
                               permissions={
-                                user.permissions[module] ?? {
+                                user?.permissions?.[module] ?? {
                                   view: false,
                                   create: false,
                                   update: false,
@@ -1223,15 +1223,15 @@ export default function UsersPageOptimized() {
                         <TableCell className="text-center">
                           <div className="flex gap-2 justify-center">
                             <button
-                              onClick={() => savePermissions(user.id)}
-                              disabled={!modifiedPermissions[user.id] || isSaving[user.id]}
-                              className={`p-1 rounded-full ${modifiedPermissions[user.id] && !isSaving[user.id]
+                              onClick={() => savePermissions(user?.id)}
+                              disabled={!modifiedPermissions?.[user?.id] || isSaving?.[user?.id]}
+                              className={`p-1 rounded-full ${modifiedPermissions?.[user?.id] && !isSaving?.[user?.id]
                                   ? "hover:bg-green-100 text-green-600"
                                   : "text-gray-400 cursor-not-allowed"
                                 }`}
                               title="Save permissions"
                             >
-                              {isSaving[user.id] ? <AnimatedLogo /> : <Save className="h-4 w-4" />}
+                              {isSaving?.[user?.id] ? <AnimatedLogo /> : <Save className="h-4 w-4" />}
                             </button>
                             <button
                               onClick={() => handleEditRole(user)}
@@ -1241,7 +1241,7 @@ export default function UsersPageOptimized() {
                               <Edit className="h-4 w-4 text-blue-500" />
                             </button>
                             <button
-                              onClick={() => handleOpenConfirmDialog(user.id)}
+                              onClick={() => handleOpenConfirmDialog(user?.id)}
                               className="p-1 rounded-full hover:bg-red-100"
                               title="Delete role"
                             >

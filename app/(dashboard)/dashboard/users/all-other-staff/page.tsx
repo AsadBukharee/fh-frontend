@@ -178,34 +178,34 @@ const UserRow = React.memo(
     handleMouseMove: (key: string) => (e: React.MouseEvent) => void;
     handleExpandedChange?: (id: string) => void;
   }) => (
-    <TableRow key={user.id} id={`user-row-${user.id}`} className="border-b border-gray-100">
-      <TableCell className="font-medium">{user.id}</TableCell>
+    <TableRow key={user?.id} id={`user-row-${user?.id}`} className="border-b border-gray-100">
+      <TableCell className="font-medium">{user?.id}</TableCell>
       <TableCell className="font-medium">
-        {user.avatar ? (
+        {user?.avatar ? (
           <img
-            src={user.avatar}
-            alt={user.display_name}
+            src={user?.avatar}
+            alt={user?.display_name}
             className="w-8 h-8 rounded-full inline-block mr-2"
           />
         ) : (
           <User className="w-8 h-8 inline-block mr-2" />
         )}
-        <Link href={`/dashboard/users/all-other-staff/${user.id}`} className="hover:underline">
-          {user.display_name || user.full_name || user.email}
+        <Link href={`/dashboard/users/all-other-staff/${user?.id}`} className="hover:underline">
+          {user?.display_name || user?.full_name || user?.email}
         </Link>
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
-          {user.role ? (
-            Array.isArray(user.role) ? (
-              user.role.map((roleSlug) => (
+          {user?.role ? (
+            Array.isArray(user?.role) ? (
+              user?.role?.map((roleSlug) => (
                 <Badge key={roleSlug} className={getTypeColor(roleSlug)}>
-                  {roles.find((r) => r.slug === roleSlug)?.name || roleSlug}
+                  {roles?.find((r) => r?.slug === roleSlug)?.name || roleSlug}
                 </Badge>
               ))
             ) : (
-              <Badge className={getTypeColor(user.role)}>
-                {roles.find((role) => role.slug === user.role)?.name || user.role}
+              <Badge className={getTypeColor(user?.role)}>
+                {roles?.find((role) => role?.slug === user?.role)?.name || user?.role}
               </Badge>
             )
           ) : (
@@ -214,17 +214,17 @@ const UserRow = React.memo(
         </div>
       </TableCell>
       <TableCell>
-        {user.contract ? (
-          <Badge className="bg-green-100 text-green-500">{user.contract.name}</Badge>
+        {user?.contract ? (
+          <Badge className="bg-green-100 text-green-500">{user?.contract?.name}</Badge>
         ) : (
           <Badge className="bg-red-100 text-red-600">No Contract</Badge>
         )}
       </TableCell>
       <TableCell>
-        {user.site && user.site.length > 0 ? (
-          user.site.map((s) => (
-            <Badge key={s.id} className="bg-blue-100 text-blue-500 mr-1">
-              {s.name}
+        {user?.site && user?.site?.length > 0 ? (
+          user?.site?.map((s) => (
+            <Badge key={s?.id} className="bg-blue-100 text-blue-500 mr-1">
+              {s?.name}
             </Badge>
           ))
         ) : (
@@ -233,12 +233,12 @@ const UserRow = React.memo(
       </TableCell>
       <TableCell>
         <Badge className="bg-orange-100 text-orange-600 border border-orange-600">
-          {user.shifts_count || 0} shifts
+          {user?.shifts_count || 0} shifts
         </Badge>
       </TableCell>
       <TableCell>
-        <Badge className={getStatusColor(user.is_active)}>
-          {user.is_active ? "Active" : "In-Active"}
+        <Badge className={getStatusColor(user?.is_active)}>
+          {user?.is_active ? "Active" : "In-Active"}
         </Badge>
       </TableCell>
       <TableCell>
@@ -246,19 +246,19 @@ const UserRow = React.memo(
           <DropdownMenuTrigger asChild>
             <Button
               ref={(el) => {
-                buttonRefs.current[`action-${user.id}`] = el;
+                buttonRefs.current[`action-${user?.id}`] = el;
               }}
               variant="ghost"
               size="sm"
               className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-              onMouseMove={handleMouseMove(`action-${user.id}`)}
+              onMouseMove={handleMouseMove(`action-${user?.id}`)}
             >
               <MoreHorizontal className="w-4 h-4 relative z-10" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-white">
             <DropdownMenuItem onClick={() => {
-              handleExpandedChange?.(`user-row-${user.id}`);
+              handleExpandedChange?.(`user-row-${user?.id}`);
               handleEditUserClick(user);
             }}>
               <Edit className="w-4 h-4 mr-2" />
@@ -353,7 +353,7 @@ const AddUserModal = React.memo(
                   name="email"
                   type="email"
                   placeholder="Enter email address"
-                  value={formData.email}
+                  value={formData?.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className={formErrors.email ? "border-red-500" : ""}
                   required
@@ -375,7 +375,7 @@ const AddUserModal = React.memo(
                   id="add-full_name"
                   name="full_name"
                   placeholder="Enter full name"
-                  value={formData.full_name}
+                  value={formData?.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   className={formErrors.full_name ? "border-red-500" : ""}
                   required
@@ -399,7 +399,7 @@ const AddUserModal = React.memo(
                     name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter password"
-                    value={formData.password}
+                    value={formData?.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className={formErrors.password ? "border-red-500" : ""}
                     required
@@ -431,7 +431,7 @@ const AddUserModal = React.memo(
                     name="password_confirm"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm password"
-                    value={formData.password_confirm}
+                    value={formData?.password_confirm}
                     onChange={(e) =>
                       setFormData({ ...formData, password_confirm: e.target.value })
                     }
@@ -476,7 +476,7 @@ const AddUserModal = React.memo(
                   label: role.name, 
                   value: role.slug
                 }))}
-                selected={formData.role}
+                selected={formData?.role}
                 onChange={(selected: string[]) => setFormData({ ...formData, role: selected })}
                 placeholder="Select user roles"
                 error={!!formErrors.role}
@@ -509,7 +509,7 @@ const AddUserModal = React.memo(
               ) : (
                 <Select
                   name="contract"
-                  value={formData.contractId}
+                  value={formData?.contractId}
                   onValueChange={(value) => setFormData({ ...formData, contractId: value })}
                 >
                   <SelectTrigger>
@@ -517,12 +517,12 @@ const AddUserModal = React.memo(
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Contract</SelectItem>
-                    {contracts.map((contract) => (
-                      <SelectItem key={contract.id} value={contract.id.toString()}>
+                    {contracts?.map((contract) => (
+                      <SelectItem key={contract?.id} value={contract?.id?.toString()}>
                         <div className="space-y-1">
-                          <div className="font-medium">{contract.name}</div>
-                          {contract.description && (
-                            <div className="text-sm text-gray-500">{contract.description}</div>
+                          <div className="font-medium">{contract?.name}</div>
+                          {contract?.description && (
+                            <div className="text-sm text-gray-500">{contract?.description}</div>
                           )}
                         </div>
                       </SelectItem>
@@ -554,7 +554,7 @@ const AddUserModal = React.memo(
                 </div>
               ) : (
                 <MultiSelect
-                  options={sites.map((site) => ({ label: site.name, value: site.id.toString() }))}
+                  options={sites?.map((site) => ({ label: site?.name, value: site?.id?.toString() }))}
                   selected={formData.siteIds || []}
                   onChange={(selected: string[]) => setFormData({ ...formData, siteIds: selected })}
                   placeholder="Select sites (optional)"
@@ -663,7 +663,7 @@ const EditUserModal = React.memo(
                   id="edit-email"
                   name="email"
                   type="email"
-                  value={formData.email}
+                  value={formData?.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="Enter email address"
                   className={formErrors.email ? "border-red-500" : ""}
@@ -681,7 +681,7 @@ const EditUserModal = React.memo(
                 <Input
                   id="edit-full_name"
                   name="full_name"
-                  value={formData.full_name}
+                  value={formData?.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   placeholder="Enter full name"
                   className={formErrors.full_name ? "border-red-500" : ""}
@@ -709,7 +709,7 @@ const EditUserModal = React.memo(
                     label: role.name, 
                     value: role.slug
                   }))}
-                  selected={formData.role || []}
+                  selected={formData?.role || []}
                   onChange={(selected: string[]) => setFormData({ ...formData, role: selected })}
                   placeholder="Select user roles"
                   error={!!formErrors.role}
@@ -729,12 +729,12 @@ const EditUserModal = React.memo(
                     Account Status
                   </Label>
                   <p className="text-sm text-gray-500">
-                    {formData.is_active ? "User can access the system" : "User access is disabled"}
+                    {formData?.is_active ? "User can access the system" : "User access is disabled"}
                   </p>
                 </div>
                 <Switch
                   name="is_active"
-                  checked={formData.is_active}
+                  checked={formData?.is_active}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
                 />
               </div>
@@ -757,7 +757,7 @@ const EditUserModal = React.memo(
               ) : (
                 <Select
                   name="contract"
-                  value={formData.contractId}
+                  value={formData?.contractId}
                   onValueChange={(value) => setFormData({ ...formData, contractId: value })}
                 >
                   <SelectTrigger>
@@ -765,12 +765,12 @@ const EditUserModal = React.memo(
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Contract</SelectItem>
-                    {contracts.map((contract) => (
-                      <SelectItem key={contract.id} value={contract.id.toString()}>
+                    {contracts?.map((contract) => (
+                      <SelectItem key={contract?.id} value={contract?.id?.toString()}>
                         <div className="space-y-1">
-                          <div className="font-medium">{contract.name}</div>
-                          {contract.description && (
-                            <div className="text-sm text-gray-500">{contract.description}</div>
+                          <div className="font-medium">{contract?.name}</div>
+                          {contract?.description && (
+                            <div className="text-sm text-gray-500">{contract?.description}</div>
                           )}
                         </div>
                       </SelectItem>
@@ -799,8 +799,8 @@ const EditUserModal = React.memo(
                 </div>
               ) : (
                 <MultiSelect
-                  options={sites.map((site) => ({ label: site.name, value: site.id.toString() }))}
-                  selected={formData.siteIds || []}
+                  options={sites?.map((site) => ({ label: site?.name, value: site?.id?.toString() }))}
+                  selected={formData?.siteIds || []}
                   onChange={(selected: string[]) => setFormData({ ...formData, siteIds: selected })}
                   placeholder="Select sites (optional)"
                 />
@@ -886,7 +886,7 @@ const FilterModal = React.memo(
               Role
             </Label>
             <Select
-              value={filters.role}
+              value={filters?.role}
               onValueChange={(value) => setFilters({ ...filters, role: value })}
             >
               <SelectTrigger>
@@ -909,7 +909,7 @@ const FilterModal = React.memo(
               Contract
             </Label>
             <Select
-              value={filters.contract}
+              value={filters?.contract}
               onValueChange={(value) => setFilters({ ...filters, contract: value })}
             >
               <SelectTrigger>
@@ -933,7 +933,7 @@ const FilterModal = React.memo(
               Site
             </Label>
             <Select
-              value={filters.site}
+              value={filters?.site}
               onValueChange={(value) => setFilters({ ...filters, site: value })}
             >
               <SelectTrigger>
@@ -957,7 +957,7 @@ const FilterModal = React.memo(
               Status
             </Label>
             <Select
-              value={filters.status}
+              value={filters?.status}
               onValueChange={(value) => setFilters({ ...filters, status: value })}
             >
               <SelectTrigger>
@@ -1098,20 +1098,20 @@ export default function UsersPage() {
       }
 
       // Apply site filter
-      if (filters.site !== "all") {
-        if (filters.site === "none") {
-          filteredUsers = filteredUsers.filter((user) => !user.site || user.site.length === 0);
+      if (filters?.site !== "all") {
+        if (filters?.site === "none") {
+          filteredUsers = filteredUsers?.filter((user) => !user?.site || user?.site?.length === 0);
         } else {
-          filteredUsers = filteredUsers.filter((user) =>
-            user.site?.some((site) => site.id.toString() === filters.site),
+          filteredUsers = filteredUsers?.filter((user) =>
+            user?.site?.some((site) => site?.id?.toString() === filters?.site),
           );
         }
       }
 
       // Apply status filter
-      if (filters.status !== "all") {
-        filteredUsers = filteredUsers.filter(
-          (user) => user.is_active === (filters.status === "active"),
+      if (filters?.status !== "all") {
+        filteredUsers = filteredUsers?.filter(
+          (user) => user?.is_active === (filters?.status === "active"),
         );
       }
 
@@ -1147,11 +1147,11 @@ export default function UsersPage() {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
           const data = await response.json();
-          if (data.success) {
+          if (data?.success) {
             setRawUsers(data?.data?.results);
             const filteredUsers = filterUsers(data?.data?.results, filters, query);
             setUsers(filteredUsers);
-            setTotalPages(data.total_pages || Math.ceil(data.data.length / perPage));
+            setTotalPages(data?.total_pages || Math.ceil(data?.data?.length / perPage));
             setError(null);
           } else {
             setError(data.message || "Failed to fetch users");
@@ -1181,7 +1181,7 @@ export default function UsersPage() {
   }, [debouncedFetchUsers, searchQuery, currentPage, activeTab]);
 
   const fetchRoles = useCallback(async () => {
-    if (roles.length > 0) return; // Cache roles
+    if (roles?.length > 0) return; // Cache roles
     setRolesLoading(true);
     try {
       const response = await fetch(`${API_URL}/roles/`, {
@@ -1198,10 +1198,10 @@ export default function UsersPage() {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
-      if (data.success) {
-        setRoles(data.data);
+      if (data?.success) {
+        setRoles(data?.data || []);
       } else {
-        showToast(data.message || "Failed to fetch roles", "error");
+        showToast(data?.message || "Failed to fetch roles", "error");
         setRoles([]);
       }
     } catch (error) {
@@ -1220,7 +1220,7 @@ export default function UsersPage() {
   useEffect(() => {
     if (isEditModalOpen || isModalOpen || isFilterModalOpen) {
       const fetchContracts = async () => {
-        if (contracts.length > 0) return; // Cache contracts
+        if (contracts?.length > 0) return; // Cache contracts
         setContractsLoading(true);
         try {
           const response = await fetch(`${API_URL}/api/staff/contracts/`, {
@@ -1237,7 +1237,7 @@ export default function UsersPage() {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
           const data = await response.json();
-          setContracts(data);
+          setContracts(data || []);
         } catch {
           showToast("Failed to fetch contracts", "error");
         } finally {
@@ -1246,7 +1246,7 @@ export default function UsersPage() {
       };
 
       const fetchSites = async () => {
-        if (sites.length > 0) return; // Cache sites
+        if (sites?.length > 0) return; // Cache sites
         setSitesLoading(true);
         try {
           const response = await fetch(`${API_URL}/api/sites/list-names/`, {
@@ -1263,10 +1263,10 @@ export default function UsersPage() {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
           const data = await response.json();
-          if (data.success) {
-            setSites(data.data);
+          if (data?.success) {
+            setSites(data?.data || []);
           } else {
-            showToast(data.message || "Failed to fetch sites", "error");
+            showToast(data?.message || "Failed to fetch sites", "error");
           }
         } catch {
           showToast("Failed to fetch sites", "error");
@@ -1353,26 +1353,26 @@ export default function UsersPage() {
     setSelectedUser(user);
     
     let rolesArray: string[] = [];
-    if (Array.isArray(user.role)) {
-      rolesArray = user.role;
-    } else if (user.role) {
+    if (Array.isArray(user?.role)) {
+      rolesArray = user?.role;
+    } else if (user?.role) {
       // Find matching role slug, handling case-insensitivity
-      const resolvedRole = roles.find(
+      const resolvedRole = roles?.find(
           (r) =>
-            r.slug.toLowerCase() === user.role?.toString().toLowerCase() ||
-            r.name.toLowerCase() === user.role?.toString().toLowerCase()
-        )?.slug || user.role.toString().toLowerCase();
+            r?.slug?.toLowerCase() === user?.role?.toString()?.toLowerCase() ||
+            r?.name?.toLowerCase() === user?.role?.toString()?.toLowerCase()
+        )?.slug || user?.role?.toString()?.toLowerCase();
         rolesArray = [resolvedRole];
     }
 
     setFormData({
-      email: user.email,
-      full_name: user.full_name,
+      email: user?.email,
+      full_name: user?.full_name,
       role: rolesArray,
-      contractId: user.contract?.id?.toString() || "none",
-      siteId: user.site && user.site.length > 0 ? user.site[0].id.toString() : "none",
-      siteIds: user.site ? user.site.map((s) => s.id.toString()) : [],
-      is_active: user.is_active,
+      contractId: user?.contract?.id?.toString() || "none",
+      siteId: user?.site && user?.site?.length > 0 ? user?.site[0]?.id?.toString() : "none",
+      siteIds: user?.site ? user?.site?.map((s) => s?.id?.toString()) : [],
+      is_active: user?.is_active,
       password: "",
       password_confirm: "",
     });
@@ -1389,7 +1389,7 @@ export default function UsersPage() {
     if (!userToDelete) return;
     setIsDeleting(true);
     try {
-      const response = await fetch(`${API_URL}/users/${userToDelete.id}/`, {
+      const response = await fetch(`${API_URL}/users/${userToDelete?.id}/`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${cookies.get("access_token")}`,
@@ -1450,19 +1450,19 @@ export default function UsersPage() {
   const validateEditUserForm = useCallback((data: UserForm): UserFormErrors => {
     const errors: UserFormErrors = {};
 
-    if (!data.email.trim()) {
+    if (!data?.email?.trim()) {
       errors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data?.email)) {
       errors.email = "Please enter a valid email address";
     }
 
-    if (!data.full_name.trim()) {
+    if (!data?.full_name?.trim()) {
       errors.full_name = "Full name is required";
-    } else if (data.full_name.trim().length < 2) {
+    } else if (data?.full_name?.trim()?.length < 2) {
       errors.full_name = "Full name must be at least 2 characters";
     }
 
-    if (!data.role || data.role.length === 0) {
+    if (!data?.role || data?.role?.length === 0) {
       errors.role = "Role is required";
     }
 
@@ -1552,7 +1552,7 @@ export default function UsersPage() {
 
             await Promise.all(promises);
 
-            if (newUser.role.some(r => r.toLowerCase() === "driver")) {
+            if (newUser?.role?.some(r => r?.toLowerCase() === "driver")) {
               setNewDriverUserId(userId);
               setIsAddDriverModalOpen(true);
             }
@@ -1573,13 +1573,13 @@ export default function UsersPage() {
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       const editFormData: UserForm = {
-        email: formData.email,
-        full_name: formData.full_name,
-        role: formData.role,
-        contractId: formData.contractId || "none",
-        siteId: formData.siteId || "none",
-        siteIds: formData.siteIds || [],
-        is_active: formData.is_active,
+        email: formData?.email,
+        full_name: formData?.full_name,
+        role: formData?.role,
+        contractId: formData?.contractId || "none",
+        siteId: formData?.siteId || "none",
+        siteIds: formData?.siteIds || [],
+        is_active: formData?.is_active,
       };
 
       const errors = validateEditUserForm(editFormData);
@@ -1595,7 +1595,7 @@ export default function UsersPage() {
 
       try {
         const promises = [
-          fetch(`${API_URL}/users/${selectedUser.id}/`, {
+          fetch(`${API_URL}/users/${selectedUser?.id}/`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",

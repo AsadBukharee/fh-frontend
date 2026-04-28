@@ -99,9 +99,9 @@ const LocationTabs = () => {
     const filtered = locations.filter((location) => {
       // Search filter
       const matchesSearch =
-        location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (location.zipcode || "").includes(searchTerm) ||
-        (location.address && location.address.toLowerCase().includes(searchTerm.toLowerCase()))
+        location?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
+        (location?.zipcode || "")?.includes(searchTerm) ||
+        (location?.address && location?.address?.toLowerCase()?.includes(searchTerm.toLowerCase()))
 
       // Status filter
 
@@ -109,14 +109,14 @@ const LocationTabs = () => {
       // Site filter
       const matchesSite =
         siteFilter === "all" ||
-        (location.site !== null && location.site.toString() === siteFilter)
+        (location?.site !== null && location?.site?.toString() === siteFilter)
 
       // Custom order range filter
-      const minOrder = orderRange.min ? parseInt(orderRange.min) : null
-      const maxOrder = orderRange.max ? parseInt(orderRange.max) : null
+      const minOrder = orderRange?.min ? parseInt(orderRange?.min) : null
+      const maxOrder = orderRange?.max ? parseInt(orderRange?.max) : null
       const matchesOrder =
-        (!minOrder || location.custom_order >= minOrder) &&
-        (!maxOrder || location.custom_order <= maxOrder)
+        (!minOrder || (location?.custom_order ?? 0) >= minOrder) &&
+        (!maxOrder || (location?.custom_order ?? 0) <= maxOrder)
 
 
       return matchesSearch && matchesOrder && matchesSite
@@ -124,8 +124,8 @@ const LocationTabs = () => {
 
     filtered.sort((a, b) => {
       // Always prioritize base locations to show at the top
-      if (a.is_base && !b.is_base) return -1;
-      if (!a.is_base && b.is_base) return 1;
+      if (a?.is_base && !b?.is_base) return -1;
+      if (!a?.is_base && b?.is_base) return 1;
 
       let aValue = a[sortBy] ?? ""
       let bValue = b[sortBy] ?? ""
@@ -144,16 +144,16 @@ const LocationTabs = () => {
   }, [locations, searchTerm, sortBy, sortOrder, statusFilter, orderRange, siteFilter])
 
   const hierarchicalLocations = useMemo(() => {
-    const roots = filteredLocations.filter(loc => !loc.associated_location);
-    const children = filteredLocations.filter(loc => loc.associated_location);
+    const roots = filteredLocations?.filter(loc => !loc?.associated_location);
+    const children = filteredLocations?.filter(loc => loc?.associated_location);
 
     const result: (Location & { isSub?: boolean; subCount?: number })[] = [];
     const addedIds = new Set<number>();
 
-    roots.forEach(root => {
-      const subLocs = children.filter(child => child.associated_location === root.id);
-      result.push({ ...root, subCount: subLocs.length });
-      addedIds.add(root.id);
+    roots?.forEach(root => {
+      const subLocs = children?.filter(child => child?.associated_location === root?.id);
+      result.push({ ...root, subCount: subLocs?.length });
+      addedIds.add(root?.id);
 
       if (!collapsedGroups.has(root.id)) {
         subLocs.forEach(sub => {
@@ -409,8 +409,8 @@ const LocationTabs = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Sites</SelectItem>
-                  {sites.map((site) => (
-                    <SelectItem key={site.id} value={site.id.toString()}>{site.name}</SelectItem>
+                  {sites?.map((site) => (
+                    <SelectItem key={site?.id} value={site?.id?.toString()}>{site?.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -489,40 +489,40 @@ const LocationTabs = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {hierarchicalLocations.length > 0 ? (
-                    hierarchicalLocations.map((location) => (
+                  {hierarchicalLocations?.length > 0 ? (
+                    hierarchicalLocations?.map((location) => (
                       <tr
-                        key={location.id}
-                        className={`group transition-all duration-200 border-b border-gray-50 last:border-0 ${location.isSub ? "bg-gray-50/30" : ""}`}
+                        key={location?.id}
+                        className={`group transition-all duration-200 border-b border-gray-50 last:border-0 ${location?.isSub ? "bg-gray-50/30" : ""}`}
                       >
-                        <td className={`px-6 py-4 text-left ${location.isSub ? "pl-14" : ""}`}>
+                        <td className={`px-6 py-4 text-left ${location?.isSub ? "pl-14" : ""}`}>
                           <div className="flex items-center justify-start gap-2">
-                            {location.isSub ? (
+                            {location?.isSub ? (
                               <CornerDownRight className="w-4 h-4 text-gray-400" />
-                            ) : (location.subCount ?? 0) > 0 ? (
+                            ) : (location?.subCount ?? 0) > 0 ? (
                               <button
-                                onClick={() => toggleGroup(location.id)}
+                                onClick={() => toggleGroup(location?.id)}
                                 className="p-0.5 rounded hover:bg-gray-100 transition-colors duration-150 flex-shrink-0"
-                                title={collapsedGroups.has(location.id) ? "Expand sub-locations" : "Collapse sub-locations"}
+                                title={collapsedGroups?.has(location?.id) ? "Expand sub-locations" : "Collapse sub-locations"}
                               >
-                                {collapsedGroups.has(location.id) ? (
+                                {collapsedGroups?.has(location?.id) ? (
                                   <ChevronRight className="w-4 h-4 text-gray-500" />
                                 ) : (
                                   <ChevronDown className="w-4 h-4 text-gray-500" />
                                 )}
                               </button>
                             ) : null}
-                            {location.isSub ? null : location.is_loca_group ? (
+                            {location?.isSub ? null : location?.is_loca_group ? (
                               <FolderTree className="w-4 h-4 text-orange-500" />
-                            ) : location.is_base ? (
+                            ) : location?.is_base ? (
                               <MapPin className="w-4 h-4 text-red-400" />
                             ) : (
                               <MapPin className="w-4 h-4 text-gray-400" />
                             )}
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
-                                <span className={`${location.is_base || (!location.isSub && location.is_loca_group) ? "font-bold text-gray-950" : "font-medium text-gray-900"}`}>
-                                  {location.name}
+                                <span className={`${location?.is_base || (!location?.isSub && location?.is_loca_group) ? "font-bold text-gray-950" : "font-medium text-gray-900"}`}>
+                                  {location?.name}
                                 </span>
                                 {location.is_loca_group && !location.isSub && (
                                   <Badge variant="outline" className="text-[10px] py-0 h-4 bg-orange-50 text-orange-700 border-orange-200">
@@ -534,20 +534,20 @@ const LocationTabs = () => {
                                     Sub
                                   </Badge>
                                 )}
-                                {location.is_base && (
+                                {location?.is_base && (
                                   <Badge variant="outline" className="text-[10px] py-0 h-4 bg-green-50 text-green-700 border-green-200">
                                     Base
                                   </Badge>
                                 )}
-                                {!location.isSub && collapsedGroups.has(location.id) && (location.subCount ?? 0) > 0 && (
+                                {!location?.isSub && collapsedGroups?.has(location?.id) && (location?.subCount ?? 0) > 0 && (
                                   <Badge variant="outline" className="text-[10px] py-0 h-4 bg-gray-100 text-gray-500 border-gray-200">
-                                    {location.subCount} sub
+                                    {location?.subCount} sub
                                   </Badge>
                                 )}
                               </div>
-                              {location.isSub && !filteredLocations.some(l => l.id === location.associated_location) && (
+                              {location?.isSub && !filteredLocations?.some(l => l?.id === location?.associated_location) && (
                                 <span className="text-[10px] text-gray-400 italic">
-                                  Parent ID: {location.associated_location}
+                                  Parent ID: {location?.associated_location}
                                 </span>
                               )}
                             </div>
@@ -555,12 +555,12 @@ const LocationTabs = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm">
-                            <div className={`${location.is_base ? "font-bold text-gray-950" : "font-medium text-gray-900"}`}>
-                              {location.zipcode}
+                            <div className={`${location?.is_base ? "font-bold text-gray-950" : "font-medium text-gray-900"}`}>
+                              {location?.zipcode}
                             </div>
-                            {location.address && (
-                              <div className={`${location.is_base ? "font-semibold text-gray-700" : "text-gray-500"} truncate max-w-[250px]`}>
-                                {location.address}
+                            {location?.address && (
+                              <div className={`${location?.is_base ? "font-semibold text-gray-700" : "text-gray-500"} truncate max-w-[250px]`}>
+                                {location?.address}
                               </div>
                             )}
                           </div>

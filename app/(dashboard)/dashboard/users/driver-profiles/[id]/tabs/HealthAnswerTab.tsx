@@ -54,9 +54,9 @@ export default function HealthAnswerTab({
         setLocalEditData((prev: any) => ({
           ...prev,
           [healthId]: {
-            answer: healthItem.answer,
-            note: healthItem.note || "",
-            admin_remarks: healthItem.admin_remarks || "" // Add admin_remarks to local edit data
+            answer: healthItem?.answer,
+            note: healthItem?.note || "",
+            admin_remarks: healthItem?.admin_remarks || "" // Add admin_remarks to local edit data
           }
         }));
       }
@@ -125,12 +125,12 @@ export default function HealthAnswerTab({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {healthData.length === 0 ? (
+        {healthData?.length === 0 ? (
           <p className="text-gray-600 text-center py-6">
             No health answers found.
           </p>
         ) : (
-          (isEditingHealth ? editHealthData : healthData).map((health: any) => {
+          (isEditingHealth ? editHealthData : healthData)?.map((health: any) => {
             const isCardEditing = editingCards.has(health.id);
             const displayData = getHealthDisplayData(health);
 
@@ -178,7 +178,7 @@ export default function HealthAnswerTab({
                   <div className="w-1/2 pr-6">
                     <p className="text-sm font-medium text-gray-500">Question</p>
                     <p className="text-gray-900">
-                      {health.question_text}
+                      {health?.question_text}
                     </p>
                   </div>
 
@@ -189,7 +189,7 @@ export default function HealthAnswerTab({
 
                     {isCardEditing || isEditingHealth ? (
                       <Select
-                        value={displayData.answer.toString()}
+                        value={displayData?.answer?.toString()}
                         onValueChange={(value) => {
                           if (isCardEditing) {
                             handleCardInputChange(
@@ -212,7 +212,7 @@ export default function HealthAnswerTab({
                       </Select>
                     ) : (
                       <Badge className="text-red-600 bg-red-50">
-                        {displayData.answer ? "Yes" : "No"}
+                        {displayData?.answer ? "Yes" : "No"}
                       </Badge>
                     )}
                   </div>
@@ -245,7 +245,7 @@ export default function HealthAnswerTab({
                       />
                     ) : (
                       <p className="text-gray-900">
-                        {displayData.note || "No additional notes"}
+                        {displayData?.note || "No additional notes"}
                       </p>
                     )}
                   </div>
@@ -259,7 +259,7 @@ export default function HealthAnswerTab({
 
                     {isCardEditing || isEditingHealth ? (
                       <Textarea // Using Textarea for multi-line input
-                        value={displayData.admin_remarks || ""}
+                        value={displayData?.admin_remarks || ""}
                         onChange={(e) => {
                           if (isCardEditing) {
                             handleCardInputChange(
@@ -277,9 +277,9 @@ export default function HealthAnswerTab({
                       />
                     ) : (
                       <div className="mt-1">
-                        {displayData.admin_remarks ? (
+                        {displayData?.admin_remarks ? (
                           <div className="bg-yellow-50 text-yellow-800 rounded-md p-3 text-sm">
-                            {displayData.admin_remarks}
+                            {displayData?.admin_remarks}
                           </div>
                         ) : (
                           <Badge variant="default" className="text-yellow-500 bg-yellow-50 border-0">
