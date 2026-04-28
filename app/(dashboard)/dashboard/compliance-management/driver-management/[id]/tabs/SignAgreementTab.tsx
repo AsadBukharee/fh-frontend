@@ -672,7 +672,13 @@ function DocumentDetailDialog({ doc, cfg, onClose, onSave, onLater, onDelete }: 
 
 
 /* ────────────────────── Main Component ────────────────────── */
-export default function SignAgreementAdminTab() {
+export default function SignAgreementAdminTab({
+  expandedId,
+  handleExpandedChange,
+}: {
+  expandedId?: string | string[];
+  handleExpandedChange?: (id: string) => void;
+}) {
   const { id } = useParams();
   const driver_id = id as string;
   // const searchParams=useSearchParams();
@@ -941,6 +947,7 @@ export default function SignAgreementAdminTab() {
           return (
             <Card
               key={key}
+              id={`agreement-card-${key}`}
               className={`overflow-hidden bg-white rounded-[2rem] border border-gray-100 shadow-sm transition-all hover:shadow-md flex flex-col h-full ${!d.isApplicable ? "opacity-50" : ""}`}
             >
               {/* Top Section: Photo / Placeholder */}
@@ -950,7 +957,10 @@ export default function SignAgreementAdminTab() {
                     <>
                       <div
                         className="w-full h-full cursor-pointer"
-                        onClick={() => setDetail({ open: true, key: k })}
+                        onClick={() => {
+                          handleExpandedChange?.(`agreement-card-${key}`);
+                          setDetail({ open: true, key: k });
+                        }}
                       >
                         {isImage ? (
                           <img

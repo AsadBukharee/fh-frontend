@@ -60,6 +60,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { useAutoScroll } from "@/app/utils/useAutoScroll";
 
 // Interfaces
 interface Shift {
@@ -235,6 +236,8 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
   const cookies = useCookies();
   const role = cookies.get("role");
   const months = generateMonths();
+
+  const { handleExpandedChange } = useAutoScroll(loading, "rota_child_table");
 
   const currentMonthData =
     months.find((m) => m.value === selectedMonth) || months[6];
@@ -998,14 +1001,18 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
                             const userShift = filteredShifts.find(
                               shift => shift.date === dayStr && shift.user?.id === user.id
                             );
+                            const cellId = `cell-${user.id}-${dayStr}`;
 
                             return (
-                              <td key={user.id} className="p-2" style={{ minWidth: "200px", border: "1px solid #D1D5DB" }}>
+                              <td key={user.id} id={cellId} className="p-2" style={{ minWidth: "200px", border: "1px solid #D1D5DB" }}>
                                 {userShift ? (
                                   <ShiftCard
                                     shiftType={userShift.shift_detail.name}
                                     shift_cell_id={userShift.id}
-                                    onShiftUpdate={fetchData}
+                                    onShiftUpdate={() => {
+                                      handleExpandedChange(cellId);
+                                      fetchData();
+                                    }}
                                     shift_id={userShift.shift_detail.id}
                                     shift_list={userShift?.user?.shifts ?? []}
                                     shift_daily_salary={userShift.daily_salary}

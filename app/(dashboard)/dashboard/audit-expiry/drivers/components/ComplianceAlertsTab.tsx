@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useCookies } from "next-client-cookies"
+import { useAutoScroll } from "@/app/utils/useAutoScroll"
 import { Button } from "@/components/ui/button"
 import API_URL from "@/app/utils/ENV"
 import { ComplianceList } from "./ComplianceList"
@@ -14,6 +15,7 @@ const HOST = API_URL
 export function ComplianceAlertsTab() {
     const [alerts, setAlerts] = useState<AuditItem[]>([])
     const [loading, setLoading] = useState(true)
+    const { expandedId, handleExpandedChange } = useAutoScroll(loading, "audit-expiry-alerts")
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -201,6 +203,7 @@ export function ComplianceAlertsTab() {
                 saving={saving}
                 onUpdateItem={handleUpdateItem}
                 onCreateItem={handleCreateItem}
+                handleExpandedChange={handleExpandedChange}
             />
 
             <div className="mt-8 pt-6 border-t border-gray-200 px-2">

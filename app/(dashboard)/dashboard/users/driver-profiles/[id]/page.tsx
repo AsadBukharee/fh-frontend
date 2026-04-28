@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useAutoScroll } from "@/app/utils/useAutoScroll";
 import { useParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -206,6 +207,12 @@ export default function DriverDetailPage() {
   const [isDisapproving, setIsDisapproving] = useState(false);
   const [warningsDialogOpen, setWarningsDialogOpen] = useState(false);
 
+  const { expandedId, handleExpandedChange } = useAutoScroll(
+    loading || competencyLoading,
+    "driver_profile",
+    true // Using multiple mode since they might want to track different tab sections
+  );
+
   /* ── warning helpers ── */
   const warningCount = driverData?.warnings?.length || 0;
   const errorCount = driverData?.warnings?.filter((w: string) => w.includes("🔴")).length || 0;
@@ -230,6 +237,7 @@ export default function DriverDetailPage() {
   const formatDate = (dateString: string | null) => (dateString ? formatDmy(dateString) : "Not set");
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
         method: "GET",
@@ -741,6 +749,8 @@ export default function DriverDetailPage() {
           <DriverDetailTab
             driverData={driverData}
             editFormData={editFormData}
+            expandedId={expandedId}
+            handleExpandedChange={handleExpandedChange}
             contracts={contracts}
             sites={sites}
             selectedContractId={selectedContractId}
@@ -763,6 +773,8 @@ export default function DriverDetailPage() {
         <TabsContent value="professional-competency">
           <ProfessionalCompetencyTab
             competencyData={competencyData}
+            expandedId={expandedId}
+            handleExpandedChange={handleExpandedChange}
             formatDate={formatDate}
             driverId={driverData.id}
             driverName={driverData.user.full_name}
@@ -786,10 +798,15 @@ export default function DriverDetailPage() {
             handleHealthEditToggle={handleHealthEditToggle}
             handleHealthInputChange={handleHealthInputChange}
             handleSaveHealth={handleSaveHealth}
+            expandedId={expandedId}
+            handleExpandedChange={handleExpandedChange}
           />
         </TabsContent>
         <TabsContent value="sign-agreement">
-          <SignAgreementTab />
+          <SignAgreementTab 
+            expandedId={expandedId}
+            handleExpandedChange={handleExpandedChange}
+          />
         </TabsContent>
       </Tabs>
     </div>

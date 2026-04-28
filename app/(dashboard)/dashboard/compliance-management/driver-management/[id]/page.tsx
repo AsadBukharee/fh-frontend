@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useAutoScroll } from "@/app/utils/useAutoScroll";
 import { useParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -206,6 +207,12 @@ export default function DriverDetailPage() {
   const [isDisapproving, setIsDisapproving] = useState(false);
   const [warningsDialogOpen, setWarningsDialogOpen] = useState(false);
 
+  const { expandedId, handleExpandedChange } = useAutoScroll(
+    loading || competencyLoading,
+    "driver_profile",
+    true // Using multiple mode since they might want to track different tab sections
+  );
+
   /* ── warning helpers ── */
   const warningCount = driverData?.warnings?.length || 0;
   const errorCount = driverData?.warnings?.filter((w: string) => w.includes("🔴")).length || 0;
@@ -230,6 +237,7 @@ export default function DriverDetailPage() {
   const formatDate = (dateString: string | null) => (dateString ? formatDmy(dateString) : "Not set");
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/profiles/driver/${id}/`, {
         method: "GET",
@@ -530,8 +538,12 @@ export default function DriverDetailPage() {
         full_name: `${currentData.first_name} ${currentData.last_name}`.trim(),
         avatar: currentData.avatar || null,
         paid_holidays: currentData.paid_holidays,
-        rota_start_date: currentData.rota_start_date,
-        contract_signing_date: currentData.contract_signing_date,
+        rota_start_date: currentData.rota_start_date || null,
+        contract_signing_date: currentData.contract_signing_date 
+          ? (currentData.contract_signing_date.includes('T') 
+              ? currentData.contract_signing_date 
+              : `${currentData.contract_signing_date}T00:00:00Z`)
+          : null,
       };
       const userResponse = await fetch(`${API_URL}/users/${driverData?.user.id}/`, {
         method: "PATCH",
@@ -543,7 +555,7 @@ export default function DriverDetailPage() {
       const driverPayload = {
         phone: currentData.phone,
         address: currentData.address,
-        date_of_birth: currentData.date_of_birth,
+        date_of_birth: currentData.date_of_birth || null,
         national_insurance_no: currentData.national_insurance_no,
         post_code: currentData.post_code,
         next_of_kin_name: `${currentData.next_of_kin_first_name} ${currentData.next_of_kin_last_name}`.trim(),
@@ -737,6 +749,8 @@ export default function DriverDetailPage() {
           <DriverDetailTab
             driverData={driverData}
             editFormData={editFormData}
+            expandedId={expandedId}
+            handleExpandedChange={handleExpandedChange}
             contracts={contracts}
             sites={sites}
             selectedContractId={selectedContractId}
@@ -759,6 +773,8 @@ export default function DriverDetailPage() {
         <TabsContent value="professional-competency">
           <ProfessionalCompetencyTab
             competencyData={competencyData}
+            expandedId={expandedId}
+            handleExpandedChange={handleExpandedChange}
             formatDate={formatDate}
             driverId={driverData.id}
             driverName={driverData.user.full_name}
@@ -782,10 +798,15 @@ export default function DriverDetailPage() {
             handleHealthEditToggle={handleHealthEditToggle}
             handleHealthInputChange={handleHealthInputChange}
             handleSaveHealth={handleSaveHealth}
+            expandedId={expandedId}
+            handleExpandedChange={handleExpandedChange}
           />
         </TabsContent>
         <TabsContent value="sign-agreement">
-          <SignAgreementTab />
+          <SignAgreementTab 
+            expandedId={expandedId}
+            handleExpandedChange={handleExpandedChange}
+          />
         </TabsContent>
       </Tabs>
     </div>

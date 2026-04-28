@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo, memo } from "react"
+import { useState, useEffect, useCallback, useMemo, memo, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
@@ -43,6 +43,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useDebounce } from "use-debounce"
 import { formatToDDMMYYYY } from "@/app/utils/DateFormat"
+import { useAutoScroll } from "@/app/utils/useAutoScroll"
 
 // Type declarations
 interface Shift {
@@ -388,6 +389,8 @@ const ShiftManagement = () => {
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState<boolean>(false)
   const [bulkContractId, setBulkContractId] = useState<number | null>(null)
 
+  const { expandedId: expandedContract, handleExpandedChange: handleAccordionChange, setExpandedId: setExpandedContract } = useAutoScroll(loading, "contracts");
+
   const cookies = useCookies()
   const role = cookies.get("role")
   const { showToast } = useToast()
@@ -649,6 +652,10 @@ const ShiftManagement = () => {
         if (!response.ok) {
           const errorData = await response.json()
           throw new Error(errorData.message || "Failed to update shift")
+        }
+
+        if (contract) {
+          setExpandedContract(`contract-${contract}`)
         }
 
         await fetchData()
@@ -971,9 +978,16 @@ const ShiftManagement = () => {
             </div>
 
             {filteredContracts.length > 0 ? (
-              <Accordion type="single" collapsible className="space-y-3">
+              <Accordion 
+                type="single" 
+                collapsible 
+                className="space-y-3"
+                value={expandedContract as string | undefined}
+                onValueChange={handleAccordionChange as (value: string) => void}
+              >
                 {filteredContracts.map((contract: Contract) => (
                   <AccordionItem
+                    id={`contract-${contract.id}`}
                     key={contract.id}
                     value={`contract-${contract.id}`}
                     className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden"

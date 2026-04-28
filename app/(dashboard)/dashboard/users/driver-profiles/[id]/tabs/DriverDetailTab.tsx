@@ -59,6 +59,8 @@ interface DriverDetailTabProps {
   handleEditToggle: () => void;
   handleSaveProfile: (overrideData?: any) => Promise<void>;
   saving: boolean;
+  expandedId?: string | string[];
+  handleExpandedChange?: (id: string) => void;
 }
 
 interface Manager {
@@ -196,6 +198,15 @@ function FieldCell({
       );
     }
 
+    // If value is a React element/object, render it directly
+    if (typeof value !== "string" && value !== null && value !== undefined) {
+      return (
+        <div className="text-sm font-medium truncate text-gray-800">
+          {value}
+        </div>
+      );
+    }
+
     const textValue = typeof value === "string" ? value : "";
     const displayValue = textValue || "—";
     const isTruncated = truncate && textValue.length > 10;
@@ -325,8 +336,11 @@ export default function DriverDetailTab({
   sitesLoading,
   assigningContract,
   assigningSites,
+  handleEditToggle,
   handleSaveProfile,
   saving,
+  expandedId,
+  handleExpandedChange,
 }: DriverDetailTabProps) {
   const [isEditingDriverDetails, setIsEditingDriverDetails] = useState(false);
 
@@ -352,6 +366,8 @@ export default function DriverDetailTab({
       post_code: driverData?.post_code || "",
       email: driverData?.user?.email || "",
       avatar: driverData?.user?.avatar || "",
+      license_number: driverData?.license_number || "",
+      license_issue_number: driverData?.license_issue_number || "",
     });
     setDriverDialogOpen(true);
   };
@@ -367,7 +383,6 @@ export default function DriverDetailTab({
   const handleEmploymentDialogSave = async () => {
     const changes: Record<string, any> = {};
 
-    // 1. Basic Fields
     // 0. Validation: If Other Job is Yes, check for note
     if (employmentDialogForm.have_other_jobs && !employmentDialogForm.have_other_jobs_note?.trim()) {
       toast.error("Please provide details in Other Job Details field");
@@ -419,7 +434,6 @@ export default function DriverDetailTab({
         });
         if (res.ok) {
           toast.success("Manager assigned successfully");
-          // Opt: refetch or update local state
         }
       } catch (err) {
         console.error("Manager assignment error:", err);
@@ -445,9 +459,7 @@ export default function DriverDetailTab({
   };
 
   const handleNextOfKinDialogSave = async () => {
-    // Collect all fields
     Object.entries(nextOfKinDialogForm).forEach(([k, v]) => handleInputChange(k, v));
-    // Explicitly call save with form data
     await handleSaveProfile(nextOfKinDialogForm);
     setNextOfKinDialogOpen(false);
   };
@@ -455,14 +467,13 @@ export default function DriverDetailTab({
   const openEmploymentDialog = () => {
     setEmploymentDialogForm({
       paid_holidays: driverData?.user?.paid_holidays ?? 0,
-      contract_signing_date: driverData?.user?.contract_signing_date || "",
+      contract_signing_date: driverData?.user?.contract_signing_date ? driverData.user.contract_signing_date.split("T")[0] : "",
       rota_start_date: driverData?.user?.rota_start_date || "",
       account_no: driverData?.account_no || "",
       sort_code: driverData?.sort_code || "",
       have_other_jobs: driverData?.have_other_jobs || false,
       have_other_jobs_note: driverData?.have_other_jobs_note || "",
       remarks: driverData?.remarks || "",
-      // IDs for selections
       contract_id: driverData?.user?.contract?.id?.toString() || "",
       site_ids: driverData?.user?.site?.map((s: any) => s.id.toString()) || [],
       manager_id: activeBrightHR?.manager_id?.toString() || "",
@@ -481,15 +492,6 @@ export default function DriverDetailTab({
   const [remarks, setRemarks] = useState(driverData?.remarks || "");
 
   const cookies = useCookies();
-
-  /* ── helpers ── */
-  const fv = (key: string, fallback: string) =>
-    isEditingDriverDetails
-      ? editFormData?.[key] !== undefined
-        ? editFormData[key]
-        : fallback
-      : fallback;
-
 
   const getFirstName = () => driverData?.user?.full_name?.split(" ")[0] ?? "—";
   const getLastName = () => {
@@ -521,7 +523,6 @@ export default function DriverDetailTab({
   const isActive = driverData?.user?.is_active;
   const contractType = driverData?.user?.contract?.name || null;
 
-  /* ── fetching ── */
   useEffect(() => {
     const fetchManagers = async () => {
       setManagersLoading(true);
@@ -592,814 +593,336 @@ export default function DriverDetailTab({
     }
   };
 
-  const handleImageUploadSuccess = (url: string) => handleInputChange("avatar", url);
-
-  const handleSaveAllChanges = async () => {
-    const changes: Record<string, any> = {};
-    if (otherJobsNote !== driverData?.have_other_jobs_note) {
-      changes.have_other_jobs_note = otherJobsNote;
-      handleInputChange("have_other_jobs_note", otherJobsNote);
-    }
-    if (remarks !== driverData?.remarks) {
-      changes.remarks = remarks;
-      handleInputChange("remarks", remarks);
-    }
-    await handleSaveProfile(changes);
-  };
-
-
-  /* ── warnings ── */
-  const getWarningStyle = (w: string) => {
-    if (w.includes("🔴")) return { cls: "bg-red-50 text-red-800 border border-red-200", icon: <XCircle className="h-4 w-4 flex-shrink-0 text-red-500" /> };
-    if (w.includes("⚠️")) return { cls: "bg-orange-50 text-orange-800 border border-orange-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-500" /> };
-    if (w.includes("⏳")) return { cls: "bg-amber-50 text-amber-800 border border-amber-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500" /> };
-    return { cls: "bg-emerald-50 text-emerald-800 border border-emerald-200", icon: <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" /> };
-  };
-
-  const stripEmoji = (w: string) =>
-    w.replace(/^[\p{Emoji}\s]+/u, "").trim();
-
-  const renderWarnings = () => {
-    if (!driverData?.warnings?.length) return null;
-    return (
-      <div className="mb-4 space-y-2">
-        {driverData.warnings.map((w: string, i: number) => {
-          const { cls, icon } = getWarningStyle(w);
-          return (
-            <div key={i} className={cn("flex items-center gap-3 p-3 rounded-xl text-sm font-medium", cls)}>
-              {icon}
-              <span>{stripEmoji(w)}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  /* ──────────────────────────────────────────────────────────────────────── */
   return (
     <TooltipProvider>
       <div className="w-full p-4 pb-24 space-y-5 bg-transparent">
 
-      {/* ══════════════════════ DRIVER DETAILS (read-only card) ══════════════════════ */}
-      <SectionCard
-        title="Driver Details"
-        isEditing={false}
-        saving={false}
-        onEdit={openDriverDialog}
-        onCancel={() => { }}
-        onSave={async () => { }}
-      >
-        {/* ── Avatar left col + two read-only field rows ── */}
-        <div className="flex gap-5">
-
-          {/* LEFT: Avatar column */}
-          <div className="flex flex-col items-center gap-2 flex-shrink-0 w-[72px]">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-white shadow-md">
-                <img
-                  src={driverData?.user?.avatar || "/default-avatar.png"}
-                  alt="Driver"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span
-                className={cn(
-                  "absolute -bottom-1 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap",
-                  isActive
-                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                    : "bg-gray-100 text-gray-500 border border-gray-200"
-                )}
-              >
-                {isActive ? "Active" : "Inactive"}
-              </span>
-            </div>
-            {driverData?.updated_at && (
-              <div className="flex items-center gap-0.5 text-[10px] text-gray-400 mt-3 text-center leading-tight">
-                <Clock className="h-2.5 w-2.5 flex-shrink-0" />
-                <span>
-                  Last active{" "}
-                  {(() => {
-                    const diff = Math.floor((Date.now() - new Date(driverData.updated_at).getTime()) / 60000);
-                    if (diff < 1) return "just now";
-                    if (diff < 60) return `${diff}m ago`;
-                    const hrs = Math.floor(diff / 60);
-                    if (hrs < 24) return `${hrs}h ago`;
-                    const days = Math.floor(hrs / 24);
-                    return `${days}d ago`;
-                  })()}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* RIGHT: two read-only rows */}
-          <div className="flex-1 min-w-0 flex flex-col gap-5">
-            {/* Row 1 */}
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-0">
-              <div className="flex-1"><FieldCell label="First Name" value={getFirstName()} /></div>
-              <VDivider />
-              <div className="flex-1">
-                <div className="flex flex-col gap-1 min-w-0">
-                  <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">DOB</span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-sm font-medium text-gray-800">
-                      {driverData?.date_of_birth ? formatToDDMMYYYY(driverData.date_of_birth) : "—"}
-                    </span>
-                    {driverData?.date_of_birth && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-rose-100 text-rose-600 border border-rose-200 whitespace-nowrap">
-                        {calculateAgeLabel(driverData.date_of_birth)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <VDivider />
-              <div className="flex-1"><FieldCell label="Address" value={driverData?.address || "—"} truncate /></div>
-              <VDivider />
-              <div className="flex-1"><FieldCell label="Phone Number" value={driverData?.phone || "—"} /></div>
-            </div>
-            {/* Row 2 */}
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-0">
-              <div className="flex-1"><FieldCell label="Last Name" value={getLastName()} truncate /></div>
-              <VDivider />
-              <div className="flex-1">
-                <FieldCell label="NI Number" value={driverData?.national_insurance_no || "—"} highlight="pink" />
-              </div>
-              <VDivider />
-              <div className="flex-1">
-                <FieldCell label="Post Code" value={driverData?.post_code || "—"} highlight="pink" />
-              </div>
-              <VDivider />
-              <div className="flex-1">
-                <FieldCell label="Email Address" value={driverData?.user?.email || "—"} email truncate />
-              </div>
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-
-      <Dialog open={driverDialogOpen} onOpenChange={setDriverDialogOpen}>
-        <DialogContent className="max-w-3xl w-full rounded-2xl p-0 overflow-hidden">
-          <DialogHeader className="px-8 pt-6 pb-4 border-b border-gray-100">
-            <DialogTitle className="text-base font-bold text-gray-900">Edit Driver Detail</DialogTitle>
-          </DialogHeader>
-
-          <div className="px-8 py-6">
-            <div className="flex gap-6">
-
-              {/* Avatar — click to upload */}
-              <div className="flex-shrink-0 flex flex-col items-center gap-2">
-                <label className="cursor-pointer group relative">
-                  <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-gray-100 shadow">
+        {/* DRIVER DETAILS */}
+        <div id="section-driver-details">
+          <SectionCard
+            title="Driver Details"
+            isEditing={false}
+            saving={false}
+            onEdit={() => {
+              handleExpandedChange?.("section-driver-details");
+              openDriverDialog();
+            }}
+            onCancel={() => { }}
+            onSave={async () => { }}
+          >
+            <div className="flex gap-5">
+              <div className="flex flex-col items-center gap-2 flex-shrink-0 w-[72px]">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-white shadow-md">
                     <img
-                      src={driverDialogForm.avatar || driverData?.user?.avatar || "/default-avatar.png"}
+                      src={driverData?.user?.avatar || "/default-avatar.png"}
                       alt="Driver"
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  {/* Camera overlay */}
-                  <div className={cn(
-                    "absolute inset-0 rounded-full bg-black/30 transition-opacity flex items-center justify-center",
-                    uploadingAvatar ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  <span className={cn(
+                    "absolute -bottom-1 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap",
+                    isActive ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500 border border-gray-200"
                   )}>
-                    {uploadingAvatar ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    )}
+                    {isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                {driverData?.updated_at && (
+                  <div className="flex items-center gap-0.5 text-[10px] text-gray-400 mt-3 text-center leading-tight">
+                    <Clock className="h-2.5 w-2.5 flex-shrink-0" />
+                    <span>
+                      Last active {(() => {
+                        const diff = Math.floor((Date.now() - new Date(driverData.updated_at).getTime()) / 60000);
+                        if (diff < 1) return "just now";
+                        if (diff < 60) return `${diff}m ago`;
+                        const hrs = Math.floor(diff / 60);
+                        if (hrs < 24) return `${hrs}h ago`;
+                        const days = Math.floor(hrs / 24);
+                        return `${days}d ago`;
+                      })()}
+                    </span>
                   </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={uploadingAvatar}
-                    onChange={async (e) => {
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0 flex flex-col gap-5">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-0">
+                  <div className="flex-1"><FieldCell label="First Name" value={getFirstName()} /></div>
+                  <VDivider />
+                  <div className="flex-1">
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">DOB</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-medium text-gray-800">
+                          {driverData?.date_of_birth ? formatToDDMMYYYY(driverData.date_of_birth) : "—"}
+                        </span>
+                        {driverData?.date_of_birth && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-rose-100 text-rose-600 border border-rose-200 whitespace-nowrap">
+                            {calculateAgeLabel(driverData.date_of_birth)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <VDivider />
+                  <div className="flex-1"><FieldCell label="Address" value={driverData?.address || "—"} truncate /></div>
+                  <VDivider />
+                  <div className="flex-1"><FieldCell label="Phone Number" value={driverData?.phone || "—"} /></div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-0">
+                  <div className="flex-1"><FieldCell label="Last Name" value={getLastName()} truncate /></div>
+                  <VDivider />
+                  <div className="flex-1"><FieldCell label="NI Number" value={driverData?.national_insurance_no || "—"} highlight="pink" /></div>
+                  <VDivider />
+                  <div className="flex-1"><FieldCell label="Post Code" value={driverData?.post_code || "—"} highlight="pink" /></div>
+                  <VDivider />
+                  <div className="flex-1"><FieldCell label="Email Address" value={driverData?.user?.email || "—"} email truncate /></div>
+                  <VDivider />
+                  <div className="flex-1"><FieldCell label="License Number" value={driverData?.license_number || "—"} highlight="gray" /></div>
+                  <VDivider />
+                  <div className="flex-1"><FieldCell label="License Issue" value={driverData?.license_issue_number || "—"} highlight="gray" /></div>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+
+        {/* EMPLOYMENT DETAILS */}
+        <div id="section-employment-details">
+          <SectionCard
+            title="Employment Details"
+            isEditing={false}
+            saving={saving}
+            onEdit={() => {
+              handleExpandedChange?.("section-employment-details");
+              openEmploymentDialog();
+            }}
+            onCancel={() => { }}
+            onSave={() => { }}
+          >
+            <div className="flex flex-col gap-8">
+              <div className="grid grid-cols-4 gap-8">
+                <div className="flex flex-col gap-1.5 p-3 bg-orange-50/30 rounded-2xl border border-orange-100 min-w-0">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Paid Holidays</span>
+                  <div className="flex items-baseline gap-1 pl-1">
+                    <span className="text-3xl font-black text-orange-500 leading-none">{driverData?.user?.paid_holidays ?? 0}</span>
+                    <span className="text-[10px] font-bold text-orange-400 uppercase">Days</span>
+                  </div>
+                </div>
+                <FieldCell label="Contract Assigned" value={contractType ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-100">{contractType}</span> : "—"} />
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Bright HR Manager</span>
+                  {activeBrightHR ? <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-yellow-50 text-yellow-800 border border-yellow-100 ml-1">{activeBrightHR.manager_name}</span> : driverData?.manager_name ? <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-gray-50 text-gray-800 border border-gray-100 ml-1">{driverData.manager_name}</span> : <span className="text-sm text-gray-400 ml-1">—</span>}
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Site(s) Assigned</span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-orange-50 text-orange-700 border border-orange-200 ml-1 max-w-full truncate">{renderAssignedSites()}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-8">
+                <FieldCell label="Assign Date" value={activeBrightHR?.assigning_date ? formatDate(activeBrightHR.assigning_date) : "—"} />
+                <FieldCell label="Contract Sign Date" value={driverData?.user?.contract_signing_date ? formatDate(driverData.user.contract_signing_date) : "—"} />
+                <FieldCell label="Account No" value={driverData?.account_no || "—"} />
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Sort Code</span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-rose-50 text-rose-600 border border-rose-100 ml-1">{driverData?.sort_code || "—"}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-8">
+                <FieldCell label="Rota Start Date" value={driverData?.user?.rota_start_date ? formatDate(driverData.user.rota_start_date) : "—"} />
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Jobs?</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-gray-100 text-gray-700 border border-gray-200 ml-1">{driverData?.have_other_jobs ? "Yes" : "No"}</span>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Job Details</span>
+                  <span className="text-[11px] font-semibold text-gray-700 truncate ml-1">{driverData?.have_other_jobs_note || "—"}</span>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Remarks</span>
+                  <span className="text-[11px] font-semibold text-gray-700 truncate ml-1">{driverData?.remarks || "—"}</span>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+
+        {/* NEXT OF KIN */}
+        <div id="section-next-of-kin">
+          <SectionCard
+            title="Next of Kin"
+            isEditing={false}
+            saving={saving}
+            onEdit={() => {
+              handleExpandedChange?.("section-next-of-kin");
+              openNextOfKinDialog();
+            }}
+            onCancel={() => { }}
+            onSave={() => { }}
+          >
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 mb-5">
+              <div className="flex-1"><FieldCell label="First Name" value={driverData?.next_of_kin_name?.split(" ")[0] || "—"} /></div>
+              <VDivider />
+              <div className="flex-1"><FieldCell label="Phone Number" value={driverData?.next_of_kin_contact || "—"} /></div>
+              <VDivider />
+              <div className="flex-1">
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Relationship</span>
+                  {driverData?.next_of_kin_relationship ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit bg-emerald-100 text-emerald-700 border border-emerald-200">{driverData.next_of_kin_relationship}</span> : <span className="text-sm text-gray-400">—</span>}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-0">
+              <div className="flex-1"><FieldCell label="Second Name" value={driverData?.next_of_kin_name?.split(" ").slice(1).join(" ") || "—"} truncate /></div>
+              <VDivider />
+              <div className="flex-1"><FieldCell label="Email Address" value={driverData?.next_of_kin_email || "—"} email truncate /></div>
+              <VDivider />
+              <div className="flex-1"><FieldCell label="Address" value={driverData?.next_of_kin_address || "—"} truncate /></div>
+            </div>
+            {driverData?.next_of_kin_note && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Additional Notes</span>
+                <p className="mt-1 text-sm text-gray-600">{driverData.next_of_kin_note}</p>
+              </div>
+            )}
+          </SectionCard>
+        </div>
+
+        {/* DIALOGS */}
+        <Dialog open={driverDialogOpen} onOpenChange={setDriverDialogOpen}>
+          <DialogContent className="max-w-3xl w-full rounded-2xl p-0 overflow-hidden">
+            <DialogHeader className="px-8 pt-6 pb-4 border-b border-gray-100">
+              <DialogTitle className="text-base font-bold text-gray-900">Edit Driver Detail</DialogTitle>
+            </DialogHeader>
+            <div className="px-8 py-6">
+              <div className="flex gap-6">
+                <div className="flex-shrink-0 flex flex-col items-center gap-2">
+                  <label className="cursor-pointer group relative">
+                    <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-gray-100 shadow">
+                      <img src={driverDialogForm.avatar || driverData?.user?.avatar || "/default-avatar.png"} alt="Driver" className="w-full h-full object-cover" />
+                    </div>
+                    <div className={cn("absolute inset-0 rounded-full bg-black/30 transition-opacity flex items-center justify-center", uploadingAvatar ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+                      {uploadingAvatar ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
+                    </div>
+                    <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar} onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-
-                      // 1. Preview immediately
                       const previewUrl = URL.createObjectURL(file);
                       setDriverDialogForm((f) => ({ ...f, avatar: previewUrl }));
-
-                      // 2. Upload to Media API
                       setUploadingAvatar(true);
                       try {
                         const formData = new FormData();
                         formData.append("file", file);
-
-                        const res = await fetch(`${API_URL}/media/upload_image/`, {
-                          method: "POST",
-                          headers: {
-                            Authorization: `Bearer ${cookies.get("access_token")}`,
-                          },
-                          body: formData,
-                        });
-
+                        const res = await fetch(`${API_URL}/media/upload_image/`, { method: "POST", headers: { Authorization: `Bearer ${cookies.get("access_token")}` }, body: formData });
                         if (!res.ok) throw new Error("Upload failed");
-
                         const result = await res.json();
                         if (result.success && result.data?.url) {
                           const finalUrl = result.data.url;
-                          // Update dialog form with final URL
                           setDriverDialogForm((f) => ({ ...f, avatar: finalUrl }));
-                          // Update parent state
                           handleInputChange("avatar", finalUrl);
                           toast.success("Avatar uploaded successfully");
-                        } else {
-                          throw new Error(result.message || "Upload failed");
-                        }
+                        } else throw new Error(result.message || "Upload failed");
                       } catch (err: any) {
-                        console.error("Avatar upload error:", err);
                         toast.error(err.message || "Failed to upload avatar");
-                        // Revert to original
                         setDriverDialogForm((f) => ({ ...f, avatar: driverData?.user?.avatar || "" }));
-                      } finally {
-                        setUploadingAvatar(false);
-                      }
-                    }}
-                  />
-                </label>
-                <span className="text-[10px] text-gray-400">Click to change</span>
-              </div>
-
-              {/* Fields */}
-              <div className="flex-1 min-w-0 flex flex-col gap-5">
-
-                {/* Row 1 */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">First Name</label>
-                    <Input
-                      value={driverDialogForm.first_name || ""}
-                      onChange={(e) => setDriverDialogForm((f) => ({ ...f, first_name: e.target.value }))}
-                      className="h-9 rounded-lg border-gray-200 text-sm"
-                      placeholder="First name"
-                    />
+                      } finally { setUploadingAvatar(false); }
+                    }} />
+                  </label>
+                  <span className="text-[10px] text-gray-400">Click to change</span>
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-5">
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">First Name</label><Input value={driverDialogForm.first_name || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, first_name: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="First name" /></div>
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">DOB</label><Input type="date" value={driverDialogForm.date_of_birth || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, date_of_birth: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" /></div>
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Address</label><Input value={driverDialogForm.address || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, address: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Address" /></div>
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Phone Number</label><Input value={driverDialogForm.phone || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, phone: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Phone" /></div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">DOB</label>
-                    <Input
-                      type="date"
-                      value={driverDialogForm.date_of_birth || ""}
-                      onChange={(e) => setDriverDialogForm((f) => ({ ...f, date_of_birth: e.target.value }))}
-                      className="h-9 rounded-lg border-gray-200 text-sm"
-                    />
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Last Name</label><Input value={driverDialogForm.last_name || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, last_name: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Last name" /></div>
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">NI Number</label><Input value={driverDialogForm.national_insurance_no || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, national_insurance_no: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="NI Number" /></div>
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Post Code</label><Input value={driverDialogForm.post_code || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, post_code: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Post code" /></div>
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Email Address</label><Input type="email" value={driverDialogForm.email || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, email: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Email" /></div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Address</label>
-                    <Input
-                      value={driverDialogForm.address || ""}
-                      onChange={(e) => setDriverDialogForm((f) => ({ ...f, address: e.target.value }))}
-                      className="h-9 rounded-lg border-gray-200 text-sm"
-                      placeholder="Address"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Phone Number</label>
-                    <Input
-                      value={driverDialogForm.phone || ""}
-                      onChange={(e) => setDriverDialogForm((f) => ({ ...f, phone: e.target.value }))}
-                      className="h-9 rounded-lg border-gray-200 text-sm"
-                      placeholder="Phone"
-                    />
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">License Number</label><Input value={driverDialogForm.license_number || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, license_number: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="License number" /></div>
+                    <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">License Issue No</label><Input value={driverDialogForm.license_issue_number || ""} onChange={(e) => setDriverDialogForm((f) => ({ ...f, license_issue_number: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Issue number" /></div>
                   </div>
                 </div>
-
-                {/* Row 2 */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Last Name</label>
-                    <Input
-                      value={driverDialogForm.last_name || ""}
-                      onChange={(e) => setDriverDialogForm((f) => ({ ...f, last_name: e.target.value }))}
-                      className="h-9 rounded-lg border-gray-200 text-sm"
-                      placeholder="Last name"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">NI Number</label>
-                    <Input
-                      value={driverDialogForm.national_insurance_no || ""}
-                      onChange={(e) => setDriverDialogForm((f) => ({ ...f, national_insurance_no: e.target.value }))}
-                      className="h-9 rounded-lg border-gray-200 text-sm"
-                      placeholder="NI Number"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Post Code</label>
-                    <Input
-                      value={driverDialogForm.post_code || ""}
-                      onChange={(e) => setDriverDialogForm((f) => ({ ...f, post_code: e.target.value }))}
-                      className="h-9 rounded-lg border-gray-200 text-sm"
-                      placeholder="Post code"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Email Address</label>
-                    <Input
-                      type="email"
-                      value={driverDialogForm.email || ""}
-                      onChange={(e) => setDriverDialogForm((f) => ({ ...f, email: e.target.value }))}
-                      className="h-9 rounded-lg border-gray-200 text-sm"
-                      placeholder="Email"
-                    />
-                  </div>
-                </div>
-
               </div>
             </div>
-          </div>
+            <div className="flex justify-end gap-3 px-8 py-4 border-t border-gray-100 bg-gray-50/50">
+              <Button variant="outline" className="rounded-lg h-9 px-6 text-sm border-gray-200 text-gray-600 hover:bg-gray-100" onClick={() => setDriverDialogOpen(false)}>Cancel</Button>
+              <Button className="rounded-lg h-9 px-6 text-sm bg-rose-400 hover:bg-rose-500 text-white border-0" onClick={handleDriverDialogSave} disabled={saving}>{saving ? "Saving…" : "Update Changes"}</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-          {/* Footer buttons */}
-          <div className="flex justify-end gap-3 px-8 py-4 border-t border-gray-100 bg-gray-50/50">
-            <Button
-              variant="outline"
-              className="rounded-lg h-9 px-6 text-sm border-gray-200 text-gray-600 hover:bg-gray-100"
-              onClick={() => setDriverDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="rounded-lg h-9 px-6 text-sm bg-rose-400 hover:bg-rose-500 text-white border-0"
-              onClick={handleDriverDialogSave}
-              disabled={saving}
-            >
-              {saving ? "Saving…" : "Update Changes"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ══════════════════════ EMPLOYMENT DETAILS DIALOG ══════════════════════ */}
-      <Dialog open={employmentDialogOpen} onOpenChange={setEmploymentDialogOpen}>
-        <DialogContent className="max-w-[1100px] w-full p-0 overflow-hidden border-none rounded-[2rem] shadow-2xl">
-          <DialogHeader className="px-8 py-6 bg-white border-b border-gray-100/50">
-            <DialogTitle className="text-xl font-bold text-gray-900 tracking-tight">Edit Employment Details</DialogTitle>
-          </DialogHeader>
-
-          <div className="p-8 bg-white">
-            <div className="flex flex-col gap-8">
-              {/* Row 1: High-level metrics/selectors */}
-              <div className="grid grid-cols-4 gap-8">
-                {/* Paid Holidays (Interactive Cell) */}
-                <div className="flex flex-col gap-1.5 p-3 bg-orange-50/30 rounded-2xl border border-orange-100">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Paid Holidays</label>
-                  <div className="flex items-center justify-between px-2">
-                    <span className="text-3xl font-black text-orange-500 leading-none">
-                      {employmentDialogForm.paid_holidays || 0}
-                    </span>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => setEmploymentDialogForm(f => ({ ...f, paid_holidays: Math.max(0, (f.paid_holidays || 0) - 1) }))}
-                        className="p-1 hover:bg-orange-100 rounded-md text-orange-600 transition-colors"
-                      >
-                        <ChevronDown className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => setEmploymentDialogForm(f => ({ ...f, paid_holidays: (f.paid_holidays || 0) + 1 }))}
-                        className="p-1 hover:bg-orange-100 rounded-md text-orange-600 transition-colors"
-                      >
-                        <ChevronUp className="h-5 w-5" />
-                      </button>
+        <Dialog open={employmentDialogOpen} onOpenChange={setEmploymentDialogOpen}>
+          <DialogContent className="max-w-[1100px] w-full p-0 overflow-hidden border-none rounded-[2rem] shadow-2xl">
+            <DialogHeader className="px-8 py-6 bg-white border-b border-gray-100/50"><DialogTitle className="text-xl font-bold text-gray-900 tracking-tight">Edit Employment Details</DialogTitle></DialogHeader>
+            <div className="p-8 bg-white">
+              <div className="flex flex-col gap-8">
+                <div className="grid grid-cols-4 gap-8">
+                  <div className="flex flex-col gap-1.5 p-3 bg-orange-50/30 rounded-2xl border border-orange-100">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Paid Holidays</label>
+                    <div className="flex items-center justify-between px-2">
+                      <span className="text-3xl font-black text-orange-500 leading-none">{employmentDialogForm.paid_holidays || 0}</span>
+                      <div className="flex gap-1">
+                        <button onClick={() => setEmploymentDialogForm(f => ({ ...f, paid_holidays: Math.max(0, (f.paid_holidays || 0) - 1) }))} className="p-1 hover:bg-orange-100 rounded-md text-orange-600 transition-colors"><ChevronDown className="h-5 w-5" /></button>
+                        <button onClick={() => setEmploymentDialogForm(f => ({ ...f, paid_holidays: (f.paid_holidays || 0) + 1 }))} className="p-1 hover:bg-orange-100 rounded-md text-orange-600 transition-colors"><ChevronUp className="h-5 w-5" /></button>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Contract Assigned</label><Select value={employmentDialogForm.contract_id} onValueChange={(v) => setEmploymentDialogForm(f => ({ ...f, contract_id: v }))}><SelectTrigger className="h-10 rounded-xl bg-gray-50/50 border-gray-200 text-gray-800 font-semibold text-xs"><SelectValue placeholder="Select Contract" /></SelectTrigger><SelectContent>{contracts.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Bright HR Manager</label><Select value={employmentDialogForm.manager_id} onValueChange={(v) => setEmploymentDialogForm(f => ({ ...f, manager_id: v }))} disabled={!!activeBrightHR}><SelectTrigger className={cn("h-10 rounded-xl border-gray-200 font-semibold text-xs", !!activeBrightHR ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-50/50 text-gray-800")}><SelectValue placeholder="Select Manager" /></SelectTrigger><SelectContent>{managers.map(m => <SelectItem key={m.id} value={m.id.toString()}>{m.full_name}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Site(s) Assigned</label><MultiSelect options={sites.map(s => ({ value: s.id.toString(), label: s.name }))} selected={employmentDialogForm.site_ids || []} onChange={(v) => setEmploymentDialogForm(f => ({ ...f, site_ids: v }))} placeholder="Select Sites" /></div>
                 </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Contract Assigned</label>
-                  <Select
-                    value={employmentDialogForm.contract_id}
-                    onValueChange={(v) => setEmploymentDialogForm(f => ({ ...f, contract_id: v }))}
-                  >
-                    <SelectTrigger className="h-10 rounded-xl bg-gray-50/50 border-gray-200 text-gray-800 font-semibold text-xs">
-                      <SelectValue placeholder="Select Contract" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contracts.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-4 gap-8">
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Assign Date</label><Input type="date" value={employmentDialogForm.assigning_date} onChange={(e) => setEmploymentDialogForm(f => ({ ...f, assigning_date: e.target.value }))} disabled={!!activeBrightHR} className={cn("h-10 rounded-xl border-gray-200 font-semibold text-xs", !!activeBrightHR ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-50/50")} /></div>
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Contract Sign Date</label><Input type="date" value={employmentDialogForm.contract_signing_date} onChange={(e) => setEmploymentDialogForm(f => ({ ...f, contract_signing_date: e.target.value }))} className="h-10 rounded-xl bg-gray-50/50 border-gray-200 text-gray-800 font-semibold text-xs" /></div>
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Account No</label><Input value={employmentDialogForm.account_no} onChange={(e) => setEmploymentDialogForm(f => ({ ...f, account_no: e.target.value }))} className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs" placeholder="Account No" /></div>
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Sort Code</label><Input value={employmentDialogForm.sort_code} onChange={(e) => setEmploymentDialogForm(f => ({ ...f, sort_code: e.target.value }))} className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs" placeholder="Sort Code" /></div>
                 </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Bright HR Manager</label>
-                  <Select
-                    value={employmentDialogForm.manager_id}
-                    onValueChange={(v) => setEmploymentDialogForm(f => ({ ...f, manager_id: v }))}
-                    disabled={!!activeBrightHR}
-                  >
-                    <SelectTrigger className={cn(
-                      "h-10 rounded-xl border-gray-200 font-semibold text-xs",
-                      !!activeBrightHR ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-50/50 text-gray-800"
-                    )}>
-                      <SelectValue placeholder="Select Manager" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {managers.map(m => <SelectItem key={m.id} value={m.id.toString()}>{m.full_name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Site(s) Assigned</label>
-                  <MultiSelect
-                    options={sites.map(s => ({ value: s.id.toString(), label: s.name }))}
-                    selected={employmentDialogForm.site_ids || []}
-                    onChange={(v) => setEmploymentDialogForm(f => ({ ...f, site_ids: v }))}
-                    placeholder="Select Sites"
-                  />
-                </div>
-              </div>
-
-              {/* Row 2: Dates & Financials */}
-              <div className="grid grid-cols-4 gap-8">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Assign Date</label>
-                  <Input
-                    type="date"
-                    value={employmentDialogForm.assigning_date}
-                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, assigning_date: e.target.value }))}
-                    disabled={!!activeBrightHR}
-                    className={cn(
-                      "h-10 rounded-xl border-gray-200 font-semibold text-xs",
-                      !!activeBrightHR ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-50/50"
-                    )}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Contract Sign Date</label>
-                  <Input
-                    type="date"
-                    value={employmentDialogForm.contract_signing_date}
-                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, contract_signing_date: e.target.value }))}
-                    className="h-10 rounded-xl bg-gray-50/50 border-gray-200 text-gray-800 font-semibold text-xs"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Account No</label>
-                  <Input
-                    value={employmentDialogForm.account_no}
-                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, account_no: e.target.value }))}
-                    className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs"
-                    placeholder="Account No"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Sort Code</label>
-                  <Input
-                    value={employmentDialogForm.sort_code}
-                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, sort_code: e.target.value }))}
-                    className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs"
-                    placeholder="Sort Code"
-                  />
-                </div>
-              </div>
-
-              {/* Row 3: Rota, Jobs & Remarks */}
-              <div className="grid grid-cols-4 gap-8">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Rota Start Date</label>
-                  <Input
-                    type="date"
-                    value={employmentDialogForm.rota_start_date}
-                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, rota_start_date: e.target.value }))}
-                    className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Jobs?</label>
-                  <div className="flex items-center justify-between h-10 px-4 bg-gray-50/50 border border-gray-200 rounded-xl">
-                    <span className="text-xs font-semibold text-gray-700">
-                      {employmentDialogForm.have_other_jobs ? "Yes" : "No"}
-                    </span>
-                    <Switch
-                      checked={employmentDialogForm.have_other_jobs}
-                      onCheckedChange={(v) => setEmploymentDialogForm(f => ({ ...f, have_other_jobs: v }))}
-                      className="scale-75"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Job Details</label>
-                  <Input
-                    value={employmentDialogForm.have_other_jobs_note}
-                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, have_other_jobs_note: e.target.value }))}
-                    disabled={!employmentDialogForm.have_other_jobs}
-                    className={cn(
-                      "h-10 rounded-xl border-gray-200 font-semibold text-xs",
-                      !employmentDialogForm.have_other_jobs ? "bg-gray-100 text-gray-400 cursor-not-allowed border-dashed" : "bg-gray-50/50 text-gray-700"
-                    )}
-                    placeholder={employmentDialogForm.have_other_jobs ? "Details…" : "N/A"}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Remarks</label>
-                  <Input
-                    value={employmentDialogForm.remarks}
-                    onChange={(e) => setEmploymentDialogForm(f => ({ ...f, remarks: e.target.value }))}
-                    className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs"
-                    placeholder="Remarks"
-                  />
+                <div className="grid grid-cols-4 gap-8">
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Rota Start Date</label><Input type="date" value={employmentDialogForm.rota_start_date} onChange={(e) => setEmploymentDialogForm(f => ({ ...f, rota_start_date: e.target.value }))} className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs" /></div>
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Jobs?</label><div className="flex items-center justify-between h-10 px-4 bg-gray-50/50 border border-gray-200 rounded-xl"><span className="text-xs font-semibold text-gray-700">{employmentDialogForm.have_other_jobs ? "Yes" : "No"}</span><Switch checked={employmentDialogForm.have_other_jobs} onCheckedChange={(v) => setEmploymentDialogForm(f => ({ ...f, have_other_jobs: v }))} className="scale-75" /></div></div>
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Job Details</label><Input value={employmentDialogForm.have_other_jobs_note} onChange={(e) => setEmploymentDialogForm(f => ({ ...f, have_other_jobs_note: e.target.value }))} disabled={!employmentDialogForm.have_other_jobs} className={cn("h-10 rounded-xl border-gray-200 font-semibold text-xs", !employmentDialogForm.have_other_jobs ? "bg-gray-100 text-gray-400 cursor-not-allowed border-dashed" : "bg-gray-50/50 text-gray-700")} placeholder={employmentDialogForm.have_other_jobs ? "Details…" : "N/A"} /></div>
+                  <div className="flex flex-col gap-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Remarks</label><Input value={employmentDialogForm.remarks} onChange={(e) => setEmploymentDialogForm(f => ({ ...f, remarks: e.target.value }))} className="h-10 rounded-xl bg-gray-50/50 border border-gray-200 text-gray-700 font-semibold text-xs" placeholder="Remarks" /></div>
                 </div>
               </div>
             </div>
-          </div>
+            <div className="flex justify-end gap-3 px-8 py-4 bg-gray-50/50 border-t border-gray-100">
+              <Button variant="outline" className="rounded-lg h-9 px-6 text-xs font-bold border-none bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all shadow-sm" onClick={() => setEmploymentDialogOpen(false)}>Cancel</Button>
+              <Button className="rounded-lg h-9 px-6 text-xs font-bold bg-[#FFE4D9] hover:bg-[#FFD5C2] text-[#FF6B3D] border-none transition-all shadow-sm" onClick={handleEmploymentDialogSave}>Update Changes</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-          {/* Footer */}
-          <div className="flex justify-end gap-3 px-8 py-4 bg-gray-50/50 border-t border-gray-100">
-            <Button
-              variant="outline"
-              className="rounded-lg h-9 px-6 text-xs font-bold border-none bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all shadow-sm"
-              onClick={() => setEmploymentDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="rounded-lg h-9 px-6 text-xs font-bold bg-[#FFE4D9] hover:bg-[#FFD5C2] text-[#FF6B3D] border-none transition-all shadow-sm"
-              onClick={handleEmploymentDialogSave}
-            >
-              Update Changes
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ══════════════════════ NEXT OF KIN DIALOG ══════════════════════ */}
-      <Dialog open={nextOfKinDialogOpen} onOpenChange={setNextOfKinDialogOpen}>
-        <DialogContent className="max-w-3xl w-full rounded-2xl p-0 overflow-hidden">
-          <DialogHeader className="px-8 pt-6 pb-4 border-b border-gray-100">
-            <DialogTitle className="text-base font-bold text-gray-900">Edit Next of Kin</DialogTitle>
-          </DialogHeader>
-          <div className="px-8 py-6">
-            <div className="flex flex-col gap-5">
-              {/* Row 1 */}
-              <div className="grid grid-cols-3 gap-6">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">First Name</label>
-                  <Input
-                    value={nextOfKinDialogForm.next_of_kin_first_name}
-                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_first_name: e.target.value }))}
-                    className="h-9 rounded-lg border-gray-200 text-sm"
-                    placeholder="First name"
-                  />
+        <Dialog open={nextOfKinDialogOpen} onOpenChange={setNextOfKinDialogOpen}>
+          <DialogContent className="max-w-3xl w-full rounded-2xl p-0 overflow-hidden">
+            <DialogHeader className="px-8 pt-6 pb-4 border-b border-gray-100"><DialogTitle className="text-base font-bold text-gray-900">Edit Next of Kin</DialogTitle></DialogHeader>
+            <div className="px-8 py-6">
+              <div className="flex flex-col gap-5">
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">First Name</label><Input value={nextOfKinDialogForm.next_of_kin_first_name} onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_first_name: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="First name" /></div>
+                  <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Last Name</label><Input value={nextOfKinDialogForm.next_of_kin_last_name} onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_last_name: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Last name" /></div>
+                  <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Phone Number</label><Input value={nextOfKinDialogForm.next_of_kin_contact} onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_contact: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Phone" /></div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Last Name</label>
-                  <Input
-                    value={nextOfKinDialogForm.next_of_kin_last_name}
-                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_last_name: e.target.value }))}
-                    className="h-9 rounded-lg border-gray-200 text-sm"
-                    placeholder="Last name"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Phone Number</label>
-                  <Input
-                    value={nextOfKinDialogForm.next_of_kin_contact}
-                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_contact: e.target.value }))}
-                    className="h-9 rounded-lg border-gray-200 text-sm"
-                    placeholder="Phone"
-                  />
-                </div>
-              </div>
-
-              {/* Row 2 */}
-              <div className="grid grid-cols-3 gap-6">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Relationship</label>
-                  <Input
-                    value={nextOfKinDialogForm.next_of_kin_relationship}
-                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_relationship: e.target.value }))}
-                    className="h-9 rounded-lg border-gray-200 text-sm"
-                    placeholder="e.g. Spouse"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Email Address</label>
-                  <Input
-                    type="email"
-                    value={nextOfKinDialogForm.next_of_kin_email}
-                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_email: e.target.value }))}
-                    className="h-9 rounded-lg border-gray-200 text-sm"
-                    placeholder="Email"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Address</label>
-                  <Input
-                    value={nextOfKinDialogForm.next_of_kin_address}
-                    onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_address: e.target.value }))}
-                    className="h-9 rounded-lg border-gray-200 text-sm"
-                    placeholder="Address"
-                  />
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Relationship</label><Input value={nextOfKinDialogForm.next_of_kin_relationship} onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_relationship: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="e.g. Spouse" /></div>
+                  <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Email Address</label><Input type="email" value={nextOfKinDialogForm.next_of_kin_email} onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_email: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Email" /></div>
+                  <div className="flex flex-col gap-1"><label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Address</label><Input value={nextOfKinDialogForm.next_of_kin_address} onChange={(e) => setNextOfKinDialogForm(f => ({ ...f, next_of_kin_address: e.target.value }))} className="h-9 rounded-lg border-gray-200 text-sm" placeholder="Address" /></div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="flex justify-end gap-3 px-8 py-4 border-t border-gray-100 bg-gray-50/50">
-            <Button
-              variant="outline"
-              className="rounded-lg h-9 px-6 text-sm border-gray-200 text-gray-600 hover:bg-gray-100"
-              onClick={() => setNextOfKinDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="rounded-lg h-9 px-6 text-sm bg-rose-400 hover:bg-rose-500 text-white border-0"
-              onClick={handleNextOfKinDialogSave}
-              disabled={saving}
-            >
-              {saving ? "Saving…" : "Update Changes"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-
-      {/* ══════════════════════ EMPLOYMENT DETAILS (Matching Dialog Layout) ══════════════════════ */}
-      <SectionCard
-        title="Employment Details"
-        isEditing={false}
-        saving={saving}
-        onEdit={openEmploymentDialog}
-        onCancel={() => { }}
-        onSave={() => { }}
-      >
-        <div className="flex flex-col gap-8">
-          {/* Row 1: High-level metrics */}
-          <div className="grid grid-cols-4 gap-8">
-            <div className="flex flex-col gap-1.5 p-3 bg-orange-50/30 rounded-2xl border border-orange-100 min-w-0">
-              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Paid Holidays</span>
-              <div className="flex items-baseline gap-1 pl-1">
-                <span className="text-3xl font-black text-orange-500 leading-none">
-                  {driverData?.user?.paid_holidays ?? 0}
-                </span>
-                <span className="text-[10px] font-bold text-orange-400 uppercase">Days</span>
-              </div>
+            <div className="flex justify-end gap-3 px-8 py-4 border-t border-gray-100 bg-gray-50/50">
+              <Button variant="outline" className="rounded-lg h-9 px-6 text-sm border-gray-200 text-gray-600 hover:bg-gray-100" onClick={() => setNextOfKinDialogOpen(false)}>Cancel</Button>
+              <Button className="rounded-lg h-9 px-6 text-sm bg-rose-400 hover:bg-rose-500 text-white border-0" onClick={handleNextOfKinDialogSave} disabled={saving}>{saving ? "Saving…" : "Update Changes"}</Button>
             </div>
+          </DialogContent>
+        </Dialog>
 
-            <FieldCell
-              label="Contract Assigned"
-              value={contractType ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-100">
-                  {contractType}
-                </span>
-              ) : "—"}
-            />
-
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Bright HR Manager</span>
-              {activeBrightHR ? (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-yellow-50 text-yellow-800 border border-yellow-100 ml-1">
-                  {activeBrightHR.manager_name}
-                </span>
-              ) : <span className="text-sm text-gray-400 ml-1">—</span>}
-            </div>
-
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Site(s) Assigned</span>
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-orange-50 text-orange-700 border border-orange-200 ml-1 max-w-full truncate">
-                {renderAssignedSites()}
-              </span>
-            </div>
-          </div>
-
-          {/* Row 2: Dates & Financials */}
-          <div className="grid grid-cols-4 gap-8">
-            <FieldCell
-              label="Assign Date"
-              value={activeBrightHR?.assigning_date ? formatDate(activeBrightHR.assigning_date) : "—"}
-            />
-            <FieldCell
-              label="Contract Sign Date"
-              value={driverData?.user?.contract_signing_date ? formatDate(driverData.user.contract_signing_date) : "—"}
-            />
-            <FieldCell label="Account No" value={driverData?.account_no || "—"} />
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Sort Code</span>
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-rose-50 text-rose-600 border border-rose-100 ml-1">
-                {driverData?.sort_code || "—"}
-              </span>
-            </div>
-          </div>
-
-          {/* Row 3: Rota, Jobs & Remarks */}
-          <div className="grid grid-cols-4 gap-8">
-            <FieldCell
-              label="Rota Start Date"
-              value={driverData?.user?.rota_start_date ? formatDate(driverData.user.rota_start_date) : "—"}
-            />
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Jobs?</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-gray-100 text-gray-700 border border-gray-200 ml-1">
-                {driverData?.have_other_jobs ? "Yes" : "No"}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Other Job Details</span>
-              <span className="text-[11px] font-semibold text-gray-700 truncate ml-1">
-                {driverData?.have_other_jobs_note || "—"}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Remarks</span>
-              <span className="text-[11px] font-semibold text-gray-700 truncate ml-1">
-                {driverData?.remarks || "—"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-
-
-      {/* ══════════════════════ NEXT OF KIN ══════════════════════ */}
-      <SectionCard
-        title="Next of Kin"
-        isEditing={false}
-        saving={saving}
-        onEdit={openNextOfKinDialog}
-        onCancel={() => { }}
-        onSave={() => { }}
-      >
-        {/* Row 1 */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 mb-5">
-          <div className="flex-1">
-            <FieldCell
-              label="First Name"
-              value={driverData?.next_of_kin_name?.split(" ")[0] || "—"}
-            />
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            <FieldCell
-              label="Phone Number"
-              value={driverData?.next_of_kin_contact || "—"}
-            />
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            {/* Relationship with green badge */}
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-                Relationship
-              </span>
-              {driverData?.next_of_kin_relationship ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit bg-emerald-100 text-emerald-700 border border-emerald-200">
-                  {driverData.next_of_kin_relationship}
-                </span>
-              ) : (
-                <span className="text-sm text-gray-400">—</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2 */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-0">
-          <div className="flex-1">
-            <FieldCell
-              label="Second Name"
-              value={driverData?.next_of_kin_name?.split(" ").slice(1).join(" ") || "—"}
-              truncate
-            />
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            {/* Email with orange text */}
-            <FieldCell
-              label="Email Address"
-              value={driverData?.next_of_kin_email || "—"}
-              email
-              truncate
-            />
-          </div>
-          <VDivider />
-          <div className="flex-1">
-            <FieldCell
-              label="Address"
-              value={driverData?.next_of_kin_address || "—"}
-              truncate
-            />
-          </div>
-        </div>
-
-        {/* Optional note */}
-        {driverData?.next_of_kin_note && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-              Additional Notes
-            </span>
-            <p className="mt-1 text-sm text-gray-600">{driverData.next_of_kin_note}</p>
-          </div>
-        )}
-      </SectionCard>
-
-
-    </div>
+      </div>
     </TooltipProvider>
   );
 }
