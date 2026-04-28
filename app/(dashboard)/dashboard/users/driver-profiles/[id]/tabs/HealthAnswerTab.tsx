@@ -26,6 +26,7 @@ export default function HealthAnswerTab({
   isEditingHealth,
   savingHealth,
   handleHealthEditToggle,
+  handleHealthInputChange,
   handleSaveHealth,
   expandedId,
   handleExpandedChange,

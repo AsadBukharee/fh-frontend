@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useAutoScroll } from "@/app/utils/useAutoScroll";
 import API_URL from "@/app/utils/ENV";
 import {
   FileText,
@@ -691,6 +692,7 @@ export default function SignAgreementAdminTab({
   const token = cookies.get("access_token") ?? "";
 
   const { docs, loading: docsLoading, reload } = useDriverDocuments(userId ?? "", token);
+  useAutoScroll(docsLoading, "sign-agreement");
   const { names: documentNames, loading: namesLoading } = useDocumentNames(token);
 
   const [detail, setDetail] = useState<{ open: boolean; key: DocumentKey | null }>({

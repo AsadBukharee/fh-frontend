@@ -85,6 +85,7 @@ import { debounce } from "lodash";
 import Link from "next/link";
 import ExportButton from "@/app/utils/ExportButton";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { useAutoScroll } from "@/app/utils/useAutoScroll";
 
 // Interfaces
 interface Site {
@@ -165,6 +166,7 @@ const UserRow = React.memo(
     handleDeleteUserClick,
     buttonRefs,
     handleMouseMove,
+    handleExpandedChange,
   }: {
     user: User;
     roles: Role[];
@@ -174,8 +176,9 @@ const UserRow = React.memo(
     handleDeleteUserClick: (user: User) => void;
     buttonRefs: React.MutableRefObject<{ [key: string]: HTMLButtonElement | null }>;
     handleMouseMove: (key: string) => (e: React.MouseEvent) => void;
+    handleExpandedChange?: (id: string) => void;
   }) => (
-    <TableRow key={user.id} className="border-b border-gray-100">
+    <TableRow key={user.id} id={`user-row-${user.id}`} className="border-b border-gray-100">
       <TableCell className="font-medium">{user.id}</TableCell>
       <TableCell className="font-medium">
         {user.avatar ? (
@@ -254,7 +257,10 @@ const UserRow = React.memo(
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-white">
-            <DropdownMenuItem onClick={() => handleEditUserClick(user)}>
+            <DropdownMenuItem onClick={() => {
+              handleExpandedChange?.(`user-row-${user.id}`);
+              handleEditUserClick(user);
+            }}>
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </DropdownMenuItem>
@@ -1002,6 +1008,8 @@ export default function UsersPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { expandedId, handleExpandedChange } = useAutoScroll(loading, "all-other-staff-scroll");
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
@@ -1013,7 +1021,6 @@ export default function UsersPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
   const [editLoading, setEditLoading] = useState(false);
   const [contractsLoading, setContractsLoading] = useState(false);
   const [sitesLoading, setSitesLoading] = useState(false);
@@ -1907,6 +1914,7 @@ export default function UsersPage() {
                     handleDeleteUserClick={handleDeleteUserClick}
                     buttonRefs={buttonRefs}
                     handleMouseMove={handleMouseMove}
+                    handleExpandedChange={handleExpandedChange}
                   />
                 ))}
             </TableBody>

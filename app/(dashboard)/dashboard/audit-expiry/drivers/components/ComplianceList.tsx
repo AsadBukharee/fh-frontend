@@ -35,6 +35,7 @@ interface ComplianceListProps {
     onUpdateItem?: (item: AuditItem) => Promise<void>
     onCreateItem?: (item: Omit<AuditItem, "id" | "dbId">) => Promise<void>
     type: "date" | "alert"
+    handleExpandedChange?: (id: string) => void
 }
 
 // Searchable Select Component for Reference
@@ -108,7 +109,8 @@ const ComplianceItem = memo(({
     saving,
     type,
     attributes,
-    attributesLoading
+    attributesLoading,
+    handleExpandedChange
 }: {
     item: AuditItem,
     editingField: { id: string, field: string } | null,
@@ -118,7 +120,8 @@ const ComplianceItem = memo(({
     saving: boolean,
     type: "date" | "alert",
     attributes: DriverAttribute[],
-    attributesLoading: boolean
+    attributesLoading: boolean,
+    handleExpandedChange?: (id: string) => void
 }) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
@@ -132,7 +135,7 @@ const ComplianceItem = memo(({
     const isEditingFieldName = editingField?.id === item.id && editingField?.field === "fieldName"
 
     return (
-        <TableRow className="hover:bg-transparent border-b border-gray-100 last:border-0">
+        <TableRow id={item.id} className="hover:bg-transparent border-b border-gray-100 last:border-0">
             <TableCell className="py-3 pl-2">
                 <div className="space-y-1">
                     {isEditingTitle ? (
@@ -147,7 +150,12 @@ const ComplianceItem = memo(({
                         />
                     ) : (
                         <div
-                            onDoubleClick={() => !loading && !saving && setEditingField({ id: item.id, field: "title" })}
+                            onDoubleClick={() => {
+                                if (!loading && !saving) {
+                                    setEditingField({ id: item.id, field: "title" })
+                                    handleExpandedChange?.(item.id)
+                                }
+                            }}
                             className="group flex items-center space-x-1 font-medium text-gray-900 text-sm cursor-pointer hover:text-pink-600 transition-colors w-full"
                             title="Double click to edit"
                         >
@@ -156,7 +164,10 @@ const ComplianceItem = memo(({
                                 className="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-pink-600 ml-2"
                                 onClick={(e) => {
                                     e.stopPropagation()
-                                    if (!loading && !saving) setEditingField({ id: item.id, field: "title" })
+                                    if (!loading && !saving) {
+                                        setEditingField({ id: item.id, field: "title" })
+                                        handleExpandedChange?.(item.id)
+                                    }
                                 }}
                             />
                         </div>
@@ -174,7 +185,12 @@ const ComplianceItem = memo(({
                         />
                     ) : (
                         <div
-                            onDoubleClick={() => !loading && !saving && setEditingField({ id: item.id, field: "subtitle" })}
+                            onDoubleClick={() => {
+                                if (!loading && !saving) {
+                                    setEditingField({ id: item.id, field: "subtitle" })
+                                    handleExpandedChange?.(item.id)
+                                }
+                            }}
                             className="group flex items-center space-x-1 text-xs text-gray-400 cursor-pointer hover:text-pink-500 transition-colors w-full"
                             title="Double click to edit"
                         >
@@ -183,7 +199,10 @@ const ComplianceItem = memo(({
                                 className="w-2.5 h-2.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-pink-500 ml-2"
                                 onClick={(e) => {
                                     e.stopPropagation()
-                                    if (!loading && !saving) setEditingField({ id: item.id, field: "subtitle" })
+                                    if (!loading && !saving) {
+                                        setEditingField({ id: item.id, field: "subtitle" })
+                                        handleExpandedChange?.(item.id)
+                                    }
                                 }}
                             />
                         </div>
@@ -205,7 +224,12 @@ const ComplianceItem = memo(({
                     />
                 ) : (
                     <div
-                        onDoubleClick={() => !loading && !saving && setEditingField({ id: item.id, field: "fieldName" })}
+                        onDoubleClick={() => {
+                            if (!loading && !saving) {
+                                setEditingField({ id: item.id, field: "fieldName" })
+                                handleExpandedChange?.(item.id)
+                            }
+                        }}
                         className="group flex items-center justify-between space-x-2 bg-gray-50 border border-gray-100 text-gray-700 px-3 py-1.5 rounded text-xs font-mono cursor-pointer hover:bg-gray-100 hover:border-gray-300 transition-all w-full"
                         title="Double click to edit"
                     >
@@ -214,7 +238,10 @@ const ComplianceItem = memo(({
                             className="w-3 h-3 text-gray-400 opacity-50 group-hover:opacity-100 transition-opacity inline cursor-pointer hover:text-green-600 flex-shrink-0"
                             onClick={(e) => {
                                 e.stopPropagation()
-                                if (!loading && !saving) setEditingField({ id: item.id, field: "fieldName" })
+                                if (!loading && !saving) {
+                                    setEditingField({ id: item.id, field: "fieldName" })
+                                    handleExpandedChange?.(item.id)
+                                }
                             }}
                         />
                     </div>
@@ -235,7 +262,12 @@ const ComplianceItem = memo(({
                     />
                 ) : (
                     <div
-                        onDoubleClick={() => !loading && !saving && setEditingField({ id: item.id, field: "fieldReference" })}
+                        onDoubleClick={() => {
+                            if (!loading && !saving) {
+                                setEditingField({ id: item.id, field: "fieldReference" })
+                                handleExpandedChange?.(item.id)
+                            }
+                        }}
                         className="group flex items-center justify-between space-x-2 bg-gray-50 border border-gray-100 text-gray-700 px-3 py-1.5 rounded text-xs font-mono cursor-pointer hover:bg-gray-100 hover:border-gray-300 transition-all w-full"
                         title="Double click to edit"
                     >
@@ -244,7 +276,10 @@ const ComplianceItem = memo(({
                             className="w-3 h-3 text-gray-400 opacity-50 group-hover:opacity-100 transition-opacity inline cursor-pointer hover:text-green-600 flex-shrink-0"
                             onClick={(e) => {
                                 e.stopPropagation()
-                                if (!loading && !saving) setEditingField({ id: item.id, field: "fieldReference" })
+                                if (!loading && !saving) {
+                                    setEditingField({ id: item.id, field: "fieldReference" })
+                                    handleExpandedChange?.(item.id)
+                                }
                             }}
                         />
                     </div>
@@ -290,7 +325,7 @@ const ComplianceItem = memo(({
 
 ComplianceItem.displayName = "ComplianceItem"
 
-export function ComplianceList({ items, setItems, loading, saving, onUpdateItem, onCreateItem, type }: ComplianceListProps) {
+export function ComplianceList({ items, setItems, loading, saving, onUpdateItem, onCreateItem, type, handleExpandedChange }: ComplianceListProps) {
     const [editingField, setEditingField] = useState<{ id: string, field: string } | null>(null)
     const { attributes, loading: attributesLoading } = useDriverAttributes()
 
@@ -318,6 +353,7 @@ export function ComplianceList({ items, setItems, loading, saving, onUpdateItem,
     const updateField = (id: string, field: keyof AuditItem, value: any) => {
         setItems(prev => {
             const newItems = prev.map(i => i.id === id ? { ...i, [field]: value } : i)
+            handleExpandedChange?.(id)
             if (onUpdateItem) {
                 const updatedItem = newItems.find(i => i.id === id)
                 if (updatedItem && (field === "fieldReference" || field === "days" || field === "status")) {
@@ -384,6 +420,7 @@ export function ComplianceList({ items, setItems, loading, saving, onUpdateItem,
                             type={type}
                             attributes={memoizedAttributes}
                             attributesLoading={attributesLoading}
+                            handleExpandedChange={handleExpandedChange}
                         />
                     ))}
 

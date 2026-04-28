@@ -25,6 +25,7 @@ import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import parse from 'html-react-parser';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { useAutoScroll } from '@/app/utils/useAutoScroll';
 
 const stripHtml = (html: string) => {
   if (!html) return "—";
@@ -49,6 +50,7 @@ export default function TaskTypeList() {
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [filtered, setFiltered] = useState<TaskType[]>([]);
   const [loading, setLoading] = useState(true);
+  const { expandedId, handleExpandedChange } = useAutoScroll(loading, "task-type-list");
   const [searchTerm, setSearchTerm] = useState('');
   
   // Pagination state
@@ -247,6 +249,7 @@ export default function TaskTypeList() {
       is_active: type.is_active,
     });
     setErrors({});
+    handleExpandedChange(type.id.toString());
     setIsEditOpen(true);
   };
 
@@ -313,6 +316,7 @@ export default function TaskTypeList() {
         body: JSON.stringify({ is_active: !type.is_active }),
       });
       await fetchTaskTypes();
+      handleExpandedChange(type.id.toString());
       toast.success(`Task type ${!type.is_active ? 'activated' : 'deactivated'}.`);
     } catch {
       toast.error('Failed to update status.');
@@ -394,7 +398,7 @@ export default function TaskTypeList() {
                         </TableRow>
                       ) : (
                         filtered.map((type) => (
-                          <TableRow key={type.id}>
+                          <TableRow key={type.id} id={type.id.toString()}>
                             <TableCell className="font-medium">{type.name}</TableCell>
                             <TableCell className="max-w-md truncate">{stripHtml(type.description)}</TableCell>
                             <TableCell className="text-center">

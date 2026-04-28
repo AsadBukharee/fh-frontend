@@ -74,6 +74,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import ExportButton from "@/app/utils/ExportButton"
 import { Label } from "@/components/ui/label"
 import AssignDriverDialog from "@/components/AssignDriverDialog"
+import { useAutoScroll } from "@/app/utils/useAutoScroll"
 
 interface VehicleType {
   id: number
@@ -153,6 +154,7 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
+  const { expandedId, handleExpandedChange } = useAutoScroll(loading, "vehicle-tab-scroll")
   const [error, setError] = useState<string | null>(null)
   // const [vehicleToUpdate, setVehicleToUpdate] = useState<Vehicle | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -595,7 +597,7 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
                     {paginatedVehicles.map((vehicle, idx) => {
                       const index = (currentPage - 1) * perPage + idx + 1
                       return (
-                        <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors">
+                        <tr key={vehicle.id} id={`vehicle-row-${vehicle.id}`} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 text-gray-600 font-medium">{index}</td>
                           <td className="px-6 py-4 font-medium text-gray-900">
                             <Link href={`/dashboard/vehicles/list/${vehicle.id}`} className="hover:underline">
@@ -637,6 +639,18 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
                                       <Eye className="h-4 w-4" />
                                       View Details
                                     </Link>
+                                  </DropdownMenuItem>
+
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      handleExpandedChange(`vehicle-row-${vehicle.id}`)
+                                      // If there's an edit function, call it here. 
+                                      // For now, let's just make sure it anchors.
+                                    }}
+                                    className="flex items-center gap-2 w-full cursor-pointer"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    Edit (Anchor)
                                   </DropdownMenuItem>
 
 
