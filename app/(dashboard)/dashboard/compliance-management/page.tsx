@@ -112,13 +112,13 @@ export default function ComplianceManagementPage() {
                     driverTotal = driverData?.data?.pagination?.count ?? 0;
                     
                     // Simple heuristic for stats based on the fetched sample
-                    results.forEach((d: any) => {
-                        const compliance = d.driver_compliance || {};
+                    results?.forEach((d: any) => {
+                        const compliance = d?.driver_compliance || {};
                         const dates = [
-                            compliance.driver_licence_expiry,
-                            compliance.cpc_card_expiry,
-                            compliance.tacho_expiry,
-                            compliance.dbs_expiry_date
+                            compliance?.driver_licence_expiry,
+                            compliance?.cpc_card_expiry,
+                            compliance?.tacho_expiry,
+                            compliance?.dbs_expiry_date
                         ];
                         
                         const today = new Date();
@@ -128,7 +128,7 @@ export default function ComplianceManagementPage() {
                         let isExpired = false;
                         let isExpiringSoon = false;
                         
-                        dates.forEach(dateStr => {
+                        dates?.forEach(dateStr => {
                             if (!dateStr) return;
                             const date = new Date(dateStr);
                             if (date < today) isExpired = true;
@@ -140,8 +140,8 @@ export default function ComplianceManagementPage() {
                     });
 
                     // Extrapolate if we only have a sample
-                    if (driverTotal > results.length && results.length > 0) {
-                        const ratio = driverTotal / results.length;
+                    if (driverTotal > (results?.length ?? 0) && (results?.length ?? 0) > 0) {
+                        const ratio = driverTotal / (results?.length ?? 1);
                         driverExpired = Math.round(driverExpired * ratio);
                         driverExpiringSoon = Math.round(driverExpiringSoon * ratio);
                     }
@@ -161,12 +161,12 @@ export default function ComplianceManagementPage() {
                 if (vehicleRes.ok) {
                     const vehicleData = await vehicleRes.json();
                     const motData = vehicleData?.data?.mot ?? [];
-                    vehicleTotal = motData.length;
+                    vehicleTotal = motData?.length ?? 0;
                     
-                    motData.forEach((m: any) => {
-                        if (m.mot_status?.toLowerCase().includes("expired")) {
+                    motData?.forEach((m: any) => {
+                        if (m?.mot_status?.toLowerCase()?.includes("expired")) {
                             vehicleExpired++;
-                        } else if (m.mot_status?.toLowerCase().includes("days left") && parseInt(m.mot_status) < 30) {
+                        } else if (m?.mot_status?.toLowerCase()?.includes("days left") && parseInt(m?.mot_status || "0") < 30) {
                             vehicleExpiringSoon++;
                         }
                     });

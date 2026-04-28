@@ -426,7 +426,7 @@ export default function DriverDetailTab({
           },
           body: JSON.stringify({
             manager: parseInt(employmentDialogForm.manager_id),
-            bright_user: driverData.user.id,
+            bright_user: driverData?.user?.id,
             assigning_date: employmentDialogForm.assigning_date,
           }),
         });
@@ -465,7 +465,7 @@ export default function DriverDetailTab({
   const openEmploymentDialog = () => {
     setEmploymentDialogForm({
       paid_holidays: driverData?.user?.paid_holidays ?? 0,
-      contract_signing_date: driverData?.user?.contract_signing_date ? driverData.user.contract_signing_date.split("T")[0] : "",
+      contract_signing_date: driverData?.user?.contract_signing_date ? driverData?.user?.contract_signing_date?.split("T")?.[0] : "",
       rota_start_date: driverData?.user?.rota_start_date || "",
       account_no: driverData?.account_no || "",
       sort_code: driverData?.sort_code || "",
@@ -545,7 +545,7 @@ export default function DriverDetailTab({
       if (!driverData?.user?.id) return;
       setBrightHRLoading(true);
       try {
-        const res = await fetch(`${API_URL}/brighthr/?bright_user_id=${driverData.user.id}`, {
+        const res = await fetch(`${API_URL}/brighthr/?bright_user_id=${driverData?.user?.id}`, {
           headers: { Authorization: `Bearer ${cookies.get("access_token")}` },
         });
         if (!res.ok) throw new Error();
@@ -572,14 +572,14 @@ export default function DriverDetailTab({
         },
         body: JSON.stringify({
           manager: parseInt(selectedManagerId),
-          bright_user: driverData.user.id,
+          bright_user: driverData?.user?.id,
           assigning_date: assigningDate,
         }),
       });
       if (!res.ok) throw new Error();
       toast.success("Manager assigned successfully");
       setSelectedManagerId("");
-      const refetch = await fetch(`${API_URL}/brighthr/?bright_user_id=${driverData.user.id}`, {
+      const refetch = await fetch(`${API_URL}/brighthr/?bright_user_id=${driverData?.user?.id}`, {
         headers: { Authorization: `Bearer ${cookies.get("access_token")}` },
       });
       const newData = await refetch.json();

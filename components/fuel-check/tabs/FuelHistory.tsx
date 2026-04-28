@@ -91,13 +91,13 @@ const ViewFuelLogDialog: React.FC<ViewFuelLogDialogProps> = ({ isOpen, onClose, 
       <DialogContent className="sm:max-w-[600px] rounded-lg">
         <DialogHeader>
           <DialogTitle>Fuel Log Details</DialogTitle>
-          <DialogDescription>View detailed information for fuel log ID: {log.id}</DialogDescription>
+          <DialogDescription>View detailed information for fuel log ID: {log?.id}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Vehicle:</span>
             <span className="col-span-3">
-              {log.vehicle ? `${log.vehicle.registration_number} (${log.vehicle.vehicles_type_name})` : "N/A"}
+              {log?.vehicle ? `${log?.vehicle?.registration_number} (${log?.vehicle?.vehicles_type_name})` : "N/A"}
             </span>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -106,15 +106,15 @@ const ViewFuelLogDialog: React.FC<ViewFuelLogDialogProps> = ({ isOpen, onClose, 
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Date:</span>
-            <span className="col-span-3">{formatDmy(log.date)}</span>
+            <span className="col-span-3">{formatDmy(log?.date)}</span>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Time:</span>
-            <span className="col-span-3">{log.time}</span>
+            <span className="col-span-3">{log?.time}</span>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Driver ID:</span>
-            <span className="col-span-3">{log.driver}</span>
+            <span className="col-span-3">{log?.driver}</span>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Card:</span>
@@ -124,7 +124,7 @@ const ViewFuelLogDialog: React.FC<ViewFuelLogDialogProps> = ({ isOpen, onClose, 
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Amount:</span>
-            <span className="col-span-3">{log.amount.toFixed(2)} Liters</span>
+            <span className="col-span-3">{log?.amount?.toFixed(2)} Liters</span>
           </div>
           {(() => {
             const cookies = useCookies();
@@ -132,20 +132,20 @@ const ViewFuelLogDialog: React.FC<ViewFuelLogDialogProps> = ({ isOpen, onClose, 
             return role === 'superadmin' && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <span className="font-medium col-span-1">Cost:</span>
-                <span className="col-span-3">£{log.cost.toFixed(2)}</span>
+                <span className="col-span-3">£{log?.cost?.toFixed(2)}</span>
               </div>
             );
           })()}
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Notes:</span>
-            <span className="col-span-3">{log.notes}</span>
+            <span className="col-span-3">{log?.notes}</span>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <span className="font-medium col-span-1">Vehicle Photo:</span>
             <span className="col-span-3">
-              {log.vehicle_photo ? (
+              {log?.vehicle_photo ? (
                 <a
-                  href={log.vehicle_photo}
+                  href={log?.vehicle_photo || ""}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
@@ -606,7 +606,7 @@ export default function FuelChecksManagement() {
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="w-full h-10 justify-between rounded-lg">
           {cardFilter
-            ? cards.find((c) => c.id.toString() === cardFilter)?.title || "Select Card"
+            ? cards?.find((c) => c?.id?.toString() === cardFilter)?.title || "Select Card"
             : "Select Card"}
           <ChevronDown className="h-4 w-4 opacity-50" />
         </Button>
@@ -615,12 +615,12 @@ export default function FuelChecksManagement() {
         <DropdownMenuItem onClick={() => setCardFilter("")}>
           All Cards
         </DropdownMenuItem>
-        {cards.map((card) => (
+        {cards?.map((card) => (
           <DropdownMenuItem
-            key={card.id}
-            onClick={() => setCardFilter(card.id.toString())}
+            key={card?.id}
+            onClick={() => setCardFilter(card?.id?.toString())}
           >
-            {card.title || "Untitled"} ({card.card_number})
+            {card?.title || "Untitled"} ({card?.card_number})
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -643,14 +643,14 @@ export default function FuelChecksManagement() {
                         {vehicleFilter && (
                           <Badge variant="secondary" className="gap-1">
                             Vehicle:{" "}
-                            {vehicles.find((v) => v.id.toString() === vehicleFilter)?.registration_number ||
+                            {vehicles?.find((v) => v?.id?.toString() === vehicleFilter)?.registration_number ||
                               vehicleFilter}
                             <X className="h-3 w-3 cursor-pointer" onClick={() => setVehicleFilter("")} />
                           </Badge>
                         )}
                         {driverFilter && (
                           <Badge variant="secondary" className="gap-1">
-                            Driver: {drivers.find((d) => d.id.toString() === driverFilter)?.full_name || driverFilter}
+                            Driver: {drivers?.find((d) => d?.id?.toString() === driverFilter)?.full_name || driverFilter}
                             <X className="h-3 w-3 cursor-pointer" onClick={() => setDriverFilter("")} />
                           </Badge>
                         )}
@@ -668,7 +668,7 @@ export default function FuelChecksManagement() {
                         )}
                         {cardFilter && (
                           <Badge variant="secondary" className="gap-1">
-                            Card: {cards.find((c) => c.id.toString() === cardFilter)?.title || cardFilter}
+                            Card: {cards?.find((c) => c?.id?.toString() === cardFilter)?.title || cardFilter}
                             <X className="h-3 w-3 cursor-pointer" onClick={() => setCardFilter("")} />
                           </Badge>
                         )}
@@ -699,17 +699,17 @@ export default function FuelChecksManagement() {
               </TableHeader>
               <TableBody>
                 {filteredData.map((log) => (
-                  <TableRow key={log.id} id={`fuel-history-log-${log.id}`} className="hover:bg-muted/20">
-                    <TableCell className="font-medium">{log.driver_data.full_name}</TableCell>
-                    <TableCell>{log.vehicle?.registration_number || "N/A"}</TableCell>
-                    <TableCell>{formatDmy(log.date)}</TableCell>
-                    <TableCell>{log.time}</TableCell>
-                    <TableCell className="text-center">{log.amount.toFixed(2)}</TableCell>
+                  <TableRow key={log?.id} id={`fuel-history-log-${log?.id}`} className="hover:bg-muted/20">
+                    <TableCell className="font-medium">{log?.driver_data?.full_name}</TableCell>
+                    <TableCell>{log?.vehicle?.registration_number || "N/A"}</TableCell>
+                    <TableCell>{formatDmy(log?.date)}</TableCell>
+                    <TableCell>{log?.time}</TableCell>
+                    <TableCell className="text-center">{log?.amount?.toFixed(2)}</TableCell>
                     {role === 'superadmin' && (
-                      <TableCell className="text-center">£{log.cost.toFixed(2)}</TableCell>
+                      <TableCell className="text-center">£{log?.cost?.toFixed(2)}</TableCell>
                     )}
-                    <TableCell>{log.card_data?.title || "N/A"}</TableCell>
-                    <TableCell>{log.notes}</TableCell>
+                    <TableCell>{log?.card_data?.title || "N/A"}</TableCell>
+                    <TableCell>{log?.notes}</TableCell>
                     <TableCell className="text-center">
                       <DropdownMenu>
                         <Tooltip>
@@ -725,7 +725,7 @@ export default function FuelChecksManagement() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => {
-                              handleExpandedChange(`fuel-history-log-${log.id}`);
+                              handleExpandedChange(`fuel-history-log-${log?.id}`);
                               setViewLog(log)
                               setIsViewDialogOpen(true)
                             }}
@@ -736,7 +736,7 @@ export default function FuelChecksManagement() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
-                              handleExpandedChange(`fuel-history-log-${log.id}`);
+                              handleExpandedChange(`fuel-history-log-${log?.id}`);
                               setEditLog(log)
                               setIsAddDialogOpen(true)
                             }}
@@ -746,7 +746,7 @@ export default function FuelChecksManagement() {
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleDeleteFuelLog(log.id)}
+                            onClick={() => handleDeleteFuelLog(log?.id)}
                             className="flex items-center gap-2 text-red-600"
                           >
                             <Trash className="h-4 w-4" />
