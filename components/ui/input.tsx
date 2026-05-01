@@ -1,17 +1,8 @@
 import * as React from "react"
-import { CircleX } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, value, onChange, ...props }, ref) => {
-    const [inputValue, setInputValue] = React.useState(value || "")
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInputValue(e.target.value)
-      onChange?.(e)
-    }
-
-
+  ({ className, type, ...props }, ref) => {
     return (
       <div
         className="relative w-full gradient-border cursor-glow"
@@ -30,8 +21,6 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
             className
           )}
           ref={ref}
-          value={inputValue}
-          onChange={handleChange}
           {...props}
         />
 

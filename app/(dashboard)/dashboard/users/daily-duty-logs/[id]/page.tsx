@@ -1,7 +1,7 @@
 "use client"; // ← very important!
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation'; // ← Next.js 13+ App Router
+import { useSearchParams, useRouter } from 'next/navigation'; // ← Next.js 13+ App Router
 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,16 +33,13 @@ export default function DailyLogsPage() {
     ? (TAB_VALUES[paramTab as TabValue] ?? TAB_VALUES.current)
     : TAB_VALUES.current;
 
-  const [activeTab, setActiveTab] = useState(initialTab);
-
-  // Optional: sync when URL changes (e.g. browser back/forward)
-  useEffect(() => {
-    const newTab = paramTab 
-      ? (TAB_VALUES[paramTab as TabValue] ?? TAB_VALUES.current)
-      : TAB_VALUES.current;
-
-    setActiveTab(newTab);
-  }, [paramTab]);
+  const router = useRouter();
+  
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   return (
     <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 max-w-5xl">
@@ -55,8 +52,8 @@ export default function DailyLogsPage() {
       </div>
 
       <Tabs 
-        value={activeTab} 
-        onValueChange={(value) => setActiveTab(value as typeof activeTab)} 
+        value={initialTab} 
+        onValueChange={handleTabChange} 
         className="space-y-6"
       >
         <TabsList className="grid w-full grid-cols-4">

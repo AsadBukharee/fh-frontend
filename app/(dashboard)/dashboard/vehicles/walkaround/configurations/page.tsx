@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import WalkaroundQuestionScreen from "@/components/walkaround/WalkaroundQuestionScreen";
 import WalkaroundCategory from "@/components/walkaround/WalkaroundCategory";
 
 const WalkaroundPage = () => {
-    const [activeTab, setActiveTab] = useState("walkaround-questions");
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const activeTab = searchParams.get("tab") || "walkaround-questions";
+
+    const handleTabChange = useCallback((value: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("tab", value);
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [searchParams, router]);
 
     return (
         <div className="min-h-screen bg-white p-6 relative">
@@ -20,7 +29,7 @@ const WalkaroundPage = () => {
                 </div>
 
                 {/* Tabs */}
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                     <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden mb-4">
                         <TabsTrigger
                             value="walkaround-questions"

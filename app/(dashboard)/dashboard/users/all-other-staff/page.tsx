@@ -1039,6 +1039,8 @@ export default function UsersPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeTab = searchParams.get("tab") || "assigned";
+  const [unassignedUsersCount, setUnassignedUsersCount] = useState<number | null>(null);
+
 
   const setActiveTab = useCallback((val: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -1212,10 +1214,54 @@ export default function UsersPage() {
     }
   }, [cookies, showToast, roles.length]);
 
+  const fetchUnassignedUsersCount = useCallback(async () => {
+    console.log("fetchUnassignedUsersCount called");
+    try {
+      const url = `${API_URL}/users/no-site/?page=1&per_page=10&drivers=false`;
+      console.log("Fetching count from:", url);
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${cookies.get("access_token")}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        console.log("Unassigned users count API response:", json);
+        if (json.success) {
+          let count = null;
+          if (json.data?.pagination?.total_items !== undefined) {
+            count = json.data.pagination.total_items;
+          } else if (json.data?.total_items !== undefined) {
+            count = json.data.total_items;
+          } else if (json.total_items !== undefined) {
+            count = json.total_items;
+          } else if (json.total_count !== undefined) {
+            count = json.total_count;
+          } else if (json.count !== undefined) {
+            count = json.count;
+          } else if (Array.isArray(json.data?.results)) {
+            count = json.data.results.length;
+          }
+          
+          console.log("Calculated count:", count);
+          setUnassignedUsersCount(count);
+        } else {
+          console.error("API success false for count:", json.message);
+        }
+      } else {
+        console.error("API response not ok for count:", res.status);
+      }
+    } catch (error) {
+      console.error("Error in fetchUnassignedUsersCount:", error);
+    }
+  }, [cookies]);
+
+
+
   useEffect(() => {
     fetchUsers();
     fetchRoles();
-  }, [fetchUsers, fetchRoles, activeTab]);
+    fetchUnassignedUsersCount();
+  }, [fetchUsers, fetchRoles, fetchUnassignedUsersCount, activeTab]);
+
 
   useEffect(() => {
     if (isEditModalOpen || isModalOpen || isFilterModalOpen) {
@@ -1844,8 +1890,17 @@ export default function UsersPage() {
             value="unassigned" 
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 font-medium"
           >
-            Unassigned Sites
+            <div className="flex items-center gap-2">
+              Unassigned Sites
+              {unassignedUsersCount !== null && (
+                <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-none py-0.5 px-2 h-5 min-w-[20px] flex items-center justify-center text-[10px]">
+                  {unassignedUsersCount}
+                </Badge>
+              )}
+            </div>
           </TabsTrigger>
+
+
         </TabsList>
 
         <div className="flex items-center justify-between mb-6">

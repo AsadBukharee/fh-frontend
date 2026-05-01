@@ -378,20 +378,8 @@ const AddLocation: React.FC<AddLocationProps> = ({ editLocation, onCancel, onSuc
   return (
     <div className="container mx-auto p-6 max-w-2xl">
       <Card className={`border-0 ${editLocation ? "bg-blue-50/50 dark:bg-blue-950/20" : "bg-card"}`}>
-        <CardHeader className="space-y-1 pb-4">
-          <div className="flex items-center gap-2">
-            <Building2 className={`h-5 w-5 ${editLocation ? "text-blue-600" : "text-primary"}`} />
-            <CardTitle className="text-xl font-semibold text-foreground">
-              {editLocation ? "Edit Location" : "Add New Location"}
-            </CardTitle>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {editLocation
-              ? "Update details for the selected location"
-              : "Create a new location entry with settings"}
-          </p>
-        </CardHeader>
-        <CardContent className="pt-0">
+     
+        <CardContent className="pt-2">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="name" className="text-sm font-medium">

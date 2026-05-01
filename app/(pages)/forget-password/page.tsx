@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import GradientButton from '@/app/utils/GradientButton';
-import icon from '../../../public/icon.jpg';
 import { SendHorizonal } from 'lucide-react';
 import Toast from '@/app/utils/Toast';
 import API_URL from '@/app/utils/ENV';
@@ -54,7 +53,7 @@ export default function ForgetPassword() {
         <div className="text-center mb-6">
           <div className="mx-auto w-16 h-16 p-px rounded-full bg-gradient-primary">
             <div className="w-full h-full flex items-center justify-center bg-white rounded-full overflow-hidden">
-              <Image src={icon} width={40} height={40} alt="Fleet Management System Logo" />
+                <Image src="/icon.jpg" width={40} height={40} alt="Fleet Management System Logo" />
             </div>
           </div>
           <h1 className="text-xl font-semibold text-gray-800">Fleet Management System</h1>

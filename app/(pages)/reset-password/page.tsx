@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import GradientButton from '@/app/utils/GradientButton';
 import Image from 'next/image';
-import icon from '../../../public/icon.jpg';
 import { useSearchParams } from 'next/navigation';
 import API_URL from '@/app/utils/ENV';
 import { Eye, EyeOff } from 'lucide-react';
@@ -79,7 +78,7 @@ export default function ResetPassword() {
         <div className="text-center mb-6">
           <div className="mx-auto w-16 h-16 p-px rounded-full bg-gradient-primary">
             <div className="w-full h-full flex items-center justify-center bg-white rounded-full overflow-hidden">
-              <Image src={icon} width={40} height={40} alt="Logo" />
+              <Image src="/icon.jpg" width={40} height={40} alt="Logo" />
             </div>
           </div>
           <h1 className="text-xl font-semibold text-gray-800">Fleet Management System</h1>

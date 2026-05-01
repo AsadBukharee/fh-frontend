@@ -1,5 +1,6 @@
 "use client";
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -529,7 +530,16 @@ DriverActionMenu.displayName = "DriverActionMenu";
 export default function DriversPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("assigned");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams.get("tab") || "assigned";
+
+  const handleTabChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+    setCurrentPage(1);
+  }, [searchParams, router]);
   const [newDriverUserId, setNewDriverUserId] = useState<number | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
@@ -802,12 +812,14 @@ export default function DriversPage() {
       return;
     }
 
+    const role = (fd.get("role") as string | null)?.trim() || "driver";
     const payload = {
       email: fd.get("email") as string,
       full_name: fd.get("full_name") as string,
       password: fd.get("password") as string,
       password_confirm: fd.get("password_confirm") as string,
-      role: fd.get("role") as string,
+      // API expects a list of roles (even if single-select in UI)
+      role: [role],
     };
 
     setEditLoading(true);
@@ -862,7 +874,7 @@ export default function DriversPage() {
       }
       await Promise.all(promises);
 
-      if (payload.role.toLowerCase() === "driver") {
+      if (role.toLowerCase() === "driver") {
         setNewDriverUserId(userId);
         setIsAddDriverModalOpen(true);
       }
@@ -1069,10 +1081,7 @@ export default function DriversPage() {
       {/* Table */}
       {/* Table Section */}
       <div className="p-4 sm:p-6">
-        <Tabs value={activeTab} onValueChange={(v) => {
-          setActiveTab(v);
-          setCurrentPage(1);
-        }} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="w-full flex h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden mb-4">
             <TabsTrigger 
               value="assigned" 

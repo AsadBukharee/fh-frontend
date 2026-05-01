@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import {
   Dialog,
@@ -113,7 +113,14 @@ export default function VehicleDetailPage() {
   const [uploadedDoc, setUploadedDoc] = useState<string>("");
   const [skipUpload, setSkipUpload] = useState(false);
   const [documentError, setDocumentError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") || "overview";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
   const [pmiDialogOpen, setPmiDialogOpen] = useState(false);
   const [motDialogOpen, setMotDialogOpen] = useState(false);
   const [showAllCompliance, setShowAllCompliance] = useState(false);
@@ -868,7 +875,7 @@ export default function VehicleDetailPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-2">
             <TabsList className="grid w-full grid-cols-4 gap-2 bg-slate-50 p-1 rounded-xl">
               <TabsTrigger value="overview">Vehicle</TabsTrigger>

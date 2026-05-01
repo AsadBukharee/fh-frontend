@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useAutoScroll } from "@/app/utils/useAutoScroll";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -150,6 +150,8 @@ interface HealthAnswer {
 
 export default function DriverDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const cookies = useCookies();
   const [driverData, setDriverData] = useState<DriverData | null>(null);
   const [competencyData, setCompetencyData] = useState<ProfessionalCompetency[]>([]);
@@ -202,7 +204,13 @@ export default function DriverDetailPage() {
   const [selectedContractId, setSelectedContractId] = useState<string>("");
   const [assigningSites, setAssigningSites] = useState(false);
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("driver-detail");
+  const currentTab = searchParams.get("tab") || "driver-detail";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+  };
   const [disapproveRemarks, setDisapproveRemarks] = useState("");
   const [isDisapproving, setIsDisapproving] = useState(false);
   const [warningsDialogOpen, setWarningsDialogOpen] = useState(false);
@@ -665,7 +673,7 @@ export default function DriverDetailPage() {
 
   return (
     <div className="container p-8 space-y-8 bg-white min-h-screen">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-8">
         <TabsList className="flex justify-start w-full gap-8 bg-[#f9f9f9] py-8 px-6">
           <TabsTrigger value="driver-detail" className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-gray-500 data-[state=active]:text-[#F15A29] data-[state=active]:bg-[#F15A291F] transition-colors">
             <User size={16} /> Driver Details
