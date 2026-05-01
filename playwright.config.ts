@@ -16,7 +16,7 @@ export default defineConfig({
     : {
         command: "npm run dev -- -p 3000",
         port: 3000,
-        reuseExisting: !process.env.CI,
+        reuseExistingServer: !process.env.CI,
       },
 });
 
