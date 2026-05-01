@@ -10,6 +10,17 @@
 !.yarn/releases
 !.yarn/versions
 menu.json
+.cursor
+.vscode
+__pycache__
+__pycache__/*
+__pycache__/**/*
+__pycache__/**/**/*
+__pycache__/**/**/**/*
+__pycache__/**/**/**/**/*
+__pycache__/**/**/**/**/**/*
+__pycache__/**/**/**/**/**/**/*
+__pycache__/**/**/**/**/**/**/**/*
 
 # testing
 /coverage

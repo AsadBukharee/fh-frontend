@@ -296,7 +296,7 @@ export default function AddSiteForm({ onSuccess }: { onSuccess?: () => void }) {
     <div className="max-w-5xl mx-auto p-6">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold">Add New Site</h1>
+          {/* <h1 className="text-3xl font-bold">Add New Site</h1> */}
           <Badge variant="outline">{currentStep + 1} / 3</Badge>
         </div>
 

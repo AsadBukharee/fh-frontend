@@ -1039,6 +1039,8 @@ export default function UsersPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeTab = searchParams.get("tab") || "assigned";
+  const [unassignedUsersCount, setUnassignedUsersCount] = useState<number | null>(null);
+
 
   const setActiveTab = useCallback((val: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -1212,10 +1214,38 @@ export default function UsersPage() {
     }
   }, [cookies, showToast, roles.length]);
 
+  const fetchUnassignedUsersCount = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/users/no-site/?page=1&per_page=1`, {
+        headers: { Authorization: `Bearer ${cookies.get("access_token")}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          if (json.data?.pagination) {
+            setUnassignedUsersCount(json.data.pagination.total_items || json.data.results.length);
+          } else if (json.total_items !== undefined) {
+            setUnassignedUsersCount(json.total_items);
+          } else if (json.data?.total_items !== undefined) {
+            setUnassignedUsersCount(json.data.total_items);
+          } else if (json.total_pages !== undefined) {
+            // If only total_pages is available, we use that as an indicator, but ideally we want total_items
+            // Based on driver-profiles, it's usually in data.pagination.total_items
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch unassigned users count:", error);
+    }
+  }, [cookies]);
+
+
   useEffect(() => {
     fetchUsers();
     fetchRoles();
-  }, [fetchUsers, fetchRoles, activeTab]);
+    fetchUnassignedUsersCount();
+  }, [fetchUsers, fetchRoles, fetchUnassignedUsersCount, activeTab]);
+
 
   useEffect(() => {
     if (isEditModalOpen || isModalOpen || isFilterModalOpen) {
@@ -1845,7 +1875,13 @@ export default function UsersPage() {
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 font-medium"
           >
             Unassigned Sites
+            {unassignedUsersCount !== null && (
+              <Badge className="ml-2 bg-orange-500 hover:bg-orange-600 text-white border-none py-0 px-1.5 h-5 min-w-[20px] justify-center">
+                {unassignedUsersCount}
+              </Badge>
+            )}
           </TabsTrigger>
+
         </TabsList>
 
         <div className="flex items-center justify-between mb-6">

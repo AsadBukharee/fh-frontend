@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -81,7 +81,15 @@ export default function DriverDetailPage() {
   const [selectedContractId, setSelectedContractId] = useState<string>("");
   const [assigningSites, setAssigningSites] = useState(false);
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("overview");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") || "overview";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   const showToast = (message: string, type: string) => {
     console.log(`${type}: ${message}`);
@@ -367,7 +375,7 @@ export default function DriverDetailPage() {
 
   return (
     <div className="container p-8 space-y-8 bg-gray-100 min-h-screen">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
         <TabsList className="sticky top-0 z-10 grid h-[70px] w-full grid-cols-3 bg-white border border-orange-200 rounded-xl p-2 shadow-sm">
           <TabsTrigger
             value="overview"

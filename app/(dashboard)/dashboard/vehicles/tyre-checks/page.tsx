@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, FC } from "react";
+import React, { useState, useEffect, useMemo, FC, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -471,9 +472,15 @@ const StatusCell: FC<StatusCellProps> = ({
 const TyreCheck: FC = () => {
   const [tyreData, setTyreData] = useState<TyreCheckRow[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [activeTab, setActiveTab] = useState<
-    "All Data" | "Tyre Depth" | "Tyre Pressure" | "Tyre Dates" | "Tyre Torque"
-  >("All Data");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = (searchParams.get("tab") as any) || "All Data";
+
+  const handleTabChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
@@ -869,7 +876,7 @@ const TyreCheck: FC = () => {
             return (
               <button
                 key={tab.label}
-                onClick={() => setActiveTab(tab.label)}
+                onClick={() => handleTabChange(tab.label)}
                 className={cn(
                   "relative flex items-center h-[30px] gap-2 px-10 py-4 text-xs font-medium whitespace-nowrap justify-start transition-colors clip-tab",
                   activeTab === tab.label

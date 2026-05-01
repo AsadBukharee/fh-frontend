@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -102,7 +103,15 @@ const getCurrentShiftByTime = (currentTime: Date): TabKey => {
 }
 
 export default function TransportDashboard() {
-  const [activeTab, setActiveTab] = useState<TabKey>("early")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeTab = (searchParams.get("tab") as TabKey) || "early"
+
+  const handleTabChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", value)
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }, [searchParams, router])
   const [apiData, setApiData] = useState<TransportData>(transportData)
   const [refreshCounter, setRefreshCounter] = useState<number>(30)
   const [currentRunType, setCurrentRunType] = useState<string | null>(null)
@@ -154,20 +163,20 @@ export default function TransportDashboard() {
         const runType = result.data.current_run_type || result.data.curent_run_type
         if (isInitialLoad.current) {
           if (runType && runNameToId[runType]) {
-            setActiveTab(runNameToId[runType])
+            handleTabChange(runNameToId[runType])
           } else {
-            setActiveTab(getCurrentShiftByTime(new Date()))
+            handleTabChange(getCurrentShiftByTime(new Date()))
           }
           isInitialLoad.current = false
         }
         setCurrentRunType(runType)
       } else {
         console.error("API returned unsuccessful response:", result.message)
-        setActiveTab(getCurrentShiftByTime(new Date()))
+        handleTabChange(getCurrentShiftByTime(new Date()))
       }
     } catch (error) {
       console.error("Error fetching API data:", error)
-      setActiveTab(getCurrentShiftByTime(new Date()))
+      handleTabChange(getCurrentShiftByTime(new Date()))
     }
   }
 
@@ -229,7 +238,7 @@ export default function TransportDashboard() {
                   key={tab.id}
                   variant="outline"
                   onClick={() => {
-                    setActiveTab(tab.id)
+                    handleTabChange(tab.id)
                     setRefreshCounter(30)
                   }}
                   className={`flex items-center px-4 py-1 rounded-2xl text-sm font-medium border transition-colors cursor-pointer gap-2
