@@ -5,7 +5,7 @@ import {
   Car, Users, Wrench, Calendar, AlertCircle, CheckCircle,
   Bell, TrendingUp, TrendingDown, Loader2, X, AlertTriangle,
   FileText, Shield, Truck, CheckSquare, XCircle, ArrowUpRight,
-  ArrowDownLeft, UserCheck, UserX, Info, 
+  ArrowDownLeft, UserCheck, UserX, Info,
   ToolCase, RefreshCw
 } from 'lucide-react';
 import API_URL from '@/app/utils/ENV';
@@ -43,6 +43,11 @@ interface IsoWeekData {
   display: string;
 }
 
+interface SubStat {
+  value: number;
+  hoverDetails: HoverDetailItem[];
+}
+
 interface Card {
   id: number;
   title: string;
@@ -51,7 +56,9 @@ interface Card {
   icon: string;
   iconBg: string;
   iconColor: string;
-  hoverDetails: HoverDetailItem[];
+  hoverDetails?: HoverDetailItem[];
+  today?: SubStat;
+  till_today?: SubStat;
   highlight?: boolean;
   link?: string;
 }
@@ -267,11 +274,13 @@ const StatCard: React.FC<{
   iconBg: string;
   iconColor: string;
   icon: string;
-  hoverDetails: HoverDetailItem[];
+  hoverDetails?: HoverDetailItem[];
+  today?: SubStat;
+  till_today?: SubStat;
   index: number;
   highlight?: boolean;
   link?: string;
-}> = ({ title, value, subtitle, iconBg, iconColor, icon, hoverDetails, index, highlight, link }) => {
+}> = ({ title, value, subtitle, iconBg, iconColor, icon, hoverDetails, today, till_today, index, highlight, link }) => {
   const router = useRouter();
   const hasHoverDetails = hoverDetails && hoverDetails.length > 0;
 
@@ -302,29 +311,80 @@ const StatCard: React.FC<{
             {/* Glossy Overlay Effect */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent -mr-16 -mt-16 rounded-full blur-2xl group-hover:w-40 group-hover:h-40 transition-all duration-500" />
 
-            <div className="flex items-start justify-between relative z-10">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <p className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">{title}</p>
-                  {hasHoverDetails && (
-                    <div className="relative">
-                      <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                        <Info className="w-3.5 h-3.5 text-blue-500" />
+            <div className="relative z-10">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1 pr-16">
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">{title}</p>
+                    {hasHoverDetails && (
+                      <div className="relative">
+                        <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                          <Info className="w-3.5 h-3.5 text-blue-500" />
+                        </div>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                  <p className={`text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight ${highlight ? "text-red-600" : index === 0 ? "text-orange-600" : ""}`}>
+                    {value}
+                  </p>
+                </div>
+                {/* Floating Icon */}
+                <div className={`${iconBg} p-4 rounded-[22px] shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 flex-shrink-0 absolute top-0 right-0`}>
+                  <IconComponent iconName={icon} className={`w-7 h-7 ${iconColor}`} />
+                </div>
+              </div>
+
+              <p className="text-xs font-medium text-gray-400 flex items-center gap-1 mb-1">
+                {subtitle}
+                {link && <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />}
+              </p>
+
+              {/* Sub-stats for Today / Till Today */}
+              {(today || till_today) && (
+                <div className="mt-5 pt-5 border-t border-gray-100 flex items-center gap-3">
+                  {today && (
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild>
+                        <div className="group/pill relative cursor-pointer h-10 w-28 rounded-full overflow-hidden flex items-center justify-center transition-all duration-500 shadow-[0_4px_12px_rgba(37,99,235,0.15)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.25)] active:scale-95 bg-gradient-to-br from-blue-600 to-indigo-600">
+                          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/pill:opacity-100 transition-opacity duration-300" />
+                          <span className="absolute flex items-center justify-center text-[12px] font-bold text-white transition-all duration-500 group-hover/pill:opacity-0 group-hover/pill:-translate-y-8">
+                            Today
+                          </span>
+                          <span className="absolute flex items-center justify-center text-xl font-black text-white opacity-0 translate-y-8 transition-all duration-500 group-hover/pill:opacity-100 group-hover/pill:translate-y-0">
+                            {today.value}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      {today.hoverDetails && today.hoverDetails.length > 0 && (
+                        <TooltipContent side="bottom" align="start" className="p-0 bg-white border border-gray-200 shadow-2xl rounded-2xl overflow-hidden z-[100]">
+                          <HoverDetailsContent details={today.hoverDetails} title="Tasks Due Today" />
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  )}
+
+                  {till_today && (
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild>
+                        <div className="group/pill relative cursor-pointer h-10 w-28 rounded-full overflow-hidden flex items-center justify-center transition-all duration-500 shadow-[0_4px_12px_rgba(16,185,129,0.15)] hover:shadow-[0_8px_20px_rgba(16,185,129,0.25)] active:scale-95 bg-gradient-to-br from-emerald-600 to-teal-600">
+                          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/pill:opacity-100 transition-opacity duration-300" />
+                          <span className="absolute flex items-center justify-center text-[12px] font-bold text-white transition-all duration-500 group-hover/pill:opacity-0 group-hover/pill:-translate-y-8">
+                            Earlier
+                          </span>
+                          <span className="absolute flex items-center justify-center text-xl font-black text-white opacity-0 translate-y-8 transition-all duration-500 group-hover/pill:opacity-100 group-hover/pill:translate-y-0">
+                            {till_today.value}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      {till_today.hoverDetails && till_today.hoverDetails.length > 0 && (
+                        <TooltipContent side="bottom" align="start" className="p-0 bg-white border border-gray-200 shadow-2xl rounded-2xl overflow-hidden z-[100]">
+                          <HoverDetailsContent details={till_today.hoverDetails} title="Tasks Due Till Today" />
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
                   )}
                 </div>
-                <p className={`text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight ${highlight ? "text-red-600" : index === 0 ? "text-orange-600" : ""}`}>
-                  {value}
-                </p>
-                <p className="text-xs font-medium text-gray-400 flex items-center gap-1">
-                  {subtitle}
-                  {link && <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />}
-                </p>
-              </div>
-              <div className={`${iconBg} p-3.5 rounded-2xl shadow-inner group-hover:scale-110 transition-transform duration-300`}>
-                <IconComponent iconName={icon} className={`w-6 h-6 ${iconColor}`} />
-              </div>
+              )}
             </div>
 
             {/* Bottom Glow Effect */}
@@ -711,8 +771,10 @@ export default function Dashboard() {
                     iconColor={card.iconColor}
                     icon={card.icon}
                     hoverDetails={card.hoverDetails}
+                    today={card.today}
+                    till_today={card.till_today}
                     index={index}
-                    highlight={card.highlight || card.id==1}
+                    highlight={card.highlight || card.id === 1}
                     link={cardLink}
                   />
                 );
