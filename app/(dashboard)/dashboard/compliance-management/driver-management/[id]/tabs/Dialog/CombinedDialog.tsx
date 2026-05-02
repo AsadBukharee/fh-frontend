@@ -52,7 +52,6 @@ type CombinedLicenseFormData = {
   dl_expiry_date: string;
   dl_status: string;
   dl_status_reason: string;
-  dl_status_description: string;
   dl_description: string;
   dl_has_document: boolean;
   dl_url: string;
@@ -60,7 +59,6 @@ type CombinedLicenseFormData = {
   dd1_expiry_date: string;
   dd1_status: string;
   dd1_status_reason: string;
-  dd1_status_description: string;
   dd1_description: string;
   dd1_has_document: boolean;
   dd1_url: string;
@@ -99,16 +97,14 @@ export default function CombinedLicenseDialog({
     dl_expiry_date: driverLicenseData?.expiry_date || "",
     dl_status: driverLicenseData?.request_status || "pending",
     dl_status_reason: driverLicenseData?.status_reason || "",
-    dl_status_description: driverLicenseData?.status_description || "",
-    dl_description: driverLicenseData?.description || "",
+    dl_description: driverLicenseData?.description || driverLicenseData?.status_description || "",
     dl_has_document: driverLicenseData?.has_document || false,
     dl_url: driverLicenseData?.urls?.[0] || "",
 
     dd1_expiry_date: dd1CategoryData?.expiry_date || "",
     dd1_status: dd1CategoryData?.request_status || "pending",
     dd1_status_reason: dd1CategoryData?.status_reason || "",
-    dd1_status_description: dd1CategoryData?.status_description || "",
-    dd1_description: dd1CategoryData?.description || "",
+    dd1_description: dd1CategoryData?.description || dd1CategoryData?.status_description || "",
     dd1_has_document: dd1CategoryData?.has_document || false,
     dd1_url: dd1CategoryData?.urls?.[0] || "",
   });
@@ -126,16 +122,14 @@ export default function CombinedLicenseDialog({
         dl_expiry_date: driverLicenseData?.expiry_date || "",
         dl_status: driverLicenseData?.request_status || "pending",
         dl_status_reason: driverLicenseData?.status_reason || "",
-        dl_status_description: driverLicenseData?.status_description || "",
-        dl_description: driverLicenseData?.description || "",
+        dl_description: driverLicenseData?.description || driverLicenseData?.status_description || "",
         dl_has_document: driverLicenseData?.has_document || false,
         dl_url: driverLicenseData?.urls?.[0] || "",
 
         dd1_expiry_date: dd1CategoryData?.expiry_date || "",
         dd1_status: dd1CategoryData?.request_status || "pending",
         dd1_status_reason: dd1CategoryData?.status_reason || "",
-        dd1_status_description: dd1CategoryData?.status_description || "",
-        dd1_description: dd1CategoryData?.description || "",
+        dd1_description: dd1CategoryData?.description || dd1CategoryData?.status_description || "",
         dd1_has_document: dd1CategoryData?.has_document || false,
         dd1_url: dd1CategoryData?.urls?.[0] || "",
       });
@@ -274,13 +268,13 @@ export default function CombinedLicenseDialog({
     }
 
     // Validation for status description
-    if (formData.dl_status !== "approved" && !formData.dl_status_description) {
+    if (formData.dl_status !== "approved" && !formData.dl_description) {
       toast.error("Please provide a reason/description for the Driving License status");
       setCurrentStep(1);
       return;
     }
 
-    if (formData.dd1_status !== "approved" && !formData.dd1_status_description) {
+    if (formData.dd1_status !== "approved" && !formData.dd1_description) {
       toast.error("Please provide a reason/description for the D/D1 Category status");
       setCurrentStep(2);
       return;
@@ -312,7 +306,6 @@ export default function CombinedLicenseDialog({
         document_type: "driving-license",
         has_expiry: true,
         description: formData.dl_description || "",
-        status_description: formData.dl_status_description || "",
         status_reason: formData.dl_status_reason || "",
         expiry_date: formData.dl_expiry_date || null,
         has_document: !!formData.dl_url || formData.dl_has_document,
@@ -341,7 +334,6 @@ export default function CombinedLicenseDialog({
         document_type: "d-d1-category",
         has_expiry: true,
         description: formData.dd1_description || "",
-        status_description: formData.dd1_status_description || "",
         status_reason: formData.dd1_status_reason || "",
         expiry_date: formData.dd1_expiry_date || null,
         has_document: !!formData.dd1_url || formData.dd1_has_document,
@@ -385,8 +377,7 @@ export default function CombinedLicenseDialog({
   const currentDocName = currentStep === 1 ? "Driving License" : "D/D1 Category";
   const currentUrl = currentStep === 1 ? formData.dl_url : formData.dd1_url;
   const currentStatus = currentStep === 1 ? formData.dl_status : formData.dd1_status;
-  const currentStatusReason = currentStep === 1 ? formData.dl_status_reason : formData.dd1_status_reason;
-  const currentStatusDesc = currentStep === 1 ? formData.dl_status_description : formData.dd1_status_description;
+  const currentStatusDesc = currentStep === 1 ? formData.dl_description : formData.dd1_description;
   const currentDesc = currentStep === 1 ? formData.dl_description : formData.dd1_description;
 
   return (
@@ -593,14 +584,14 @@ export default function CombinedLicenseDialog({
                 </div>
               </div>
 
-              {/* Status Description Section (Visible for Pending/Rejected) */}
+              {/* Description Section (Visible for Pending/Rejected) */}
               {(currentStatus === "pending" || currentStatus === "not_approved") && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Status Description</Label>
+                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Description</Label>
                     <Textarea
                       value={currentStatusDesc}
-                      onChange={(e) => handleFormChange(currentStep === 1 ? "dl_status_description" : "dd1_status_description", e.target.value)}
+                      onChange={(e) => handleFormChange(currentStep === 1 ? "dl_description" : "dd1_description", e.target.value)}
                       className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
                       placeholder={`Explain why this document is ${currentStatus === "pending" ? "pending" : "rejected"}...`}
                     />
@@ -608,16 +599,6 @@ export default function CombinedLicenseDialog({
                 </div>
               )}
 
-              {/* General Description Section */}
-              <div className="space-y-2">
-                <Label className="text-[13px] font-bold text-gray-800 ml-1">General Description</Label>
-                <Textarea
-                  value={currentDesc}
-                  onChange={(e) => handleFormChange(currentStep === 1 ? "dl_description" : "dd1_description", e.target.value)}
-                  className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
-                  placeholder="General notes about the document..."
-                />
-              </div>
 
               {/* Footer Buttons */}
               <div className="flex gap-4 pt-4">

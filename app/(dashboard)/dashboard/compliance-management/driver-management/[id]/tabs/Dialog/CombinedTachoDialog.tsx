@@ -46,7 +46,7 @@ interface CombinedTachoDialogProps {
 type CombinedTachoFormData = {
   tacho_expiry_date: string;
   tacho_status: string;
-  tacho_status_description: string;
+  tacho_status_reason: string;
   tacho_description: string;
   tacho_has_document: boolean;
   tacho_url_front: string;
@@ -54,7 +54,7 @@ type CombinedTachoFormData = {
 
   download_date: string;
   download_status: string;
-  download_status_description: string;
+  download_status_reason: string;
   download_description: string;
   download_has_document: boolean;
   download_url_front: string;
@@ -89,16 +89,16 @@ export default function CombinedTachoDialog({
   const [formData, setFormData] = useState<CombinedTachoFormData>({
     tacho_expiry_date: tachoCardData?.expiry_date || "",
     tacho_status: tachoCardData?.request_status || "pending",
-    tacho_status_description: tachoCardData?.status_description || "",
-    tacho_description: tachoCardData?.description || "",
+    tacho_status_reason: tachoCardData?.status_reason || "",
+    tacho_description: tachoCardData?.description || tachoCardData?.status_description || "",
     tacho_has_document: tachoCardData?.has_document || false,
     tacho_url_front: tachoCardData?.urls?.[0] || "",
     tacho_url_back: tachoCardData?.urls?.[1] || "",
 
     download_date: lastTachoDownloadData?.expiry_date || "",
     download_status: lastTachoDownloadData?.request_status || "pending",
-    download_status_description: lastTachoDownloadData?.status_description || "",
-    download_description: lastTachoDownloadData?.description || "",
+    download_status_reason: lastTachoDownloadData?.status_reason || "",
+    download_description: lastTachoDownloadData?.description || lastTachoDownloadData?.status_description || "",
     download_has_document: lastTachoDownloadData?.has_document || false,
     download_url_front: lastTachoDownloadData?.urls?.[0] || "",
     download_url_back: lastTachoDownloadData?.urls?.[1] || "",
@@ -111,16 +111,16 @@ export default function CombinedTachoDialog({
       setFormData({
         tacho_expiry_date: tachoCardData?.expiry_date || "",
         tacho_status: tachoCardData?.request_status || "pending",
-        tacho_status_description: tachoCardData?.status_description || "",
-        tacho_description: tachoCardData?.description || "",
+        tacho_status_reason: tachoCardData?.status_reason || "",
+        tacho_description: tachoCardData?.description || tachoCardData?.status_description || "",
         tacho_has_document: tachoCardData?.has_document || false,
         tacho_url_front: tachoCardData?.urls?.[0] || "",
         tacho_url_back: tachoCardData?.urls?.[1] || "",
 
         download_date: lastTachoDownloadData?.expiry_date || "",
         download_status: lastTachoDownloadData?.request_status || "pending",
-        download_status_description: lastTachoDownloadData?.status_description || "",
-        download_description: lastTachoDownloadData?.description || "",
+        download_status_reason: lastTachoDownloadData?.status_reason || "",
+        download_description: lastTachoDownloadData?.description || lastTachoDownloadData?.status_description || "",
         download_has_document: lastTachoDownloadData?.has_document || false,
         download_url_front: lastTachoDownloadData?.urls?.[0] || "",
         download_url_back: lastTachoDownloadData?.urls?.[1] || "",
@@ -227,12 +227,12 @@ export default function CombinedTachoDialog({
     }
 
     // Validation for status description
-    if (formData.tacho_status !== "approved" && !formData.tacho_status_description) {
+    if (formData.tacho_status !== "approved" && !formData.tacho_description) {
       toast.error("Please provide a reason/description for the Tacho Card status");
       setCurrentStep(1);
       return;
     }
-    if (formData.download_status !== "approved" && !formData.download_status_description) {
+    if (formData.download_status !== "approved" && !formData.download_description) {
       toast.error("Please provide a reason/description for the Download status");
       setCurrentStep(2);
       return;
@@ -262,7 +262,7 @@ export default function CombinedTachoDialog({
         document_type: "tacho-card",
         has_expiry: true,
         description: formData.tacho_description || "",
-        status_description: formData.tacho_status_description || "",
+        status_reason: formData.tacho_status_reason || "",
         expiry_date: formData.tacho_expiry_date || null,
         has_document: !!formData.tacho_url_front || !!formData.tacho_url_back || formData.tacho_has_document,
         urls: [formData.tacho_url_front, formData.tacho_url_back].filter(Boolean),
@@ -290,7 +290,7 @@ export default function CombinedTachoDialog({
         document_type: "last-tacho-download",
         has_expiry: true,
         description: formData.download_description || "",
-        status_description: formData.download_status_description || "",
+        status_reason: formData.download_status_reason || "",
         expiry_date: formData.download_date || null,
         has_document: !!formData.download_url_front || !!formData.download_url_back || formData.download_has_document,
         urls: [formData.download_url_front, formData.download_url_back].filter(Boolean),
@@ -330,7 +330,7 @@ export default function CombinedTachoDialog({
 
   const currentDocName = currentStep === 1 ? "Tacho Card" : "Last Tacho Download";
   const currentStatus = currentStep === 1 ? formData.tacho_status : formData.download_status;
-  const currentStatusDesc = currentStep === 1 ? formData.tacho_status_description : formData.download_status_description;
+  const currentStatusDesc = currentStep === 1 ? formData.tacho_description : formData.download_description;
   const currentDesc = currentStep === 1 ? formData.tacho_description : formData.download_description;
   const currentUrlFront = currentStep === 1 ? formData.tacho_url_front : formData.download_url_front;
   const currentUrlBack = currentStep === 1 ? formData.tacho_url_back : formData.download_url_back;
@@ -524,14 +524,14 @@ export default function CombinedTachoDialog({
                 </div>
               </div>
 
-              {/* Status Description Section (Visible for Pending/Rejected) */}
+              {/* Description Section (Visible for Pending/Rejected) */}
               {(currentStatus === "pending" || currentStatus === "not_approved") && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Status Description</Label>
+                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Description</Label>
                     <Textarea
                       value={currentStatusDesc}
-                      onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_status_description" : "download_status_description", e.target.value)}
+                      onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_description" : "download_description", e.target.value)}
                       className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
                       placeholder={`Explain why this document is ${currentStatus === "pending" ? "pending" : "rejected"}...`}
                     />
@@ -539,16 +539,6 @@ export default function CombinedTachoDialog({
                 </div>
               )}
 
-              {/* General Description Section */}
-              <div className="space-y-2">
-                <Label className="text-[13px] font-bold text-gray-800 ml-1">General Description</Label>
-                <Textarea
-                  value={currentDesc}
-                  onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_description" : "download_description", e.target.value)}
-                  className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
-                  placeholder="General notes about the document..."
-                />
-              </div>
 
               {/* Footer Buttons */}
               <div className="flex gap-4 pt-4">

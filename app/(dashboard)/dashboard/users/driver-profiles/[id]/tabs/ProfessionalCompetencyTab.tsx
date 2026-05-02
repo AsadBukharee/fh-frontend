@@ -154,7 +154,7 @@ type ModalState = {
   statusUpdateData: {
     request_status: string;
     status_reason: string;
-    status_description: string;
+    description: string;
     custom_reason: string;
   };
 };
@@ -223,7 +223,7 @@ const modalReducer = (state: ModalState, action: ModalAction): ModalState => {
         statusUpdateData: {
           request_status: "",
           status_reason: "",
-          status_description: "",
+          description: "",
           custom_reason: "",
         },
       };
@@ -540,7 +540,7 @@ export default function ProfessionalCompetencyTab({
     statusUpdateData: {
       request_status: "",
       status_reason: "",
-      status_description: "",
+      description: "",
       custom_reason: "",
     },
   });
@@ -670,7 +670,6 @@ export default function ProfessionalCompetencyTab({
         modules: [],
         next_five_modules: [],
         request_status: "pending",
-        status_description: "",
         status_reason: "",
         custom_reason: "",
         description: "",
@@ -764,7 +763,7 @@ export default function ProfessionalCompetencyTab({
       ...competency,
       modules: modules,
       next_five_modules: normalizedNextFiveModules,
-      status_description: competency.status_description || "",
+      description: competency.description || "",
       status_reason: competency.status_reason || "",
       custom_reason: competency.custom_reason || "",
     };
@@ -788,7 +787,7 @@ export default function ProfessionalCompetencyTab({
     dispatchModal({ type: 'SET_CURRENT_IMAGE_INDEX', payload: 0 });
     dispatchModal({ type: 'SET_SHOW_STATUS_DESCRIPTION', payload: competency.request_status === "not_approved" || competency.request_status === "pending" });
     dispatchModal({ type: 'SET_DIRECT_STATUS_EDITING', payload: false });
-    
+
     if (competency.id) {
       handleExpandedChange?.(`competency-${competency.id}`);
     }
@@ -880,12 +879,12 @@ export default function ProfessionalCompetencyTab({
     if (field === "status_reason" && value) {
       const statusReasons = STATUS_REASONS[(modalState.editData.request_status as keyof typeof STATUS_REASONS) || "pending"]
       const selectedReason = statusReasons?.find(reason => reason.value === value)
-      if (selectedReason && !modalState.editData.status_description) {
+      if (selectedReason && !modalState.editData.description) {
         dispatchModal({
           type: 'SET_EDIT_DATA',
           payload: {
             ...modalState.editData,
-            status_description: selectedReason.label
+            description: selectedReason.label
           }
         });
       }
@@ -1011,7 +1010,7 @@ export default function ProfessionalCompetencyTab({
       const updatePayload: any = {
         request_status: "pending",
         status_reason: "waiting_upload",
-        status_description: `Requires updated documents after ${modalState.editData.document_type === "driving-license" ? "Driving License" : "D/D1 Category"} changes`,
+        description: `Requires updated documents after ${modalState.editData.document_type === "driving-license" ? "Driving License" : "D/D1 Category"} changes`,
         custom_reason: "",
       };
 
@@ -1138,7 +1137,6 @@ export default function ProfessionalCompetencyTab({
         document_type: modalState.editData.document_type,
         has_expiry: isSpecialDocument ? false : modalState.editData.has_expiry,
         description: modalState.editData.description || "",
-        status_description: modalState.editData.status_description || "",
         status_reason: modalState.editData.status_reason || "",
         custom_reason: modalState.editData.custom_reason || "",
         expiry_date: isSpecialDocument ? null : (modalState.editData.expiry_date || null),
@@ -1146,7 +1144,7 @@ export default function ProfessionalCompetencyTab({
         has_back_side: modalState.editData.has_back_side,
         urls: modalState.editData.urls || [],
         request_status: modalState.editData.request_status || "pending",
-        has_description: !!modalState.editData.description || !!modalState.editData.status_description,
+        has_description: !!modalState.editData.description,
         next_five_modules: filteredNextFiveModules,
         modules: modulesData,
       }
@@ -1247,16 +1245,16 @@ export default function ProfessionalCompetencyTab({
     }
 
     if (modalState.isEditing && (modalState.editData.request_status === "not_approved" || modalState.editData.request_status === "pending")) {
-      const hasStatusDescription =
-        modalState.editData.status_description?.trim() ||
+      const hasDescription =
+        modalState.editData.description?.trim() ||
         (modalState.editData.status_reason === "other" && modalState.editData.custom_reason?.trim())
 
-      if (!hasStatusDescription) {
+      if (!hasDescription) {
         dispatchModal({
           type: 'SET_FORM_ERROR',
-          payload: { field: 'status_description', value: "Please provide a reason for this status" }
+          payload: { field: 'description', value: "Please provide a reason for this status" }
         });
-        toast.error("Please provide a status description or reason");
+        toast.error("Please provide a description or reason");
         return;
       }
     }
@@ -1296,7 +1294,7 @@ export default function ProfessionalCompetencyTab({
         ...modalState.editData,
         request_status: modalState.statusUpdateData.request_status,
         status_reason: modalState.statusUpdateData.status_reason,
-        status_description: modalState.statusUpdateData.status_description || "",
+        description: modalState.statusUpdateData.description || "",
         custom_reason: modalState.statusUpdateData.custom_reason || "",
       }
 
@@ -1323,7 +1321,7 @@ export default function ProfessionalCompetencyTab({
           payload: {
             request_status: "",
             status_reason: "",
-            status_description: "",
+            description: "",
             custom_reason: "",
           }
         });
@@ -1417,8 +1415,8 @@ export default function ProfessionalCompetencyTab({
       const cardImageIndex = cardImageIndexes[competency.id || 0] || 0;
 
       return (
-        <div 
-          key={competency.id || competency.document_type} 
+        <div
+          key={competency.id || competency.document_type}
           id={competency.id ? `competency-${competency.id}` : undefined}
           className="contents"
         >
