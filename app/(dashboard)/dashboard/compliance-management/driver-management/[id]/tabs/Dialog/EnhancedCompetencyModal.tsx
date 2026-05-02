@@ -378,8 +378,8 @@ export default function EnhancedCompetencyModal({
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-gray-800 ml-1">Description</Label>
                   <Textarea
-                    value={currentDoc.status_description || currentDoc.description || ""}
-                    onChange={(e) => handleInputChange("status_description", e.target.value)}
+                    value={currentDoc.description || ""}
+                    onChange={(e) => handleInputChange("description", e.target.value)}
                     className="min-h-[140px] border border-gray-100 rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] p-6 resize-none placeholder:text-gray-300 font-medium text-base shadow-none bg-white"
                     placeholder="Enter the reason for rejection"
                   />
@@ -791,8 +791,8 @@ export default function EnhancedCompetencyModal({
               <div className="space-y-2">
                 <Label className="text-[13px] font-bold text-gray-800 ml-1">Description</Label>
                 <Textarea
-                  value={currentDoc.status_description || currentDoc.description || ""}
-                  onChange={(e) => handleInputChange("status_description", e.target.value)}
+                  value={currentDoc.description || ""}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
                   className="min-h-[120px] border-gray-100 rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] font-medium p-4 resize-none placeholder:text-gray-300"
                   placeholder="Enter the reason for rejection or special notes..."
                 />
