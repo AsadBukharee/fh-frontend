@@ -45,20 +45,6 @@ import {
 } from "recharts";
 import React from "react";
 import ExportButton from "@/app/utils/ExportButton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { useAutoScroll } from "@/app/utils/useAutoScroll";
 
