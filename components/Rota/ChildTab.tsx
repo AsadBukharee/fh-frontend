@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { format, getISOWeek, parseISO, startOfDay } from "date-fns";
 import {
   Users,
@@ -347,33 +347,39 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
     return matchesSearch && matchesRole;
   });
 
-  const filteredShifts = shifts.filter((shift) => {
-    const shiftDate = startOfDay(parseISO(shift.date));
-    return (
-      shiftDate >= startDate &&
-      shiftDate <= endDate &&
-      (!selectedUser || shift.user?.id === selectedUser)
-    );
-  });
+  const filteredShifts = useMemo(() => {
+    return shifts.filter((shift) => {
+      const shiftDate = startOfDay(parseISO(shift.date));
+      return (
+        shiftDate >= startDate &&
+        shiftDate <= endDate &&
+        (!selectedUser || shift.user?.id === selectedUser)
+      );
+    });
+  }, [shifts, startDate, endDate, selectedUser]);
 
-  const summaryStats = {
-    totalHours: filteredShifts.reduce(
-      (sum, shift) => sum + shift.daily_hours,
-      0,
-    ),
-    totalSalary: filteredShifts.reduce(
-      (sum, shift) => sum + shift.daily_salary,
-      0,
-    ),
-    activeUsers: new Set(filteredShifts.map((shift) => shift.user?.id)).size,
-    averageHoursPerDay:
-      filteredShifts.length > 0
-        ? filteredShifts.reduce((sum, shift) => sum + shift.daily_hours, 0) /
-        filteredShifts.length
-        : 0,
-  };
+  const summaryStats = useMemo(() => {
+    const stats = {
+      totalHours: filteredShifts.reduce(
+        (sum, shift) => sum + shift.daily_hours,
+        0,
+      ),
+      totalSalary: filteredShifts.reduce(
+        (sum, shift) => sum + shift.daily_salary,
+        0,
+      ),
+      activeUsers: new Set(filteredShifts.map((shift) => shift.user?.id)).size,
+      averageHoursPerDay: 0,
+    };
+    
+    if (filteredShifts.length > 0) {
+      stats.averageHoursPerDay = stats.totalHours / filteredShifts.length;
+    }
+    
+    return stats;
+  }, [filteredShifts]);
 
-  const prepareChartData = () => {
+  const chartData = useMemo(() => {
     const dailyData: Record<
       string,
       {
@@ -391,9 +397,11 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
     }
     filteredShifts.forEach((shift) => {
       const date = format(parseISO(shift.date), "MMM dd");
-      dailyData[date].hours += shift.daily_hours;
-      dailyData[date].salary += shift.daily_salary;
-      dailyData[date].users.add(shift.user?.id);
+      if (dailyData[date]) {
+        dailyData[date].hours += shift.daily_hours;
+        dailyData[date].salary += shift.daily_salary;
+        dailyData[date].users.add(shift.user?.id);
+      }
     });
     const dailyChartData = Object.values(dailyData).map((item) => ({
       date: item.date,
@@ -462,23 +470,23 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
       shiftTypePieData,
       rolePieData,
     };
-  };
-  const chartData = prepareChartData();
+  }, [filteredShifts, startDate, endDate, childRotaUsers]);
 
-  const generateDaysForMonth = () => {
-    const days = [];
+
+  const days = useMemo(() => {
+    const daysArr = [];
     const start = new Date(startDate);
     const end = new Date(endDate);
     const date = new Date(start);
     while (date <= end) {
-      days.push(new Date(date));
+      daysArr.push(new Date(date));
       date.setDate(date.getDate() + 1);
     }
-    return days;
-  };
+    return daysArr;
+  }, [startDate, endDate]);
 
-  const groupDaysByWeek = (days: Date[]) => {
-    const weeks: { days: Date[]; weekLabel: string; weekColor: string }[] = [];
+  const weeks = useMemo(() => {
+    const weeksArr: { days: Date[]; weekLabel: string; weekColor: string }[] = [];
     let currentWeek: Date[] = [];
     let currentWeekNumber = 0;
     days.forEach((day, index) => {
@@ -491,7 +499,7 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
           : getISOWeek(day) % 4 || 4;
       if (index === 0 || weekNumber !== currentWeekNumber) {
         if (currentWeek.length > 0) {
-          weeks.push({
+          weeksArr.push({
             days: currentWeek,
             weekLabel: `Week ${currentWeekNumber}`,
             weekColor:
@@ -505,7 +513,7 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
       }
       currentWeek.push(day);
       if (index === days.length - 1) {
-        weeks.push({
+        weeksArr.push({
           days: currentWeek,
           weekLabel: `Week ${currentWeekNumber}`,
           weekColor:
@@ -515,11 +523,9 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
         });
       }
     });
-    return weeks;
-  };
+    return weeksArr;
+  }, [days, filteredShifts]);
 
-  const days = generateDaysForMonth();
-  const weeks = groupDaysByWeek(days);
 
   const getDayName = (date: Date) => {
     return date.toLocaleDateString("en-GB", { weekday: "long" });

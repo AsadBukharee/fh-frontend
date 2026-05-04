@@ -106,7 +106,7 @@ interface Employee {
   name: string;
   status?: string;
   parent_rota_completed: boolean;
-  shifts: (EmployeeShift | "dropdown" | null)[];
+  shifts?: (EmployeeShift | "dropdown" | null)[];
   allWeeksShifts: {
     week1: (EmployeeShift | "dropdown" | null)[];
     week2: (EmployeeShift | "dropdown" | null)[];
@@ -426,6 +426,8 @@ ShiftCell.displayName = "ShiftCell";
 const EmployeeRow = memo(
   ({
     employee,
+    tempSelections,
+    selectedWeek,
     openShiftIndex,
     onToggleShift,
     onSelectShift,
@@ -434,6 +436,8 @@ const EmployeeRow = memo(
     onStartRota,
   }: {
     employee: Employee;
+    tempSelections: { [key: string]: (EmployeeShift | "dropdown" | null)[] } | undefined;
+    selectedWeek: string;
     openShiftIndex: string | null;
     onToggleShift: (key: string) => void;
     onSelectShift: (employeeId: number, shiftIndex: number, shift: EmployeeShift) => void;
@@ -456,6 +460,19 @@ const EmployeeRow = memo(
     const handleStartRota = useCallback(() => {
       onStartRota(employee.id);
     }, [employee.id, onStartRota]);
+
+    // Merge base shifts with temp selections for the selected week
+    const currentWeekShifts = useMemo(() => {
+      const baseShifts = employee.allWeeksShifts[selectedWeek as keyof typeof employee.allWeeksShifts] || [];
+      const tempWeekSelections = tempSelections?.[selectedWeek];
+      
+      if (!tempWeekSelections) return baseShifts;
+      
+      return baseShifts.map((baseShift, index) => {
+        const tempShift = tempWeekSelections[index];
+        return tempShift !== undefined ? tempShift : baseShift;
+      });
+    }, [employee.allWeeksShifts, tempSelections, selectedWeek]);
 
     return (
       <TableRow key={employee.id}>
@@ -483,7 +500,7 @@ const EmployeeRow = memo(
             </div>
           </div>
         </TableCell>
-        {employee.shifts.map((shift, shiftIndex) => (
+        {currentWeekShifts.map((shift, shiftIndex) => (
           <TableCell key={shiftIndex} className="w-[130px] min-w-[130px] p-2">
             <ShiftCell
               shift={shift}
@@ -514,6 +531,7 @@ const EmployeeRow = memo(
     );
   },
 );
+
 EmployeeRow.displayName = "EmployeeRow";
 
 // Debounce hook
@@ -605,17 +623,24 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
     }));
   }, []);
 
+  const allWeeksDates = useMemo(() => {
+    return {
+      week1: getWeekDates("week1"),
+      week2: getWeekDates("week2"),
+      week3: getWeekDates("week3"),
+      week4: getWeekDates("week4"),
+    };
+  }, [getWeekDates]);
+
   const employees = useMemo(() => {
     if (cachedApiData?.length === 0) return [];
-    const days = getWeekDates(selectedWeek);
 
     return cachedApiData.map((userRota: UserRota) => {
       const availableShifts = convertUserShiftsToEmployeeShifts(userRota.user.shifts);
-      const allWeeksShifts = {
-        week1: getWeekDates("week1").map((day: Day, index: number) => {
-          const tempShift = tempShiftSelections[userRota.user.id]?.week1?.[index];
-          if (tempShift !== undefined) return tempShift;
-          const shift = userRota.week1[day.day];
+      
+      const getBaseShiftsForWeek = (weekData: Week, weekDates: Day[]) => {
+        return weekDates.map((day) => {
+          const shift = weekData[day.day];
           if (!shift) return null;
           return {
             type: shift.shift_detail.name,
@@ -626,82 +651,27 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
             rate_per_hours: shift.shift_detail.rate_per_hours,
             shift_note: shift.shift_detail.shift_note,
           };
-        }),
-        week2: getWeekDates("week2").map((day: Day, index: number) => {
-          const tempShift = tempShiftSelections[userRota.user.id]?.week2?.[index];
-          if (tempShift !== undefined) return tempShift;
-          const shift = userRota.week2[day.day];
-          if (!shift) return null;
-          return {
-            type: shift.shift_detail.name,
-            time: `${shift.shift_detail.hours_from.slice(0, 5)}-${shift.shift_detail.hours_to.slice(0, 5)}`,
-            hours: shift.shift_detail.total_hours,
-            bgColor: shift.shift_detail.colors,
-            shiftId: shift.shift_id,
-            rate_per_hours: shift.shift_detail.rate_per_hours,
-            shift_note: shift.shift_detail.shift_note,
-          };
-        }),
-        week3: getWeekDates("week3").map((day: Day, index: number) => {
-          const tempShift = tempShiftSelections[userRota.user.id]?.week3?.[index];
-          if (tempShift !== undefined) return tempShift;
-          const shift = userRota.week3[day.day];
-          if (!shift) return null;
-          return {
-            type: shift.shift_detail.name,
-            time: `${shift.shift_detail.hours_from.slice(0, 5)}-${shift.shift_detail.hours_to.slice(0, 5)}`,
-            hours: shift.shift_detail.total_hours,
-            bgColor: shift.shift_detail.colors,
-            shiftId: shift.shift_id,
-            rate_per_hours: shift.shift_detail.rate_per_hours,
-            shift_note: shift.shift_detail.shift_note,
-          };
-        }),
-        week4: getWeekDates("week4").map((day: Day, index: number) => {
-          const tempShift = tempShiftSelections[userRota.user.id]?.week4?.[index];
-          if (tempShift !== undefined) return tempShift;
-          const shift = userRota.week4[day.day];
-          if (!shift) return null;
-          return {
-            type: shift.shift_detail.name,
-            time: `${shift.shift_detail.hours_from.slice(0, 5)}-${shift.shift_detail.hours_to.slice(0, 5)}`,
-            hours: shift.shift_detail.total_hours,
-            bgColor: shift.shift_detail.colors,
-            shiftId: shift.shift_id,
-            rate_per_hours: shift.shift_detail.rate_per_hours,
-            shift_note: shift.shift_detail.shift_note,
-          };
-        }),
+        });
       };
 
-      const weekData = userRota[selectedWeek as keyof UserRota] as Week;
-      const shifts: (EmployeeShift | "dropdown" | null)[] = days.map((day, index) => {
-        const tempShift = tempShiftSelections[userRota.user.id]?.[selectedWeek]?.[index];
-        if (tempShift !== undefined) return tempShift;
-        const shift = weekData[day.day];
-        if (!shift) return null;
-        return {
-          type: shift.shift_detail.name,
-          time: `${shift.shift_detail.hours_from.slice(0, 5)}-${shift.shift_detail.hours_to.slice(0, 5)}`,
-          hours: shift.shift_detail.total_hours,
-          bgColor: shift.shift_detail.colors,
-          shiftId: shift.shift_id,
-          rate_per_hours: shift.shift_detail.rate_per_hours,
-          shift_note: shift.shift_detail.shift_note,
-        };
-      });
+      const baseAllWeeksShifts = {
+        week1: getBaseShiftsForWeek(userRota.week1, allWeeksDates.week1),
+        week2: getBaseShiftsForWeek(userRota.week2, allWeeksDates.week2),
+        week3: getBaseShiftsForWeek(userRota.week3, allWeeksDates.week3),
+        week4: getBaseShiftsForWeek(userRota.week4, allWeeksDates.week4),
+      };
 
       return {
         id: userRota.user.id,
         name: userRota.user.display_name || "Unknown User",
         status: userRota.user.parent_rota_completed ? "Completed" : "Incomplete",
         parent_rota_completed: userRota.user.parent_rota_completed,
-        shifts,
-        allWeeksShifts,
+        allWeeksShifts: baseAllWeeksShifts,
         availableShifts,
       };
     });
-  }, [cachedApiData, selectedWeek, tempShiftSelections, getWeekDates, convertUserShiftsToEmployeeShifts]);
+  }, [cachedApiData, allWeeksDates, convertUserShiftsToEmployeeShifts]);
+
 
   // Filter employees based on tab and search
   const filteredEmployees = useMemo(() => {
@@ -860,7 +830,7 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
           week3: employee.allWeeksShifts.week3,
           week4: employee.allWeeksShifts.week4,
         };
-        const weekSelections = [...(employeeSelections[selectedWeek] || employee.shifts)];
+        const weekSelections = [...(employeeSelections[selectedWeek] || employee.allWeeksShifts[selectedWeek as keyof typeof employee.allWeeksShifts] || [])];
         weekSelections[shiftIndex] = shift;
         return {
           ...prev,
@@ -887,7 +857,7 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
           week3: employee.allWeeksShifts.week3,
           week4: employee.allWeeksShifts.week4,
         };
-        const weekSelections = [...(employeeSelections[selectedWeek] || employee.shifts)];
+        const weekSelections = [...(employeeSelections[selectedWeek] || employee.allWeeksShifts[selectedWeek as keyof typeof employee.allWeeksShifts] || [])];
         weekSelections[shiftIndex] = null;
         return {
           ...prev,
@@ -1130,6 +1100,8 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
                       <EmployeeRow
                         key={employee.id}
                         employee={employee}
+                        tempSelections={tempShiftSelections[employee.id]}
+                        selectedWeek={selectedWeek}
                         openShiftIndex={openShiftIndex}
                         onToggleShift={toggleShiftSelection}
                         onSelectShift={selectShift}
@@ -1137,6 +1109,7 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
                         onEditShift={openEditShiftModal}
                         onStartRota={handleStartRota}
                       />
+
                     ))
                   ) : (
                     <TableRow>
@@ -1185,6 +1158,8 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
                       <EmployeeRow
                         key={employee.id}
                         employee={employee}
+                        tempSelections={tempShiftSelections[employee.id]}
+                        selectedWeek={selectedWeek}
                         openShiftIndex={openShiftIndex}
                         onToggleShift={toggleShiftSelection}
                         onSelectShift={selectShift}
@@ -1192,6 +1167,7 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
                         onEditShift={openEditShiftModal}
                         onStartRota={handleStartRota}
                       />
+
                     ))
                   ) : (
                     <TableRow>

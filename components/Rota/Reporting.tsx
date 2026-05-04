@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,14 +50,45 @@ const shiftTypeMap: { [key: string]: { name: string; color: string } } = {
   SUPERVISOR_E: { name: 'Supervisor E', color: 'bg-[#991b1b]' },
 };
 
-export default function Reporting({ 
+// Filter dropdown component
+const FilterDropdown = ({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: { id: string | number; name: string }[];
+}) => {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-semibold text-slate-700">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:border-slate-300 transition text-slate-700 text-sm"
+      >
+        <option value="ALL">All</option>
+        {options.map((option) => (
+          <option key={`${label}-${option.id}`} value={String(option.id)}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+export default function Reporting({
   refreshKey,
   initialData,
   contracts = [],
   drivers = [],
   shifts = [],
   role = ""
-}: { 
+}: {
   refreshKey?: number,
   initialData?: ReportingData | null,
   contracts?: { id: number; name: string }[],
@@ -88,7 +119,7 @@ export default function Reporting({
   const [apiData, setApiData] = useState<ReportingData | null>(initialData || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [excelDownloading, setExcelDownloading] = useState(false);
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const cookies = useCookies();
@@ -465,7 +496,7 @@ export default function Reporting({
 
         values.forEach((value, colIndex) => {
           const cell = dataRow.getCell(colIndex + 1);
-          
+
           if (colIndex === 0) {
             cell.value = value;
           } else {
@@ -517,7 +548,7 @@ export default function Reporting({
 
       totalsValues.forEach((value, colIndex) => {
         const cell = totalsRow.getCell(colIndex + 1);
-        
+
         if (colIndex === 0) {
           cell.value = value;
         } else {
@@ -594,7 +625,7 @@ export default function Reporting({
         const numValue = Number(metric.value) || 0;
         valueCell.value = numValue;
         valueCell.font = { size: 10, bold: true, color: { argb: 'FF1E293B' } };
-        
+
         if (role === 'superadmin' && (metric.label.toLowerCase().includes('salary') || (filters.displayType === 'SALARY' && (metric.label.toLowerCase().includes('total') || metric.label.toLowerCase().includes('pay') || metric.label.toLowerCase().includes('shifts'))))) {
           valueCell.numFmt = '£#,##0.00';
         } else {
@@ -651,7 +682,13 @@ export default function Reporting({
     }
   };
 
-  const formatValue = (val: number) => {
+  const getContractName = useCallback(() => {
+    if (filters.contractType === 'ALL') return 'All';
+    const contract = contracts.find(c => String(c.id) === filters.contractType);
+    return contract ? contract.name : 'All';
+  }, [filters.contractType, contracts]);
+
+  const formatValue = useCallback((val: number) => {
     if (role === 'superadmin' && filters.displayType === 'SALARY') {
       return new Intl.NumberFormat('en-GB', {
         style: 'currency',
@@ -661,10 +698,10 @@ export default function Reporting({
     if (filters.displayType === 'DAYS') return `${val} days`;
     if (filters.displayType === 'HOURS') return `${val} hours`;
     return val.toString();
-  };
+  }, [role, filters.displayType]);
 
   // Metrics data
-  const metrics = [
+  const metrics = useMemo(() => [
     {
       label: 'Total Drivers',
       value: apiData?.meta.total_drivers || 0,
@@ -695,49 +732,12 @@ export default function Reporting({
       icon: <Clock size={20} />,
       color: 'text-teal-500',
     },
-  ];
-
-  // Filter dropdown component
-  const FilterDropdown = ({
-    label,
-    value,
-    onChange,
-    options,
-  }: {
-    label: string;
-    value: string;
-    onChange: (val: string) => void;
-    options: { id: string | number; name: string }[];
-  }) => {
-    return (
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-slate-700">{label}</label>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:border-slate-300 transition text-slate-700 text-sm"
-        >
-          <option value="ALL">All</option>
-          {options.map((option) => (
-            <option key={`${label}-${option.id}`} value={String(option.id)}>
-              {option.name}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  };
-
-  // Get current contract name for display
-  const getContractName = () => {
-    if (filters.contractType === 'ALL') return 'All';
-    const contract = contracts.find(c => String(c.id) === filters.contractType);
-    return contract ? contract.name : 'All';
-  };
+  ], [apiData, viewType, filters.displayType, role, formatValue]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-7xl mx-auto">
+
         {/* Header */}
         <div className="flex justify-between items-start mb-8">
           <div>
@@ -944,12 +944,12 @@ export default function Reporting({
                     Driver Name
                   </th>
                   {apiData?.columns.map((col, index) => (
-                      <th
-                        key={`header-${col}-${index}`}
-                        className="px-4 py-4 text-center text-xs font-bold text-slate-700 whitespace-nowrap min-w-[110px]"
-                      >
-                        {filters.displayType === 'SALARY' ? 'Value (£)' : filters.displayType === 'DAYS' ? 'Days' : 'Hours'}
-                      </th>
+                    <th
+                      key={`header-${col}-${index}`}
+                      className="px-4 py-4 text-center text-xs font-bold text-slate-700 whitespace-nowrap min-w-[110px]"
+                    >
+                      {filters.displayType === 'SALARY' ? 'Value (£)' : filters.displayType === 'DAYS' ? 'Days' : 'Hours'}
+                    </th>
                   ))}
                 </tr>
               </thead>
