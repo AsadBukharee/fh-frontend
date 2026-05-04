@@ -372,6 +372,7 @@ const ShiftManagement = () => {
   const [selectedContract, setSelectedContract] = useState<string>("all")
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false)
   const [isContractModalOpen, setIsContractModalOpen] = useState<boolean>(false)
+  const [editingContractId, setEditingContractId] = useState<number | null>(null)
   const [newContract, setNewContract] = useState({
     name: "",
     description: "",
@@ -477,6 +478,49 @@ const ShiftManagement = () => {
       setSaving(false)
     }
   }, [newContract, cookies, showToast, fetchData])
+
+  const handleUpdateContract = useCallback(async () => {
+    if (!editingContractId) return
+    const { name, description } = newContract
+    if (!name) {
+      showToast("Please fill in the contract name.", "error")
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch(`${API_URL}/api/staff/contracts/${editingContractId}/`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({
+          name,
+          description: description || "",
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to update contract")
+      }
+
+      await fetchData()
+      showToast("Contract updated successfully.", "success")
+      setIsContractModalOpen(false)
+      setEditingContractId(null)
+      setNewContract({
+        name: "",
+        description: "",
+      })
+    } catch (err: any) {
+      console.error("Error updating contract:", err)
+      showToast(err.message || "Failed to update contract.", "error")
+    } finally {
+      setSaving(false)
+    }
+  }, [newContract, editingContractId, cookies, showToast, fetchData])
 
   const handleDeleteContract = useCallback(
     async (id: number) => {
@@ -942,7 +986,11 @@ const ShiftManagement = () => {
                 </Button>
                 <GradientButton
                   text="New Contract"
-                  onClick={() => setIsContractModalOpen(true)}
+                  onClick={() => {
+                    setEditingContractId(null)
+                    setNewContract({ name: "", description: "" })
+                    setIsContractModalOpen(true)
+                  }}
                   Icon={Plus}
                 />
                 <DropdownMenu>
@@ -1014,23 +1062,47 @@ const ShiftManagement = () => {
                             )}
                           </div>
                         </div>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteContract(contract.id)
-                              }}
-                              disabled={saving}
-                              className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 shrink-0"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Delete contract</TooltipContent>
-                        </Tooltip>
+                        <div className="flex items-center gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingContractId(contract.id)
+                                  setNewContract({
+                                    name: contract.name,
+                                    description: contract.description || "",
+                                  })
+                                  setIsContractModalOpen(true)
+                                }}
+                                disabled={saving}
+                                className="h-8 w-8 p-0 text-gray-400 hover:text-orange hover:bg-orange/10 shrink-0"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit contract</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteContract(contract.id)
+                                }}
+                                disabled={saving}
+                                className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete contract</TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-5 pb-5 bg-gray-50/50">
@@ -1072,7 +1144,14 @@ const ShiftManagement = () => {
                     {searchTerm ? "Try adjusting your search terms" : "Create your first contract to get started"}
                   </p>
                   {!searchTerm && (
-                    <Button onClick={() => setIsContractModalOpen(true)} className="bg-orange hover:bg-orange/90">
+                    <Button
+                      onClick={() => {
+                        setEditingContractId(null)
+                        setNewContract({ name: "", description: "" })
+                        setIsContractModalOpen(true)
+                      }}
+                      className="bg-orange hover:bg-orange/90"
+                    >
                       <Plus className="h-4 w-4 mr-2" />
                       Create Contract
                     </Button>
@@ -1321,7 +1400,9 @@ const ShiftManagement = () => {
         <Dialog open={isContractModalOpen} onOpenChange={setIsContractModalOpen}>
           <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
-              <DialogTitle className="text-xl font-semibold">Create New Contract</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">
+                {editingContractId ? "Edit Contract" : "Create New Contract"}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div>
@@ -1350,6 +1431,7 @@ const ShiftManagement = () => {
                 variant="outline"
                 onClick={() => {
                   setIsContractModalOpen(false)
+                  setEditingContractId(null)
                   setNewContract({ name: "", description: "" })
                 }}
                 disabled={saving}
@@ -1357,12 +1439,24 @@ const ShiftManagement = () => {
                 Cancel
               </Button>
               <Button
-                onClick={handleAddContract}
+                onClick={editingContractId ? handleUpdateContract : handleAddContract}
                 disabled={saving}
                 className="bg-orange hover:bg-orange/90"
               >
-                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-                {saving ? "Creating..." : "Create Contract"}
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : editingContractId ? (
+                  <Save className="h-4 w-4 mr-2" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                {saving
+                  ? editingContractId
+                    ? "Updating..."
+                    : "Creating..."
+                  : editingContractId
+                    ? "Save Changes"
+                    : "Create Contract"}
               </Button>
             </DialogFooter>
           </DialogContent>
