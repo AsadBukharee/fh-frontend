@@ -1,7 +1,7 @@
 "use client"
 import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Edit, X, Loader2, ChevronDown, Search } from "lucide-react";
+import { Edit, X, Loader2, ChevronDown, Search, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -772,10 +772,10 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
   }, [token]);
 
   const generateRota = useCallback(
-    async (employee: Employee) => {
+    async (employee: Employee, forcedSelections?: { [key: string]: (EmployeeShift | "dropdown" | null)[] }, forcedApplyToAll?: boolean) => {
       try {
         setGeneratingRota(true);
-        const employeeSelections = tempShiftSelections[employee.id] || employee.allWeeksShifts;
+        const employeeSelections: { [key: string]: (EmployeeShift | "dropdown" | null)[] } = forcedSelections || tempShiftSelections[employee.id] || employee.allWeeksShifts;
         const rotation = {
           week1: {} as { [key: string]: number },
           week2: {} as { [key: string]: number },
@@ -805,7 +805,7 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
         });
         const payload = {
           userid: employee.id,
-          apply_to_all: selectedWeekForApply === "all",
+          apply_to_all: forcedApplyToAll ?? (selectedWeekForApply === "all"),
           rotation,
         };
         console.log("Generating rota with payload:", payload);
@@ -965,80 +965,43 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
     }
   }, [selectedShift, editShiftForm, token, fetchRota]);
 
-  const applyWeekToAll = useCallback(async () => {
+  const applyPatternToAll = useCallback(async (sourceWeek: string) => {
     if (!selectedEmployeeId) return;
     const employee = employees.find((emp) => emp.id === selectedEmployeeId);
     if (!employee) return;
 
-    let sourceWeekShifts: (EmployeeShift | "dropdown" | null)[];
-    if (selectedWeekForApply === "all") {
-      sourceWeekShifts =
-        tempShiftSelections[selectedEmployeeId]?.[selectedWeek] ||
-        employee.allWeeksShifts[selectedWeek as keyof typeof employee.allWeeksShifts];
-    } else {
-      sourceWeekShifts =
-        tempShiftSelections[selectedEmployeeId]?.[selectedWeekForApply] ||
-        employee.allWeeksShifts[selectedWeekForApply as keyof typeof employee.allWeeksShifts];
-    }
+    const sourceWeekShifts =
+      tempShiftSelections[selectedEmployeeId]?.[sourceWeek] ||
+      employee.allWeeksShifts[sourceWeek as keyof typeof employee.allWeeksShifts];
 
     if (!sourceWeekShifts || sourceWeekShifts.every((shift) => shift === null || shift === "dropdown")) {
-      alert("Please select shifts for the chosen week before applying.");
+      alert(`Please select shifts for Week ${sourceWeek.slice(-1)} before applying.`);
       return;
     }
 
-    console.log("Applying week pattern:", {
-      employeeId: selectedEmployeeId,
-      sourceWeek: selectedWeekForApply,
-      sourceShifts: sourceWeekShifts,
-    });
+    const newSelections = {
+      week1: [...sourceWeekShifts],
+      week2: [...sourceWeekShifts],
+      week3: [...sourceWeekShifts],
+      week4: [...sourceWeekShifts],
+    };
 
-    setTempShiftSelections((prev) => {
-      const employeeSelections = prev[selectedEmployeeId] || {
-        week1: employee.allWeeksShifts.week1,
-        week2: employee.allWeeksShifts.week2,
-        week3: employee.allWeeksShifts.week3,
-        week4: employee.allWeeksShifts.week4,
-      };
-      const updatedSelections = selectedWeekForApply === "all"
-        ? {
-          week1: [...sourceWeekShifts],
-          week2: [...sourceWeekShifts],
-          week3: [...sourceWeekShifts],
-          week4: [...sourceWeekShifts],
-        }
-        : {
-          ...employeeSelections,
-          [selectedWeekForApply]: [...sourceWeekShifts],
-        };
-      return {
-        ...prev,
-        [selectedEmployeeId]: updatedSelections,
-      };
-    });
+    setTempShiftSelections((prev) => ({
+      ...prev,
+      [selectedEmployeeId]: newSelections,
+    }));
 
     const updatedEmployee = {
       ...employee,
-      allWeeksShifts: selectedWeekForApply === "all"
-        ? {
-          week1: [...sourceWeekShifts],
-          week2: [...sourceWeekShifts],
-          week3: [...sourceWeekShifts],
-          week4: [...sourceWeekShifts],
-        }
-        : {
-          ...employee.allWeeksShifts,
-          [selectedWeekForApply]: [...sourceWeekShifts],
-        },
+      allWeeksShifts: newSelections,
     };
 
     setShowRotaModal(false);
     setSelectedEmployeeId(null);
-    setSelectedWeekForApply("week1");
+    setSelectedWeekForApply("all");
 
-    if (selectedWeekForApply === "all" || hasAll28DaysShifts(updatedEmployee)) {
-      await generateRota(updatedEmployee);
-    }
-  }, [selectedEmployeeId, employees, tempShiftSelections, selectedWeekForApply, selectedWeek, generateRota, hasAll28DaysShifts]);
+    await generateRota(updatedEmployee, newSelections, true);
+  }, [selectedEmployeeId, employees, tempShiftSelections, generateRota]);
 
   useEffect(() => {
     if (token) {
@@ -1258,48 +1221,57 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
           <DialogHeader>
             <DialogTitle>Complete 28-Day Schedule</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Please select a week pattern to apply to the rota. Choose a specific week or Select All to apply the pattern to all weeks.
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-gray-600 mb-2">
+              Choose how you would like to complete this rota.
             </p>
-            <div className="space-y-3">
-              <div className="text-sm font-medium text-gray-700">Select Week Pattern:</div>
-              <div className="flex flex-wrap gap-2">
-                {["week1", "week2", "week3", "week4", "all"].map((week) => (
-                  <Badge
-                    key={week}
-                    variant={selectedWeekForApply === week ? "default" : "outline"}
-                    className={`cursor-pointer px-3 py-1 text-sm ${selectedWeekForApply === week
-                      ? "bg-orange-100 border-orange border text-orange"
-                      : "bg-white text-gray-500 hover:bg-gray-100"
-                      }`}
-                    onClick={() => setSelectedWeekForApply(week)}
-                  >
-                    {week === "all" ? "Select All" : `Week ${week.slice(-1)}`}
-                  </Badge>
-                ))}
+            
+            <div className="flex flex-col gap-4">
+              {/* Condition 1: Manual Entry */}
+              <div 
+                className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors group border-gray-200"
+                onClick={() => setShowRotaModal(false)}
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-4 group-hover:bg-blue-200 transition-colors">
+                  <Edit className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-gray-900">Condition 1: Add Manually</h4>
+                  <p className="text-xs text-gray-500">I will add all 4 weeks shifts one by one.</p>
+                </div>
+                <ChevronDown className="h-5 w-5 text-gray-400 -rotate-90" />
+              </div>
+
+              {/* Condition 2: Week Pattern */}
+              <div className="flex flex-col p-4 border rounded-lg border-orange-100 bg-orange-50/30">
+                <div className="flex items-center mb-4">
+                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center mr-4 transition-colors">
+                    <CalendarIcon className="h-5 w-5 text-orange" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-gray-900">Condition 2: Apply Week Pattern</h4>
+                    <p className="text-xs text-gray-500">Select a week to apply its pattern to all weeks.</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap gap-2 ml-14">
+                  {["week1", "week2", "week3", "week4"].map((week) => (
+                    <Badge
+                      key={week}
+                      variant="outline"
+                      className="cursor-pointer px-3 py-1.5 hover:bg-orange-100 hover:text-orange-700 transition-all border-orange-200 text-xs font-medium"
+                      onClick={() => applyPatternToAll(week)}
+                    >
+                      Use Week {week.slice(-1)}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowRotaModal(false)}>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRotaModal(false)} className="w-full">
               Cancel
-            </Button>
-            <Button
-              onClick={applyWeekToAll}
-              style={{
-                background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
-                width: 'auto',
-                height: 'auto',
-              }}
-              className="px-3 cursor-pointer py-2"
-              disabled={
-                !selectedWeekForApply ||
-                (selectedWeekForApply === "all" &&
-                  (selectedEmployeeId === null || !tempShiftSelections[selectedEmployeeId]))
-              }
-            >
-              Apply Pattern
             </Button>
           </DialogFooter>
         </DialogContent>

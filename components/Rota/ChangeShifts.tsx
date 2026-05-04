@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Clock, User, MessageSquare, ArrowRight, AlertCircle, Save } from 'lucide-react';
+import { Calendar, Clock, User, MessageSquare, ArrowRight, AlertCircle, Save, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
@@ -41,6 +42,13 @@ const ChangeShifts: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
   const [shiftDecisions, setShiftDecisions] = useState<Record<number, ShiftDecision>>({});
   const [adminResponse, setAdminResponse] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
   const cookies = useCookies();
 
   useEffect(() => {
@@ -130,18 +138,22 @@ const ChangeShifts: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
     }
   };
 
-  const filteredRequests = requests.filter(req => {
+  const dateFilteredRequests = requests.filter(req =>
+    !selectedDate || req.shift_changes.some(shift => shift.date.startsWith(selectedDate))
+  );
+
+  const statusCounts = {
+    all: dateFilteredRequests.length,
+    pending: dateFilteredRequests.filter(r => r.status === 'pending').length,
+    approved: dateFilteredRequests.filter(r => r.status === 'approved' || r.status === 'accepted').length,
+    rejected: dateFilteredRequests.filter(r => r.status === 'rejected').length,
+  };
+
+  const filteredRequests = dateFilteredRequests.filter(req => {
     if (filterStatus === 'all') return true;
     if (filterStatus === 'approved') return req.status === 'approved' || req.status === 'accepted';
     return req.status === filterStatus;
   });
-
-  const statusCounts = {
-    all: requests.length,
-    pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved' || r.status === 'accepted').length,
-    rejected: requests.filter(r => r.status === 'rejected').length,
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -204,27 +216,51 @@ const ChangeShifts: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
           </p>
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {[
-            { key: 'all', label: 'All Requests' },
-            { key: 'pending', label: 'Pending' },
-            { key: 'approved', label: 'Approved' },
-            { key: 'rejected', label: 'Rejected' },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilterStatus(key)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${filterStatus === key
-                ? 'bg-orange-600 text-white shadow-md shadow-orange-200'
-                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-                }`}
-            >
-              {label}
-              <span className="ml-2 text-sm opacity-80">
-                ({statusCounts[key as keyof typeof statusCounts]})
-              </span>
-            </button>
-          ))}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { key: 'all', label: 'All Requests' },
+              { key: 'pending', label: 'Pending' },
+              { key: 'approved', label: 'Approved' },
+              { key: 'rejected', label: 'Rejected' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setFilterStatus(key)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${filterStatus === key
+                  ? 'bg-orange-600 text-white shadow-md shadow-orange-200'
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                  }`}
+              >
+                {label}
+                <span className="ml-2 text-sm opacity-80">
+                  ({statusCounts[key as keyof typeof statusCounts]})
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2 text-slate-500 mr-2 border-r pr-3">
+              <Calendar className="h-4 w-4" />
+            </div>
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-40 bg-transparent border-none focus-visible:ring-0 text-slate-700 text-sm font-medium cursor-pointer h-8 p-0"
+            />
+            {selectedDate && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                onClick={() => setSelectedDate('')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {filteredRequests.length === 0 ? (
