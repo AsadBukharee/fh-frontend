@@ -27,8 +27,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CalendarIcon, ChevronLeft, ChevronRight, Loader2, GraduationCap, Calendar, Info, RefreshCw } from 'lucide-react';
+import { CalendarIcon, ChevronLeft, ChevronRight, Loader2, GraduationCap, Calendar, Info, RefreshCw, Play } from 'lucide-react';
 import { format, differenceInDays, isPast, parseISO, isBefore, isAfter, addDays, startOfDay, differenceInCalendarDays } from 'date-fns';
+import { toast } from 'sonner';
 import ExportButton from '@/app/utils/ExportButton';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
@@ -242,6 +243,7 @@ const CPCModulesDialog = ({ driver }: { driver: Driver }) => {
 const DriverManagementPage = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isSweeping, setIsSweeping] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
 
@@ -351,6 +353,46 @@ const DriverManagementPage = () => {
   useEffect(() => {
     fetchDrivers();
   }, [currentPage, pageSize, filters]);
+
+  const performSweepAudit = async () => {
+    setIsSweeping(true);
+    try {
+      const nowIso = new Date().toISOString();
+
+      const response = await fetch(
+        `${API_URL}/api/notifications/sweep-driver-audit-now/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: "Driver Audit Notice",
+            message: "Driver compliance audit triggered manually.",
+            datetime: nowIso,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to trigger sweep audit");
+      }
+
+      const result = await response.json();
+      toast.success(result.message || "Sweep audit triggered successfully!");
+    } catch (error) {
+      console.error("Sweep audit error:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to trigger sweep audit",
+      );
+    } finally {
+      setIsSweeping(false);
+    }
+  };
 
   // Handle scroll for fixed header and name column
   useEffect(() => {
@@ -828,15 +870,27 @@ const DriverManagementPage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Driver Compliance</h1>
         <div className="flex gap-3 items-center">
+          <Button
+            onClick={performSweepAudit}
+            disabled={loading || isSweeping}
+            variant="outline"
+            className="bg-orange-500 hover:bg-orange-600 cursor-pointer text-white hover:text-white"
+            size="sm"
+          >
+            <Play
+              className={`w-4 h-4 mr-2 ${isSweeping ? "animate-spin" : ""}`}
+            />
+            Sweep Audit
+          </Button>
           <ExportButton data={drivers} fileName="driver_compliance_report" />
           <Button
             onClick={fetchDrivers}
-            disabled={loading}
+            disabled={loading || isSweeping}
             variant="outline"
             size="sm"
           >
             <RefreshCw
-              className={`w-4 h-4  ${loading ? "animate-spin" : ""
+              className={`w-4 h-4  ${loading || isSweeping ? "animate-spin" : ""
                 }`}
             />
           </Button>
