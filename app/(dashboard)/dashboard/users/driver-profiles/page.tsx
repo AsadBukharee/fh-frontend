@@ -43,7 +43,7 @@ import {
 
 import {
   Search,
-  Edit,
+
 
   ChevronLeft,
   ChevronRight,
@@ -430,7 +430,6 @@ DisapproveDriverDialog.displayName = "DisapproveDriverDialog";
 interface DriverActionMenuProps {
   driver: Driver;
   onViewProfile: () => void;
-  onEdit: () => void;
   onApprove: () => void;
   onDisapprove: () => void;
   onResendActivation: () => void;
@@ -440,7 +439,6 @@ interface DriverActionMenuProps {
 const DriverActionMenu = React.memo(({
   driver,
   onViewProfile,
-  onEdit,
   onApprove,
   onDisapprove,
   onResendActivation,
@@ -477,10 +475,7 @@ const DriverActionMenu = React.memo(({
           View Profile
         </DropdownMenuItem>
 
-        <DropdownMenuItem onClick={onEdit} className="gap-2">
-          <Edit className="h-4 w-4 text-blue-600" />
-          Edit Details
-        </DropdownMenuItem>
+
 
         <DropdownMenuSeparator />
 
@@ -980,12 +975,7 @@ export default function DriversPage() {
     }
   };
 
-  const handleEditDriver = (driver: Driver) => {
-    // Implement edit functionality here
-    showToast("Edit functionality coming soon", "info");
-    // You can navigate to an edit page or open an edit modal
-    // Example: router.push(`/dashboard/drivers/edit/${driver.id}`);
-  };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1083,13 +1073,13 @@ export default function DriversPage() {
       <div className="p-4 sm:p-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="w-full flex h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden mb-4">
-            <TabsTrigger 
-              value="assigned" 
+            <TabsTrigger
+              value="assigned"
               className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
             >
               Assigned Sites
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="unassigned"
               className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
             >
@@ -1192,7 +1182,6 @@ export default function DriversPage() {
                                 <DriverActionMenu
                                   driver={driver}
                                   onViewProfile={() => window.open(`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`, "_blank")}
-                                  onEdit={() => handleEditDriver(driver)}
                                   onApprove={() => handleApproveDriverClick(driver.id)}
                                   onDisapprove={() => {
                                     setSelectedDriver(driver);
@@ -1327,7 +1316,7 @@ export default function DriversPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={async (e) => {
                 e.preventDefault();
                 if (!driverToDelete) return;
