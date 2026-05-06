@@ -99,6 +99,7 @@ interface Driver {
   missing_attributes: string[];
   next_step: string;
   is_profile_completed: boolean;
+
   remarks: string;
   profile_status: string;
   have_other_jobs: boolean;
@@ -1102,10 +1103,10 @@ export default function DriversPage() {
                         <th className="px-4 py-3 w-16">Index</th>
                         <th className="px-4 py-3 min-w-[180px]">Driver Name</th>
                         <th className="px-4 py-3 min-w-[160px]">License No</th>
+                        <th className="px-4 py-3 min-w-[140px]">License Issue Number</th>
                         <th className="px-4 py-3 min-w-[160px]">Contract Type</th>
                         <th className="px-4 py-3 min-w-[140px]">Phone No</th>
                         <th className="px-4 py-3 min-w-[110px]">Status</th>
-                        <th className="px-4 py-3 min-w-[140px]">Shift Status</th>
                         <th className="px-4 py-3 min-w-[100px] text-left">Warnings</th>
                         <th className="px-4 py-3 w-20 text-left sticky right-0 bg-gray-50 z-10">
                           Actions
@@ -1131,6 +1132,10 @@ export default function DriversPage() {
                               {driver.license_number || "—"}
                             </td>
                             <td className="px-4 py-4">
+                              {/* Shift status badge */}
+                              {driver?.license_issue_number || "—"}
+                            </td>
+                            <td className="px-4 py-4">
                               {/* Your contract badge component */}
                               <Badge variant="outline" className=" border-0 p-2 bg-green-100">{driver.user.contract?.name || "No Contract"}</Badge>
                             </td>
@@ -1149,16 +1154,7 @@ export default function DriversPage() {
                                 {driver.profile_status === 'approved' ? "Approved" : "Not Approved"}
                               </Badge>
                             </td>
-                            <td className="px-4 py-4">
-                              {/* Shift status badge */}
-                              {driver.user.shifts_count > 0 ? (
-                                <Badge className="bg-emerald-100 text-emerald-800">
-                                  Active ({driver.user.shifts_count})
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary">Idle</Badge>
-                              )}
-                            </td>
+
                             <td className="px-4 py-4 text-left">
                               {driver.warnings?.length > 0 ? (
                                 <TooltipProvider>
