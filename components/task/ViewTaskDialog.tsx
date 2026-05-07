@@ -15,9 +15,9 @@ import parse from 'html-react-parser';
 
 interface User {
   id: number;
-  email: string;
+  email: string | null;
   full_name: string;
-  role: string;
+  role: string | null;
   avatar: string | null;
 }
 
@@ -25,10 +25,9 @@ interface Task {
   id: number;
   title: string;
   description: string;
-
-  assigned_to: User;
+  assigned_to: User | null;
   assigned_to_display: string | null;
-  assigned_by: User;
+  assigned_by: User | null;
   assigned_by_display: string | null;
   deadline: string;
   priority: string;
@@ -36,6 +35,23 @@ interface Task {
   reason: string | null;
   created_at: string;
   updated_at: string;
+  task_type?: any;
+  task_type_display?: string | null;
+  estimated_hours?: number | null;
+  actual_hours?: number | null;
+  completion_notes?: string | null;
+  requires_approval?: boolean;
+  approved_by?: User | null;
+  approved_at?: string | null;
+  site?: any;
+  task_category?: string;
+  assignment_logs?: any[];
+  history?: any[];
+  change_logs?: any[];
+  is_overdue?: boolean;
+  days_until_deadline?: number;
+  is_system_generated?: boolean;
+  is_own_task?: boolean;
 }
 
 interface ViewTaskDialogProps {
@@ -110,11 +126,11 @@ const ViewTaskDialog: React.FC<ViewTaskDialogProps> = ({ isOpen, onClose, task }
           />
           <InfoRow
             label="Assigned To"
-            value={`${task.assigned_to.full_name} (${task.assigned_to.email})`}
+            value={task.assigned_to ? `${task.assigned_to.full_name} (${task.assigned_to.email || 'No email'})` : 'Unassigned'}
           />
           <InfoRow
             label="Assigned By"
-            value={`${task.assigned_by.full_name} (${task.assigned_by.email})`}
+            value={task.assigned_by ? `${task.assigned_by.full_name} (${task.assigned_by.email || 'No email'})` : 'System'}
           />
           <InfoRow
             label="Priority"

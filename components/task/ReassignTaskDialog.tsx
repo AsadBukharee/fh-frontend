@@ -9,7 +9,7 @@ import { useCookies } from 'next-client-cookies';
 
 interface User {
   id: number;
-  email: string;
+  email: string | null;
   full_name: string;
   avatar: string | null;
   sites: { id: number; name: string }[];
@@ -187,7 +187,7 @@ const ReassignTaskDialog: React.FC<ReassignTaskDialogProps> = ({ isOpen, onClose
                   {users.length > 0 ? (
                     users.map((user) => (
                       <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.full_name} ({user.email})
+                        {user.full_name} {user.email ? `(${user.email})` : ''}
                       </SelectItem>
                     ))
                   ) : (
