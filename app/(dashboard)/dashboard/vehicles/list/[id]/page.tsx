@@ -35,7 +35,10 @@ import {
   MapPin,
   Upload,
   Trash2,
+  Bell,
+  XCircle,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import API_URL from "@/app/utils/ENV";
 import { formatToDDMMYYYY } from '@/app/utils/DateFormat';
 import ImageUploader from "@/components/Media/UploadImage";
@@ -132,6 +135,22 @@ export default function VehicleDetailPage() {
   const [tyreExpiryDialogOpen, setTyreExpiryDialogOpen] = useState(false);
   const [vehicleDocuments, setVehicleDocuments] = useState<any[]>([]);
   const [documentsMap, setDocumentsMap] = useState<Map<string, any>>(new Map());
+  const [warningsDialogOpen, setWarningsDialogOpen] = useState(false);
+
+  /* ── warning helpers ── */
+  const warningCount = vehicle?.warnings?.length || 0;
+  const errorCount = vehicle?.warnings?.filter((w: string) => w.includes("🔴")).length || 0;
+  const cautionCount = vehicle?.warnings?.filter((w: string) => w.includes("⚠️")).length || 0;
+  const pendingCount = vehicle?.warnings?.filter((w: string) => w.includes("⏳")).length || 0;
+
+  const getWarningStyle = (w: string) => {
+    if (w.includes("🔴")) return { cls: "bg-red-50 text-red-800 border border-red-200", icon: <XCircle className="h-4 w-4 flex-shrink-0 text-red-500" /> };
+    if (w.includes("⚠️")) return { cls: "bg-orange-50 text-orange-800 border border-orange-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-500" /> };
+    if (w.includes("⏳")) return { cls: "bg-amber-50 text-amber-800 border border-amber-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-500" /> };
+    return { cls: "bg-emerald-50 text-emerald-800 border border-emerald-200", icon: <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" /> };
+  };
+
+  const stripEmoji = (w: string) => w.replace(/^[\p{Emoji}\s]+/u, "").trim();
 
   const { expandedId, handleExpandedChange } = useAutoScroll(loading, "vehicle_docs", true);
 
@@ -878,12 +897,77 @@ export default function VehicleDetailPage() {
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-2">
             <TabsList className="grid w-full grid-cols-4 gap-2 bg-slate-50 p-1 rounded-xl">
-              <TabsTrigger value="overview">Vehicle</TabsTrigger>
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                Vehicle
+                {warningCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setWarningsDialogOpen(true); }}
+                    className="relative ml-1 group/bell"
+                  >
+                    <Bell className="h-4 w-4 text-gray-400 group-hover/bell:text-orange-500 transition-colors" />
+                    <span className={cn(
+                      "absolute -top-1.5 -right-2 min-w-[16px] h-[16px] flex items-center justify-center rounded-full text-[9px] font-bold text-white px-0.5",
+                      errorCount > 0 ? "bg-red-500" : cautionCount > 0 ? "bg-orange-500" : "bg-amber-500"
+                    )}>
+                      {warningCount}
+                    </span>
+                  </button>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
               <TabsTrigger value="compliance">Compliance</TabsTrigger>
               <TabsTrigger value="maintenance">Tyre Maintenance</TabsTrigger>
             </TabsList>
           </div>
+
+          <Dialog open={warningsDialogOpen} onOpenChange={setWarningsDialogOpen}>
+            <DialogContent className="max-w-lg p-0 overflow-hidden border-none rounded-2xl shadow-2xl">
+              <DialogHeader className="px-6 py-5 bg-white border-b border-gray-100">
+                <DialogTitle className="flex items-center gap-3">
+                  <div className={cn(
+                    "flex items-center justify-center w-9 h-9 rounded-xl",
+                    errorCount > 0 ? "bg-red-50" : cautionCount > 0 ? "bg-orange-50" : "bg-amber-50"
+                  )}>
+                    <Bell className={cn(
+                      "h-5 w-5",
+                      errorCount > 0 ? "text-red-500" : cautionCount > 0 ? "text-orange-500" : "text-amber-500"
+                    )} />
+                  </div>
+                  <div>
+                    <span className="text-base font-bold text-gray-900">Vehicle Notifications</span>
+                    <p className="text-xs text-gray-400 font-normal mt-0.5">
+                      {warningCount} item{warningCount !== 1 ? "s" : ""} require attention
+                    </p>
+                  </div>
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-2.5">
+                  {vehicle?.warnings?.map((w: string, i: number) => {
+                    const { cls, icon } = getWarningStyle(w);
+                    return (
+                      <div key={i} className={cn("flex items-start gap-3 p-3.5 rounded-xl text-sm font-medium transition-all hover:shadow-sm", cls)}>
+                        <div className="mt-0.5">{icon}</div>
+                        <span className="flex-1 leading-relaxed">{stripEmoji(w)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end px-6 py-4 bg-gray-50/50 border-t border-gray-100">
+                <Button
+                  variant="outline"
+                  className="rounded-lg h-9 px-6 text-sm border-gray-200 text-gray-600 hover:bg-gray-100"
+                  onClick={() => setWarningsDialogOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
@@ -1163,7 +1247,7 @@ export default function VehicleDetailPage() {
                   View Document History
                 </Button>
               </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {additionalDocuments.filter(doc => doc.key !== 'vehicle_invoice_docs' || role === 'superadmin').map((doc) => {
                   const Icon = doc.icon;
                   const apiDoc = documentsMap.get(doc.docCode);
@@ -1330,8 +1414,8 @@ export default function VehicleDetailPage() {
                 <h3 className="text-lg font-bold text-slate-900">Compliance Documents</h3>
               </div>
 
-              <Accordion 
-                type="multiple" 
+              <Accordion
+                type="multiple"
                 className="space-y-3"
                 value={expandedId as string[]}
                 onValueChange={handleExpandedChange}
