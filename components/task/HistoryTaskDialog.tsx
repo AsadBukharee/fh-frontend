@@ -25,9 +25,9 @@ import { Badge } from '@/components/ui/badge';
 // ---------- Shared User Interface ----------
 interface User {
   id: number;
-  email: string;
+  email: string | null;
   full_name: string;
-  role: string;
+  role: string | null;
   avatar: string | null;
 }
 

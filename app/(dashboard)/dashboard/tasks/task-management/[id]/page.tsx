@@ -56,7 +56,7 @@ interface Vehicle {
 
 interface TaskUser {
   id: number;
-  email: string;
+  email: string | null;
   full_name: string;
   role: string;
   avatar?: string | null;
@@ -81,16 +81,16 @@ interface Task {
   id: number;
   title: string;
   description: string;
-  task_type: TaskType;
-  task_type_display: string;
-  assigned_to: TaskUser;
-  assigned_by: TaskUser;
+  task_type: TaskType | null;
+  task_type_display: string | null;
+  assigned_to: TaskUser | null;
+  assigned_by: TaskUser | null;
   deadline: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'not_viewed' | 'viewed' | 'in_progress' | 'completed' | 'rejected' | null;
   reason: string | null;
-  estimated_hours: string | null;
-  actual_hours: string | null;
+  estimated_hours: number | null;
+  actual_hours: number | null;
   completion_notes: string | null;
   requires_approval: boolean;
   approved_by: TaskUser | null;
@@ -103,6 +103,8 @@ interface Task {
   created_at: string;
   updated_at: string;
   history: HistoryItem[];
+  is_system_generated: boolean;
+  is_own_task: boolean;
 }
 
 // ---------------------------------------------------------------------
@@ -242,7 +244,21 @@ function SectionCard({
 }
 
 /** User avatar chip */
-function UserChip({ user, color = 'blue' }: { user: TaskUser; color?: 'blue' | 'green' | 'orange' }) {
+function UserChip({ user, color = 'blue', label }: { user: TaskUser | null; color?: 'blue' | 'green' | 'orange'; label?: string }) {
+  if (!user) {
+    return (
+      <div className="flex items-center gap-2.5">
+        <div className={cn('w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold flex-shrink-0 bg-gray-400')}>
+          S
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-900 truncate">{label || 'System'}</p>
+          <p className="text-xs text-gray-500 truncate">Automated</p>
+        </div>
+      </div>
+    );
+  }
+
   const initials = user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const colorCls = {
     blue: 'bg-blue-600',
@@ -257,7 +273,7 @@ function UserChip({ user, color = 'blue' }: { user: TaskUser; color?: 'blue' | '
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-gray-900 truncate">{user.full_name}</p>
-        <p className="text-xs text-orange-500 truncate">{user.email}</p>
+        {user.email && <p className="text-xs text-orange-500 truncate">{user.email}</p>}
       </div>
     </div>
   );
@@ -512,7 +528,7 @@ export default function TaskDetailPage() {
 
               <h1 className="text-2xl font-bold text-gray-900 leading-tight tracking-tight truncate">{task.title}</h1>
               {task.description && (
-                <div className="mt-3 prose prose-sm max-w-2xl dark:prose-invert text-gray-600 line-clamp-3">
+                <div className="mt-3 prose prose-sm max-w-2xl dark:prose-invert text-gray-600 whitespace-pre-wrap">
                   {parse(task.description)}
                 </div>
               )}
@@ -615,14 +631,14 @@ export default function TaskDetailPage() {
           <div className="flex flex-col gap-2.5">
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Assigned To</span>
             <div className="bg-blue-50/30 rounded-2xl p-4 border border-blue-50/50">
-              <UserChip user={task.assigned_to} color="blue" />
+              <UserChip user={task.assigned_to} color="blue" label="Unassigned" />
             </div>
           </div>
 
           <div className="flex flex-col gap-2.5">
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Assigned By</span>
             <div className="bg-orange-50/30 rounded-2xl p-4 border border-orange-50/50">
-              <UserChip user={task.assigned_by} color="orange" />
+              <UserChip user={task.assigned_by} color="orange" label="System" />
             </div>
           </div>
 

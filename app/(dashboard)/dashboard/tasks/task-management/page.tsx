@@ -78,9 +78,9 @@ import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 // ---------------------------------------------------
 interface User {
   id: number;
-  email: string;
+  email: string | null;
   full_name: string;
-  role: string;
+  role: string | null;
   avatar: string | null;
 }
 
@@ -100,13 +100,7 @@ interface AssignmentLog {
   reason: string | null;
   created_at: string;
 }
-interface User {
-  id: number;
-  email: string;
-  full_name: string;
-  role: string;
-  avatar: string | null;
-}
+
 interface HistoryItem {
   id: number;
   action: string;
@@ -139,28 +133,31 @@ interface Task {
   description: string;
   task_type: TaskType | null;
   task_type_display: string | null;
-  assigned_to: User;
+  assigned_to: User | null;
   assigned_to_display: string | null;
-  assigned_by: User;
+  assigned_by: User | null;
   assigned_by_display: string | null;
   deadline: string;
   priority: string;
   status: string;
   reason: string | null;
-  estimated_hours: string | null;
-  actual_hours: string | null;
+  estimated_hours: number | null;
+  actual_hours: number | null;
   completion_notes: string | null;
   requires_approval: boolean;
   approved_by: User | null;
   approved_at: string | null;
+  site: { id: number; name: string } | null;
+  task_category: string;
   assignment_logs: AssignmentLog[];
   history: HistoryItem[];
-  change_logs: ChangeLog[];
+  change_logs?: ChangeLog[];
   is_overdue: boolean;
   days_until_deadline: number;
   created_at: string;
   updated_at: string;
-  is_system_generated?: boolean;
+  is_system_generated: boolean;
+  is_own_task: boolean;
 }
 
 interface ApiResponse {
@@ -757,8 +754,8 @@ const Page = () => {
                   </Badge>
                 </TableCell>
 
-                <TableCell>{task.assigned_by?.full_name}</TableCell>
-                <TableCell>{task.assigned_to?.full_name}</TableCell>
+                <TableCell>{task.assigned_by?.full_name || "System"}</TableCell>
+                <TableCell>{task.assigned_to?.full_name || "Unassigned"}</TableCell>
 
                 <TableCell>
                   {formatToDDMMYYYY(task.created_at)}
@@ -862,13 +859,13 @@ const Page = () => {
       <ViewTaskDialog
         isOpen={isViewOpen}
         onClose={() => setIsViewOpen(false)}
-        task={selectedTask}
+        task={selectedTask as any}
       />
 
       <UpdateTaskDialog
         isOpen={isUpdateOpen}
         onClose={() => setIsUpdateOpen(false)}
-        task={selectedTask}
+        task={selectedTask as any}
         onTaskUpdated={refresh}
       />
 
@@ -876,7 +873,7 @@ const Page = () => {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         // assignmentLogs={selectedTask?.assignment_logs ?? []}/
-        history={selectedTask?.history ?? []}
+        history={(selectedTask as any)?.history ?? []}
       // changeLogs={selectedTask?.change_logs ?? []}
       />
 

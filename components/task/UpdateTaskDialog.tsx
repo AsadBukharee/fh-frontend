@@ -25,7 +25,7 @@ import { useCookies } from 'next-client-cookies';
 
 interface User {
   id: number;
-  email: string;
+  email: string | null;
   full_name: string;
   role: string | null;
   avatar: string | null;
@@ -35,9 +35,9 @@ interface Task {
   id: number;
   title: string;
   description: string;
-  assigned_to: User;
+  assigned_to: User | null;
   assigned_to_display: string | null;
-  assigned_by: User;
+  assigned_by: User | null;
   assigned_by_display: string | null;
   deadline: string;
   priority: string;
@@ -100,7 +100,7 @@ const UpdateTaskDialog: React.FC<UpdateTaskDialogProps> = ({
     if (task && isOpen) {
       setTitle(task.title);
       setDescription(task.description || '');
-      setAssignedTo(task.assigned_to.id.toString());
+      setAssignedTo(task.assigned_to?.id.toString() || '');
       setPriority(task.priority);
       setStatus(task.status);
       setOriginalStatus(task.status); // <-- Track original
