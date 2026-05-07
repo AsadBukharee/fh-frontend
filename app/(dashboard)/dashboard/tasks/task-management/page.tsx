@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useDebounce } from "use-debounce";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -161,7 +162,10 @@ interface Task {
 }
 
 interface ApiResponse {
-  count: number;
+  total_count: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
   next: string | null;
   previous: string | null;
   results: Task[];
@@ -182,10 +186,12 @@ const Page = () => {
   // ------------------- STATE -------------------
   const [tasks, setTasks] = useState<Task[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
   const [currentPage, setCurrentPage] = useState(1);
   const [nextPage, setNextPage] = useState<string | null>(null);
   const [prevPage, setPrevPage] = useState<string | null>(null);
   const [totalTasks, setTotalTasks] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [taskSource, setTaskSource] = useState<"users" | "system">("users");
   const [assignedCount, setAssignedCount] = useState<number | null>(null);
@@ -197,6 +203,8 @@ const Page = () => {
   const [taskTypeFilter, setTaskTypeFilter] = useState<number[]>([]);
   const [assignedToFilter, setAssignedToFilter] = useState<number[]>([]);
   const [assignedByFilter, setAssignedByFilter] = useState<number[]>([]);
+  const [overdueFilter, setOverdueFilter] = useState<string>("all");
+  const [dueFilter, setDueFilter] = useState<string>("all");
   const [dateAssignedRange, setDateAssignedRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -270,9 +278,15 @@ const Page = () => {
 
       // ---- Pagination & Search ----
       params.set("page", currentPage.toString());
+      params.set("per_page", "10");
 
-      if (searchTerm.trim()) {
-        params.set("search", searchTerm); // NO encodeURIComponent
+      if (debouncedSearchTerm.trim()) {
+        params.set("search", debouncedSearchTerm);
+      }
+
+      // ---- Task Source (Backend Filter) ----
+      if (taskSource === "system") {
+        params.set("assigned_by", "system");
       }
 
       // ---- Single-value filters ----
@@ -282,6 +296,14 @@ const Page = () => {
 
       if (statusFilter !== "all") {
         params.set("status", statusFilter);
+      }
+
+      if (overdueFilter !== "all") {
+        params.set("overdue", overdueFilter);
+      }
+
+      if (dueFilter !== "all") {
+        params.set("due", dueFilter);
       }
 
       // ---- Multi-ID filters (comma separated) ----
@@ -339,7 +361,8 @@ const Page = () => {
       const data: ApiResponse = await res.json();
 
       setTasks(data.results);
-      setTotalTasks(data.count);
+      setTotalTasks(data.total_count);
+      setTotalPages(data.total_pages);
       setNextPage(data.next);
       setPrevPage(data.previous);
     } catch (err) {
@@ -362,12 +385,14 @@ const Page = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentPage,
-    searchTerm,
+    debouncedSearchTerm,
     priorityFilter,
     statusFilter,
     taskTypeFilter,
     assignedToFilter,
     assignedByFilter,
+    overdueFilter,
+    dueFilter,
     dateAssignedRange,
     deadlineRange,
     taskSource,
@@ -418,6 +443,20 @@ const Page = () => {
   };
   const clearAssignedBy = () => {
     setAssignedByFilter([]);
+    setCurrentPage(1);
+  };
+
+  const clearAllFilters = () => {
+    setPriorityFilter("all");
+    setStatusFilter("all");
+    setTaskTypeFilter([]);
+    setAssignedToFilter([]);
+    setAssignedByFilter([]);
+    setOverdueFilter("all");
+    setDueFilter("all");
+    setDateAssignedRange({ from: undefined, to: undefined });
+    setDeadlineRange({ from: undefined, to: undefined });
+    setSearchTerm("");
     setCurrentPage(1);
   };
 
@@ -487,12 +526,6 @@ const Page = () => {
     return latest.reason ?? "—";
   };
 
-  const filteredTasks = tasks.filter((task) =>
-    taskSource === "system"
-      ? Boolean(task.is_system_generated)
-      : !task.is_system_generated
-  );
-
   // Count system tasks from current page for badge
   const unassignedCount = tasks.filter((task) => Boolean(task.is_system_generated)).length;
 
@@ -526,7 +559,7 @@ const Page = () => {
           <PlusCircle className="mr-2 h-4 w-4" /> Create Task
         </Button>
 
-        <ExportButton data={filteredTasks} fileName="tasks_export.csv" />
+        <ExportButton data={tasks} fileName="tasks_export.csv" />
         <Button
           onClick={fetchTasks}
           disabled={loading}
@@ -697,7 +730,7 @@ const Page = () => {
 
         {/* Status */}
         <Select value={statusFilter} onValueChange={handleStatus}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[150px] border border-gray-200">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -709,6 +742,40 @@ const Page = () => {
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Overdue */}
+        <Select value={overdueFilter} onValueChange={(v) => { setOverdueFilter(v); setCurrentPage(1); }}>
+          <SelectTrigger className="w-[130px] border border-gray-200">
+            <SelectValue placeholder="Overdue" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All (Overdue)</SelectItem>
+            <SelectItem value="true">Overdue</SelectItem>
+            <SelectItem value="false">Not Overdue</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Due */}
+        <Select value={dueFilter} onValueChange={(v) => { setDueFilter(v); setCurrentPage(1); }}>
+          <SelectTrigger className="w-[130px] border border-gray-200">
+            <SelectValue placeholder="Due" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All (Due)</SelectItem>
+            <SelectItem value="today">Due Today</SelectItem>
+            <SelectItem value="this_week">Due This Week</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Clear All */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-red-500 border-red-200 hover:bg-red-50"
+          onClick={clearAllFilters}
+        >
+          <X className="mr-1 h-4 w-4" /> Clear All
+        </Button>
 
         {/* Settings */}
 
@@ -737,7 +804,13 @@ const Page = () => {
           </TableHeader>
 
           <TableBody>
-            {filteredTasks.map((task) => (
+            {tasks
+              .filter((task) =>
+                taskSource === "system"
+                  ? Boolean(task.is_system_generated)
+                  : !task.is_system_generated
+              )
+              .map((task) => (
               <TableRow key={task.id}>
                 <TableCell className="font-medium"><Link href={`/dashboard/tasks/task-management/${task.id}`}>{task.title}</Link></TableCell>
                 <TableCell className="max-w-xs truncate">
@@ -816,7 +889,11 @@ const Page = () => {
                 </TableCell>
               </TableRow>
             ))}
-            {filteredTasks.length === 0 && (
+            {tasks.filter((task) =>
+              taskSource === "system"
+                ? Boolean(task.is_system_generated)
+                : !task.is_system_generated
+            ).length === 0 && (
               <TableRow>
                 <TableCell colSpan={13} className="py-6 text-center text-muted-foreground">
                   No {taskSource === "system" ? "system" : "user"} tasks found.
@@ -834,7 +911,7 @@ const Page = () => {
         </Button>
 
         <span>
-          Page {currentPage} of {Math.max(1, Math.ceil(totalTasks / 10))}
+          Page {currentPage} of {totalPages}
         </span>
 
         <Button onClick={handleNext} disabled={!nextPage}>

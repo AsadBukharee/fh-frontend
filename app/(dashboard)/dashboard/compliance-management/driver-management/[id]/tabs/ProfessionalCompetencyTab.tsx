@@ -156,6 +156,7 @@ type ModalState = {
     status_reason: string;
     description: string;
     custom_reason: string;
+    remarks: string;
   };
 };
 
@@ -225,6 +226,7 @@ const modalReducer = (state: ModalState, action: ModalAction): ModalState => {
           status_reason: "",
           description: "",
           custom_reason: "",
+          remarks: "",
         },
       };
     default:
@@ -542,6 +544,7 @@ export default function ProfessionalCompetencyTab({
       status_reason: "",
       description: "",
       custom_reason: "",
+      remarks: "",
     },
   });
 
@@ -766,6 +769,7 @@ export default function ProfessionalCompetencyTab({
       description: competency.description || "",
       status_reason: competency.status_reason || "",
       custom_reason: competency.custom_reason || "",
+      remarks: competency.remarks || "",
     };
 
     setOriginalExpiryDate(competency.expiry_date);
@@ -1139,6 +1143,7 @@ export default function ProfessionalCompetencyTab({
         description: modalState.editData.description || "",
         status_reason: modalState.editData.status_reason || "",
         custom_reason: modalState.editData.custom_reason || "",
+        remarks: modalState.editData.remarks || "",
         expiry_date: isSpecialDocument ? null : (modalState.editData.expiry_date || null),
         has_document: modalState.editData.has_document,
         has_back_side: modalState.editData.has_back_side,
@@ -1244,7 +1249,18 @@ export default function ProfessionalCompetencyTab({
       return;
     }
 
-    if (modalState.isEditing && (modalState.editData.request_status === "not_approved" || modalState.editData.request_status === "pending")) {
+    if (modalState.editData.request_status === "not_approved") {
+      if (!modalState.editData.remarks?.trim()) {
+        dispatchModal({
+          type: 'SET_FORM_ERROR',
+          payload: { field: 'remarks', value: "Please provide remarks for rejection" }
+        });
+        toast.error("Please provide remarks for rejection");
+        return;
+      }
+    }
+
+    if (modalState.editData.request_status === "pending") {
       const hasDescription =
         modalState.editData.description?.trim() ||
         (modalState.editData.status_reason === "other" && modalState.editData.custom_reason?.trim())
@@ -1287,6 +1303,11 @@ export default function ProfessionalCompetencyTab({
   const handleDirectStatusUpdate = useCallback(async () => {
     if (!modalState.editData || !modalState.statusUpdateData.request_status) return
 
+    if (modalState.statusUpdateData.request_status === "not_approved" && !modalState.statusUpdateData.remarks?.trim()) {
+      toast.error("Please provide remarks for rejection");
+      return;
+    }
+
     dispatchModal({ type: 'SET_SAVING', payload: true });
 
     try {
@@ -1296,6 +1317,7 @@ export default function ProfessionalCompetencyTab({
         status_reason: modalState.statusUpdateData.status_reason,
         description: modalState.statusUpdateData.description || "",
         custom_reason: modalState.statusUpdateData.custom_reason || "",
+        remarks: modalState.statusUpdateData.remarks || "",
       }
 
       const response = await fetch(`${API_URL}/api/profiles/professional-competency/${modalState.editData.id}/`, {
@@ -1323,6 +1345,7 @@ export default function ProfessionalCompetencyTab({
             status_reason: "",
             description: "",
             custom_reason: "",
+            remarks: "",
           }
         });
         fetchCompetencyData()
