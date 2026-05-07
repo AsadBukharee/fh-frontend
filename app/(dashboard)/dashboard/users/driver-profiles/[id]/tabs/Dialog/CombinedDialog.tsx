@@ -62,6 +62,8 @@ type CombinedLicenseFormData = {
   dd1_description: string;
   dd1_has_document: boolean;
   dd1_url: string;
+  dl_remarks: string;
+  dd1_remarks: string;
 };
 
 export default function CombinedLicenseDialog({
@@ -107,6 +109,8 @@ export default function CombinedLicenseDialog({
     dd1_description: dd1CategoryData?.description || dd1CategoryData?.status_description || "",
     dd1_has_document: dd1CategoryData?.has_document || false,
     dd1_url: dd1CategoryData?.urls?.[0] || "",
+    dl_remarks: driverLicenseData?.remarks || "",
+    dd1_remarks: dd1CategoryData?.remarks || "",
   });
 
   // Track if dialog was opened to prevent resetting currentStep on data updates
@@ -132,6 +136,8 @@ export default function CombinedLicenseDialog({
         dd1_description: dd1CategoryData?.description || dd1CategoryData?.status_description || "",
         dd1_has_document: dd1CategoryData?.has_document || false,
         dd1_url: dd1CategoryData?.urls?.[0] || "",
+        dl_remarks: driverLicenseData?.remarks || "",
+        dd1_remarks: dd1CategoryData?.remarks || "",
       });
       setCurrentStep(1);
       setIsInitialized(true);
@@ -173,6 +179,12 @@ export default function CombinedLicenseDialog({
 
     const isDd1ExpiryChanged = formData.dd1_expiry_date !== initialDd1Expiry;
     const isDd1UrlChanged = formData.dd1_url !== initialDd1Url;
+
+    if (formData.dl_status === "not_approved" && !formData.dl_remarks?.trim()) {
+      toast.error("Please provide remarks for the Driving License rejection");
+      setCurrentStep(1);
+      return;
+    }
 
     if (isDL) {
       if (!formData.license_number) {
@@ -274,8 +286,8 @@ export default function CombinedLicenseDialog({
       return;
     }
 
-    if (formData.dd1_status !== "approved" && !formData.dd1_description) {
-      toast.error("Please provide a reason/description for the D/D1 Category status");
+    if (formData.dd1_status === "not_approved" && !formData.dd1_remarks?.trim()) {
+      toast.error("Please provide remarks for the D/D1 Category rejection");
       setCurrentStep(2);
       return;
     }
@@ -311,6 +323,7 @@ export default function CombinedLicenseDialog({
         has_document: !!formData.dl_url || formData.dl_has_document,
         urls: [formData.dl_url].filter(Boolean),
         request_status: formData.dl_status || "pending",
+        remarks: formData.dl_remarks || "",
       };
 
       const dlId = driverLicenseData?.id;
@@ -339,6 +352,7 @@ export default function CombinedLicenseDialog({
         has_document: !!formData.dd1_url || formData.dd1_has_document,
         urls: [formData.dd1_url].filter(Boolean),
         request_status: formData.dd1_status || "pending",
+        remarks: formData.dd1_remarks || "",
       };
 
       const dd1Id = dd1CategoryData?.id;
@@ -378,6 +392,7 @@ export default function CombinedLicenseDialog({
   const currentUrl = currentStep === 1 ? formData.dl_url : formData.dd1_url;
   const currentStatus = currentStep === 1 ? formData.dl_status : formData.dd1_status;
   const currentStatusDesc = currentStep === 1 ? formData.dl_description : formData.dd1_description;
+  const currentRemarks = currentStep === 1 ? formData.dl_remarks : formData.dd1_remarks;
   const currentDesc = currentStep === 1 ? formData.dl_description : formData.dd1_description;
 
   return (
@@ -592,10 +607,24 @@ export default function CombinedLicenseDialog({
                     <Textarea
                       value={currentStatusDesc}
                       onChange={(e) => handleFormChange(currentStep === 1 ? "dl_description" : "dd1_description", e.target.value)}
-                      className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
-                      placeholder={`Explain why this document is ${currentStatus === "pending" ? "pending" : "rejected"}...`}
+                      className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
+                      placeholder="Enter special notes..."
                     />
                   </div>
+
+                  {currentStatus === "not_approved" && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <Label className="text-[13px] font-bold text-gray-800 ml-1">
+                        Remarks <span className="text-red-500">*</span>
+                      </Label>
+                      <Textarea
+                        value={currentRemarks}
+                        onChange={(e) => handleFormChange(currentStep === 1 ? "dl_remarks" : "dd1_remarks", e.target.value)}
+                        className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
+                        placeholder="Enter the reason for rejection"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 

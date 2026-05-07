@@ -381,9 +381,29 @@ export default function EnhancedCompetencyModal({
                     value={currentDoc.description || ""}
                     onChange={(e) => handleInputChange("description", e.target.value)}
                     className="min-h-[140px] border border-gray-100 rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] p-6 resize-none placeholder:text-gray-300 font-medium text-base shadow-none bg-white"
-                    placeholder="Enter the reason for rejection"
+                    placeholder="Enter special notes..."
                   />
                 </div>
+
+                {currentDoc.request_status === 'not_approved' && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <Label className="text-sm font-bold text-gray-800 ml-1">
+                      Remarks <span className="text-red-500">*</span>
+                    </Label>
+                    <Textarea
+                      value={currentDoc.remarks || ""}
+                      onChange={(e) => handleInputChange("remarks", e.target.value)}
+                      className={cn(
+                        "min-h-[140px] border rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] p-6 resize-none placeholder:text-gray-300 font-medium text-base shadow-none bg-white",
+                        modalState.formErrors.remarks ? "border-red-500" : "border-gray-100"
+                      )}
+                      placeholder="Enter the reason for rejection"
+                    />
+                    {modalState.formErrors.remarks && (
+                      <p className="text-xs text-red-500 ml-1">{modalState.formErrors.remarks}</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -793,10 +813,31 @@ export default function EnhancedCompetencyModal({
                 <Textarea
                   value={currentDoc.description || ""}
                   onChange={(e) => handleInputChange("description", e.target.value)}
-                  className="min-h-[120px] border-gray-100 rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] font-medium p-4 resize-none placeholder:text-gray-300"
-                  placeholder="Enter the reason for rejection or special notes..."
+                  className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] font-medium p-4 resize-none placeholder:text-gray-300"
+                  placeholder="Enter special notes..."
                 />
               </div>
+
+              {/* Remarks Section for Rejection */}
+              {currentDoc.request_status === 'not_approved' && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <Label className="text-[13px] font-bold text-gray-800 ml-1">
+                    Remarks <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    value={currentDoc.remarks || ""}
+                    onChange={(e) => handleInputChange("remarks", e.target.value)}
+                    className={cn(
+                      "min-h-[100px] border rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] font-medium p-4 resize-none placeholder:text-gray-300",
+                      modalState.formErrors.remarks ? "border-red-500" : "border-gray-100"
+                    )}
+                    placeholder="Enter the reason for rejection"
+                  />
+                  {modalState.formErrors.remarks && (
+                    <p className="text-xs text-red-500 ml-1">{modalState.formErrors.remarks}</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer Buttons */}

@@ -59,6 +59,8 @@ type CombinedTachoFormData = {
   download_has_document: boolean;
   download_url_front: string;
   download_url_back: string;
+  tacho_remarks: string;
+  download_remarks: string;
 };
 
 export default function CombinedTachoDialog({
@@ -102,6 +104,8 @@ export default function CombinedTachoDialog({
     download_has_document: lastTachoDownloadData?.has_document || false,
     download_url_front: lastTachoDownloadData?.urls?.[0] || "",
     download_url_back: lastTachoDownloadData?.urls?.[1] || "",
+    tacho_remarks: tachoCardData?.remarks || "",
+    download_remarks: lastTachoDownloadData?.remarks || "",
   });
 
   const [isInitialized, setIsInitialized] = useState(false);
@@ -124,6 +128,8 @@ export default function CombinedTachoDialog({
         download_has_document: lastTachoDownloadData?.has_document || false,
         download_url_front: lastTachoDownloadData?.urls?.[0] || "",
         download_url_back: lastTachoDownloadData?.urls?.[1] || "",
+        tacho_remarks: tachoCardData?.remarks || "",
+        download_remarks: lastTachoDownloadData?.remarks || "",
       });
       setCurrentStep(1);
       setIsInitialized(true);
@@ -168,6 +174,12 @@ export default function CombinedTachoDialog({
 
     const isDownloadDateChanged = formData.download_date !== initialDownloadDate;
     const isDownloadUrlChanged = formData.download_url_front !== initialDownloadUrl || formData.download_url_back !== (lastTachoDownloadData?.urls?.[1] || "");
+
+    if (formData.tacho_status === "not_approved" && !formData.tacho_remarks?.trim()) {
+      toast.error("Please provide remarks for the Tacho Card rejection");
+      setCurrentStep(1);
+      return;
+    }
 
     if (isTacho) {
       if (!formData.tacho_expiry_date) {
@@ -232,8 +244,8 @@ export default function CombinedTachoDialog({
       setCurrentStep(1);
       return;
     }
-    if (formData.download_status !== "approved" && !formData.download_description) {
-      toast.error("Please provide a reason/description for the Download status");
+    if (formData.download_status === "not_approved" && !formData.download_remarks?.trim()) {
+      toast.error("Please provide remarks for the Download rejection");
       setCurrentStep(2);
       return;
     }
@@ -266,6 +278,7 @@ export default function CombinedTachoDialog({
         has_document: !!formData.tacho_url_front || !!formData.tacho_url_back || formData.tacho_has_document,
         urls: [formData.tacho_url_front, formData.tacho_url_back].filter(Boolean),
         request_status: formData.tacho_status || "pending",
+        remarks: formData.tacho_remarks || "",
       };
 
       const tachoId = tachoCardData?.id;
@@ -293,6 +306,7 @@ export default function CombinedTachoDialog({
         has_document: !!formData.download_url_front || !!formData.download_url_back || formData.download_has_document,
         urls: [formData.download_url_front, formData.download_url_back].filter(Boolean),
         request_status: formData.download_status || "pending",
+        remarks: formData.download_remarks || "",
       };
 
       const downloadId = lastTachoDownloadData?.id;
@@ -332,6 +346,7 @@ export default function CombinedTachoDialog({
   const currentDesc = currentStep === 1 ? formData.tacho_description : formData.download_description;
   const currentUrlFront = currentStep === 1 ? formData.tacho_url_front : formData.download_url_front;
   const currentUrlBack = currentStep === 1 ? formData.tacho_url_back : formData.download_url_back;
+  const currentRemarks = currentStep === 1 ? formData.tacho_remarks : formData.download_remarks;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -530,10 +545,24 @@ export default function CombinedTachoDialog({
                     <Textarea
                       value={currentStatusDesc}
                       onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_description" : "download_description", e.target.value)}
-                      className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
-                      placeholder={`Explain why this document is ${currentStatus === "pending" ? "pending" : "rejected"}...`}
+                      className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
+                      placeholder="Enter special notes..."
                     />
                   </div>
+
+                  {currentStatus === "not_approved" && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <Label className="text-[13px] font-bold text-gray-800 ml-1">
+                        Remarks <span className="text-red-500">*</span>
+                      </Label>
+                      <Textarea
+                        value={currentRemarks}
+                        onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_remarks" : "download_remarks", e.target.value)}
+                        className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
+                        placeholder="Enter the reason for rejection"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
