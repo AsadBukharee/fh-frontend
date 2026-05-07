@@ -75,9 +75,9 @@ import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 // ---------------------------------------------------
 interface User {
   id: number;
-  email: string;
+  email: string | null;
   full_name: string;
-  role: string;
+  role: string | null;
   avatar: string | null;
 }
 
@@ -130,16 +130,16 @@ interface Task {
   description: string;
   task_type: TaskType | null;
   task_type_display: string | null;
-  assigned_to: User;
+  assigned_to: User | null;
   assigned_to_display: string | null;
-  assigned_by: User;
+  assigned_by: User | null;
   assigned_by_display: string | null;
   deadline: string;
   priority: string;
   status: string;
   reason: string | null;
-  estimated_hours: string | null;
-  actual_hours: string | null;
+  estimated_hours: number | null;
+  actual_hours: number | null;
   completion_notes: string | null;
   requires_approval: boolean;
   approved_by: User | null;
@@ -640,8 +640,8 @@ const Page = () => {
                   </Badge>
                 </TableCell>
 
-                <TableCell>{task.assigned_to.full_name}</TableCell>
-                <TableCell>{task.assigned_by.full_name}</TableCell>
+                <TableCell>{task.assigned_to?.full_name || "Unassigned"}</TableCell>
+                <TableCell>{task.assigned_by?.full_name || "System"}</TableCell>
 
                 <TableCell>
                   {formatToDDMMYYYY(task.created_at)}
