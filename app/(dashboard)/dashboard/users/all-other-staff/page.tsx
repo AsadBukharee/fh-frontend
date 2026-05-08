@@ -106,6 +106,7 @@ interface User {
   contract: { id: number; name: string; description: string } | null;
   site: Site[] | null;
   role: string | string[] | null;
+  roles?: string[] | null;
   shifts_count: number;
   avatar?: string | null;
 }
@@ -196,7 +197,13 @@ const UserRow = React.memo(
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
-          {user?.role ? (
+          {user?.roles && Array.isArray(user.roles) && user.roles.length > 0 ? (
+            user.roles.map((roleSlug) => (
+              <Badge key={roleSlug} className={getTypeColor(roleSlug)}>
+                {roles?.find((r) => r?.slug === roleSlug)?.name || roleSlug}
+              </Badge>
+            ))
+          ) : user?.role ? (
             Array.isArray(user?.role) ? (
               user?.role?.map((roleSlug) => (
                 <Badge key={roleSlug} className={getTypeColor(roleSlug)}>
@@ -1081,11 +1088,17 @@ export default function UsersPage() {
 
       // Apply role filter
       if (filters.role !== "all") {
-        filteredUsers = filteredUsers.filter((user) => 
-          Array.isArray(user.role) 
-            ? user.role.includes(filters.role) 
-            : user.role === filters.role
-        );
+        filteredUsers = filteredUsers.filter((user) => {
+          const userRoles = Array.isArray(user.roles) && user.roles.length > 0 
+            ? user.roles 
+            : Array.isArray(user.role) 
+              ? user.role 
+              : user.role ? [user.role] : [];
+          
+          return userRoles.some(role => 
+            typeof role === 'string' && role.toLowerCase() === filters.role.toLowerCase()
+          );
+        });
       }
 
       // Apply contract filter
@@ -1399,7 +1412,9 @@ export default function UsersPage() {
     setSelectedUser(user);
     
     let rolesArray: string[] = [];
-    if (Array.isArray(user?.role)) {
+    if (user?.roles && Array.isArray(user.roles) && user.roles.length > 0) {
+      rolesArray = user.roles;
+    } else if (Array.isArray(user?.role)) {
       rolesArray = user?.role;
     } else if (user?.role) {
       // Find matching role slug, handling case-insensitivity

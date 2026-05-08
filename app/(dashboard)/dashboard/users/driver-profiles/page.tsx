@@ -70,6 +70,8 @@ import {
   Menu,
   Trash2,
   EllipsisVertical,
+  Shield,
+  UserCog,
 } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -77,6 +79,7 @@ import { useToast } from "@/app/Context/ToastContext";
 import Link from "next/link";
 import ExportButton from "@/app/utils/ExportButton";
 import AddDriver from "@/components/add-driver/page";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 /* ──────────────────────── Interfaces ──────────────────────── */
 interface Driver {
@@ -91,6 +94,7 @@ interface Driver {
     is_active: boolean;
     contract: { id: number; name: string; description: string } | null;
     role: string;
+    roles?: string[];
     site: Array<{ id: number; name: string; status: string; image: string }>;
     shifts_count: number;
     avatar?: string | null;
@@ -135,6 +139,12 @@ interface Site {
   name: string;
   status: string;
   image: string;
+}
+
+interface Role {
+  id: number;
+  slug: string;
+  name: string;
 }
 
 interface UserForm {
@@ -435,7 +445,96 @@ interface DriverActionMenuProps {
   onDisapprove: () => void;
   onResendActivation: () => void;
   onDelete: () => void;
+  onUpdateRole: () => void;
 }
+
+/* ──────────────────────── Update Role Modal Component ──────────────────────── */
+interface UpdateRoleModalProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  roles: Role[];
+  selectedRoles: string[];
+  onRolesChange: (roles: string[]) => void;
+  onUpdate: () => Promise<void>;
+  isUpdating: boolean;
+}
+
+const UpdateRoleModal = React.memo(({
+  isOpen,
+  onOpenChange,
+  roles,
+  selectedRoles,
+  onRolesChange,
+  onUpdate,
+  isUpdating
+}: UpdateRoleModalProps) => {
+  const handleChange = (newRoles: any[]) => {
+    // Normalize incoming roles to lowercase and ensure "driver" is present
+    const normalized = Array.from(new Set(newRoles.map(r => String(r).toLowerCase())));
+    if (!normalized.includes("driver")) {
+      normalized.push("driver");
+    }
+    onRolesChange(normalized);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px] bg-white">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl font-bold text-gray-900">
+            <Shield className="w-5 h-5 text-orange-600" />
+            Update User Roles
+          </DialogTitle>
+          <DialogDescription className="text-sm text-gray-500">
+            Assign additional roles to this user. The <span className="font-semibold text-orange-600">driver</span> role is fixed and cannot be removed.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-6">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-900">Roles</Label>
+            <MultiSelect
+              options={roles.map(r => ({ label: r.name, value: r.slug }))}
+              selected={selectedRoles}
+              onChange={handleChange}
+              placeholder="Select roles"
+            />
+            <p className="text-[11px] text-gray-500 mt-2">
+              Selecting roles like <span className="font-medium">superadmin</span> or <span className="font-medium">manager</span> will grant additional permissions.
+            </p>
+          </div>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isUpdating}
+            className="h-11"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onUpdate}
+            disabled={isUpdating}
+            className="bg-orange-600 hover:bg-orange-700 h-11 min-w-[120px]"
+          >
+            {isUpdating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Update Roles
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+});
+UpdateRoleModal.displayName = "UpdateRoleModal";
 
 const DriverActionMenu = React.memo(({
   driver,
@@ -444,6 +543,7 @@ const DriverActionMenu = React.memo(({
   onDisapprove,
   onResendActivation,
   onDelete,
+  onUpdateRole,
 }: DriverActionMenuProps) => {
   const isApproved = driver.profile_status?.toLowerCase() === "approved";
 
@@ -474,6 +574,11 @@ const DriverActionMenu = React.memo(({
         <DropdownMenuItem onClick={onViewProfile} className="gap-2">
           <Eye className="h-4 w-4" />
           View Profile
+        </DropdownMenuItem>
+
+        <DropdownMenuItem onClick={onUpdateRole} className="gap-2">
+          <UserCog className="h-4 w-4" />
+          Update Role
         </DropdownMenuItem>
 
 
@@ -545,6 +650,12 @@ export default function DriversPage() {
   const [isDisapproving, setIsDisapproving] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [unassignedDriversCount, setUnassignedDriversCount] = useState<number | null>(null);
+
+  const [isUpdateRoleModalOpen, setIsUpdateRoleModalOpen] = useState(false);
+  const [updatingRoleFormData, setUpdatingRoleFormData] = useState<string[]>([]);
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
 
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -748,10 +859,32 @@ export default function DriversPage() {
     }
   }, [sites.length, cookies, showToast]);
 
+  const fetchRoles = useCallback(async () => {
+    if (roles.length) return;
+    setRolesLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/roles/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      });
+      const data = await response.json();
+      if (data?.success) {
+        setRoles(data?.data || []);
+      }
+    } catch {
+      showToast("Failed to load roles", "error");
+    } finally {
+      setRolesLoading(false);
+    }
+  }, [roles.length, cookies, showToast]);
+
   useEffect(() => {
     fetchDrivers();
     fetchUnassignedDriversCount();
-  }, [fetchDrivers, fetchUnassignedDriversCount, activeTab]);
+    fetchRoles();
+  }, [fetchDrivers, fetchUnassignedDriversCount, fetchRoles, activeTab]);
 
   useEffect(() => {
     if (isAddModalOpen) {
@@ -796,6 +929,53 @@ export default function DriversPage() {
     else if (pwd !== pwdC) errs.password_confirm = "Passwords do not match";
 
     return errs;
+  };
+
+  const handleUpdateRoleClick = (driver: Driver) => {
+    setSelectedDriver(driver);
+    // Determine initial roles - normalize to lowercase slugs to avoid duplicates like ["Driver", "driver"]
+    const initialRoles = driver.user.roles || (driver.user.role ? [driver.user.role] : ["driver"]);
+    
+    // Convert all to lowercase and remove duplicates
+    const normalizedRoles = Array.from(new Set(initialRoles.map(r => String(r).toLowerCase())));
+    
+    // Ensure "driver" slug is present
+    if (!normalizedRoles.includes("driver")) {
+      normalizedRoles.push("driver");
+    }
+    
+    setUpdatingRoleFormData(normalizedRoles);
+    setIsUpdateRoleModalOpen(true);
+  };
+
+  const handleUpdateRoleSubmit = async () => {
+    if (!selectedDriver) return;
+    setIsUpdatingRole(true);
+    try {
+      const response = await fetch(`${API_URL}/users/${selectedDriver.user.id}/`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({
+          role: updatingRoleFormData,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        showToast("User roles updated successfully", "success");
+        setIsUpdateRoleModalOpen(false);
+        fetchDrivers(); // Refresh list
+      } else {
+        showToast(data.message || "Failed to update roles", "error");
+      }
+    } catch (error) {
+      showToast("An error occurred while updating roles", "error");
+    } finally {
+      setIsUpdatingRole(false);
+    }
   };
 
   const handleAddUserSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -1175,20 +1355,21 @@ export default function DriversPage() {
                             </td>
                             <td className="px-4 py-4 sticky right-0 bg-white z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.05)]">
                               <div className="flex justify-end">
-                                <DriverActionMenu
-                                  driver={driver}
-                                  onViewProfile={() => window.open(`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`, "_blank")}
-                                  onApprove={() => handleApproveDriverClick(driver.id)}
-                                  onDisapprove={() => {
-                                    setSelectedDriver(driver);
-                                    setIsDisapproveDialogOpen(true);
-                                  }}
-                                  onResendActivation={() => handleResendActivation(driver.user.id)}
-                                  onDelete={() => {
-                                    setDriverToDelete(driver);
-                                    setIsDeleteDialogOpen(true);
-                                  }}
-                                />
+                                  <DriverActionMenu
+                                    driver={driver}
+                                    onViewProfile={() => window.open(`/dashboard/users/driver-profiles/${driver.id}?name=${encodeURIComponent(driver.user.full_name)}&user_id=${driver.user.id}`, "_blank")}
+                                    onApprove={() => handleApproveDriverClick(driver.id)}
+                                    onDisapprove={() => {
+                                      setSelectedDriver(driver);
+                                      setIsDisapproveDialogOpen(true);
+                                    }}
+                                    onResendActivation={() => handleResendActivation(driver.user.id)}
+                                    onDelete={() => {
+                                      setDriverToDelete(driver);
+                                      setIsDeleteDialogOpen(true);
+                                    }}
+                                    onUpdateRole={() => handleUpdateRoleClick(driver)}
+                                  />
                               </div>
                             </td>
                           </tr>
@@ -1261,6 +1442,16 @@ export default function DriversPage() {
         sitesLoading={sitesLoading}
         editLoading={editLoading}
         handleSubmit={handleAddUserSubmit}
+      />
+
+      <UpdateRoleModal
+        isOpen={isUpdateRoleModalOpen}
+        onOpenChange={setIsUpdateRoleModalOpen}
+        roles={roles}
+        selectedRoles={updatingRoleFormData}
+        onRolesChange={setUpdatingRoleFormData}
+        onUpdate={handleUpdateRoleSubmit}
+        isUpdating={isUpdatingRole}
       />
 
       {newDriverUserId && (
