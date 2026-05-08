@@ -70,7 +70,7 @@ const AssignSite = () => {
         setSites(data.data.sites)
         setActiveSiteId(data.data.active_site_id)
         // Set selected value to active site
-        setSelectedValue(data.data.active_site_id.toString())
+        setSelectedValue(data.data.active_site_id ? data.data.active_site_id.toString() : "all")
       } else {
         toast(data.message || "Failed to fetch sites",
          )
@@ -83,7 +83,7 @@ const AssignSite = () => {
     }
   }
 
-  const handleAssignSite = async (siteId: number) => {
+  const handleAssignSite = async (siteId: number | null) => {
     try {
       setAssigning(siteId)
 
@@ -100,7 +100,7 @@ const AssignSite = () => {
 
       if (data.success) {
         setActiveSiteId(siteId)
-        setSelectedValue(siteId.toString())
+        setSelectedValue(siteId === null ? "all" : siteId.toString())
         window.location.reload();
 
         toast(
@@ -140,14 +140,23 @@ const AssignSite = () => {
       value={selectedValue}
       onValueChange={(value) => {
         if (value !== selectedValue) {
-          handleAssignSite(Number(value))
+          handleAssignSite(value === "all" ? null : Number(value))
         }
       }}
       disabled={assigning !== null || sites.length <= 1}
     >
       <SelectTrigger className="h-9 px-2 text-sm">
         <SelectValue placeholder="Select site">
-          {selectedValue && (
+          {selectedValue === "all" ? (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-4 w-4">
+                <AvatarFallback>
+                  <Globe className="h-3 w-3" />
+                </AvatarFallback>
+              </Avatar>
+              <span className="truncate max-w-[140px]">All Sites</span>
+            </div>
+          ) : selectedValue && (
             <div className="flex items-center gap-2">
               <Avatar className="h-4 w-4">
                 <AvatarImage
@@ -166,6 +175,19 @@ const AssignSite = () => {
       </SelectTrigger>
 
       <SelectContent className="text-sm">
+        <SelectItem value="all" className="py-1.5">
+          <div className="flex items-center gap-2">
+            <Avatar className="h-4 w-4">
+              <AvatarFallback>
+                <Globe className="h-3 w-3" />
+              </AvatarFallback>
+            </Avatar>
+            <span className="truncate max-w-[160px]">All Sites</span>
+            {activeSiteId === null && (
+              <Check className="h-3.5 w-3.5 text-green-600 ml-auto" />
+            )}
+          </div>
+        </SelectItem>
         {sites.map((site) => (
           <SelectItem
             key={site.id}
