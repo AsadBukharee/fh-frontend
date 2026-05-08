@@ -409,7 +409,10 @@ const WalkaroundPage = () => {
 
           <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
           {error && <div className="text-red-500 self-center">{error}</div>}
-          <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+          <Dialog open={openAdd} onOpenChange={(open) => {
+            setOpenAdd(open);
+            if (!open) fetchWalkarounds();
+          }}>
             <Button onClick={() => setOpenAdd(true)} className=" bg-transparent hover:bg-transparent" asChild>
               <span><GradientButton text="Walkaround" Icon={Plus} /></span>
             </Button>
@@ -417,7 +420,7 @@ const WalkaroundPage = () => {
               <DialogHeader>
                 <DialogTitle>Create New Walkaround</DialogTitle>
               </DialogHeader>
-              <Addwalkaround setOpen={setOpenAdd} />
+              <Addwalkaround setOpen={setOpenAdd} refreshWalkarounds={fetchWalkarounds} />
             </DialogContent>
           </Dialog>
         </div>
@@ -543,7 +546,10 @@ const WalkaroundPage = () => {
       <Dialog
         open={openPlusChainId !== null}
         onOpenChange={(open) => {
-          if (!open) setOpenPlusChainId(null);
+          if (!open) {
+            setOpenPlusChainId(null);
+            fetchWalkarounds();
+          }
         }}
       >
         <DialogContent className="sm:max-w-[600px] max-h-[500px] overflow-y-auto">

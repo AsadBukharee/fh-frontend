@@ -251,7 +251,7 @@ export default function WalkaroundSummary({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-
+ 
     <AddMechanicJobDialog
       isOpen={showMechanicJobDialog}
       onOpenChange={setShowMechanicJobDialog}

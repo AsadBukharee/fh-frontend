@@ -79,6 +79,7 @@ interface FormData {
 
 interface WalkAround {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
+  refreshWalkarounds?: () => void
 }
 
 // Updated WalkaroundQuestion Component to accept props
@@ -102,7 +103,7 @@ const WalkaroundQuestion: React.FC<{
   )
 }
 
-const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
+const Addwalkaround: React.FC<WalkAround> = ({ setOpen, refreshWalkarounds }) => {
   const [formData, setFormData] = useState<FormData>({
     walkaround_step: 'one',
     driver: '',
@@ -318,6 +319,7 @@ const Addwalkaround: React.FC<WalkAround> = ({ setOpen }) => {
       status: 'completed',
     })
     setShowQuestion(false)
+    if (refreshWalkarounds) refreshWalkarounds()
     router.refresh()
     setLoading(false)
     setOpen(false)
