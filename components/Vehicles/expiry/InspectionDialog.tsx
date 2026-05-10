@@ -116,7 +116,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
       return;
     }
     if (!newInspectionDate) {
-      toast({ title: "Error", description: "Please set a new inspection date", variant: "destructive" });
+      toast({ title: "Error", description: "Please set Last PMI date", variant: "destructive" });
       return;
     }
     setState((prev) => ({ ...prev, step: "brakeTest" }));
@@ -246,8 +246,8 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
   };
 
   const stepDescriptions: Record<StepType, string> = {
-    initial: "Please update the New PMI Date.",
-    upload: "System asks user to upload new PMI certificate.",
+    initial: "Please update the Last PMI Date.",
+    upload: "System asks user to upload Last PMI certificate.",
     brakeTest: "Did the vehicle pass the brake test?",
     fhPMI: "The FH PMI Analysis will now be opened for you to fill out and complete.",
     fhPMIOpen: "Please fill out the FH PMI Analysis form and click submit when complete.",

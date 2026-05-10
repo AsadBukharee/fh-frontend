@@ -23,24 +23,12 @@ const InitialStep: React.FC<InitialStepProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const today = new Date().toISOString().split("T")[0]; // For min date constraint
-  const cookies=useCookies()
+  const cookies = useCookies()
 
   const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value;
     setLocalDate(newDate);
     setError(null);
-
-    // Validation: Must be today or future
-    if (newDate < today) {
-      setError("Inspection date must be today or in the future.");
-      toast({
-        title: "Error",
-        description: "Inspection date must be today or in the future.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     // Update parent state
     setNewInspectionDate(newDate);
@@ -88,14 +76,13 @@ const InitialStep: React.FC<InitialStepProps> = ({
   return (
     <div>
       <Label htmlFor="inspectionDate" className="text-sm font-medium">
-        New Inspection Expiration Date
+        Last PMI Expiration Date
       </Label>
       <Input
         id="inspectionDate"
         type="date"
         value={localDate}
         onChange={handleDateChange}
-        min={today} // Prevents past dates
         className="mt-1"
         required
         disabled={isLoading}

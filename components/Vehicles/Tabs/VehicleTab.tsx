@@ -415,6 +415,32 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
     }
   }
 
+  const handleUpdateStatus = async (vehicleId: number, newStatus: string) => {
+    setUpdatingStatus(true)
+    try {
+      const response = await fetch(`${API_URL}/api/vehicles/${vehicleId}/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({ vehicle_status: newStatus }),
+      })
+
+      if (response.ok) {
+        showToast("Vehicle status updated successfully", "success")
+        fetchVehicles()
+      } else {
+        const errorData = await response.json()
+        showToast(errorData.message || "Failed to update status", "error")
+      }
+    } catch (error) {
+      showToast("An error occurred while updating status", "error")
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
+
   const handleDeleteVehicle = async () => {
     if (!vehicleToDelete) return;
     setIsDeleting(true);
@@ -607,7 +633,27 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
                           <td className="px-6 py-4 text-gray-700">
                             {vehicle.vehicle_type_name || vehicle.vehicle_type.name}
                           </td>
-                          <td className="px-6 py-4">{getStatusBadge(vehicle.vehicle_status)}</td>
+                          <td className="px-6 py-4">
+                            <Select
+                              value={vehicle.vehicle_status}
+                              onValueChange={(value) => handleUpdateStatus(vehicle.id, value)}
+                              disabled={updatingStatus || vehicle.vehicle_status === "assigned"}
+                            >
+                              <SelectTrigger className="h-8 w-fit bg-transparent border-none p-0 focus:ring-0 shadow-none hover:bg-transparent">
+                                <SelectValue>
+                                  {getStatusBadge(vehicle.vehicle_status)}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="available">Available</SelectItem>
+                                <SelectItem value="unavailable">Unavailable</SelectItem>
+                                <SelectItem value="disabled">Disabled</SelectItem>
+                                {vehicle.vehicle_status === "assigned" && (
+                                  <SelectItem value="assigned" disabled>Assigned</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </td>
                           <td className="px-6 py-4">{getRoadworthyBadge(vehicle)}</td>
                           <td className="px-6 py-4 text-gray-700">
                             {formatMileage(vehicle.current_mileage)} KMS
@@ -641,17 +687,7 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
                                     </Link>
                                   </DropdownMenuItem>
 
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      handleExpandedChange(`vehicle-row-${vehicle.id}`)
-                                      // If there's an edit function, call it here. 
-                                      // For now, let's just make sure it anchors.
-                                    }}
-                                    className="flex items-center gap-2 w-full cursor-pointer"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                    Edit (Anchor)
-                                  </DropdownMenuItem>
+
 
 
 
