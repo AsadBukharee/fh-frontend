@@ -115,6 +115,7 @@ export default function TransportDashboard() {
   const [apiData, setApiData] = useState<TransportData>(transportData)
   const [refreshCounter, setRefreshCounter] = useState<number>(30)
   const [currentRunType, setCurrentRunType] = useState<string | null>(null)
+  const [activeSiteName, setActiveSiteName] = useState<string | null>(null)
   const isInitialLoad = useRef(true)
   const token = useCookies().get("access_token")
 
@@ -180,10 +181,31 @@ export default function TransportDashboard() {
     }
   }
 
+  const fetchSiteInfo = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/sites/get-user-sites/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const result = await response.json()
+      if (result.success) {
+        const activeSite = result.data.sites.find((s: any) => s.id === result.data.active_site_id)
+        if (activeSite) {
+          setActiveSiteName(activeSite.name)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching site info:", error)
+    }
+  }
+
   // Fetch data on component mount
   useEffect(() => {
     if (token) {
       fetchData()
+      fetchSiteInfo()
     }
   }, [token])
 
@@ -210,6 +232,21 @@ export default function TransportDashboard() {
 
   const currentData = apiData[activeTab]
 
+  // Filter tabs to hide shuttle3 for Crowborough
+  const filteredTabs = tabs.filter(tab => {
+    if (activeSiteName?.toLowerCase() === "crowborough" && tab.id === "shuttle3") {
+      return false
+    }
+    return true
+  })
+
+  // Ensure activeTab is valid if it was shuttle3 and we switched to Crowborough
+  useEffect(() => {
+    if (activeSiteName?.toLowerCase() === "crowborough" && activeTab === "shuttle3") {
+      handleTabChange("early")
+    }
+  }, [activeSiteName, activeTab, handleTabChange])
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -231,7 +268,7 @@ export default function TransportDashboard() {
         {/* Navigation Tabs and Refresh Button */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex gap-2">
-            {tabs.map((tab) => {
+            {filteredTabs.map((tab) => {
               const isActive = activeTab === tab.id
               return (
                 <Badge

@@ -46,7 +46,7 @@ export default function Vehciles() {
   }, [cookies])
 
   return (
-    <div className="p-6 space-y-4 bg-white">
+    <div className="p-6 space-y-4 bg-white min-h-full">
     
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
