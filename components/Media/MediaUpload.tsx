@@ -28,6 +28,9 @@ interface Props {
   accept?: string;
   maxSize?: number;       // in bytes
   id?: string;
+  trigger?: React.ReactNode;
+  hideDefaultUI?: boolean;
+  className?: string;
 }
 
 export default function FileUploader({
@@ -35,6 +38,9 @@ export default function FileUploader({
   accept = "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx",
   maxSize = 5 * 1024 * 1024, // 5MB default
   id = "file-upload",
+  trigger,
+  hideDefaultUI = false,
+  className,
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -135,118 +141,126 @@ export default function FileUploader({
   const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(1);
 
   return (
-    <div className="w-full max-w-md space-y-4">
-      {/* Drop Zone */}
-      <div
-        className={`
-          border-2 border-dashed rounded-xl p-8 text-center
-          transition-all duration-200 cursor-pointer
-          ${dragActive
-            ? "border-blue-500 bg-blue-50/60 scale-[1.01]"
-            : "border-gray-300 hover:border-blue-400 bg-gray-50/70 hover:bg-blue-50/30"
-          }
-          ${uploading || !token ? "opacity-60 cursor-not-allowed" : ""}
-        `}
-        onClick={openFilePicker}
-        onDragEnter={handleDrag}
-        onDragOver={handleDrag}
-        onDragLeave={handleDrag}
-        onDrop={handleDrop}
-      >
-        <input
-          id={id}
-          type="file"
-          accept={accept}
-          onChange={handleFileChange}
-          className="hidden"
-          disabled={uploading || !token}
-        />
+    <div className={className || "w-full"}>
+      <input
+        id={id}
+        type="file"
+        accept={accept}
+        onChange={handleFileChange}
+        className="hidden"
+        disabled={uploading || !token}
+      />
 
-        <div className="flex flex-col items-center gap-3">
-          {uploading ? (
-            <div className="text-gray-600 font-medium">Uploading...</div>
-          ) : dragActive ? (
-            <div className="text-blue-600 font-semibold text-lg">
-              Drop file here
+      {trigger ? (
+        <div onClick={openFilePicker} className="cursor-pointer">
+          {trigger}
+        </div>
+      ) : !hideDefaultUI ? (
+        <div className="w-full max-w-md space-y-4">
+          {/* Drop Zone */}
+          <div
+            className={`
+              border-2 border-dashed rounded-xl p-8 text-center
+              transition-all duration-200 cursor-pointer
+              ${dragActive
+                ? "border-blue-500 bg-blue-50/60 scale-[1.01]"
+                : "border-gray-300 hover:border-blue-400 bg-gray-50/70 hover:bg-blue-50/30"
+              }
+              ${uploading || !token ? "opacity-60 cursor-not-allowed" : ""}
+            `}
+            onClick={openFilePicker}
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+          >
+            <div className="flex flex-col items-center gap-3">
+              {uploading ? (
+                <div className="text-gray-600 font-medium">Uploading...</div>
+              ) : dragActive ? (
+                <div className="text-blue-600 font-semibold text-lg">
+                  Drop file here
+                </div>
+              ) : uploadSuccess && selectedFile ? (
+                <>
+                  <CheckCircle className="h-12 w-12 text-green-500" />
+                  <div className="text-sm font-medium text-gray-800 break-all px-4">
+                    {selectedFile.name}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-10 w-10 text-gray-400" />
+                  <div className="space-y-1.5">
+                    <p className="text-base font-medium text-gray-700">
+                      Click or drag & drop your file
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {accept.includes("image") ? "Images, " : ""}
+                      PDF, Word, Excel, PowerPoint • max {maxSizeMB} MB
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
-          ) : uploadSuccess && selectedFile ? (
-            <>
-              <CheckCircle className="h-12 w-12 text-green-500" />
-              <div className="text-sm font-medium text-gray-800 break-all px-4">
-                {selectedFile.name}
-              </div>
-            </>
-          ) : (
-            <>
-              <Upload className="h-10 w-10 text-gray-400" />
-              <div className="space-y-1.5">
-                <p className="text-base font-medium text-gray-700">
-                  Click or drag & drop your file
-                </p>
-                <p className="text-xs text-gray-500">
-                  {accept.includes("image") ? "Images, " : ""}
-                  PDF, Word, Excel, PowerPoint • max {maxSizeMB} MB
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Error message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {/* Success + Preview button */}
-      {uploadSuccess && uploadedUrl && (
-        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <span className="text-sm font-medium text-green-800">File uploaded</span>
           </div>
 
-          <Dialog>
-            <DialogTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
-              >
-                <Eye className="h-4 w-4" />
-                <span>Preview</span>
-              </button>
-            </DialogTrigger>
+          {/* Error message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
-            <DialogContent className="max-w-5xl h-[90vh] p-6">
-              <DialogHeader>
-                <DialogTitle>File Preview</DialogTitle>
-              </DialogHeader>
-
-              <div className="flex-1 flex flex-col items-center justify-center py-8 gap-6">
-                {isImage ? (
-                  <img
-                    src={uploadedUrl}
-                    alt="Preview"
-                    className="max-w-full max-h-[70vh] rounded-lg border shadow-md object-contain"
-                  />
-                ) : (
-                  <iframe
-                    src={googleViewerUrl}
-                    className="w-full h-[75vh] rounded-lg border shadow-sm"
-                    title="Document preview"
-                  />
-                )}
-
-                <div className="text-sm text-gray-600 text-center break-all max-w-2xl">
-                  {uploadedUrl}
-                </div>
+          {/* Success + Preview button */}
+          {uploadSuccess && uploadedUrl && (
+            <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium text-green-800">File uploaded</span>
               </div>
-            </DialogContent>
-          </Dialog>
+
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span>Preview</span>
+                  </button>
+                </DialogTrigger>
+
+                <DialogContent className="max-w-5xl h-[90vh] p-6">
+                  <DialogHeader>
+                    <DialogTitle>File Preview</DialogTitle>
+                  </DialogHeader>
+
+                  <div className="flex-1 flex flex-col items-center justify-center py-8 gap-6">
+                    {isImage ? (
+                      <img
+                        src={uploadedUrl}
+                        alt="Preview"
+                        className="max-w-full max-h-[70vh] rounded-lg border shadow-md object-contain"
+                      />
+                    ) : (
+                      <iframe
+                        src={googleViewerUrl}
+                        className="w-full h-[75vh] rounded-lg border shadow-sm"
+                        title="Document preview"
+                      />
+                    )}
+
+                    <div className="text-sm text-gray-600 text-center break-all max-w-2xl">
+                      {uploadedUrl}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
