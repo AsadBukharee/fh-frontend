@@ -30,6 +30,8 @@ import InterimUploadStep from "./PmiExpiry/InterimUploadStep";
 import ReminderStep from "./PmiExpiry/ReminderStep";
 import ReminderConfirmationStep from "./PmiExpiry/ReminderConfirmationStep";
 import BrakeUploadStep from "./PmiExpiry/BrakeUploadStep";
+import API_URL from "@/app/utils/ENV";
+import { useCookies } from "next-client-cookies";
 
 const InspectionDialog: React.FC<PMIDialogProps> = ({
   open,
@@ -40,6 +42,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
   username,
   onUpdateSuccess,
 }) => {
+  const cookies = useCookies();
   const [reminderDateTime, setReminderDateTime] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [state, setState] = useState<State>({
@@ -97,6 +100,44 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
   const handleClose = () => {
     resetState();
     onClose();
+  };
+
+  const handleInitialSubmit = async () => {
+    if (!newInspectionDate) {
+      toast({ title: "Error", description: "Please select Last PMI expiration date", variant: "destructive" });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/vehicles/${vehicleId}/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify({ inspection_expire: newInspectionDate }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update inspection date: ${response.statusText}`);
+      }
+
+      toast({
+        title: "Success",
+        description: "Inspection date updated successfully",
+      });
+      setState((prev) => ({ ...prev, step: "upload" }));
+    } catch (error) {
+      console.error("Error updating inspection date:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update inspection date. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUploadSuccess = (url: string, type: "certificate" | "interim" | "brake") => {
@@ -247,7 +288,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
 
   const stepDescriptions: Record<StepType, string> = {
     initial: "Please update the Last PMI Date.",
-    upload: "System asks user to upload Last PMI certificate.",
+    upload: "Upload Last PMI certificate.",
     brakeTest: "Did the vehicle pass the brake test?",
     fhPMI: "The FH PMI Analysis will now be opened for you to fill out and complete.",
     fhPMIOpen: "Please fill out the FH PMI Analysis form and click submit when complete.",
@@ -413,6 +454,11 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
+            {step === "initial" && (
+              <Button onClick={handleInitialSubmit} disabled={isLoading}>
+                {isLoading ? "Updating..." : "Next"}
+              </Button>
+            )}
             {step === "upload" && (
               <Button onClick={handleCertificateUpload} disabled={isLoading || !documentUrl}>
                 {isLoading ? "Processing..." : "Submit Certificate"}

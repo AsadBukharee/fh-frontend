@@ -163,6 +163,7 @@ interface Task {
 
 interface ApiResponse {
   total_count: number;
+  system_tasks_count: number;
   page: number;
   per_page: number;
   total_pages: number;
@@ -194,7 +195,8 @@ const Page = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [taskSource, setTaskSource] = useState<"users" | "system">("users");
-  const [assignedCount, setAssignedCount] = useState<number | null>(null);
+  const [systemTasksCount, setSystemTasksCount] = useState<number | null>(null);
+  const [perPage, setPerPage] = useState(10);
   const router = useRouter()
 
   // Filters
@@ -278,7 +280,7 @@ const Page = () => {
 
       // ---- Pagination & Search ----
       params.set("page", currentPage.toString());
-      params.set("per_page", "10");
+      params.set("per_page", perPage.toString());
 
       if (debouncedSearchTerm.trim()) {
         params.set("search", debouncedSearchTerm);
@@ -349,7 +351,8 @@ const Page = () => {
         );
       }
 
-      const res = await fetch(`${API_HOST}/api/tasks/?${params.toString()}`, {
+      const endpoint = taskSource === "system" ? "/api/tasks/system-tasks/" : "/api/tasks/";
+      const res = await fetch(`${API_HOST}${endpoint}?${params.toString()}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -362,6 +365,7 @@ const Page = () => {
 
       setTasks(data.results);
       setTotalTasks(data.total_count);
+      setSystemTasksCount(data.system_tasks_count);
       setTotalPages(data.total_pages);
       setNextPage(data.next);
       setPrevPage(data.previous);
@@ -396,6 +400,7 @@ const Page = () => {
     dateAssignedRange,
     deadlineRange,
     taskSource,
+    perPage,
   ]);
 
   // ------------------- HANDLERS -------------------
@@ -527,7 +532,7 @@ const Page = () => {
   };
 
   // Count system tasks from current page for badge
-  const unassignedCount = tasks.filter((task) => Boolean(task.is_system_generated)).length;
+  const unassignedCount = systemTasksCount;
 
   // ------------------- RENDER -------------------
   return (
@@ -804,13 +809,7 @@ const Page = () => {
           </TableHeader>
 
           <TableBody>
-            {tasks
-              .filter((task) =>
-                taskSource === "system"
-                  ? Boolean(task.is_system_generated)
-                  : !task.is_system_generated
-              )
-              .map((task) => (
+            {tasks.map((task) => (
               <TableRow key={task.id}>
                 <TableCell className="font-medium"><Link href={`/dashboard/tasks/task-management/${task.id}`}>{task.title}</Link></TableCell>
                 <TableCell className="max-w-xs truncate">
@@ -889,11 +888,7 @@ const Page = () => {
                 </TableCell>
               </TableRow>
             ))}
-            {tasks.filter((task) =>
-              taskSource === "system"
-                ? Boolean(task.is_system_generated)
-                : !task.is_system_generated
-            ).length === 0 && (
+            {tasks.length === 0 && (
               <TableRow>
                 <TableCell colSpan={13} className="py-6 text-center text-muted-foreground">
                   No {taskSource === "system" ? "system" : "user"} tasks found.
@@ -909,6 +904,26 @@ const Page = () => {
         <Button onClick={handlePrev} disabled={!prevPage}>
           Previous
         </Button>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Rows per page:</span>
+          <Select
+            value={perPage.toString()}
+            onValueChange={(v) => {
+              setPerPage(Number(v));
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[70px] h-8">
+              <SelectValue placeholder={perPage.toString()} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         <span>
           Page {currentPage} of {totalPages}

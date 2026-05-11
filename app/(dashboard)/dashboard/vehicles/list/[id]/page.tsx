@@ -136,6 +136,31 @@ export default function VehicleDetailPage() {
   const [vehicleDocuments, setVehicleDocuments] = useState<any[]>([]);
   const [documentsMap, setDocumentsMap] = useState<Map<string, any>>(new Map());
   const [warningsDialogOpen, setWarningsDialogOpen] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<any>(null);
+  const [editingDocData, setEditingDocData] = useState({
+    expiryDate: "",
+    isApplicable: true,
+    url: ""
+  });
+  const [initialDocData, setInitialDocData] = useState({
+    expiryDate: "",
+    url: ""
+  });
+
+  const openDocDetail = (docConfig: any) => {
+    const apiDoc = documentsMap.get(docConfig.docCode);
+    const initialData = {
+      expiryDate: apiDoc?.expiry_date?.split('T')[0] || "",
+      isApplicable: true,
+      url: apiDoc?.url || vehicle[docConfig.key] || ""
+    };
+    setEditingDocument(docConfig);
+    setEditingDocData(initialData);
+    setInitialDocData({
+      expiryDate: initialData.expiryDate,
+      url: initialData.url
+    });
+  };
 
   /* ── warning helpers ── */
   const warningCount = vehicle?.warnings?.length || 0;
@@ -501,6 +526,74 @@ export default function VehicleDetailPage() {
     } catch (err) {
       console.error("Error updating document:", err);
       toast.error("Failed to upload document");
+    }
+  };
+
+  const handleDeleteDocument = async (docId: number | string, docType: string, isLegacy: boolean = false) => {
+    if (!token) return;
+
+    const confirmDelete = window.confirm(`Are you sure you want to delete this ${docType}?`);
+    if (!confirmDelete) return;
+
+    const toastId = toast.loading("Deleting document...");
+
+    try {
+      let res;
+      if (isLegacy) {
+        res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ [docId]: null }),
+        });
+      } else {
+        res = await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+
+      if (res.ok) {
+        // Refresh vehicle data
+        const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const vehicleData = await vehicleRes.json();
+        if (vehicleData.success) {
+          const vehicleDataWithType = {
+            ...vehicleData.data,
+            vehicle_type: vehicleData.data.vehicle_type,
+            vehicles_type: vehicleData.data.vehicle_type,
+          };
+          setVehicle(vehicleDataWithType);
+          setEditVehicle(vehicleDataWithType);
+
+          if (Array.isArray(vehicleData.data.documents)) {
+            setVehicleDocuments(vehicleData.data.documents);
+            const docMap = new Map();
+            vehicleData.data.documents.forEach((doc: any) => {
+              if (doc.document_type?.code) {
+                docMap.set(doc.document_type.code, doc);
+              }
+            });
+            setDocumentsMap(docMap);
+          }
+        }
+        toast.success("Document deleted successfully", { id: toastId });
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to delete document");
+      }
+    } catch (err: any) {
+      console.error("Error deleting document:", err);
+      toast.error(err.message || "Failed to delete document", { id: toastId });
     }
   };
 
@@ -1229,61 +1322,157 @@ export default function VehicleDetailPage() {
 
           {/* Documents Tab */}
           <TabsContent value="documents" className="space-y-6 mt-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-purple-600" />
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
+                    <FileText className="w-6 h-6 text-slate-700" />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900">Additional Documents</h3>
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    Additional Documents – <span className="text-[#F15C5C] font-semibold">{vehicle.registration_number} - {vehicle.make} {vehicle.model}</span>
+                  </h3>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+                  className="text-xs border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl h-10 px-4"
                   onClick={() => router.push(`/dashboard/vehicles/list/${id}/document-history`)}
                 >
-                  <History className="w-3.5 h-3.5 mr-1.5" />
+                  <History className="w-4 h-4 mr-2" />
                   View Document History
                 </Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {additionalDocuments.filter(doc => doc.key !== 'vehicle_invoice_docs' || role === 'superadmin').map((doc) => {
                   const Icon = doc.icon;
                   const apiDoc = documentsMap.get(doc.docCode);
                   const docUrl = apiDoc ? apiDoc.url : (vehicle[doc.key as keyof typeof vehicle] as string);
                   const hasDoc = hasDocument(docUrl, doc.docCode);
+                  const expiryDate = apiDoc?.expiry_date;
+
                   return (
-                    <div key={doc.key} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                            <Icon className="w-5 h-5 text-slate-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold">{doc.label}</p>
-                            <p className="text-xs text-slate-600">{hasDoc ? "Uploaded" : "Not uploaded"}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {hasDoc ? (
-                            <>
-                              <Button variant="ghost" size="sm" onClick={() => setPreviewDoc(apiDoc?.url || docUrl)}>
-                                <Eye className="w-4 h-4" />
+                    <div
+                      key={doc.key}
+                      onClick={() => openDocDetail(doc)}
+                      className="cursor-pointer bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-full group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300"
+                    >
+                      {/* Top Area: Image/Upload */}
+                      <div className="relative h-56 mb-6 rounded-3xl overflow-hidden bg-[#F9FAFB] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group/upload">
+                        {hasDoc ? (
+                          <>
+                            {docUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                              <img src={docUrl} className="w-full h-full object-cover" alt={doc.label} />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center text-slate-400">
+                                <FileText className="w-16 h-16 mb-2 text-slate-300" />
+                                <p className="text-xs font-medium">PDF Document</p>
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/upload:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="rounded-full w-10 h-10 p-0 bg-white hover:bg-slate-50"
+                                onClick={(e) => { e.stopPropagation(); setPreviewDoc(docUrl); }}
+                              >
+                                <Eye className="w-5 h-5 text-slate-600" />
                               </Button>
-                              <Button variant="ghost" size="sm" onClick={() => window.open(apiDoc?.url || docUrl, "_blank")}>
-                                <Download className="w-4 h-4" />
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="rounded-full w-10 h-10 p-0 bg-white hover:bg-slate-50"
+                                onClick={(e) => { e.stopPropagation(); window.open(docUrl, "_blank"); }}
+                              >
+                                <Download className="w-5 h-5 text-slate-600" />
                               </Button>
-                            </>
-                          ) : (
-                            <FileUploader
-                              onUploadSuccess={(url) => handleDocumentUpload(doc.key, url)}
-                              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                              maxSize={10 * 1024 * 1024}
-                              id={`upload-${doc.key}`}
-                            />
-                          )}
+                            </div>
+                            {/* Delete Button */}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-4 right-4 rounded-full w-10 h-10 p-0 bg-[#F15C5C] hover:bg-red-600 border-none shadow-lg z-10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (apiDoc) {
+                                  handleDeleteDocument(apiDoc.id, doc.label);
+                                } else {
+                                  handleDeleteDocument(doc.key, doc.label, true);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-5 h-5 text-white" />
+                            </Button>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center p-6 text-center">
+                            <div className="w-16 h-16 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-4">
+                              <Upload className="w-8 h-8 text-[#F26633]" />
+                            </div>
+                            <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop Filer Here</p>
+                            <p className="text-[10px] text-slate-400">PDF, Word, Excel, PowerPoint - max 10.0MB</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content Area */}
+                      <div className="flex-1 px-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="font-bold text-slate-900 text-xl">{doc.label}</p>
                         </div>
+
+                        {!hasDoc && (
+                          <Badge className="bg-slate-100 text-slate-400 hover:bg-slate-100 border-none text-[10px] font-medium px-3 py-1 rounded-full mb-4">
+                            Not uploaded
+                          </Badge>
+                        )}
+
+                        {hasDoc && (
+                          <div className="mt-4 p-4 bg-[#F8F9FA] rounded-2xl flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                <Calendar className="w-4 h-4 text-orange-400" />
+                              </div>
+                              <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">Expiry Date</p>
+                            </div>
+                            <p className="text-sm font-bold text-[#F26633]">
+                              {expiryDate ? formatDate(expiryDate) : "DD/MM/YYYY"}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer Actions */}
+                      <div className="mt-6 flex gap-3">
+                        {!hasDoc ? (
+                          <>
+                            <div className="flex-1" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                onClick={() => openDocDetail(doc)}
+                                className="w-full bg-[#F26633] hover:bg-orange-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2"
+                              >
+                                Upload <Upload className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <Button
+                              variant="outline"
+                              className="flex-1 bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2"
+                              onClick={(e) => { e.stopPropagation(); openDocDetail(doc); }}
+                            >
+                              Later <Clock className="w-4 h-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="outline"
+                              className="w-full bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2"
+                              onClick={() => openDocDetail(doc)}
+                            >
+                              Update <Edit className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1753,6 +1942,151 @@ export default function VehicleDetailPage() {
                 Save
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Document Detail Dialog */}
+        <Dialog open={!!editingDocument} onOpenChange={() => setEditingDocument(null)}>
+          <DialogContent className="max-w-4xl p-0 overflow-hidden border-none rounded-[2.5rem] shadow-2xl bg-white">
+            <div className="p-10">
+              <DialogHeader className="mb-8">
+                <DialogTitle className="text-4xl font-bold text-slate-900">
+                  {editingDocument?.label}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr] gap-12">
+                {/* Left Side: Document Preview Card */}
+                <div className="space-y-6">
+                  <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                    <div className="relative h-64 mb-6 rounded-3xl overflow-hidden bg-[#F9FAFB] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center">
+                      {editingDocData.url ? (
+                        <>
+                          {editingDocData.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                            <img src={editingDocData.url} className="w-full h-full object-cover" alt="Document preview" />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-400">
+                              <FileText className="w-16 h-16 mb-2 text-slate-300" />
+                              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">PDF Document</p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-6 text-center">
+                          <div className="w-16 h-16 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-4">
+                            <Upload className="w-8 h-8 text-[#F26633]" />
+                          </div>
+                          <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop Filer Here</p>
+                          <p className="text-[10px] text-slate-400">PDF, Word, Excel, PowerPoint - max 10.0MB</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-4">
+                      <FileUploader
+                        onUploadSuccess={(url) => setEditingDocData(prev => ({ ...prev, url }))}
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        maxSize={10 * 1024 * 1024}
+                        id="detail-upload"
+                        className="flex-1"
+                        trigger={
+                          <Button className="w-full bg-[#F26633] hover:bg-orange-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2">
+                            <Upload className="w-4 h-4" /> Upload
+                          </Button>
+                        }
+                      />
+                      <Button variant="outline" className="flex-1 bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2">
+                        <Clock className="w-4 h-4" /> Later
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side: Form Fields */}
+                <div className="space-y-8">
+                  <div className="space-y-3">
+                    <Label className="text-base font-bold text-slate-900">Expiry Date</Label>
+                    <div className="relative">
+                      <Input
+                        type="date"
+                        className="h-14 rounded-2xl border-slate-200 bg-white px-5 text-slate-900 font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                        value={editingDocData.expiryDate}
+                        onChange={(e) => setEditingDocData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div className="mt-16 flex justify-end gap-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingDocument(null)}
+                  className="h-14 px-10 rounded-2xl bg-[#E9E9E9] hover:bg-slate-200 border-none text-slate-600 font-bold text-lg transition-all"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    const dateChanged = editingDocData.expiryDate !== initialDocData.expiryDate;
+                    const docChanged = editingDocData.url !== initialDocData.url;
+
+                    if (dateChanged && !docChanged) {
+                      toast.error("Please upload a new document to support the expiry date change.");
+                      return;
+                    }
+                    if (docChanged && !dateChanged) {
+                      toast.error("Please update the expiry date for the newly uploaded document.");
+                      return;
+                    }
+
+                    const toastId = toast.loading("Saving document changes...");
+                    try {
+                      // Save document (Update or Create)
+                      const documentTypeId = editingDocument.document_type;
+                      const apiDoc = documentsMap.get(editingDocument.docCode);
+
+                      const payload = {
+                        vehicle_id: vehicleId,
+                        documents: [
+                          {
+                            document_type: documentTypeId,
+                            title: editingDocument.label,
+                            url: editingDocData.url,
+                            expiry_date: editingDocData.expiryDate || null,
+                            ...(apiDoc && { document_id: apiDoc.id })
+                          }
+                        ]
+                      };
+
+                      const res = await fetch(`${API_URL}/api/documents/documents/vehicle-bulk/`, {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify(payload),
+                      });
+
+                      if (res.ok) {
+                        toast.success("Document updated successfully", { id: toastId });
+                        setEditingDocument(null);
+                        // Refresh vehicle data (already handled by common pattern)
+                        window.location.reload();
+                      } else {
+                        throw new Error("Failed to save changes");
+                      }
+                    } catch (err) {
+                      toast.error("Failed to save changes", { id: toastId });
+                    }
+                  }}
+                  className="h-14 px-14 rounded-2xl bg-[#FDECEC] hover:bg-[#FBDBDB] border-none text-[#F15C5C] font-bold text-lg shadow-sm transition-all"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
 
