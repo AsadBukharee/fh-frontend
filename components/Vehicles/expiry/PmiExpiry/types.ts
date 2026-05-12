@@ -13,15 +13,16 @@ export type StepType =
   | "driverErrors"
   | "driverTraining"
   | "interimUpload"
-  | "reminder"
-  | "brakeReminder"
-  | "reminderConfirmation"
+  | "taskStep"
+  | "brakeTaskStep"
+  | "taskConfirmation"
   | "brakeUpload";
 
 export interface State {
   currentInspectionDate: string; // Existing inspection date
   newInspectionDate: string; // New date for API payload
   step: StepType;
+  stepHistory: StepType[];
   documentUrl: string | null;
   isLoading: boolean;
   brakeTestPassed: boolean | null;
@@ -33,6 +34,7 @@ export interface State {
   selectedDrivers: string[];
   reminderDateTime: string;
   interimCertificate: string | null;
+  hasChanges: boolean;
 }
 
 export interface PMIDialogProps {

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import {
@@ -87,6 +87,8 @@ const DOCUMENT_TYPE_MAPPING = {
   insurance_docs: 13,
   tax_docs: 12,
   pmi_inspection_docs: 10,
+  pmi_certificate: 16,
+  interiam_pmi_certificate: 17,
   loller_docs: null, // Add appropriate ID if exists
   tacho_calibration_docs: null, // Add appropriate ID if exists
   vehicle_invoice_docs: 2,
@@ -179,80 +181,81 @@ export default function VehicleDetailPage() {
 
   const { expandedId, handleExpandedChange } = useAutoScroll(loading, "vehicle_docs", true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const vehicleData = await vehicleRes.json();
+  const fetchData = useCallback(async () => {
+    try {
+      const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const vehicleData = await vehicleRes.json();
 
-        const sitesRes = await fetch(`${API_URL}/api/sites/list-names/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const sitesData = await sitesRes.json();
+      const sitesRes = await fetch(`${API_URL}/api/sites/list-names/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const sitesData = await sitesRes.json();
 
-        const typesRes = await fetch(`${API_URL}/api/vehicle-types/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const typesData = await typesRes.json();
+      const typesRes = await fetch(`${API_URL}/api/vehicle-types/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const typesData = await typesRes.json();
 
-        if (vehicleData.success) {
-          const vehicleDataWithType = {
-            ...vehicleData.data,
-            vehicle_type: vehicleData.data.vehicle_type,
-            vehicles_type: vehicleData.data.vehicle_type,
-          };
+      if (vehicleData.success) {
+        const vehicleDataWithType = {
+          ...vehicleData.data,
+          vehicle_type: vehicleData.data.vehicle_type,
+          vehicles_type: vehicleData.data.vehicle_type,
+        };
 
-          setVehicle(vehicleDataWithType);
-          setEditVehicle(vehicleDataWithType);
+        setVehicle(vehicleDataWithType);
+        setEditVehicle(vehicleDataWithType);
 
-          if (vehicleDataWithType.site_allocated) {
-            const siteIds = vehicleDataWithType.site_allocated.map((site: any) => site.id);
-            setSelectedSites(siteIds);
-          }
-
-          if (Array.isArray(vehicleData.data.documents)) {
-            setVehicleDocuments(vehicleData.data.documents);
-
-            // Create a map for quick document lookup by document_type code
-            const docMap = new Map();
-            vehicleData.data.documents.forEach((doc: any) => {
-              if (doc.document_type?.code) {
-                docMap.set(doc.document_type.code, doc);
-              }
-            });
-            setDocumentsMap(docMap);
-          }
-        } else {
-          setError("Failed to fetch vehicle data");
+        if (vehicleDataWithType.site_allocated) {
+          const siteIds = vehicleDataWithType.site_allocated.map((site: any) => site.id);
+          setSelectedSites(siteIds);
         }
 
-        if (sitesData.success) {
-          setSites(sitesData.data || []);
-        }
+        if (Array.isArray(vehicleData.data.documents)) {
+          setVehicleDocuments(vehicleData.data.documents);
 
-        if (typesData.success) {
-          setVehicleTypes(typesData.data || []);
+          // Create a map for quick document lookup by document_type code
+          const docMap = new Map();
+          vehicleData.data.documents.forEach((doc: any) => {
+            if (doc.document_type?.code) {
+              docMap.set(doc.document_type.code, doc);
+            }
+          });
+          setDocumentsMap(docMap);
         }
-      } catch (err) {
-        setError("Error fetching data");
-        console.error("Error:", err);
-      } finally {
-        setLoading(false);
+      } else {
+        setError("Failed to fetch vehicle data");
       }
-    };
-    if (id && token) fetchData();
+
+      if (sitesData.success) {
+        setSites(sitesData.data || []);
+      }
+
+      if (typesData.success) {
+        setVehicleTypes(typesData.data || []);
+      }
+    } catch (err) {
+      setError("Error fetching data");
+      console.error("Error:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [id, token]);
+
+  useEffect(() => {
+    if (id && token) fetchData();
+  }, [fetchData, id, token]);
 
   const handleEditToggle = () => {
     if (isEditing) {
@@ -609,7 +612,7 @@ export default function VehicleDetailPage() {
         mot_expiry: "mot_check_docs",
         tax_expiry: "tax_docs",
         insurance_expiry: "insurance_docs",
-        last_pmi_date: "pmi_inspection_docs",
+        last_pmi_date: "pmi_certificate",
         loller_test_expiry_date: "loller_docs",
         tacho_calibration_expiry: "tacho_calibration_docs",
         next_loller_test_date: "loller_docs",
@@ -2098,7 +2101,7 @@ export default function VehicleDetailPage() {
           vehicleId={vehicleId}
           vehicleRegistration={vehicle.registration_number}
           username={cookies.get("username") || "User"}
-          onUpdateSuccess={() => window.location.reload()}
+          onUpdateSuccess={fetchData}
         />
         <MOTDialog
           open={motDialogOpen}
@@ -2107,7 +2110,7 @@ export default function VehicleDetailPage() {
           vehicleId={vehicleId}
           vehicleRegistration={vehicle.registration_number}
           username={cookies.get("username") || "User"}
-          onUpdateSuccess={() => window.location.reload()}
+          onUpdateSuccess={fetchData}
         />
 
         {previewDoc && (

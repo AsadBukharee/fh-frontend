@@ -164,6 +164,12 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
     isRoadworthy: "",
     vehicleType: "",
   })
+  const [stats, setStats] = useState({
+    total: 0,
+    total_pages: 1,
+    page: 1,
+    per_page: 10,
+  })
   const [tempFilters, setTempFilters] = useState({ ...filters })
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -224,6 +230,9 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
         }))
         setVehicles(mapped)
         setFilteredVehicles(mapped)
+        if (json.stats) {
+          setStats(json.stats)
+        }
         setError(null)
       } else {
         throw new Error(json.message || "Failed to load vehicles")
@@ -248,7 +257,7 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
     }
   }, [isFilterDialogOpen, filters])
 
-  // Client-side filtering
+  // Client-side filtering (applied on current page's data for UI consistency)
   useEffect(() => {
     let result = [...vehicles]
 
@@ -266,15 +275,14 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
     }
 
     setFilteredVehicles(result)
-    setCurrentPage(1)
   }, [filters, vehicles])
 
-  const paginatedVehicles = useMemo(() => {
-    const start = (currentPage - 1) * perPage
-    return filteredVehicles.slice(start, start + perPage)
-  }, [filteredVehicles, currentPage])
+  // Reset page when search or activeTab changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, activeTab, filters])
 
-  const totalPages = Math.ceil(filteredVehicles.length / perPage) || 1
+  const totalPages = stats.total_pages || 1
 
   const uniqueVehicleTypes = Array.from(new Set(
     vehicles.map((v) => v.vehicle_type_name || v.vehicle_type.name)
@@ -620,7 +628,7 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {paginatedVehicles.map((vehicle, idx) => {
+                    {filteredVehicles.map((vehicle, idx) => {
                       const index = (currentPage - 1) * perPage + idx + 1
                       return (
                         <tr key={vehicle.id} id={`vehicle-row-${vehicle.id}`} className="hover:bg-gray-50 transition-colors">
@@ -755,7 +763,7 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
               <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
                 <p className="text-sm text-gray-600">
                   Showing {(currentPage - 1) * perPage + 1} to{" "}
-                  {Math.min(currentPage * perPage, filteredVehicles.length)} of {filteredVehicles.length} vehicles
+                  {Math.min(currentPage * perPage, stats.total)} of {stats.total} vehicles
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -768,17 +776,26 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
                     Previous
                   </Button>
                   <div className="flex gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                    {totalPages > 5 && <span className="px-2 text-gray-500">...</span>}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        // Show first, last, and pages around current
+                        return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+                      })
+                      .map((page, index, array) => {
+                        const showEllipsis = index > 0 && page - array[index - 1] > 1;
+                        return (
+                          <div key={page} className="flex gap-1">
+                            {showEllipsis && <span className="px-2 text-gray-500">...</span>}
+                            <Button
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(page)}
+                            >
+                              {page}
+                            </Button>
+                          </div>
+                        );
+                      })}
                   </div>
                   <Button
                     variant="outline"

@@ -27,8 +27,8 @@ import DriverPMIOpenStep from "./PmiExpiry/DriverPMIOpenStep";
 import DriverErrorsStep from "./PmiExpiry/DriverErrorsStep";
 import DriverTrainingStep from "./PmiExpiry/DriverTrainingStep";
 import InterimUploadStep from "./PmiExpiry/InterimUploadStep";
-import ReminderStep from "./PmiExpiry/ReminderStep";
-import ReminderConfirmationStep from "./PmiExpiry/ReminderConfirmationStep";
+import TaskStep from "./PmiExpiry/TaskStep";
+import TaskConfirmationStep from "./PmiExpiry/TaskConfirmationStep";
 import BrakeUploadStep from "./PmiExpiry/BrakeUploadStep";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -43,12 +43,12 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
   onUpdateSuccess,
 }) => {
   const cookies = useCookies();
-  const [reminderDateTime, setReminderDateTime] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [state, setState] = useState<State>({
     currentInspectionDate: lastPMIDate, // Initialize from prop
     newInspectionDate: lastPMIDate, // For API payload
     step: "initial",
+    stepHistory: [],
     documentUrl: null,
     isLoading: false,
     brakeTestPassed: null,
@@ -60,6 +60,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
     selectedDrivers: [],
     reminderDateTime: "",
     interimCertificate: null,
+    hasChanges: false,
   });
 
   const {
@@ -82,6 +83,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
       currentInspectionDate: lastPMIDate,
       newInspectionDate: lastPMIDate,
       step: "initial",
+      stepHistory: [],
       documentUrl: null,
       isLoading: false,
       brakeTestPassed: null,
@@ -93,11 +95,14 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
       selectedDrivers: [],
       reminderDateTime: "",
       interimCertificate: null,
+      hasChanges: false,
     });
-    setReminderDateTime("");
   };
 
   const handleClose = () => {
+    if (state.hasChanges && onUpdateSuccess) {
+      onUpdateSuccess();
+    }
     resetState();
     onClose();
   };
@@ -116,7 +121,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
           "Content-Type": "application/json",
           "Authorization": `Bearer ${cookies.get("access_token")}`,
         },
-        body: JSON.stringify({ inspection_expire: newInspectionDate }),
+        body: JSON.stringify({ last_pmi_date: newInspectionDate }),
       });
 
       if (!response.ok) {
@@ -127,7 +132,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
         title: "Success",
         description: "Inspection date updated successfully",
       });
-      setState((prev) => ({ ...prev, step: "upload" }));
+      setState(prev => ({ ...prev, hasChanges: true, step: "upload" }));
     } catch (error) {
       console.error("Error updating inspection date:", error);
       toast({
@@ -140,31 +145,71 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
     }
   };
 
+  const handleDocumentUpload = async (url: string, type: "certificate" | "interim") => {
+    const documentTypeId = type === "certificate" ? 16 : 17;
+    const title = type === "certificate" ? "PMI Certificate" : "Interiam PMI Certificate";
+    
+    try {
+      const payload = {
+        vehicle_id: vehicleId,
+        documents: [
+          {
+            document_type: documentTypeId,
+            title: title,
+            url: url,
+            expiry_date: null,
+          }
+        ]
+      };
+
+      const response = await fetch(`${API_URL}/api/documents/documents/vehicle-bulk/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cookies.get("access_token")}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save document");
+      }
+    } catch (error) {
+      console.error("Error saving document:", error);
+      toast({ 
+        title: "Error", 
+        description: `Failed to save ${title} to compliance records`, 
+        variant: "destructive" 
+      });
+    }
+  };
+
   const handleUploadSuccess = (url: string, type: "certificate" | "interim" | "brake") => {
     setState((prev) => ({
       ...prev,
       [type === "interim" ? "interimCertificate" : "documentUrl"]: url,
+      hasChanges: true,
     }));
+
     toast({
       title: "Success",
-      description: `${type === "interim" ? "Interim PMI" : type === "brake" ? "Brake Test" : "PMI"} certificate uploaded successfully`,
+      description: `${type === "interim" ? "Interiam PMI" : type === "brake" ? "Brake Test" : "PMI"} certificate uploaded successfully`,
     });
   };
 
-  const handleCertificateUpload = () => {
+  const handleCertificateUpload = async () => {
     if (!documentUrl) {
       toast({ title: "Error", description: "Please upload a certificate first", variant: "destructive" });
       return;
     }
-    if (!newInspectionDate) {
-      toast({ title: "Error", description: "Please set Last PMI date", variant: "destructive" });
-      return;
-    }
-    setState((prev) => ({ ...prev, step: "brakeTest" }));
+    setIsLoading(true);
+    await handleDocumentUpload(documentUrl, "certificate");
+    setIsLoading(false);
+    setStep("brakeTest");
   };
 
   const handleFHPMISubmit = () => {
-    setState((prev) => ({ ...prev, step: "fhPMIOpen" }));
+    setStep("fhPMIOpen");
     toast({
       title: "Opening FH PMI Analysis",
       description: "Please fill out the form and click submit when complete.",
@@ -192,7 +237,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
   };
 
   const handleDriverPMISubmit = () => {
-    setState((prev) => ({ ...prev, step: "driverPMIOpen" }));
+    setStep("driverPMIOpen");
     toast({
       title: "Opening Driver PMI Analysis",
       description: "Please fill out the form and click submit when complete.",
@@ -211,49 +256,40 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
     delayAndProceed("interimUpload", "Training forms sent to drivers. Admin monitoring task and supervisor sign-off tasks created.");
   };
 
-  const handleInterimUpload = () => {
+  const handleInterimUpload = async () => {
     if (!interimCertificate) {
       toast({ title: "Error", description: "Please upload an interim certificate", variant: "destructive" });
       return;
     }
-    delayAndProceed("reminder", "Interim PMI Sign Off certificate saved with date and time stamp");
+    setIsLoading(true);
+    await handleDocumentUpload(interimCertificate, "interim");
+    setIsLoading(false);
+    delayAndProceed("taskStep", "Interiam PMI Certificate saved with date and time stamp");
   };
 
-  const handleReminder = async (type: "pmi" | "brake", reminderType: string) => {
-    setIsLoading(true);
-    try {
-      const payload = {
-        title: `${reminderType} for ${vehicleRegistration}`,
-        description: `Reminder for ${reminderType} for vehicle ${vehicleRegistration}`,
-        priority: "medium",
-        start_date: reminderDateTime.split("T")[0],
-        recurrence: "daily",
-        recurrence_interval: 1,
+  const setStep = (nextStep: StepType) => {
+    setState((prev) => ({
+      ...prev,
+      step: nextStep,
+      stepHistory: [...prev.stepHistory, prev.step],
+    }));
+  };
+
+  const handleBack = () => {
+    setState((prev) => {
+      if (prev.stepHistory.length === 0) return prev;
+      const newHistory = [...prev.stepHistory];
+      const previousStep = newHistory.pop()!;
+      return {
+        ...prev,
+        step: previousStep,
+        stepHistory: newHistory,
       };
+    });
+  };
 
-      const apiUrl = `${process.env.REACT_APP_API_HOST}/api/reminders/`;
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Add authentication headers if required
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to save reminder: ${response.statusText}`);
-      }
-
-      toast({ title: "Success", description: "Reminder saved successfully" });
-      setState((prev) => ({ ...prev, step: "reminderConfirmation" }));
-      setReminderDateTime("");
-    } catch (error) {
-      console.error("Error saving reminder:", error);
-      toast({ title: "Error", description: "Failed to save reminder", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleTaskSuccess = () => {
+    setState(prev => ({ ...prev, hasChanges: true, step: "taskConfirmation" }));
   };
 
   const handleFinalUpload = (type: "pmi" | "brake") => {
@@ -272,14 +308,14 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
       title: "Success",
       description: `${type === "pmi" ? "PMI" : "Brake Test"} certificate saved as ${filename}`,
     });
-    setState((prev) => ({ ...prev, step: "fhPMI" }));
-    if (onUpdateSuccess) onUpdateSuccess();
+    setState((prev) => ({ ...prev, hasChanges: true, step: "fhPMI" }));
   };
 
   const delayAndProceed = (nextStep: StepType, message?: string) => {
     setState((prev) => ({ ...prev, isLoading: true }));
     setTimeout(() => {
-      setState((prev) => ({ ...prev, isLoading: false, step: nextStep }));
+      setState((prev) => ({ ...prev, isLoading: false }));
+      setStep(nextStep);
       if (message) {
         toast({ title: "Success", description: message });
       }
@@ -300,10 +336,10 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
     driverPMIOpen: "Please fill out the Driver PMI Analysis form and click submit when complete.",
     driverErrors: "Did any driver or drivers make any errors?",
     driverTraining: "Please select the drivers who need walkaround failure training.",
-    interimUpload: "Please upload the Interim PMI Sign Off certificate.",
-    reminder: `Please set a reminder to upload the PMI Certificate for ${vehicleRegistration}.`,
-    brakeReminder: `Please set a reminder to rebook the brake test for ${vehicleRegistration}.`,
-    reminderConfirmation: `Reminder saved for ${vehicleRegistration}.`,
+    interimUpload: "Please upload the Interiam PMI Certificate.",
+    taskStep: `Please set a task to upload the PMI Certificate for ${vehicleRegistration}.`,
+    brakeTaskStep: `Please set a task to rebook the brake test for ${vehicleRegistration}.`,
+    taskConfirmation: `Task saved for ${vehicleRegistration}.`,
     brakeUpload: "Please upload the new Brake Test Certificate.",
   };
 
@@ -329,19 +365,22 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
                 setNewInspectionDate={(value) =>
                   setState((prev) => ({ ...prev, newInspectionDate: value }))
                 }
-                setStep={(value) => setState((prev) => ({ ...prev, step: value }))}
+                setStep={setStep}
               />
             )}
             {step === "upload" && (
               <UploadStep
                 handleUploadSuccess={handleUploadSuccess}
-                setStep={(value) => setState((prev) => ({ ...prev, step: value }))}
+                handleCertificateUpload={handleCertificateUpload}
+                setStep={setStep}
+                documentUrl={documentUrl}
+                isLoading={isLoading}
               />
             )}
             {step === "brakeTest" && (
               <BrakeTestStep
                 setBrakeTestPassed={(value) => setState((prev) => ({ ...prev, brakeTestPassed: value }))}
-                setStep={(value) => setState((prev) => ({ ...prev, step: value }))}
+                setStep={setStep}
               />
             )}
             {step === "fhPMI" && (
@@ -360,7 +399,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
             {step === "maintenanceCheck" && (
               <MaintenanceCheckStep
                 setMaintenanceCorrect={(value) => setState((prev) => ({ ...prev, maintenanceCorrect: value }))}
-                setStep={(value) => setState((prev) => ({ ...prev, step: value }))}
+                setStep={setStep}
               />
             )}
             {step === "notes" && (
@@ -375,7 +414,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
               <MechanicJobStep
                 createMechanicJob={createMechanicJob}
                 setCreateMechanicJob={(value) => setState((prev) => ({ ...prev, createMechanicJob: value }))}
-                setStep={(value) => setState((prev) => ({ ...prev, step: value }))}
+                setStep={setStep}
               />
             )}
             {step === "mechanicJobForm" && (
@@ -405,7 +444,7 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
               <DriverErrorsStep
                 driverErrors={driverErrors}
                 setDriverErrors={(value) => setState((prev) => ({ ...prev, driverErrors: value }))}
-                setStep={(value) => setState((prev) => ({ ...prev, step: value }))}
+                setStep={setStep}
               />
             )}
             {step === "driverTraining" && (
@@ -424,19 +463,20 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
                 isLoading={isLoading}
               />
             )}
-            {(step === "reminder" || step === "brakeReminder") && (
-              <ReminderStep
+            {(step === "taskStep" || step === "brakeTaskStep") && (
+              <TaskStep
                 step={step}
                 vehicleRegistration={vehicleRegistration}
-                reminderDateTime={reminderDateTime}
-                setReminderDateTime={setReminderDateTime}
+                reminderDateTime={state.reminderDateTime}
+                setReminderDateTime={(value) => setState((prev) => ({ ...prev, reminderDateTime: value }))}
+                onSuccess={handleTaskSuccess}
               />
             )}
-            {step === "reminderConfirmation" && (
-              <ReminderConfirmationStep
+            {step === "taskConfirmation" && (
+              <TaskConfirmationStep
                 vehicleRegistration={vehicleRegistration}
-                reminderDateTime={reminderDateTime}
-                reminderType={state.reminderDateTime.includes("PMI") ? "PMI certificate" : "brake test re-booking"}
+                reminderDateTime={state.reminderDateTime}
+                taskType={state.stepHistory[state.stepHistory.length - 1] === "taskStep" ? "PMI certificate" : "brake test re-booking"}
                 handleClose={handleClose}
               />
             )}
@@ -450,20 +490,54 @@ const InspectionDialog: React.FC<PMIDialogProps> = ({
             )}
           </div>
 
-          <DialogFooter className="mt-6 flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            {step === "initial" && (
-              <Button onClick={handleInitialSubmit} disabled={isLoading}>
-                {isLoading ? "Updating..." : "Next"}
+          <DialogFooter className="mt-6 flex justify-between gap-3">
+            <div>
+              {state.stepHistory.length > 0 && step !== "taskConfirmation" && (
+                <Button type="button" variant="outline" onClick={handleBack}>
+                  Back
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Cancel
               </Button>
-            )}
-            {step === "upload" && (
-              <Button onClick={handleCertificateUpload} disabled={isLoading || !documentUrl}>
-                {isLoading ? "Processing..." : "Submit Certificate"}
-              </Button>
-            )}
+              {step === "initial" && (
+                <Button onClick={handleInitialSubmit} disabled={isLoading} className="bg-[#F26633] hover:bg-[#D9552B] text-white">
+                  {isLoading ? "Updating..." : "Next"}
+                </Button>
+              )}
+              {step === "upload" && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      toast({ title: "Upload Later", description: "Proceeding to interim upload process" });
+                      setStep("interimUpload");
+                    }}
+                  >
+                    Upload Later
+                  </Button>
+                  <Button 
+                    onClick={handleCertificateUpload} 
+                    disabled={isLoading || !documentUrl}
+                    className="bg-[#F26633] hover:bg-[#D9552B] text-white"
+                  >
+                    {isLoading ? "Saving..." : "Next Step"}
+                  </Button>
+                </>
+              )}
+              {step === "interimUpload" && (
+                <Button 
+                  onClick={handleInterimUpload} 
+                  disabled={isLoading || !interimCertificate}
+                  className="bg-[#F26633] hover:bg-[#D9552B] text-white"
+                >
+                  {isLoading ? "Saving..." : "Submit Certificate"}
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </DialogPortal>

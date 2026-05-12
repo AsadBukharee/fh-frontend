@@ -55,7 +55,7 @@ interface Vehicle {
   is_roadworthy: boolean
   vehicles_type_id: number
   site_allocated_id: number | null
-  inspection_expire: string
+  last_pmi_date: string
   mot_expiry: string
   tax_expiry: string
   insurance_expiry: string
@@ -334,7 +334,7 @@ export default function VehiclesPage() {
                       {vehicle.is_roadworthy ? "Yes" : "No"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{vehicle.inspection_expire}</TableCell>
+                  <TableCell>{vehicle.last_pmi_date}</TableCell>
                   <TableCell>{vehicle.mot_expiry}</TableCell>
                   <TableCell>{vehicle.tax_expiry}</TableCell>
                   <TableCell>{vehicle.insurance_expiry}</TableCell>
@@ -521,7 +521,7 @@ export default function VehiclesPage() {
 //   is_roadworthy: boolean
 //   vehicles_type_id: number
 //   site_allocated_id: number | null
-//   inspection_expire: string
+//   last_pmi_date: string
 //   mot_expiry: string
 //   tax_expiry: string
 //   insurance_expiry: string
@@ -759,7 +759,7 @@ export default function VehiclesPage() {
 //               <CardContent className="p-4">
 //                 <div className=" flex items-center justify-between mb-2">
 //                    <div className=" bg-pink-100 text-pink-800 text-[10px] font-semibold px-2 py-1 rounded-full">
-//                   Inspection Expire: {vehicle.inspection_expire}
+//                   Inspection Expire: {vehicle.last_pmi_date}
 //                 </div>
 //                 <div className="flex space-x-2">
 //                   <Badge className="bg-yellow-100 text-yellow-700 text-[10px]">2 Due</Badge>
