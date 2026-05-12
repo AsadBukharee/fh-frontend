@@ -45,7 +45,7 @@ interface Vehicle {
   is_roadworthy: boolean;
   last_milage: string;
   inspection_cycle: number;
-  inspection_expire: string;
+  last_pmi_date: string;
   mot_expiry: string;
   tax_expiry: string;
   insurance_expiry: string;

@@ -2,25 +2,25 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { formatToDDMMYYYY } from "@/app/utils/DateFormat";
 
-interface ReminderConfirmationStepProps {
+interface TaskConfirmationStepProps {
   vehicleRegistration: string;
   reminderDateTime: string;
-  reminderType: string;
+  taskType: string;
   handleClose: () => void;
 }
 
-const ReminderConfirmationStep: React.FC<ReminderConfirmationStepProps> = ({
+const TaskConfirmationStep: React.FC<TaskConfirmationStepProps> = ({
   vehicleRegistration,
   reminderDateTime,
-  reminderType,
+  taskType,
   handleClose,
 }) => (
   <div className="space-y-4">
     <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-      <p className="text-sm font-medium text-green-800">Reminder Saved</p>
+      <p className="text-sm font-medium text-green-800">Task Created</p>
       <p className="text-sm text-green-700 mt-2">
-        Reminder set for {reminderType} upload for {vehicleRegistration} on{" "}
-        {formatToDDMMYYYY(reminderDateTime)}.
+        Task created for {taskType} upload for {vehicleRegistration} with deadline on{" "}
+        {formatToDDMMYYYY(new Date(reminderDateTime))}.
       </p>
     </div>
     <Button onClick={handleClose} className="w-full">
@@ -29,4 +29,4 @@ const ReminderConfirmationStep: React.FC<ReminderConfirmationStepProps> = ({
   </div>
 );
 
-export default ReminderConfirmationStep;
+export default TaskConfirmationStep;

@@ -71,7 +71,7 @@ interface Vehicle {
   mot_expiry: string;
   tax_expiry: string;
   insurance_expiry: string;
-  inspection_expire: string;
+  last_pmi_date: string;
   tacho_calibration: string;
   tyre_expiry_front_driver: string | null;
   tyre_expiry_front_passenger: string | null;
@@ -681,7 +681,7 @@ export default function VehicleDetailPage() {
               vehicle_id={vehicle.id}
               tax_expiry={vehicle.tax_expiry}
               insurance_expiry={vehicle.insurance_expiry}
-              inspection_expiry={vehicle.inspection_expire}
+              inspection_expiry={vehicle.last_pmi_date}
               
               status_indicators={vehicle.status_indicators}
           

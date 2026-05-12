@@ -12,7 +12,7 @@ const BrakeTestStep: React.FC<BrakeTestStepProps> = ({ setBrakeTestPassed, setSt
     <Button onClick={() => { setBrakeTestPassed(true); setStep("fhPMI"); }} className="flex-1">
       Yes - Passed
     </Button>
-    <Button onClick={() => { setBrakeTestPassed(false); setStep("brakeReminder"); }} variant="outline" className="flex-1">
+    <Button onClick={() => { setBrakeTestPassed(false); setStep("brakeTaskStep"); }} variant="outline" className="flex-1">
       No - Failed
     </Button>
   </div>

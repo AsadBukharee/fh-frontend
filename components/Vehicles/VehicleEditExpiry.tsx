@@ -44,7 +44,7 @@ const ExpiryDates: React.FC<ExpiryDatesProps> = ({
     mot_expiry: { value: mot_expiry, apiKey: "mot_expiry", label: "MOT Expiry" },
     tax_expiry: { value: tax_expiry, apiKey: "tax_expiry", label: "Tax Expiry" },
     insurance_expiry: { value: insurance_expiry, apiKey: "insurance_expiry", label: "Insurance Expiry" },
-    inspection_expiry: { value: inspection_expiry, apiKey: "inspection_expiry", label: "Inspection Expiry" },
+    inspection_expiry: { value: inspection_expiry, apiKey: "last_pmi_date", label: "Inspection Expiry" },
   };
 
   const handleEditClick = (field: FieldKey, event: React.MouseEvent) => {

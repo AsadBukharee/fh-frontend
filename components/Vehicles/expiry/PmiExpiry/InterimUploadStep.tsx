@@ -18,7 +18,7 @@ const InterimUploadStep: React.FC<InterimUploadStepProps> = ({
 }) => (
   <div>
     <Label htmlFor="interimCertificate" className="text-sm font-medium">
-      Upload Interim PMI Sign Off Certificate
+      Upload Interiam PMI Certificate
     </Label>
     <FileUploader
       id="interimCertificate"
@@ -26,9 +26,11 @@ const InterimUploadStep: React.FC<InterimUploadStepProps> = ({
       maxSize={5 * 1024 * 1024}
       onUploadSuccess={(url) => handleUploadSuccess(url, "interim")}
     />
-    <Button onClick={handleInterimUpload} disabled={isLoading || !interimCertificate} className="mt-3 w-full">
-      {isLoading ? "Processing..." : "Submit Interim Certificate"}
-    </Button>
+    {interimCertificate && (
+      <div className="text-xs text-emerald-600 bg-emerald-50 p-2 rounded border border-emerald-100 mt-2">
+        ✓ Interiam PMI Certificate uploaded successfully
+      </div>
+    )}
   </div>
 );
 

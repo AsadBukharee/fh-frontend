@@ -7,29 +7,34 @@ import { StepType } from "./types";
 
 interface UploadStepProps {
   handleUploadSuccess: (url: string, type: "certificate" | "interim" | "brake") => void;
+  handleCertificateUpload: () => void;
   setStep: (step: StepType) => void;
+  documentUrl: string | null;
+  isLoading: boolean;
 }
 
-const UploadStep: React.FC<UploadStepProps> = ({ handleUploadSuccess, setStep }) => (
+const UploadStep: React.FC<UploadStepProps> = ({ 
+  handleUploadSuccess, 
+  handleCertificateUpload,
+  setStep,
+  documentUrl,
+  isLoading
+}) => (
   <div className="space-y-3">
-    <Label htmlFor="certificate" className="text-sm font-medium">Upload PMI Certificate</Label>
-    <FileUploader
-      id="certificate"
-      accept=".pdf,.png,.jpg,.jpeg"
-      maxSize={5 * 1024 * 1024}
-      onUploadSuccess={(url) => handleUploadSuccess(url, "certificate")}
-    />
-    <Button
-      type="button"
-      variant="outline"
-      onClick={() => {
-        toast({ title: "Upload Later", description: "Proceeding to interim upload process" });
-        setStep("interimUpload");
-      }}
-      className="w-full"
-    >
-      Upload Later
-    </Button>
+    <div className="space-y-2">
+      <Label htmlFor="certificate" className="text-sm font-medium">Upload PMI Certificate</Label>
+      <FileUploader
+        id="certificate"
+        accept=".pdf,.png,.jpg,.jpeg"
+        maxSize={5 * 1024 * 1024}
+        onUploadSuccess={(url) => handleUploadSuccess(url, "certificate")}
+      />
+      {documentUrl && (
+        <div className="text-xs text-emerald-600 bg-emerald-50 p-2 rounded border border-emerald-100 flex items-center gap-2">
+          <span>✓ Document uploaded successfully</span>
+        </div>
+      )}
+    </div>
   </div>
 );
 
