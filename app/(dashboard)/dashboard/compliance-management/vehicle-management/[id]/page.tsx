@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import {
@@ -87,6 +87,8 @@ const DOCUMENT_TYPE_MAPPING = {
   insurance_docs: 13,
   tax_docs: 12,
   pmi_inspection_docs: 10,
+  pmi_certificate: 16,
+  interiam_pmi_certificate: 17,
   loller_docs: null, // Add appropriate ID if exists
   tacho_calibration_docs: null, // Add appropriate ID if exists
   vehicle_invoice_docs: 2,
@@ -152,7 +154,7 @@ export default function VehicleDetailPage() {
     const initialData = {
       expiryDate: apiDoc?.expiry_date?.split('T')[0] || "",
       isApplicable: true,
-      url: apiDoc?.url || vehicle[docConfig.key] || ""
+      url: apiDoc?.url || vehicle[docConfig.docCode] || vehicle[docConfig.key] || ""
     };
     setEditingDocument(docConfig);
     setEditingDocData(initialData);
@@ -179,80 +181,81 @@ export default function VehicleDetailPage() {
 
   const { expandedId, handleExpandedChange } = useAutoScroll(loading, "vehicle_docs", true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const vehicleData = await vehicleRes.json();
+  const fetchData = useCallback(async () => {
+    try {
+      const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const vehicleData = await vehicleRes.json();
 
-        const sitesRes = await fetch(`${API_URL}/api/sites/list-names/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const sitesData = await sitesRes.json();
+      const sitesRes = await fetch(`${API_URL}/api/sites/list-names/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const sitesData = await sitesRes.json();
 
-        const typesRes = await fetch(`${API_URL}/api/vehicle-types/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const typesData = await typesRes.json();
+      const typesRes = await fetch(`${API_URL}/api/vehicle-types/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const typesData = await typesRes.json();
 
-        if (vehicleData.success) {
-          const vehicleDataWithType = {
-            ...vehicleData.data,
-            vehicle_type: vehicleData.data.vehicle_type,
-            vehicles_type: vehicleData.data.vehicle_type,
-          };
+      if (vehicleData.success) {
+        const vehicleDataWithType = {
+          ...vehicleData.data,
+          vehicle_type: vehicleData.data.vehicle_type,
+          vehicles_type: vehicleData.data.vehicle_type,
+        };
 
-          setVehicle(vehicleDataWithType);
-          setEditVehicle(vehicleDataWithType);
+        setVehicle(vehicleDataWithType);
+        setEditVehicle(vehicleDataWithType);
 
-          if (vehicleDataWithType.site_allocated) {
-            const siteIds = vehicleDataWithType.site_allocated.map((site: any) => site.id);
-            setSelectedSites(siteIds);
-          }
-
-          if (Array.isArray(vehicleData.data.documents)) {
-            setVehicleDocuments(vehicleData.data.documents);
-
-            // Create a map for quick document lookup by document_type code
-            const docMap = new Map();
-            vehicleData.data.documents.forEach((doc: any) => {
-              if (doc.document_type?.code) {
-                docMap.set(doc.document_type.code, doc);
-              }
-            });
-            setDocumentsMap(docMap);
-          }
-        } else {
-          setError("Failed to fetch vehicle data");
+        if (vehicleDataWithType.site_allocated) {
+          const siteIds = vehicleDataWithType.site_allocated.map((site: any) => site.id);
+          setSelectedSites(siteIds);
         }
 
-        if (sitesData.success) {
-          setSites(sitesData.data || []);
-        }
+        if (Array.isArray(vehicleData.data.documents)) {
+          setVehicleDocuments(vehicleData.data.documents);
 
-        if (typesData.success) {
-          setVehicleTypes(typesData.data || []);
+          // Create a map for quick document lookup by document_type code
+          const docMap = new Map();
+          vehicleData.data.documents.forEach((doc: any) => {
+            if (doc.document_type?.code) {
+              docMap.set(doc.document_type.code, doc);
+            }
+          });
+          setDocumentsMap(docMap);
         }
-      } catch (err) {
-        setError("Error fetching data");
-        console.error("Error:", err);
-      } finally {
-        setLoading(false);
+      } else {
+        setError("Failed to fetch vehicle data");
       }
-    };
-    if (id && token) fetchData();
+
+      if (sitesData.success) {
+        setSites(sitesData.data || []);
+      }
+
+      if (typesData.success) {
+        setVehicleTypes(typesData.data || []);
+      }
+    } catch (err) {
+      setError("Error fetching data");
+      console.error("Error:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [id, token]);
+
+  useEffect(() => {
+    if (id && token) fetchData();
+  }, [fetchData, id, token]);
 
   const handleEditToggle = () => {
     if (isEditing) {
@@ -609,7 +612,7 @@ export default function VehicleDetailPage() {
         mot_expiry: "mot_check_docs",
         tax_expiry: "tax_docs",
         insurance_expiry: "insurance_docs",
-        last_pmi_date: "pmi_inspection_docs",
+        last_pmi_date: "pmi_certificate",
         loller_test_expiry_date: "loller_docs",
         tacho_calibration_expiry: "tacho_calibration_docs",
         next_loller_test_date: "loller_docs",
@@ -868,12 +871,12 @@ export default function VehicleDetailPage() {
   };
 
   const complianceItems = [
-    { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docCode: "mot_check_docs", color: "orange", hasDialog: true },
-    { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docCode: "insurance_docs", color: "purple" },
-    { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docCode: "tax_docs", color: "green" },
-    { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docCode: "pmi_inspection_docs", color: "orange", hasDialog: true },
-    { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docCode: "loller_docs", color: "pink", requiredForWheelchair: true },
-    { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docCode: "tacho_calibration_docs", color: "indigo", requiredForTacho: true },
+    { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docCode: "mot_check_docs", color: "orange", hasDialog: true, document_type: 9 },
+    { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docCode: "insurance_docs", color: "purple", document_type: 13 },
+    { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docCode: "tax_docs", color: "green", document_type: 12 },
+    { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docCode: "pmi_inspection_docs", color: "orange", hasDialog: true, document_type: 10 },
+    { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docCode: "loller_docs", color: "pink", requiredForWheelchair: true, document_type: null },
+    { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docCode: "tacho_calibration_docs", color: "indigo", requiredForTacho: true, document_type: null },
   ];
 
   const additionalDocuments = [
@@ -1595,158 +1598,215 @@ export default function VehicleDetailPage() {
 
           {/* Compliance Tab */}
           <TabsContent value="compliance" className="space-y-6 mt-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-purple-600" />
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
+                    <Shield className="w-6 h-6 text-purple-700" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    Compliance Documents – <span className="text-[#F15C5C] font-semibold">{vehicle.registration_number} - {vehicle.make} {vehicle.model}</span>
+                  </h3>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Compliance Documents</h3>
               </div>
 
-              <Accordion
-                type="multiple"
-                className="space-y-3"
-                value={expandedId as string[]}
-                onValueChange={handleExpandedChange}
-              >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {complianceItems.map((item) => {
+                  const Icon = item.icon;
                   const dateValue = vehicle[item.dateField as keyof typeof vehicle] as string;
                   const docFromVehicle = vehicle[item.docCode as keyof typeof vehicle] as string;
                   const docFromAPI = documentsMap.get(item.docCode);
                   const docUrl = docFromAPI?.url || docFromVehicle;
                   const hasDoc = hasDocument(docUrl, item.docCode);
                   const status = getExpiryStatus(dateValue);
-                  const Icon = item.icon;
                   const StatusIcon = status.icon;
-
-                  const showContent = shouldShowComplianceItem(item);
 
                   const isRequired =
                     (item.requiredForTacho && (isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted)) ||
                     (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted));
 
+                  if (!shouldShowComplianceItem(item)) return null;
+
                   return (
-                    <AccordionItem
+                    <div
                       key={item.key}
-                      value={item.key}
-                      className={`bg-slate-50 rounded-xl border ${isRequired && !dateValue ? "border-red-300 ring-1 ring-red-200" : "border-slate-200"
-                        } overflow-hidden`}
+                      onClick={() => {
+                        if (item.hasDialog) {
+                          openEditDateDialog(item.dateField, dateValue);
+                        } else {
+                          openDocDetail(item);
+                        }
+                      }}
+                      className={cn(
+                        "cursor-pointer bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-full group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300",
+                        isRequired && !dateValue && "border-red-300 ring-1 ring-red-200"
+                      )}
                     >
-                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-slate-100/60 transition-colors [&>svg]:ml-2">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0">
-                            <Icon className="w-5 h-5 text-slate-600" />
-                          </div>
-                          <div className="flex-1 text-left min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold text-slate-900">{item.label}</p>
-                              {isRequired && <Badge className="bg-red-100 text-red-700 text-xs">Required</Badge>}
-                              {item.key === "loller" &&
-                                (isEditing ? (
-                                  <Switch
-                                    checked={editVehicle.is_wheelchair_lift_fitted}
-                                    onCheckedChange={(c) => handleInputChange("is_wheelchair_lift_fitted", c)}
-                                  />
-                                ) : (
-                                  <Badge className={vehicle.is_wheelchair_lift_fitted ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>
-                                    {vehicle.is_wheelchair_lift_fitted ? "Fitted" : "Not Fitted"}
-                                  </Badge>
-                                ))}
-                              {item.key === "tacho" &&
-                                (isEditing ? (
-                                  <Switch
-                                    checked={editVehicle.is_tacho_fitted}
-                                    onCheckedChange={(c) => handleInputChange("is_tacho_fitted", c)}
-                                  />
-                                ) : (
-                                  <Badge className={vehicle.is_tacho_fitted ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>
-                                    {vehicle.is_tacho_fitted ? "Fitted" : "Not Fitted"}
-                                  </Badge>
-                                ))}
+                      {/* Top Area: Image/Upload */}
+                      <div className="relative h-56 mb-6 rounded-3xl overflow-hidden bg-[#F9FAFB] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group/upload">
+                        {hasDoc ? (
+                          <>
+                            {docUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                              <img src={docUrl} className="w-full h-full object-cover" alt={item.label} />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center text-slate-400">
+                                <FileText className="w-16 h-16 mb-2 text-slate-300" />
+                                <p className="text-xs font-medium">PDF Document</p>
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/upload:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="rounded-full w-10 h-10 p-0 bg-white hover:bg-slate-50"
+                                onClick={(e) => { e.stopPropagation(); setPreviewDoc(docUrl); }}
+                              >
+                                <Eye className="w-5 h-5 text-slate-600" />
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="rounded-full w-10 h-10 p-0 bg-white hover:bg-slate-50"
+                                onClick={(e) => { e.stopPropagation(); window.open(docUrl, "_blank"); }}
+                              >
+                                <Download className="w-5 h-5 text-slate-600" />
+                              </Button>
                             </div>
-                            <p className="text-xs text-slate-500">{dateValue ? formatDate(dateValue) : "Date not set"}</p>
+                            {/* Delete Button */}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-4 right-4 rounded-full w-10 h-10 p-0 bg-[#F15C5C] hover:bg-red-600 border-none shadow-lg z-10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (docFromAPI) {
+                                  handleDeleteDocument(docFromAPI.id, item.label);
+                                } else {
+                                  handleDeleteDocument(item.docCode, item.label, true);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-5 h-5 text-white" />
+                            </Button>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center p-6 text-center">
+                            <div className="w-16 h-16 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-4">
+                              <Upload className="w-8 h-8 text-[#F26633]" />
+                            </div>
+                            <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop Filer Here</p>
+                            <p className="text-[10px] text-slate-400">PDF, Word, Excel, PowerPoint - max 10.0MB</p>
                           </div>
-                          <Badge className={`${status.color} border text-xs shrink-0 mr-2`}>
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {status.text}
-                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Content Area */}
+                      <div className="flex-1 px-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="font-bold text-slate-900 text-xl">{item.label}</p>
+                          {isRequired && <Badge className="bg-red-100 text-red-700 text-xs">Required</Badge>}
                         </div>
-                      </AccordionTrigger>
 
-                      {showContent && (
-                        <AccordionContent className="px-4 pb-4">
-                          <div className="space-y-4 pt-2">
-                            <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-slate-200">
-                              <div className="flex items-center gap-3">
-                                <Calendar className="w-4 h-4 text-slate-400" />
-                                <div>
-                                  <p className="text-xs text-slate-500">
-                                    {item.key === "last_pmi" ? "Last PMI Date" : "Expiry Date"}
-                                  </p>
-                                  <p className="text-sm font-semibold text-slate-900">{dateValue ? formatDate(dateValue) : "Not set"}</p>
-                                </div>
-                              </div>
-                              <Badge className={`${status.color} border`}>
-                                <StatusIcon className="w-3 h-3 mr-1" />
-                                {status.text}
+                        {/* Fitted Toggles */}
+                        {(item.key === "loller" || item.key === "tacho") && (
+                          <div className="mb-4 flex items-center gap-2">
+                            <span className="text-xs font-medium text-slate-500">Fitted:</span>
+                            {isEditing ? (
+                              <Switch
+                                checked={item.key === "loller" ? editVehicle.is_wheelchair_lift_fitted : editVehicle.is_tacho_fitted}
+                                onCheckedChange={(c) => handleInputChange(item.key === "loller" ? "is_wheelchair_lift_fitted" : "is_tacho_fitted", c)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <Badge className={(item.key === "loller" ? vehicle.is_wheelchair_lift_fitted : vehicle.is_tacho_fitted) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>
+                                {(item.key === "loller" ? vehicle.is_wheelchair_lift_fitted : vehicle.is_tacho_fitted) ? "Yes" : "No"}
                               </Badge>
-                            </div>
+                            )}
+                          </div>
+                        )}
 
-                            <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-slate-200">
-                              <div className="flex items-center gap-3">
-                                <FileText className="w-4 h-4 text-slate-400" />
-                                <div>
-                                  <p className="text-xs text-slate-500">Supporting Document</p>
-                                  <p className="text-sm font-semibold text-slate-900">{hasDoc ? "Uploaded" : "Not uploaded"}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {hasDoc ? (
-                                  <>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => setPreviewDoc(docUrl)}
-                                      className="h-8 w-8 p-0"
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => window.open(docUrl, "_blank")}
-                                      className="h-8 w-8 p-0"
-                                    >
-                                      <Download className="w-4 h-4" />
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <FileUploader
-                                    onUploadSuccess={(url) => handleDocumentUpload(item.docCode, url)}
-                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                    maxSize={10 * 1024 * 1024}
-                                    id={`upload-compliance-${item.key}`}
-                                  />
-                                )}
-                              </div>
-                            </div>
+                        {!hasDoc && !dateValue && (
+                          <Badge className="bg-slate-100 text-slate-400 hover:bg-slate-100 border-none text-[10px] font-medium px-3 py-1 rounded-full mb-4">
+                            Not set
+                          </Badge>
+                        )}
 
+                        <div className="mt-4 p-4 bg-[#F8F9FA] rounded-2xl flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                              <Calendar className="w-4 h-4 text-orange-400" />
+                            </div>
+                            <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">
+                              {item.key === "last_pmi" ? "Last PMI" : "Expiry Date"}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-[#F26633]">
+                              {dateValue ? formatDate(dateValue) : "DD/MM/YYYY"}
+                            </p>
+                            <Badge className={cn("mt-1 text-[10px] h-5 border-none", status.color)}>
+                              <StatusIcon className="w-3 h-3 mr-1" />
+                              {status.text}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Footer Actions */}
+                      <div className="mt-6 flex gap-3">
+                        {!hasDoc ? (
+                          <>
+                            <div className="flex-1" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                onClick={() => {
+                                  if (item.hasDialog) {
+                                    openEditDateDialog(item.dateField, dateValue);
+                                  } else {
+                                    openDocDetail(item);
+                                  }
+                                }}
+                                className="w-full bg-[#F26633] hover:bg-orange-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2"
+                              >
+                                Upload <Upload className="w-4 h-4" />
+                              </Button>
+                            </div>
                             <Button
                               variant="outline"
-                              size="sm"
-                              onClick={() => openEditDateDialog(item.dateField, dateValue)}
-                              className="w-full"
+                              className="flex-1 bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (item.hasDialog) {
+                                  openEditDateDialog(item.dateField, dateValue);
+                                } else {
+                                  openDocDetail(item);
+                                }
+                              }}
                             >
-                              <Calendar className="w-4 h-4 mr-2" />
-                              {item.key === "last_pmi" ? "Update Last PMI Date" : "Update Expiry Date"}
+                              Later <Clock className="w-4 h-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="outline"
+                              className="w-full bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2"
+                              onClick={() => {
+                                if (item.hasDialog) {
+                                  openEditDateDialog(item.dateField, dateValue);
+                                } else {
+                                  openDocDetail(item);
+                                }
+                              }}
+                            >
+                              Update <Edit className="w-4 h-4" />
                             </Button>
                           </div>
-                        </AccordionContent>
-                      )}
-                    </AccordionItem>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
-              </Accordion>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -2043,40 +2103,59 @@ export default function VehicleDetailPage() {
 
                     const toastId = toast.loading("Saving document changes...");
                     try {
-                      // Save document (Update or Create)
                       const documentTypeId = editingDocument.document_type;
                       const apiDoc = documentsMap.get(editingDocument.docCode);
 
-                      const payload = {
-                        vehicle_id: vehicleId,
-                        documents: [
-                          {
-                            document_type: documentTypeId,
-                            title: editingDocument.label,
-                            url: editingDocData.url,
-                            expiry_date: editingDocData.expiryDate || null,
-                            ...(apiDoc && { document_id: apiDoc.id })
-                          }
-                        ]
-                      };
+                      if (documentTypeId) {
+                        // Save document via Bulk API (Modern way)
+                        const payload = {
+                          vehicle_id: vehicleId,
+                          documents: [
+                            {
+                              document_type: documentTypeId,
+                              title: editingDocument.label,
+                              url: editingDocData.url,
+                              expiry_date: editingDocData.expiryDate || null,
+                              ...(apiDoc && { document_id: apiDoc.id })
+                            }
+                          ]
+                        };
 
-                      const res = await fetch(`${API_URL}/api/documents/documents/vehicle-bulk/`, {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${token}`,
-                        },
-                        body: JSON.stringify(payload),
-                      });
+                        const res = await fetch(`${API_URL}/api/documents/documents/vehicle-bulk/`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                          },
+                          body: JSON.stringify(payload),
+                        });
 
-                      if (res.ok) {
-                        toast.success("Document updated successfully", { id: toastId });
-                        setEditingDocument(null);
-                        // Refresh vehicle data (already handled by common pattern)
-                        window.location.reload();
+                        if (!res.ok) throw new Error("Failed to save changes");
                       } else {
-                        throw new Error("Failed to save changes");
+                        // Fallback to legacy PATCH for items without document_type (e.g. LOLLER, Tacho)
+                        const payload: any = {
+                          [editingDocument.docCode]: editingDocData.url
+                        };
+                        if (editingDocument.dateField) {
+                          payload[editingDocument.dateField] = editingDocData.expiryDate || null;
+                        }
+
+                        const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+                          method: "PATCH",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                          },
+                          body: JSON.stringify(payload),
+                        });
+
+                        if (!res.ok) throw new Error("Failed to save changes");
                       }
+
+                      toast.success("Document updated successfully", { id: toastId });
+                      setEditingDocument(null);
+                      // Refresh data
+                      fetchData();
                     } catch (err) {
                       toast.error("Failed to save changes", { id: toastId });
                     }
@@ -2098,7 +2177,7 @@ export default function VehicleDetailPage() {
           vehicleId={vehicleId}
           vehicleRegistration={vehicle.registration_number}
           username={cookies.get("username") || "User"}
-          onUpdateSuccess={() => window.location.reload()}
+          onUpdateSuccess={fetchData}
         />
         <MOTDialog
           open={motDialogOpen}
@@ -2107,7 +2186,7 @@ export default function VehicleDetailPage() {
           vehicleId={vehicleId}
           vehicleRegistration={vehicle.registration_number}
           username={cookies.get("username") || "User"}
-          onUpdateSuccess={() => window.location.reload()}
+          onUpdateSuccess={fetchData}
         />
 
         {previewDoc && (

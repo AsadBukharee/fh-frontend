@@ -1143,7 +1143,7 @@ export default function UsersPage() {
         try {
           let url = "";
           if (tab === "unassigned") {
-            url = `${API_URL}/users/no-site/?page=${page}&per_page=${perPage}${query ? `&q=${encodeURIComponent(query)}` : ""}`;
+            url = `${API_URL}/users/no-site/?drivers=false&page=${page}&per_page=${perPage}${query ? `&q=${encodeURIComponent(query)}` : ""}`;
           } else {
             url = `${API_URL}/users/?drivers=false&page=${page}&per_page=${perPage}${query ? `&q=${encodeURIComponent(query)}` : ""}`;
           }
@@ -1238,12 +1238,17 @@ export default function UsersPage() {
       if (res.ok) {
         const json = await res.json();
         console.log("Unassigned users count API response:", json);
+        console.log("Response data keys:", json.data ? Object.keys(json.data) : "no data");
         if (json.success) {
           let count = null;
           if (json.data?.pagination?.total_items !== undefined) {
             count = json.data.pagination.total_items;
           } else if (json.data?.total_items !== undefined) {
             count = json.data.total_items;
+          } else if (json.data?.total_count !== undefined) {
+            count = json.data.total_count;
+          } else if (json.data?.count !== undefined) {
+            count = json.data.count;
           } else if (json.total_items !== undefined) {
             count = json.total_items;
           } else if (json.total_count !== undefined) {
@@ -1252,6 +1257,8 @@ export default function UsersPage() {
             count = json.count;
           } else if (Array.isArray(json.data?.results)) {
             count = json.data.results.length;
+          } else if (Array.isArray(json.data)) {
+            count = json.data.length;
           }
           
           console.log("Calculated count:", count);

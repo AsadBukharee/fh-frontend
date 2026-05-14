@@ -227,11 +227,6 @@ export default function CombinedTachoDialog({
       return;
     }
 
-    // If ONLY download date changed, REQUIRE a new document
-    if (isDownloadDateChanged && !isDownloadUrlChanged) {
-      toast.error("Download date changed. Please upload a new Tacho download document matching the new date.");
-      return;
-    }
     // If ONLY download document changed, REQUIRE date update
     if (isDownloadUrlChanged && !isDownloadDateChanged) {
       toast.error("New Tacho download document uploaded. Please update/verify the download date.");

@@ -11,6 +11,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination"
+
+import {
     Table,
     TableBody,
     TableCell,
@@ -71,6 +81,15 @@ const WalkaroundCategory = () => {
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
 
+    // Pagination state
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        totalPages: 1,
+        totalCount: 0,
+        pageSize: 20
+    })
+
+
     // Dialog states
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [isEditOpen, setIsEditOpen] = useState(false)
@@ -89,16 +108,24 @@ const WalkaroundCategory = () => {
         fetchCategories()
     }, [])
 
-    const fetchCategories = async () => {
+    const fetchCategories = async (page: number = pagination.currentPage) => {
         setLoading(true)
         try {
-            const res = await fetch(`${API_URL}/api/walkaround-categories/`, {
+            const res = await fetch(`${API_URL}/api/walkaround-categories/?page=${page}`, {
                 headers: authHeaders,
             })
             if (!res.ok) throw new Error("Failed to fetch categories")
             const result = await res.json()
             if (result.results) {
                 setCategories(result.results)
+                if (result.pagination) {
+                    setPagination({
+                        currentPage: result.pagination.current_page,
+                        totalPages: result.pagination.total_pages,
+                        totalCount: result.pagination.count,
+                        pageSize: result.pagination.page_size
+                    })
+                }
             }
         } catch {
             // Mock data for development if API fails or doesn't exist yet
@@ -108,6 +135,7 @@ const WalkaroundCategory = () => {
             setLoading(false)
         }
     }
+
 
     const resetForm = () => {
         setFormData(emptyForm)
@@ -296,6 +324,7 @@ const WalkaroundCategory = () => {
                     No categories found. Click &quot;Add Category&quot; to get started.
                 </div>
             ) : (
+                <>
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -377,6 +406,80 @@ const WalkaroundCategory = () => {
                         ))}
                     </TableBody>
                 </Table>
+
+                {/* Pagination UI */}
+                {pagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between px-2 py-4 border-t">
+                        <div className="text-sm text-muted-foreground">
+                            Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.pageSize + 1}</span> to{" "}
+                            <span className="font-medium">
+                                {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalCount)}
+                            </span>{" "}
+                            of <span className="font-medium">{pagination.totalCount}</span> categories
+                        </div>
+                        <Pagination className="w-auto mx-0">
+                            <PaginationContent>
+                                <PaginationItem>
+                                    <PaginationPrevious
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (pagination.currentPage > 1) fetchCategories(pagination.currentPage - 1);
+                                        }}
+                                        className={pagination.currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                    />
+                                </PaginationItem>
+
+                                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => {
+                                    if (
+                                        page === 1 ||
+                                        page === pagination.totalPages ||
+                                        (page >= pagination.currentPage - 1 && page <= pagination.currentPage + 1)
+                                    ) {
+                                        return (
+                                            <PaginationItem key={page}>
+                                                <PaginationLink
+                                                    href="#"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        fetchCategories(page);
+                                                    }}
+                                                    isActive={pagination.currentPage === page}
+                                                    className="cursor-pointer"
+                                                >
+                                                    {page}
+                                                </PaginationLink>
+                                            </PaginationItem>
+                                        );
+                                    } else if (
+                                        page === pagination.currentPage - 2 ||
+                                        page === pagination.currentPage + 2
+                                    ) {
+                                        return (
+                                            <PaginationItem key={page}>
+                                                <PaginationEllipsis />
+                                            </PaginationItem>
+                                        );
+                                    }
+                                    return null;
+                                })}
+
+                                <PaginationItem>
+                                    <PaginationNext
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (pagination.currentPage < pagination.totalPages) fetchCategories(pagination.currentPage + 1);
+                                        }}
+                                        className={pagination.currentPage === pagination.totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                    />
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
+                    </div>
+                )}
+            </>
+
             )}
 
             {/* Edit Dialog */}

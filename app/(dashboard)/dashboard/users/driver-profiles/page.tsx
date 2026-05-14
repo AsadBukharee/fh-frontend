@@ -779,13 +779,17 @@ export default function DriversPage() {
   };
 
   /* ── API: fetch drivers ── */
-  const fetchDrivers = useCallback(async () => {
+  const fetchDrivers = useCallback(async (isIgnore?: () => boolean) => {
     setLoading(true);
+    setAllDrivers([]); // Clear old data when starting a new fetch (especially for tab changes)
     let all: Driver[] = [];
     let page = 1;
     let totalPages = 1;
     try {
       while (page <= totalPages) {
+        // Check if we should ignore this fetch (e.g. tab changed again)
+        if (isIgnore && isIgnore()) return;
+
         const endpoint = activeTab === "unassigned" ? "/api/profiles/driver/no-site/" : "/api/profiles/driver/";
         const url = `${API_URL}${endpoint}?page=${page}&per_page=100`;
         const res = await fetch(url, {
@@ -797,17 +801,29 @@ export default function DriversPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!json.success) throw new Error(json.message ?? "Failed");
-        all = [...all, ...json.data.results];
-        totalPages = json.data.pagination.total_pages ?? 1;
+        
+        // Ensure we only add unique drivers to the list to prevent "duplicate again and again"
+        const newResults = json.data.results || [];
+        const uniqueNewResults = newResults.filter(
+          (newD: Driver) => !all.some(existingD => existingD.id === newD.id)
+        );
+        
+        all = [...all, ...uniqueNewResults];
+        totalPages = json.data.pagination?.total_pages ?? 1;
         page++;
       }
+
+      if (isIgnore && isIgnore()) return;
       setAllDrivers(all);
       setError(null);
     } catch (e: any) {
+      if (isIgnore && isIgnore()) return;
       setError(e.message);
       showToast(e.message, "error");
     } finally {
-      setLoading(false);
+      if (!(isIgnore && isIgnore())) {
+        setLoading(false);
+      }
     }
   }, [cookies, showToast, activeTab]);
 
@@ -881,9 +897,16 @@ export default function DriversPage() {
   }, [roles.length, cookies, showToast]);
 
   useEffect(() => {
-    fetchDrivers();
+    let ignore = false;
+    const checkIgnore = () => ignore;
+
+    fetchDrivers(checkIgnore);
     fetchUnassignedDriversCount();
     fetchRoles();
+
+    return () => {
+      ignore = true;
+    };
   }, [fetchDrivers, fetchUnassignedDriversCount, fetchRoles, activeTab]);
 
   useEffect(() => {
@@ -1170,7 +1193,7 @@ export default function DriversPage() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                onClick={fetchDrivers}
+                onClick={() => fetchDrivers()} // Force refresh fix
                 disabled={loading}
                 variant="outline"
                 className="flex items-center gap-2"
