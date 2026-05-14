@@ -743,7 +743,7 @@ const DriverClockInOut = () => {
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow>
-                <TableHead>Drivr</TableHead>
+                <TableHead>Driver</TableHead>
                 <TableHead>Shift</TableHead>
                 <TableHead>Schedule</TableHead>
                 <TableHead>Clock In</TableHead>

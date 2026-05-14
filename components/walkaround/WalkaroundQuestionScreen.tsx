@@ -56,6 +56,16 @@ import { MultiSelect } from "../ui/multi-select"
 import { Badge } from "../ui/badge"
 import { DndProvider, useDrag, useDrop } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination"
+
 
 const ItemType = {
     ROW: "row",
@@ -214,6 +224,15 @@ const WalkaroundQuestionScreen = () => {
     const [loadingCategories, setLoadingCategories] = useState(true)
     const [saving, setSaving] = useState(false)
 
+    // Pagination state
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        totalPages: 1,
+        totalCount: 0,
+        pageSize: 20
+    })
+
+
     // Dialog states
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [isEditOpen, setIsEditOpen] = useState(false)
@@ -322,24 +341,33 @@ const WalkaroundQuestionScreen = () => {
     // Fetch questions when vehicle type changes
     useEffect(() => {
         if (selectedVehicleTypeIds.length > 0) {
-            fetchQuestions()
+            fetchQuestions(1)
         } else {
             setQuestions([])
+            setPagination({ currentPage: 1, totalPages: 1, totalCount: 0, pageSize: 20 })
         }
     }, [selectedVehicleTypeIds])
 
-    const fetchQuestions = async () => {
+    const fetchQuestions = async (page: number = pagination.currentPage) => {
         if (selectedVehicleTypeIds.length === 0) return
         setLoading(true)
         try {
             const res = await fetch(
-                `${API_URL}/api/walk-around-questions/?vehicle_types=[${selectedVehicleTypeIds.join(",")}]`,
+                `${API_URL}/api/walk-around-questions/?page=${page}&vehicle_types=[${selectedVehicleTypeIds.join(",")}]`,
                 { headers: authHeaders }
             )
             if (!res.ok) throw new Error("Failed to fetch questions")
             const result = await res.json()
             if (result.success) {
-                setQuestions(result.data?.results || result.data || [])
+                setQuestions(result.data?.results || [])
+                if (result.data?.pagination) {
+                    setPagination({
+                        currentPage: result.data.pagination.current_page,
+                        totalPages: result.data.pagination.total_pages,
+                        totalCount: result.data.pagination.count,
+                        pageSize: result.data.pagination.page_size
+                    })
+                }
             }
         } catch {
             toast.error("Failed to load walkaround questions")
@@ -347,6 +375,8 @@ const WalkaroundQuestionScreen = () => {
             setLoading(false)
         }
     }
+
+
 
     const resetForm = () => {
         setFormData(emptyForm)
@@ -1236,8 +1266,82 @@ const WalkaroundQuestionScreen = () => {
                                 ))}
                             </TableBody>
                         </Table>
+
+                        {/* Pagination UI */}
+                        {pagination.totalPages > 1 && (
+                            <div className="flex items-center justify-between px-2 py-4 border-t">
+                                <div className="text-sm text-muted-foreground">
+                                    Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.pageSize + 1}</span> to{" "}
+                                    <span className="font-medium">
+                                        {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalCount)}
+                                    </span>{" "}
+                                    of <span className="font-medium">{pagination.totalCount}</span> questions
+                                </div>
+                                <Pagination className="w-auto mx-0">
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (pagination.currentPage > 1) fetchQuestions(pagination.currentPage - 1);
+                                                }}
+                                                className={pagination.currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                            />
+                                        </PaginationItem>
+
+                                        {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => {
+                                            // Logic to show limited page numbers if there are too many
+                                            if (
+                                                page === 1 ||
+                                                page === pagination.totalPages ||
+                                                (page >= pagination.currentPage - 1 && page <= pagination.currentPage + 1)
+                                            ) {
+                                                return (
+                                                    <PaginationItem key={page}>
+                                                        <PaginationLink
+                                                            href="#"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                fetchQuestions(page);
+                                                            }}
+                                                            isActive={pagination.currentPage === page}
+                                                            className="cursor-pointer"
+                                                        >
+                                                            {page}
+                                                        </PaginationLink>
+                                                    </PaginationItem>
+                                                );
+                                            } else if (
+                                                page === pagination.currentPage - 2 ||
+                                                page === pagination.currentPage + 2
+                                            ) {
+                                                return (
+                                                    <PaginationItem key={page}>
+                                                        <PaginationEllipsis />
+                                                    </PaginationItem>
+                                                );
+                                            }
+                                            return null;
+                                        })}
+
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (pagination.currentPage < pagination.totalPages) fetchQuestions(pagination.currentPage + 1);
+                                                }}
+                                                className={pagination.currentPage === pagination.totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+                            </div>
+                        )}
                     </div>
                 </DndProvider>
+
             )}
 
             {/* Edit Dialog */}
