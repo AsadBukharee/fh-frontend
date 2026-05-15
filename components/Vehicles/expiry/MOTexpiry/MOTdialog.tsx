@@ -105,7 +105,7 @@ export default function MOTDialog({
   };
 
   const handleUploadOrSkip = () => {
-    if (!motData.motDate) {
+    if (!skipUpload && !motData.motDate) {
       setError("Please select the MOT date");
       return;
     }
@@ -141,7 +141,7 @@ export default function MOTDialog({
     setMotData(prev => ({ ...prev, motPassed: passed }));
     
     if (passed) {
-      updateVehicleWithMOT();
+      updateVehicleWithMOT(true);
     } else {
       setStep("task-or-job");
     }
@@ -171,8 +171,11 @@ export default function MOTDialog({
     setShowTaskDialog(true);
   };
 
-  const updateVehicleWithMOT = async () => {
-    if (!motData.motDate && !skipUpload) {
+  const updateVehicleWithMOT = async (passedOverride?: boolean, skipUploadOverride?: boolean) => {
+    const isSkipUpload = skipUploadOverride !== undefined ? skipUploadOverride : skipUpload;
+    const isPassed = passedOverride !== undefined ? passedOverride : motData.motPassed;
+
+    if (!motData.motDate && !isSkipUpload) {
       setError("Please select MOT date");
       return;
     }
@@ -200,11 +203,16 @@ export default function MOTDialog({
         updated_at: new Date().toISOString(),
       };
 
-      if (motData.certificateFile) {
+      // Only update expiry if it passed
+      if (isPassed === true) {
         updateData.mot_expiry = nextMOTExpiry;
+      }
+      
+      updateData.mot_last_test_date = motData.motDate;
+      updateData.mot_test_result = isPassed === true ? "pass" : isPassed === false ? "fail" : null;
+
+      if (motData.certificateFile) {
         updateData.mot_check_docs = motData.certificateFile;
-        updateData.mot_last_test_date = motData.motDate;
-        updateData.mot_test_result = motData.motPassed ? "pass" : "fail";
       }
 
       const response = await fetch(`${API_URL}/api/vehicles/${vehicleId}/`, {
@@ -219,6 +227,35 @@ export default function MOTDialog({
       const data = await response.json();
 
       if (response.ok && data.success) {
+        // Also call bulk document API if a certificate was uploaded
+        if (motData.certificateFile) {
+          try {
+            const docPayload = {
+              vehicle_id: vehicleId,
+              documents: [
+                {
+                  document_type: 9, // MOT Certificate
+                  title: "MOT Certificate",
+                  url: motData.certificateFile,
+                  expiry_date: isPassed === true ? nextMOTExpiry : null,
+                }
+              ]
+            };
+
+            await fetch(`${API_URL}/api/documents/documents/vehicle-bulk/`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(docPayload),
+            });
+          } catch (docErr) {
+            console.error("Error updating bulk document:", docErr);
+            // Don't fail the whole process if document update fails
+          }
+        }
+
         setSuccess(true);
         setTimeout(() => {
           onUpdateSuccess();
@@ -237,7 +274,9 @@ export default function MOTDialog({
 
   const handleTaskCreated = () => {
     if (selectedOption === "task" && motData.motPassed === false) {
-      updateVehicleWithMOT();
+      updateVehicleWithMOT(false);
+    } else if (skipUpload) {
+      updateVehicleWithMOT(undefined, true);
     } else {
       setShowTaskDialog(false);
       setSuccess(true);
@@ -251,7 +290,7 @@ export default function MOTDialog({
   const handleJobCreated = () => {
     setShowJobDialog(false);
     // After job is created, still update the vehicle
-    updateVehicleWithMOT();
+    updateVehicleWithMOT(false);
   };
 
   const formatDisplayDate = (dateString: string) => {
@@ -295,7 +334,7 @@ export default function MOTDialog({
       <div className="space-y-2">
         <Label htmlFor="motDate" className="text-sm font-semibold flex items-center gap-2">
           <Calendar className="w-4 h-4 text-gray-500" />
-          MOT Date *
+          MOT Date {!skipUpload && "*"}
         </Label>
         <Input
           id="motDate"
@@ -379,6 +418,7 @@ export default function MOTDialog({
                 accept=".pdf,.jpg,.jpeg,.png"
                 maxSize={10 * 1024 * 1024}
                 id="mot-certificate-upload"
+                hideDefaultUI={true}
               />
             )}
           </div>
@@ -386,26 +426,29 @@ export default function MOTDialog({
       </div>
 
       {/* Skip Option */}
-      <div className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all ${
+      <div className={`flex items-start gap-4 p-5 rounded-2xl border-2 transition-all duration-300 ${
         skipUpload 
-          ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300" 
-          : "bg-gray-50 border-gray-200 hover:border-gray-300"
+          ? "bg-gradient-to-br from-blue-50/50 to-blue-100/50 border-blue-200 shadow-sm" 
+          : "bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm"
       }`}>
+        <div className="p-2.5 bg-blue-100/50 rounded-xl">
+          <Clock className={`w-6 h-6 ${skipUpload ? "text-blue-600" : "text-gray-400"}`} />
+        </div>
         <div className="flex-1 space-y-1">
           <div className="flex items-center gap-2">
-            <Label className="font-semibold text-gray-900 cursor-pointer" htmlFor="skip-upload">
+            <Label className="font-bold text-gray-900 cursor-pointer text-base" htmlFor="skip-upload">
               Upload Later
             </Label>
             {skipUpload && (
-              <Badge variant="secondary" className="bg-blue-200 text-blue-800 text-xs">
-                Task will be created
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider px-2">
+                Task Active
               </Badge>
             )}
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-500 leading-relaxed">
             {skipUpload 
-              ? "A reminder task will be created to upload the certificate within 3 days" 
-              : "Don't have the certificate? Create a reminder task instead"}
+              ? "A high-priority reminder task will be created to upload the certificate within 3 days." 
+              : "Missing the certificate? You can proceed now and create a reminder task instead."}
           </p>
         </div>
         <Switch
@@ -418,6 +461,7 @@ export default function MOTDialog({
               setMotData(prev => ({ ...prev, certificateFile: "" }));
             }
           }}
+          className="data-[state=checked]:bg-blue-600"
         />
       </div>
 
@@ -488,15 +532,16 @@ export default function MOTDialog({
         </button>
       </div>
 
-      <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-        <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div className="text-sm text-blue-800">
-          <p className="font-medium mb-1">What happens next?</p>
-          <p className="text-blue-700">
-            <strong>Pass:</strong> Vehicle details will be updated with the new MOT expiry date.
-            <br />
-            <strong>Fail:</strong> You&apos;ll be able to create a task or mechanic job to address the issues.
-          </p>
+      <div className="flex items-start gap-4 p-5 bg-blue-50/50 border border-blue-100 rounded-2xl">
+        <div className="p-2 bg-blue-100 rounded-xl">
+          <Info className="w-5 h-5 text-blue-600 flex-shrink-0" />
+        </div>
+        <div className="text-sm text-blue-900">
+          <p className="font-bold mb-1">What happens next?</p>
+          <div className="space-y-1 text-blue-700/80">
+            <p><strong className="text-blue-900">Pass:</strong> Vehicle compliance status will be updated with the new MOT expiry date.</p>
+            <p><strong className="text-blue-900">Fail:</strong> You&apos;ll be prompted to create a follow-up task or a detailed mechanic job sheet.</p>
+          </div>
         </div>
       </div>
 
@@ -625,56 +670,60 @@ export default function MOTDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-2xl max-h-[95vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-xl">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Calendar className="w-5 h-5 text-orange-600" />
-              </div>
-              Update MOT Details
-            </DialogTitle>
-            <DialogDescription className="flex items-center justify-between pt-2">
-              <span className="text-gray-600">{getStepTitle()}</span>
-              <Badge variant="outline" className="bg-orange-50 border-orange-200 text-orange-700">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 border-none bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col">
+          <DialogHeader className="p-8 pb-6 border-b border-gray-50 bg-gray-50/30 flex-shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-gray-900">
+                <div className="p-2.5 bg-orange-100 rounded-2xl shadow-sm">
+                  <Calendar className="w-6 h-6 text-orange-600" />
+                </div>
+                Update MOT Details
+              </DialogTitle>
+              <Badge variant="outline" className="bg-white border-orange-200 text-orange-700 font-bold px-3 py-1 rounded-full shadow-sm">
                 Step {currentStepNumber} of {totalSteps}
               </Badge>
+            </div>
+            <DialogDescription className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-2 ml-14">
+              {getStepTitle()}
             </DialogDescription>
           </DialogHeader>
 
-          {error && (
-            <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <span className="text-sm font-medium">{error}</span>
-            </div>
-          )}
+          <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-6 custom-scrollbar">
+            {error && (
+              <div className="bg-red-50 border-2 border-red-100 text-red-700 px-5 py-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span className="text-sm font-bold">{error}</span>
+              </div>
+            )}
 
-          <div className="flex items-center justify-center gap-2 py-2">
-            {[1, 2, 3].map((num) => (
-              <React.Fragment key={num}>
-                <div className={`
-                  flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold transition-all
-                  ${currentStepNumber === num 
-                    ? "bg-orange-600 text-white scale-110 shadow-md" 
-                    : currentStepNumber > num
-                    ? "bg-emerald-500 text-white"
-                    : "bg-gray-200 text-gray-400"}
-                `}>
-                  {currentStepNumber > num ? <CheckCircle className="w-5 h-5" /> : num}
-                </div>
-                {num < 3 && (
+            <div className="flex items-center justify-center gap-4 py-4">
+              {[1, 2, 3].map((num) => (
+                <React.Fragment key={num}>
                   <div className={`
-                    h-1 w-16 rounded-full transition-all
-                    ${currentStepNumber > num ? "bg-emerald-500" : "bg-gray-200"}
-                  `} />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
+                    flex items-center justify-center w-12 h-12 rounded-2xl text-base font-bold transition-all duration-500
+                    ${currentStepNumber === num 
+                      ? "bg-orange-600 text-white scale-110 shadow-xl shadow-orange-100 ring-4 ring-orange-50" 
+                      : currentStepNumber > num
+                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-50"
+                      : "bg-gray-50 text-gray-300 border border-gray-100"}
+                  `}>
+                    {currentStepNumber > num ? <CheckCircle className="w-6 h-6 animate-in zoom-in duration-300" /> : num}
+                  </div>
+                  {num < 3 && (
+                    <div className={`
+                      h-1.5 w-12 rounded-full transition-all duration-700
+                      ${currentStepNumber > num ? "bg-emerald-500" : "bg-gray-100"}
+                    `} />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
 
-          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-            {step === "upload-cert" && renderUploadStep()}
-            {step === "pass-check" && renderPassFailStep()}
-            {step === "task-or-job" && renderTaskJobStep()}
+            <div className="animate-in fade-in slide-in-from-right-8 duration-500 ease-out">
+              {step === "upload-cert" && renderUploadStep()}
+              {step === "pass-check" && renderPassFailStep()}
+              {step === "task-or-job" && renderTaskJobStep()}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

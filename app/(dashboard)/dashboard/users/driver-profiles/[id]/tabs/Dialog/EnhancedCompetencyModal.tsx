@@ -51,7 +51,7 @@ interface EnhancedCompetencyModalProps {
   driverLicenseData?: any;
   handleInputChange: (field: string, value: any) => void;
   handleLicenseInfoChange: (field: string, value: string) => void;
-  handleFileUpload: (url: string, isBackSide: boolean) => void;
+  handleFileUpload: (url: string, isBackSide: boolean, isNewDocument?: boolean) => void;
   handleModuleChange?: (index: number, field: string, value: string) => void;
   addModule?: () => void;
   deleteModule?: (index: number) => void;
@@ -103,6 +103,7 @@ export default function EnhancedCompetencyModal({
   const [showUploader, setShowUploader] = useState(false);
   const [activeTab, setActiveTab] = useState<'current' | 'next_five'>('current');
   const [uploadingSide, setUploadingSide] = useState<'front' | 'back'>('front');
+  const [uploadMode, setUploadMode] = useState<'update' | 'add'>('update');
 
   // Preview state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -131,7 +132,7 @@ export default function EnhancedCompetencyModal({
   if (!currentDoc) return null;
 
   const handleUploadSuccess = (url: string) => {
-    handleFileUpload(url, uploadingSide === 'back');
+    handleFileUpload(url, uploadingSide === 'back', uploadMode === 'add');
     setShowUploader(false);
   };
 
@@ -285,17 +286,34 @@ export default function EnhancedCompetencyModal({
                       </div>
                     </div>
 
-                    <Button
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
-                        setShowUploader(true);
-                      }}
-                      className="absolute top-4 right-4 z-20 h-10 w-10 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border-none text-[#F26522] hover:bg-white hover:scale-110 transition-all"
-                    >
-                      <Upload className="h-5 w-5" />
-                    </Button>
+                    <div className="absolute top-4 right-4 z-20 flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
+                          setUploadMode('update');
+                          setShowUploader(true);
+                        }}
+                        className="h-9 px-3 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border-none text-[#F26522] hover:bg-white hover:scale-105 transition-all text-[11px] font-bold gap-1.5"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Update
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
+                          setUploadMode('add');
+                          setShowUploader(true);
+                        }}
+                        className="h-9 px-3 bg-[#F26522] rounded-xl shadow-lg border-none text-white hover:bg-[#D4541B] hover:scale-105 transition-all text-[11px] font-bold gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add New
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Navigation Arrows */}
@@ -366,23 +384,13 @@ export default function EnhancedCompetencyModal({
                           "px-8 py-3 rounded-full text-[15px] font-bold transition-all border outline-none",
                           currentDoc.request_status === s.val
                             ? `${s.bg} ${s.text} ${s.border}`
-                            : "bg-white text-gray-300 border-gray-50 hover:bg-gray-50"
+                            : "bg-white text-gray-400 border-gray-50 hover:bg-gray-50"
                         )}
                       >
                         {s.label}
                       </button>
                     ))}
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-gray-800 ml-1">Description</Label>
-                  <Textarea
-                    value={currentDoc.description || ""}
-                    onChange={(e) => handleInputChange("description", e.target.value)}
-                    className="min-h-[140px] border border-gray-100 rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] p-6 resize-none placeholder:text-gray-300 font-medium text-base shadow-none bg-white"
-                    placeholder="Enter special notes..."
-                  />
                 </div>
 
                 {currentDoc.request_status === 'not_approved' && (
@@ -404,6 +412,16 @@ export default function EnhancedCompetencyModal({
                     )}
                   </div>
                 )}
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-gray-800 ml-1">Description</Label>
+                  <Textarea
+                    value={currentDoc.description || ""}
+                    onChange={(e) => handleInputChange("description", e.target.value)}
+                    className="min-h-[140px] border border-gray-100 rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] p-6 resize-none placeholder:text-gray-300 font-medium text-base shadow-none bg-white"
+                    placeholder="Enter special notes..."
+                  />
+                </div>
               </div>
             </div>
 
@@ -592,9 +610,14 @@ export default function EnhancedCompetencyModal({
           <Dialog open={showUploader} onOpenChange={setShowUploader}>
             <DialogContent className="w-fit bg-white rounded-[2rem] p-8 border-none shadow-2xl">
               <DialogHeader className="mb-6">
-                <DialogTitle className="text-2xl font-bold">Upload {uploadingSide === 'back' ? 'Back' : 'Front'} Document</DialogTitle>
+                <DialogTitle className="text-2xl font-bold">
+                  {uploadMode === 'add' ? 'Add New' : 'Update'} {uploadingSide === 'back' ? 'Back' : 'Front'} Document
+                </DialogTitle>
                 <DialogDescription className="text-gray-400">
-                  Please upload a clear image of the {uploadingSide === 'back' ? 'back' : 'front'} of the CPC card.
+                  {uploadMode === 'add'
+                    ? `Adding a new document will require you to update the expiry date.`
+                    : `Updating the document will replace the current file without requiring a date change.`
+                  }
                 </DialogDescription>
               </DialogHeader>
               <div className="bg-gray-50 rounded-3xl p-6 border-2 border-dashed border-gray-100">
@@ -689,18 +712,35 @@ export default function EnhancedCompetencyModal({
                   </div>
                 </div>
 
-                {/* Upload Action */}
-                <Button
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
-                    setShowUploader(true);
-                  }}
-                  className="absolute top-6 right-6 z-20 h-12 w-12 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border-none text-[#F26522] hover:bg-white hover:scale-110 active:scale-95 transition-all"
-                >
-                  <Upload className="h-6 w-6" />
-                </Button>
+                {/* Upload Action - Two buttons: Update Document & Add New Document */}
+                <div className="absolute top-6 right-6 z-20 flex flex-col gap-2">
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
+                      setUploadMode('update');
+                      setShowUploader(true);
+                    }}
+                    className="h-10 px-3 bg-white/90 backdrop-blur-md rounded-xl shadow-xl border-none text-[#F26522] hover:bg-white hover:scale-105 active:scale-95 transition-all text-[11px] font-bold gap-1.5"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    Update Doc
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
+                      setUploadMode('add');
+                      setShowUploader(true);
+                    }}
+                    className="h-10 px-3 bg-[#F26522] rounded-xl shadow-xl border-none text-white hover:bg-[#D4541B] hover:scale-105 active:scale-95 transition-all text-[11px] font-bold gap-1.5"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add New
+                  </Button>
+                </div>
               </div>
 
               {/* Navigation Arrows */}
@@ -807,17 +847,6 @@ export default function EnhancedCompetencyModal({
                 </div>
               </div>
 
-              {/* Description Section */}
-              <div className="space-y-2">
-                <Label className="text-[13px] font-bold text-gray-800 ml-1">Description</Label>
-                <Textarea
-                  value={currentDoc.description || ""}
-                  onChange={(e) => handleInputChange("description", e.target.value)}
-                  className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] font-medium p-4 resize-none placeholder:text-gray-300"
-                  placeholder="Enter special notes..."
-                />
-              </div>
-
               {/* Remarks Section for Rejection */}
               {currentDoc.request_status === 'not_approved' && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -838,6 +867,17 @@ export default function EnhancedCompetencyModal({
                   )}
                 </div>
               )}
+
+              {/* Description Section */}
+              <div className="space-y-2">
+                <Label className="text-[13px] font-bold text-gray-800 ml-1">Description</Label>
+                <Textarea
+                  value={currentDoc.description || ""}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  className="min-h-[100px] border-gray-100 rounded-2xl focus:ring-[#F26522] focus:border-[#F26522] font-medium p-4 resize-none placeholder:text-gray-300"
+                  placeholder="Enter special notes..."
+                />
+              </div>
             </div>
 
             {/* Footer Buttons */}
@@ -864,9 +904,14 @@ export default function EnhancedCompetencyModal({
         <Dialog open={showUploader} onOpenChange={setShowUploader}>
           <DialogContent className="w-fit bg-white rounded-[2rem] p-8 border-none shadow-2xl">
             <DialogHeader className="mb-6">
-              <DialogTitle className="text-2xl font-bold">Upload {uploadingSide === 'back' ? 'Back' : 'Front'} side of {currentDoc.document_name}</DialogTitle>
+              <DialogTitle className="text-2xl font-bold">
+                {uploadMode === 'add' ? 'Add New' : 'Update'} {uploadingSide === 'back' ? 'Back' : 'Front'} side of {currentDoc.document_name}
+              </DialogTitle>
               <DialogDescription className="text-gray-400">
-                Please upload a clear image of the {uploadingSide === 'back' ? 'back' : 'front'} side of the {currentDoc.document_name}.
+                {uploadMode === 'add'
+                  ? `Adding a new document will require you to update the expiry date.`
+                  : `Updating the document will replace the current file without requiring a date change.`
+                }
               </DialogDescription>
             </DialogHeader>
             <div className="bg-gray-50 rounded-3xl p-6 border-2 border-dashed border-gray-100">

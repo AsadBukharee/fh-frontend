@@ -15,6 +15,7 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Plus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import dynamic from 'next/dynamic'
@@ -81,6 +82,10 @@ export default function CombinedTachoDialog({
   const [saving, setSaving] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
   const [uploadingSide, setUploadingSide] = useState<'front' | 'back'>('front');
+  const [uploadMode, setUploadMode] = useState<'update' | 'add'>('update');
+  // Track whether each section had a brand-new doc added (requires date update)
+  const [tachoIsNewUpload, setTachoIsNewUpload] = useState(false);
+  const [downloadIsNewUpload, setDownloadIsNewUpload] = useState(false);
 
   // Preview state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -143,22 +148,25 @@ export default function CombinedTachoDialog({
   }, []);
 
   const handleFileUpload = useCallback((url: string) => {
+    const isNew = uploadMode === 'add';
     if (currentStep === 1) {
       if (uploadingSide === 'front') {
         setFormData(prev => ({ ...prev, tacho_url_front: url, tacho_has_document: true }));
       } else {
         setFormData(prev => ({ ...prev, tacho_url_back: url, tacho_has_document: true }));
       }
+      if (isNew) setTachoIsNewUpload(true);
     } else {
       if (uploadingSide === 'front') {
         setFormData(prev => ({ ...prev, download_url_front: url, download_has_document: true }));
       } else {
         setFormData(prev => ({ ...prev, download_url_back: url, download_has_document: true }));
       }
+      if (isNew) setDownloadIsNewUpload(true);
     }
     setShowUploader(false);
-    toast.success(`Document uploaded successfully`);
-  }, [currentStep, uploadingSide]);
+    toast.success(isNew ? `New document added successfully` : `Document updated successfully`);
+  }, [currentStep, uploadingSide, uploadMode]);
 
   const handleSave = useCallback(async () => {
     const isTacho = currentStep === 1;
@@ -192,9 +200,9 @@ export default function CombinedTachoDialog({
         toast.error("Tacho Card expiry changed. Please upload a new Tacho Card image matching the new date.");
         return;
       }
-      // If ONLY document changed, REQUIRE expiry date update
-      if (isTachoUrlChanged && !isTachoExpiryChanged) {
-        toast.error("New Tacho Card image uploaded. Please update/verify the expiry date.");
+      // If a NEW document was added (not just updated), REQUIRE expiry date update
+      if (isTachoUrlChanged && tachoIsNewUpload && !isTachoExpiryChanged) {
+        toast.error("New Tacho Card image added. Please update/verify the expiry date.");
         return;
       }
 
@@ -216,8 +224,8 @@ export default function CombinedTachoDialog({
       setCurrentStep(1);
       return;
     }
-    if (isTachoUrlChanged && !isTachoExpiryChanged) {
-      toast.error("New Tacho Card image uploaded. Please update the expiry date in Step 1.");
+    if (isTachoUrlChanged && tachoIsNewUpload && !isTachoExpiryChanged) {
+      toast.error("New Tacho Card image added. Please update the expiry date in Step 1.");
       setCurrentStep(1);
       return;
     }
@@ -232,9 +240,9 @@ export default function CombinedTachoDialog({
       toast.error("Download date changed. Please upload a new Tacho download document matching the new date.");
       return;
     }
-    // If ONLY download document changed, REQUIRE date update
-    if (isDownloadUrlChanged && !isDownloadDateChanged) {
-      toast.error("New Tacho download document uploaded. Please update/verify the download date.");
+    // If a NEW download document was added (not just updated), REQUIRE date update
+    if (isDownloadUrlChanged && downloadIsNewUpload && !isDownloadDateChanged) {
+      toast.error("New Tacho download document added. Please update/verify the download date.");
       return;
     }
 
@@ -337,7 +345,7 @@ export default function CombinedTachoDialog({
   }, [
     currentStep, formData, tachoCardData, lastTachoDownloadData,
     driverId, API_URL, cookies, fetchCompetencyData,
-    fetchDriverData, onOpenChange
+    fetchDriverData, onOpenChange, tachoIsNewUpload, downloadIsNewUpload
   ]);
 
   const currentDocName = currentStep === 1 ? "Tacho Card" : "Last Tacho Download";
@@ -433,18 +441,35 @@ export default function CombinedTachoDialog({
                   </div>
                 </div>
 
-                {/* Upload Action */}
-                <Button
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
-                    setShowUploader(true);
-                  }}
-                  className="absolute top-6 right-6 z-20 h-11 w-11 bg-white shadow-xl border-none text-[#FF6B35] hover:bg-white hover:scale-110 transition-all rounded-xl"
-                >
-                  <Upload className="h-5 w-5" />
-                </Button>
+                {/* Upload Action - Two buttons: Update Document & Add New Document */}
+                <div className="absolute top-6 right-6 z-20 flex flex-col gap-2">
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
+                      setUploadMode('update');
+                      setShowUploader(true);
+                    }}
+                    className="h-9 px-3 bg-white shadow-xl border-none text-[#FF6B35] hover:bg-gray-50 hover:scale-105 transition-all rounded-xl text-[11px] font-bold gap-1.5"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    Update
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUploadingSide(currentSwipeIdx === 0 ? 'front' : 'back');
+                      setUploadMode('add');
+                      setShowUploader(true);
+                    }}
+                    className="h-9 px-3 bg-[#FF6B35] shadow-xl border-none text-white hover:bg-[#E85A2A] hover:scale-105 transition-all rounded-xl text-[11px] font-bold gap-1.5"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add New
+                  </Button>
+                </div>
               </div>
 
               {/* Navigation Arrows */}
@@ -471,11 +496,24 @@ export default function CombinedTachoDialog({
 
             <div className="flex gap-3 w-full mt-6">
               <Button
-                onClick={() => setShowUploader(true)}
-                className="flex-1 h-12 bg-[#FF6B35] hover:bg-[#E85A2A] text-white font-bold rounded-2xl shadow-lg shadow-orange-100 flex items-center justify-center gap-2"
+                onClick={() => {
+                  setUploadMode('update');
+                  setShowUploader(true);
+                }}
+                className="flex-1 h-12 bg-white border border-[#FF6B35] text-[#FF6B35] hover:bg-orange-50 font-bold rounded-2xl shadow-sm flex items-center justify-center gap-2"
               >
                 <Upload className="h-5 w-5" />
-                Upload
+                Update Doc
+              </Button>
+              <Button
+                onClick={() => {
+                  setUploadMode('add');
+                  setShowUploader(true);
+                }}
+                className="flex-1 h-12 bg-[#FF6B35] hover:bg-[#E85A2A] text-white font-bold rounded-2xl shadow-lg shadow-orange-100 flex items-center justify-center gap-2"
+              >
+                <Plus className="h-5 w-5" />
+                Add New Doc
               </Button>
             </div>
           </div>
@@ -537,32 +575,31 @@ export default function CombinedTachoDialog({
                 </div>
               </div>
 
+              {/* Remarks Section for Rejection */}
+              {currentStatus === "not_approved" && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <Label className="text-[13px] font-bold text-gray-800 ml-1">
+                    Remarks <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    value={currentRemarks}
+                    onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_remarks" : "download_remarks", e.target.value)}
+                    className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
+                    placeholder="Enter the reason for rejection"
+                  />
+                </div>
+              )}
+
               {/* Description Section (Visible for Pending/Rejected) */}
               {(currentStatus === "pending" || currentStatus === "not_approved") && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Description</Label>
-                    <Textarea
-                      value={currentStatusDesc}
-                      onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_description" : "download_description", e.target.value)}
-                      className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
-                      placeholder="Enter special notes..."
-                    />
-                  </div>
-
-                  {currentStatus === "not_approved" && (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <Label className="text-[13px] font-bold text-gray-800 ml-1">
-                        Remarks <span className="text-red-500">*</span>
-                      </Label>
-                      <Textarea
-                        value={currentRemarks}
-                        onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_remarks" : "download_remarks", e.target.value)}
-                        className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
-                        placeholder="Enter the reason for rejection"
-                      />
-                    </div>
-                  )}
+                <div className="space-y-2">
+                  <Label className="text-[13px] font-bold text-gray-800 ml-1">Description</Label>
+                  <Textarea
+                    value={currentStatusDesc}
+                    onChange={(e) => handleFormChange(currentStep === 1 ? "tacho_description" : "download_description", e.target.value)}
+                    className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
+                    placeholder="Enter special notes..."
+                  />
                 </div>
               )}
 
@@ -604,16 +641,23 @@ export default function CombinedTachoDialog({
 
         {/* Media Upload Modal */}
         <Dialog open={showUploader} onOpenChange={setShowUploader}>
-          <DialogContent className="w-fit">
-            <DialogHeader>
-              <DialogTitle>Upload {uploadingSide === 'front' ? 'FrontSide' : 'BackSide'} of {currentDocName}</DialogTitle>
-              <DialogDescription>
-                Upload the {uploadingSide === 'front' ? 'Front' : 'Back'} side of your {currentDocName} document.
+          <DialogContent className="w-fit bg-white rounded-[2rem] p-8 border-none shadow-2xl">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-2xl font-bold">
+                {uploadMode === 'add' ? 'Add New' : 'Update'} {uploadingSide === 'front' ? 'Front' : 'Back'} side of {currentDocName}
+              </DialogTitle>
+              <DialogDescription className="text-gray-400">
+                {uploadMode === 'add'
+                  ? `Adding a new document will require you to update the ${currentStep === 1 ? 'expiry date' : 'download date'}.`
+                  : `Updating the document will replace the current file without requiring a date change.`
+                }
               </DialogDescription>
             </DialogHeader>
-            <FileUploaderLazy
-              onUploadSuccess={handleFileUpload}
-            />
+            <div className="bg-gray-50 rounded-3xl p-6 border-2 border-dashed border-gray-100">
+              <FileUploaderLazy
+                onUploadSuccess={handleFileUpload}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       </DialogContent>
