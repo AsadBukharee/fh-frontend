@@ -592,6 +592,7 @@ export default function ProfessionalCompetencyTab({
     license_issue_number: licenseIssueNumber || "",
   })
   const [hasUploadedNewDocument, setHasUploadedNewDocument] = useState(false)
+  const [isUploadNewDocument, setIsUploadNewDocument] = useState(false) // true = 'Add New', false = 'Update'
   const [originalDocumentUrls, setOriginalDocumentUrls] = useState<string[]>([])
   const [documentDependencies, setDocumentDependencies] = useState<{
     drivingLicenseChanged: boolean;
@@ -775,6 +776,7 @@ export default function ProfessionalCompetencyTab({
     setOriginalExpiryDate(competency.expiry_date);
     setOriginalDocumentUrls(competency.urls || []);
     setHasUploadedNewDocument(false);
+    setIsUploadNewDocument(false);
     setUploadRequired(false);
     setDocumentDependencies({
       drivingLicenseChanged: false,
@@ -923,7 +925,7 @@ export default function ProfessionalCompetencyTab({
   }, [modalState.editData, originalLicenseInfo, uploadRequired, hasUploadedNewDocument, documentDependencies, checkAndShowSyncDialog]);
 
   const handleFileUpload = useCallback(
-    (url: string, isBackSide: boolean) => {
+    (url: string, isBackSide: boolean, isNewDocument: boolean = true) => {
       const updatedUrls = [...(modalState.editData.urls || [])]
       if (isBackSide) {
         if (updatedUrls.length > 1) {
@@ -942,6 +944,7 @@ export default function ProfessionalCompetencyTab({
       }
 
       setHasUploadedNewDocument(true)
+      setIsUploadNewDocument(isNewDocument)
       setUploadRequired(false)
 
       dispatchModal({
@@ -953,7 +956,7 @@ export default function ProfessionalCompetencyTab({
         }
       });
 
-      toast.success("Document uploaded successfully")
+      toast.success(isNewDocument ? "New document added successfully" : "Document updated successfully")
     },
     [modalState.editData],
   );
@@ -1239,13 +1242,13 @@ export default function ProfessionalCompetencyTab({
       return;
     }
 
-    // Requirement 2: If a new document was uploaded, REQUIRE an expiry date update
-    if (hasUploadedNewDocument && !isExpiryDateChanged && modalState.editData.has_expiry) {
+    // Requirement 2: If a NEW document was added (not just updated), REQUIRE an expiry date update
+    if (hasUploadedNewDocument && isUploadNewDocument && !isExpiryDateChanged && modalState.editData.has_expiry) {
       dispatchModal({
         type: 'SET_FORM_ERROR',
         payload: { field: 'expiry_date', value: "Please update/verify the expiry date" }
       });
-      toast.error("New document uploaded. Please update the expiry date to match the new document.");
+      toast.error("New document added. Please update the expiry date to match the new document.");
       return;
     }
 
@@ -1276,7 +1279,7 @@ export default function ProfessionalCompetencyTab({
     }
 
     await saveChanges();
-  }, [modalState.editData, modalState.isEditing, originalExpiryDate, driverLicenseInfo, originalLicenseInfo, saveChanges, hasUploadedNewDocument]);
+  }, [modalState.editData, modalState.isEditing, originalExpiryDate, driverLicenseInfo, originalLicenseInfo, saveChanges, hasUploadedNewDocument, isUploadNewDocument]);
 
   const openReminderDialog = useCallback(() => {
     if (!modalState.editData) return;

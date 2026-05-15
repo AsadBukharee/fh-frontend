@@ -15,6 +15,7 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Plus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import dynamic from 'next/dynamic'
@@ -85,6 +86,10 @@ export default function CombinedLicenseDialog({
   const [currentStep, setCurrentStep] = useState(1); // 1 = DL (Front), 2 = DD1 (Back)
   const [saving, setSaving] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'update' | 'add'>('update');
+  // Track whether each section had a brand-new doc added (requires date update)
+  const [dlIsNewUpload, setDlIsNewUpload] = useState(false);
+  const [dd1IsNewUpload, setDd1IsNewUpload] = useState(false);
 
   // Preview state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -151,14 +156,17 @@ export default function CombinedLicenseDialog({
   }, []);
 
   const handleFileUpload = useCallback((url: string) => {
+    const isNew = uploadMode === 'add';
     if (currentStep === 1) {
       setFormData(prev => ({ ...prev, dl_url: url, dl_has_document: true }));
+      if (isNew) setDlIsNewUpload(true);
     } else {
       setFormData(prev => ({ ...prev, dd1_url: url, dd1_has_document: true }));
+      if (isNew) setDd1IsNewUpload(true);
     }
     setShowUploader(false);
-    toast.success(`Document uploaded successfully`);
-  }, [currentStep]);
+    toast.success(isNew ? `New document added successfully` : `Document updated successfully`);
+  }, [currentStep, uploadMode]);
 
   const handleSave = useCallback(async (isFinal = false) => {
     // Validation for current step immediately
@@ -212,9 +220,9 @@ export default function CombinedLicenseDialog({
         toast.error("Expiry date changed. Please upload a new Driving License (Front) image matching the new date.");
         return;
       }
-      // If ONLY document changed, REQUIRE expiry date update
-      else if (isDlUrlChanged && !isDlExpiryChanged) {
-        toast.error("New document uploaded. Please update the Driving License (Front) expiry date to match the document.");
+      // If a NEW document was added (not just updated), REQUIRE expiry date update
+      else if (isDlUrlChanged && dlIsNewUpload && !isDlExpiryChanged) {
+        toast.error("New document added. Please update the Driving License (Front) expiry date to match the document.");
         return;
       }
 
@@ -241,8 +249,8 @@ export default function CombinedLicenseDialog({
       toast.error("Driving License expiry changed. Please upload a new image for the Front of the license.");
       setCurrentStep(1);
       return;
-    } else if (isDlUrlChanged && !isDlExpiryChanged) {
-      toast.error("New Driving License image uploaded. Please update the expiry date in Step 1.");
+    } else if (isDlUrlChanged && dlIsNewUpload && !isDlExpiryChanged) {
+      toast.error("New Driving License image added. Please update the expiry date in Step 1.");
       setCurrentStep(1);
       return;
     }
@@ -268,9 +276,9 @@ export default function CombinedLicenseDialog({
       toast.error("D/D1 Category expiry changed. Please upload a new D/D1 Category (Back) image.");
       return;
     }
-    // If ONLY D/D1 document changed, REQUIRE expiry date update
-    else if (isDd1UrlChanged && !isDd1ExpiryChanged) {
-      toast.error("New D/D1 Category image uploaded. Please update the expiry date.");
+    // If a NEW D/D1 document was added (not just updated), REQUIRE expiry date update
+    else if (isDd1UrlChanged && dd1IsNewUpload && !isDd1ExpiryChanged) {
+      toast.error("New D/D1 Category image added. Please update the expiry date.");
       return;
     }
 
@@ -385,7 +393,7 @@ export default function CombinedLicenseDialog({
   }, [
     currentStep, formData, driverLicenseData, dd1CategoryData,
     driverId, API_URL, cookies, fetchCompetencyData,
-    fetchDriverData, onOpenChange, licenseNumber, licenseIssueNumber
+    fetchDriverData, onOpenChange, licenseNumber, licenseIssueNumber, dlIsNewUpload, dd1IsNewUpload
   ]);
 
   const currentDocName = currentStep === 1 ? "Driving License" : "D/D1 Category";
@@ -479,18 +487,35 @@ export default function CombinedLicenseDialog({
                   </div>
                 </div>
 
-                {/* Upload Action */}
-                <Button
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentStep(currentSwipeIdx + 1);
-                    setShowUploader(true);
-                  }}
-                  className="absolute top-6 right-6 z-20 h-11 w-11 bg-white shadow-xl border-none text-[#FF6B35] hover:bg-white hover:scale-110 transition-all rounded-xl"
-                >
-                  <Upload className="h-5 w-5" />
-                </Button>
+                {/* Upload Action - Two buttons: Update Document & Add New Document */}
+                <div className="absolute top-6 right-6 z-20 flex flex-col gap-2">
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentStep(currentSwipeIdx + 1);
+                      setUploadMode('update');
+                      setShowUploader(true);
+                    }}
+                    className="h-9 px-3 bg-white shadow-xl border-none text-[#FF6B35] hover:bg-gray-50 hover:scale-105 transition-all rounded-xl text-[11px] font-bold gap-1.5"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    Update
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentStep(currentSwipeIdx + 1);
+                      setUploadMode('add');
+                      setShowUploader(true);
+                    }}
+                    className="h-9 px-3 bg-[#FF6B35] shadow-xl border-none text-white hover:bg-[#E85A2A] hover:scale-105 transition-all rounded-xl text-[11px] font-bold gap-1.5"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add New
+                  </Button>
+                </div>
               </div>
 
               {/* Navigation Arrows */}
@@ -516,11 +541,24 @@ export default function CombinedLicenseDialog({
 
             <div className="flex gap-3 w-full mt-6">
               <Button
-                onClick={() => setShowUploader(true)}
-                className="flex-1 h-12 bg-[#FF6B35] hover:bg-[#E85A2A] text-white font-bold rounded-2xl shadow-lg shadow-orange-100 flex items-center justify-center gap-2"
+                onClick={() => {
+                  setUploadMode('update');
+                  setShowUploader(true);
+                }}
+                className="flex-1 h-12 bg-white border border-[#FF6B35] text-[#FF6B35] hover:bg-orange-50 font-bold rounded-2xl shadow-sm flex items-center justify-center gap-2"
               >
                 <Upload className="h-5 w-5" />
-                Upload
+                Update Doc
+              </Button>
+              <Button
+                onClick={() => {
+                  setUploadMode('add');
+                  setShowUploader(true);
+                }}
+                className="flex-1 h-12 bg-[#FF6B35] hover:bg-[#E85A2A] text-white font-bold rounded-2xl shadow-lg shadow-orange-100 flex items-center justify-center gap-2"
+              >
+                <Plus className="h-5 w-5" />
+                Add New Doc
               </Button>
             </div>
           </div>
@@ -599,32 +637,31 @@ export default function CombinedLicenseDialog({
                 </div>
               </div>
 
+              {/* Remarks Section for Rejection */}
+              {currentStatus === "not_approved" && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <Label className="text-[13px] font-bold text-gray-800 ml-1">
+                    Remarks <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    value={currentRemarks}
+                    onChange={(e) => handleFormChange(currentStep === 1 ? "dl_remarks" : "dd1_remarks", e.target.value)}
+                    className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
+                    placeholder="Enter the reason for rejection"
+                  />
+                </div>
+              )}
+
               {/* Description Section (Visible for Pending/Rejected) */}
               {(currentStatus === "pending" || currentStatus === "not_approved") && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-[13px] font-bold text-gray-800 ml-1">Description</Label>
-                    <Textarea
-                      value={currentStatusDesc}
-                      onChange={(e) => handleFormChange(currentStep === 1 ? "dl_description" : "dd1_description", e.target.value)}
-                      className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
-                      placeholder="Enter special notes..."
-                    />
-                  </div>
-
-                  {currentStatus === "not_approved" && (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <Label className="text-[13px] font-bold text-gray-800 ml-1">
-                        Remarks <span className="text-red-500">*</span>
-                      </Label>
-                      <Textarea
-                        value={currentRemarks}
-                        onChange={(e) => handleFormChange(currentStep === 1 ? "dl_remarks" : "dd1_remarks", e.target.value)}
-                        className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
-                        placeholder="Enter the reason for rejection"
-                      />
-                    </div>
-                  )}
+                <div className="space-y-2">
+                  <Label className="text-[13px] font-bold text-gray-800 ml-1">Description</Label>
+                  <Textarea
+                    value={currentStatusDesc}
+                    onChange={(e) => handleFormChange(currentStep === 1 ? "dl_description" : "dd1_description", e.target.value)}
+                    className="min-h-[80px] border-gray-100 rounded-2xl focus:ring-[#FF6B35] focus:border-[#FF6B35] placeholder:text-gray-300 font-medium p-4 resize-none"
+                    placeholder="Enter special notes..."
+                  />
                 </div>
               )}
 
@@ -666,16 +703,23 @@ export default function CombinedLicenseDialog({
 
         {/* Media Upload Modal */}
         <Dialog open={showUploader} onOpenChange={setShowUploader}>
-          <DialogContent className="w-fit">
-            <DialogHeader>
-              <DialogTitle>Upload {currentDocName}</DialogTitle>
-              <DialogDescription>
-                Upload the {currentStep === 1 ? "Front" : "Back"} of your license.
+          <DialogContent className="w-fit bg-white rounded-[2rem] p-8 border-none shadow-2xl">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-2xl font-bold">
+                {uploadMode === 'add' ? 'Add New' : 'Update'} {currentDocName}
+              </DialogTitle>
+              <DialogDescription className="text-gray-400">
+                {uploadMode === 'add'
+                  ? `Adding a new document will require you to update the expiry date.`
+                  : `Updating the document will replace the current file without requiring a date change.`
+                }
               </DialogDescription>
             </DialogHeader>
-            <FileUploaderLazy
-              onUploadSuccess={handleFileUpload}
-            />
+            <div className="bg-gray-50 rounded-3xl p-6 border-2 border-dashed border-gray-100">
+              <FileUploaderLazy
+                onUploadSuccess={handleFileUpload}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       </DialogContent>
