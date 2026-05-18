@@ -304,6 +304,7 @@ const ShiftCell = memo(({
   onClear,
   onEdit,
   availableShifts,
+  isSuperAdmin,
 }: {
   shift: EmployeeShift | "dropdown" | null;
   isOpen: boolean;
@@ -312,111 +313,144 @@ const ShiftCell = memo(({
   onClear: () => void;
   onEdit: (shift: EmployeeShift) => void;
   availableShifts: EmployeeShift[];
+  isSuperAdmin: boolean;
 }) => {
   return (
     <div className="min-h-[50px] flex items-center justify-center">
-      <Popover open={isOpen} onOpenChange={onToggle}>
-        <PopoverTrigger asChild>
-          {shift === "dropdown" || shift === null ? (
-            <Badge
-              variant="outline"
-              className={`w-full max-w-[110px] h-12 text-xs flex items-center justify-center cursor-pointer ${shift === "dropdown"
-                ? "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-                : "border-dashed border-gray-300 text-gray-400 hover:border-gray-400"
-                }`}
-            >
-              {shift === "dropdown" ? (
-                <span>RD</span>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <Edit className="w-3 h-3 mb-1" />
-                  <span className="text-xs">Assign</span>
-                </div>
-              )}
-            </Badge>
-          ) : (
-            <div
-              className="border-dotted rounded-lg flex flex-col justify-center items-center px-2 py-2 text-center w-full max-w-[120px] h-[60px] cursor-pointer hover:opacity-80 transition-opacity relative group text-xs"
-              style={{
-                backgroundColor: shift.bgColor,
-                color: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#000000" : "#000000",
-                borderColor: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#e5e7eb" : shift.bgColor,
-              }}
-            >
-              <div className="font-semibold flex items-center text-xs leading-tight mb-1" title={shift.type}>
-                {shift.type.length > 8 ? shift.type.substring(0, 8) + "..." : shift.type}
-                <ChevronDown className="w-4 h-4 ml-1" />
-              </div>
-              <div className="text-xs leading-tight" title={shift.time}>
-                {shift.time}
-              </div>
-              <Edit className="w-3 h-3 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          )}
-        </PopoverTrigger>
-        <PopoverContent className="w-80 max-h-[200px] overflow-y-auto p-2">
-          <div className="space-y-1">
-            <div className="flex items-center justify-between mb-2 px-2">
-              <div className="text-xs font-medium text-gray-700">Available Shifts ({availableShifts.length})</div>
-              {shift && shift !== "dropdown" && shift !== null && (
-                <div className="flex space-x-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEdit(shift)}
-                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 h-auto text-xs"
-                  >
-                    <Edit className="w-3 h-3 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onClear}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 h-auto text-xs"
-                  >
-                    <X className="w-3 h-3 mr-1" />
-                    Clear
-                  </Button>
-                </div>
-              )}
-            </div>
-            {availableShifts.length > 0 ? (
-              availableShifts.map((option, optionIndex) => (
-                <Button
-                  key={optionIndex}
-                  variant="ghost"
-                  className={`w-full text-left text-xs px-2 py-2 hover:bg-gray-100 h-auto ${shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId
-                    ? "bg-blue-50 border border-blue-200"
-                    : ""
-                    }`}
-                  onClick={() => onSelect(option)}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium truncate">{option.type}</div>
-                      <div className="text-gray-500 truncate">
-                        {option.time} • {option.hours}
-                      </div>
-                      <div className="text-gray-400 text-xs">£{option.rate_per_hours}/hr</div>
-                    </div>
-                    <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
-                      <div className="w-4 h-4 rounded border" style={{ backgroundColor: option.bgColor }} />
-                      {shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId && (
-                        <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center">
-                          <div className="w-2 h-2 bg-white rounded-full" />
-                        </div>
-                      )}
-                    </div>
+      {isSuperAdmin ? (
+        <Popover open={isOpen} onOpenChange={onToggle}>
+          <PopoverTrigger asChild>
+            {shift === "dropdown" || shift === null ? (
+              <Badge
+                variant="outline"
+                className={`w-full max-w-[110px] h-12 text-xs flex items-center justify-center cursor-pointer ${shift === "dropdown"
+                  ? "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+                  : "border-dashed border-gray-300 text-gray-400 hover:border-gray-400"
+                  }`}
+              >
+                {shift === "dropdown" ? (
+                  <span>RD</span>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <Edit className="w-3 h-3 mb-1" />
+                    <span className="text-xs">Assign</span>
                   </div>
-                </Button>
-              ))
+                )}
+              </Badge>
             ) : (
-              <div className="px-2 py-1.5 text-xs text-gray-500">No shift options available</div>
+              <div
+                className="border-dotted rounded-lg flex flex-col justify-center items-center px-2 py-2 text-center w-full max-w-[120px] h-[60px] cursor-pointer hover:opacity-80 transition-opacity relative group text-xs"
+                style={{
+                  backgroundColor: shift.bgColor,
+                  color: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#000000" : "#000000",
+                  borderColor: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#e5e7eb" : shift.bgColor,
+                }}
+              >
+                <div className="font-semibold flex items-center text-xs leading-tight mb-1" title={shift.type}>
+                  {shift.type.length > 8 ? shift.type.substring(0, 8) + "..." : shift.type}
+                  <ChevronDown className="w-4 h-4 ml-1" />
+                </div>
+                <div className="text-xs leading-tight" title={shift.time}>
+                  {shift.time}
+                </div>
+                <Edit className="w-3 h-3 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             )}
+          </PopoverTrigger>
+          <PopoverContent className="w-80 max-h-[200px] overflow-y-auto p-2">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between mb-2 px-2">
+                <div className="text-xs font-medium text-gray-700">Available Shifts ({availableShifts.length})</div>
+                {shift && shift !== "dropdown" && shift !== null && (
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEdit(shift)}
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 h-auto text-xs"
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClear}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 h-auto text-xs"
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {availableShifts.length > 0 ? (
+                availableShifts.map((option, optionIndex) => (
+                  <Button
+                    key={optionIndex}
+                    variant="ghost"
+                    className={`w-full text-left text-xs px-2 py-2 hover:bg-gray-100 h-auto ${shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId
+                      ? "bg-blue-50 border border-blue-200"
+                      : ""
+                      }`}
+                    onClick={() => onSelect(option)}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{option.type}</div>
+                        <div className="text-gray-500 truncate">
+                          {option.time} • {option.hours}
+                        </div>
+                        <div className="text-gray-400 text-xs">£{option.rate_per_hours}/hr</div>
+                      </div>
+                      <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                        <div className="w-4 h-4 rounded border" style={{ backgroundColor: option.bgColor }} />
+                        {shift && shift !== "dropdown" && shift !== null && shift.shiftId === option.shiftId && (
+                          <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Button>
+                ))
+              ) : (
+                <div className="px-2 py-1.5 text-xs text-gray-500">No shift options available</div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : (
+        // Read-only view for non-super-admins
+        shift === null || shift === "dropdown" ? (
+          <Badge
+            variant="outline"
+            className={`w-full max-w-[110px] h-12 text-xs flex items-center justify-center ${
+              shift === "dropdown"
+                ? "border-gray-300 bg-white text-gray-600"
+                : "border-dashed border-gray-300 text-gray-400"
+            }`}
+          >
+            {shift === "dropdown" ? <span>RD</span> : <span>—</span>}
+          </Badge>
+        ) : (
+          <div
+            className="border-dotted rounded-lg flex flex-col justify-center items-center px-2 py-2 text-center w-full max-w-[120px] h-[60px] text-xs"
+            style={{
+              backgroundColor: shift.bgColor,
+              color: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#000000" : "#000000",
+              borderColor: shift.bgColor === "#FFFFFF" || shift.bgColor === "#ffffff" ? "#e5e7eb" : shift.bgColor,
+            }}
+          >
+            <div className="font-semibold text-xs leading-tight mb-1" title={shift.type}>
+              {shift.type.length > 8 ? shift.type.substring(0, 8) + "..." : shift.type}
+            </div>
+            <div className="text-xs leading-tight" title={shift.time}>
+              {shift.time}
+            </div>
           </div>
-        </PopoverContent>
-      </Popover>
+        )
+      )}
     </div>
   );
 });
@@ -434,6 +468,7 @@ const EmployeeRow = memo(
     onClearShift,
     onEditShift,
     onStartRota,
+    isSuperAdmin,
   }: {
     employee: Employee;
     tempSelections: { [key: string]: (EmployeeShift | "dropdown" | null)[] } | undefined;
@@ -444,6 +479,7 @@ const EmployeeRow = memo(
     onClearShift: (employeeId: number, shiftIndex: number) => void;
     onEditShift: (shift: EmployeeShift) => void;
     onStartRota: (employeeId: number) => void;
+    isSuperAdmin: boolean;
   }) => {
     const handleSelectShift = useCallback(
       (shiftIndex: number, shift: EmployeeShift) => {
@@ -510,23 +546,26 @@ const EmployeeRow = memo(
               onClear={() => handleClearShift(shiftIndex)}
               onEdit={onEditShift}
               availableShifts={employee.availableShifts}
+              isSuperAdmin={isSuperAdmin}
             />
           </TableCell>
         ))}
-        <TableCell className="w-[120px] min-w-[120px] text-center">
-          <Button
-            size="sm"
-            onClick={handleStartRota}
-            style={{
-              background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
-              width: 'auto',
-              height: 'auto',
-            }}
-            className="px-3 cursor-pointer py-2"
-          >
-            Save Rota
-          </Button>
-        </TableCell>
+        {isSuperAdmin && (
+          <TableCell className="w-[120px] min-w-[120px] text-center">
+            <Button
+              size="sm"
+              onClick={handleStartRota}
+              style={{
+                background: 'linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)',
+                width: 'auto',
+                height: 'auto',
+              }}
+              className="px-3 cursor-pointer py-2"
+            >
+              Save Rota
+            </Button>
+          </TableCell>
+        )}
       </TableRow>
     );
   },
@@ -578,6 +617,8 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
 
   const cookies = useCookies();
   const token = cookies.get("access_token");
+  const role = cookies.get("role");
+  const isSuperAdmin = role === "superadmin";
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   const getWeekDates = useCallback((week: string): Day[] => {
@@ -1091,7 +1132,7 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
                         />
                       </TableHead>
                     ))}
-                    <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>
+                    {isSuperAdmin && <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1108,6 +1149,7 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
                         onClearShift={clearShift}
                         onEditShift={openEditShiftModal}
                         onStartRota={handleStartRota}
+                        isSuperAdmin={isSuperAdmin}
                       />
 
                     ))
@@ -1166,6 +1208,7 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
                         onClearShift={clearShift}
                         onEditShift={openEditShiftModal}
                         onStartRota={handleStartRota}
+                        isSuperAdmin={isSuperAdmin}
                       />
 
                     ))
