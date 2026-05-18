@@ -143,6 +143,7 @@ interface Vehicle {
   last_mileage?: string | null
   mileage_in_miles?: number | null
   mileage_in_km?: number | null
+  mileage_unit?: string | null
 }
 
 export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: string }) {
@@ -227,6 +228,7 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
           last_mileage: v.last_mileage,
           mileage_in_miles: v.mileage_in_miles,
           mileage_in_km: v.mileage_in_km,
+          mileage_unit: v.mileage_unit,
         }))
         setVehicles(mapped)
         setFilteredVehicles(mapped)
@@ -664,7 +666,8 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
                           </td>
                           <td className="px-6 py-4">{getRoadworthyBadge(vehicle)}</td>
                           <td className="px-6 py-4 text-gray-700">
-                            {formatMileage(vehicle.current_mileage)} KMS
+                            {formatMileage(vehicle.current_mileage)}{" "}
+                            {vehicle.mileage_unit ? (vehicle.mileage_unit === "miles" ? "Miles" : vehicle.mileage_unit.toUpperCase()) : "KMS"}
                           </td>
                           <td className="px-6 py-4 text-gray-700">
                             {vehicle.assignee_driver_name || vehicle.assignee_driver?.full_name || "Not Assigned"}

@@ -31,7 +31,13 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCookies } from "next-client-cookies";
@@ -137,6 +143,7 @@ export function Header() {
   const [error, setError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [dropdownSearch, setDropdownSearch] = useState("");
+  const [activeSubCat, setActiveSubCat] = useState<string>("");
   const abortControllerRef = useRef<AbortController | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -404,7 +411,10 @@ export function Header() {
               open={openDropdown === key}
               onOpenChange={(open) => {
                 setOpenDropdown(open ? key : null);
-                if (!open) setDropdownSearch("");
+                if (!open) {
+                  setDropdownSearch("");
+                  setActiveSubCat("");
+                }
               }}
             >
               <DropdownMenuTrigger asChild>
@@ -529,50 +539,66 @@ export function Header() {
                         </div>
                       );
                     }
+                    const currentSub = activeSubCat || "All";
+                    const currentTasks = currentSub === "All"
+                      ? subCats.flatMap(([, tasks]) => tasks)
+                      : subCats.find(([sub]) => sub === currentSub)?.[1] || [];
+
                     return (
-                      <Tabs defaultValue={subCats[0]?.[0]} className="w-full">
-                        {/* Improved TabsList */}
-                        <div className="border-b bg-gray-50/50 px-2">
-                          <ScrollArea className="w-full">
-                            <TabsList className="inline-flex h-12 w-full justify-start bg-transparent p-0">
-                              {subCats.map(([sub, tasks]) => (
-                                <TabsTrigger
-                                  key={sub}
-                                  value={sub}
-                                  className="relative rounded-none border-b-2 border-transparent bg-transparent px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:text-gray-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"
-                                >
-                                  <span className="truncate max-w-[120px]">{sub}</span>
-                                  {tasks.length > 0 && (
+                      <div className="w-full">
+                        <div className="p-4 border-b bg-gray-50/50">
+                          <Select
+                            value={currentSub}
+                            onValueChange={setActiveSubCat}
+                          >
+                            <SelectTrigger className="w-full bg-white">
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="All">
+                                <span className="flex items-center justify-between w-full min-w-[200px] gap-2">
+                                  <span className="truncate font-semibold">All Categories</span>
+                                  {totalFiltered > 0 && (
                                     <Badge
                                       variant="secondary"
-                                      className="ml-2 h-5 min-w-[20px] rounded-full px-1.5 text-xs data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700"
+                                      className="ml-auto h-5 min-w-[20px] rounded-full px-1.5 text-xs bg-blue-100 text-blue-700"
                                     >
-                                      {tasks.length}
+                                      {totalFiltered}
                                     </Badge>
                                   )}
-                                </TabsTrigger>
+                                </span>
+                              </SelectItem>
+                              {subCats.map(([sub, tasks]) => (
+                                <SelectItem key={sub} value={sub}>
+                                  <span className="flex items-center justify-between w-full min-w-[200px] gap-2">
+                                    <span className="truncate">{sub}</span>
+                                    {tasks.length > 0 && (
+                                      <Badge
+                                        variant="secondary"
+                                        className="ml-auto h-5 min-w-[20px] rounded-full px-1.5 text-xs bg-blue-100 text-blue-700"
+                                      >
+                                        {tasks.length}
+                                      </Badge>
+                                    )}
+                                  </span>
+                                </SelectItem>
                               ))}
-                            </TabsList>
-                          </ScrollArea>
+                            </SelectContent>
+                          </Select>
                         </div>
 
-                        {/* Tab Content */}
-                        {subCats.map(([sub, tasks]) => (
-                          <TabsContent key={sub} value={sub} className="mt-0">
-                            <ScrollArea className="h-[calc(75vh-140px)]">
-                              <div className="p-4 space-y-3">
-                                {tasks.length === 0 ? (
-                                  <div className="py-8 text-center">
-                                    <p className="text-sm text-gray-400 italic">No tasks in this category</p>
-                                  </div>
-                                ) : (
-                                  tasks.map((t) => <TaskRow key={t.id} task={t} />)
-                                )}
+                        <ScrollArea className="h-[calc(75vh-140px)]">
+                          <div className="p-4 space-y-3">
+                            {currentTasks.length === 0 ? (
+                              <div className="py-8 text-center">
+                                <p className="text-sm text-gray-400 italic">No tasks in this category</p>
                               </div>
-                            </ScrollArea>
-                          </TabsContent>
-                        ))}
-                      </Tabs>
+                            ) : (
+                              currentTasks.map((t) => <TaskRow key={t.id} task={t} />)
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
                     );
                   })()
                 )}

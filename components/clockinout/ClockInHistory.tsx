@@ -4,11 +4,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Filter, RefreshCw } from 'lucide-react';
+import { Filter, RefreshCw, Info, Clock, Clock3 } from 'lucide-react';
 import ExportButton from '@/app/utils/ExportButton';
 import API_URL from '@/app/utils/ENV';
 import { useCookies } from 'next-client-cookies';
 import { format } from 'date-fns';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Helper function to format decimal hours into "Xh Ym" (e.g., 8.5 → "8h 30m", 0.89 → "53m")
 const formatHours = (hours: number): string => {
@@ -22,6 +28,23 @@ const formatHours = (hours: number): string => {
   return parts.join(' ');
 };
 
+// Parse reason to get category and details
+const parseReason = (reason: string | null) => {
+  if (!reason) return { category: null, details: null };
+
+  const parts = reason.split(': ');
+  if (parts.length >= 2) {
+    return {
+      category: parts[0],
+      details: parts.slice(1).join(': ')
+    };
+  }
+  return {
+    category: reason,
+    details: null
+  };
+};
+
 interface ClockLog {
   id: number;
   driverName: string;
@@ -31,6 +54,8 @@ interface ClockLog {
   date: string;
   clockIn: string | null;
   clockOut: string | null;
+  clockInReason: string | null;
+  clockOutReason: string | null;
   totalHours: number;
   formatedHours: string;
   hourlyRate: number;
@@ -59,6 +84,8 @@ interface ApiResponseClock {
       date: string;
       clock_in: string | null;
       clock_out: string | null;
+      clock_in_reason: string | null;
+      clock_out_reason: string | null;
       hours_worked: number;
       formated_hours: string;
       hourly_rate: number;
@@ -197,6 +224,8 @@ const ClockInOutHistory = () => {
         date: log.date,
         clockIn: log.clock_in,
         clockOut: log.clock_out,
+        clockInReason: log.clock_in_reason || null,
+        clockOutReason: log.clock_out_reason || null,
         totalHours: log.hours_worked,
         formatedHours: log.formated_hours,
         hourlyRate: log.hourly_rate,
@@ -240,7 +269,7 @@ const ClockInOutHistory = () => {
 
   useEffect(() => {
     fetchLogs(currentPage);
-  }, [currentPage, startDate, endDate, driverFilter, users, token]);
+  }, [currentPage, startDate, endDate, driverFilter, token]);
 
   useEffect(() => {
     let filtered = logs;
@@ -266,7 +295,8 @@ const ClockInOutHistory = () => {
   if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <TooltipProvider>
+      <div className="p-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex justify-between items-center">
           <div>
@@ -419,10 +449,120 @@ const ClockInOutHistory = () => {
                   </span>
                 </TableCell>
                 <TableCell>
-                  {log.clockIn ? log.clockIn.slice(0, 5) : '-'}
+                  {log.clockIn ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {log.clockIn.slice(0, 5)}
+                        </span>
+                      </div>
+                      {(() => {
+                        const reason = parseReason(log.clockInReason);
+                        if (!reason.category) return null;
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="text-xs text-blue-600 cursor-help flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-md w-fit hover:bg-blue-100 transition-colors">
+                                <Info className="w-3 h-3" />
+                                <span className="truncate max-w-[150px]">
+                                  In: {reason.category}
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="w-72 p-3 bg-gray-900 text-white border-gray-800">
+                              <div className="space-y-2">
+                                <div className="font-semibold text-blue-300 flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  Clock In Reason
+                                </div>
+                                <div className="space-y-1.5">
+                                  <div>
+                                    <span className="text-gray-400 text-xs">Category:</span>
+                                    <span className="ml-1 text-xs font-medium text-white">
+                                      {reason.category}
+                                    </span>
+                                  </div>
+                                  {reason.details && (
+                                    <div>
+                                      <span className="text-gray-400 text-xs">Details:</span>
+                                      <p className="mt-0.5 text-xs text-gray-100 bg-gray-800 p-2 rounded">
+                                        {reason.details}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <div className="pt-1.5 mt-1.5 border-t border-gray-700">
+                                    <span className="text-gray-400 text-xs">Clocked in at:</span>
+                                    <span className="ml-1 text-xs font-medium">
+                                      {log.clockIn.slice(0, 5)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
                 </TableCell>
                 <TableCell>
-                  {log.clockOut ? log.clockOut.slice(0, 5) : '-'}
+                  {log.clockOut ? (
+                    <div className="space-y-1">
+                      <span className="font-medium">
+                        {log.clockOut.slice(0, 5)}
+                      </span>
+                      {(() => {
+                        const reason = parseReason(log.clockOutReason);
+                        if (!reason.category) return null;
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="text-xs text-orange-600 cursor-help flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-md w-fit hover:bg-orange-100 transition-colors">
+                                <Info className="w-3 h-3" />
+                                <span className="truncate max-w-[150px]">
+                                  Out: {reason.category}
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="w-72 p-3 bg-gray-900 text-white border-gray-800">
+                              <div className="space-y-2">
+                                <div className="font-semibold text-orange-300 flex items-center gap-1">
+                                  <Clock3 className="w-3.5 h-3.5" />
+                                  Clock Out Reason
+                                </div>
+                                <div className="space-y-1.5">
+                                  <div>
+                                    <span className="text-gray-400 text-xs">Category:</span>
+                                    <span className="ml-1 text-xs font-medium text-white">
+                                      {reason.category}
+                                    </span>
+                                  </div>
+                                  {reason.details && (
+                                    <div>
+                                      <span className="text-gray-400 text-xs">Details:</span>
+                                      <p className="mt-0.5 text-xs text-gray-100 bg-gray-800 p-2 rounded">
+                                        {reason.details}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <div className="pt-1.5 mt-1.5 border-t border-gray-700">
+                                    <span className="text-gray-400 text-xs">Clocked out at:</span>
+                                    <span className="ml-1 text-xs font-medium">
+                                      {log.clockOut.slice(0, 5)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span
@@ -465,6 +605,7 @@ const ClockInOutHistory = () => {
         </Button>
       </div>
     </div>
+    </TooltipProvider>
   );
 };
 

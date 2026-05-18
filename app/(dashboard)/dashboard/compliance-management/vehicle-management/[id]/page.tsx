@@ -1125,12 +1125,21 @@ export default function VehicleDetailPage() {
                         <Input
                           type="number"
                           value={editVehicle.last_mileage || ""}
-                          onChange={(e) => handleInputChange("last_mileage", Number(e.target.value))}
-                          className="h-9 text-sm"
+                          onChange={(e) => handleInputChange("last_mileage", e.target.value === "" ? "" : Number(e.target.value))}
+                          className="h-9 text-sm flex-1 min-w-[80px]"
                         />
-                        <span className="text-sm text-slate-500">
-                          {editVehicle.mileage_unit === "miles" ? "mi" : "km"}
-                        </span>
+                        <Select
+                          value={editVehicle.mileage_unit || "miles"}
+                          onValueChange={(value) => handleInputChange("mileage_unit", value)}
+                        >
+                          <SelectTrigger className="h-9 w-[75px] text-xs bg-slate-50 border-slate-200 focus:ring-0">
+                            <SelectValue placeholder="Unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="miles">mi</SelectItem>
+                            <SelectItem value="kms">km</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     ) : (
                       <p className="text-sm font-medium text-slate-900">{getCurrentMileage()}</p>
