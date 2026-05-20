@@ -445,9 +445,8 @@ export default function AssignDriverDialog({
                     {filteredDrivers.map((driver) => (
                       <Card
                         key={driver.id}
-                        className={`transition-all hover:shadow-md cursor-pointer ${
-                          selectedDriver === driver.id ? "ring-2 ring-primary" : ""
-                        }`}
+                        className={`transition-all hover:shadow-md cursor-pointer ${selectedDriver === driver.id ? "ring-2 ring-primary" : ""
+                          }`}
                         onClick={() => handleDriverSelect(driver.id)}
                       >
                         <CardContent className="p-4">
@@ -517,82 +516,16 @@ export default function AssignDriverDialog({
                             {/* Details Section */}
                             <div className="space-y-2 pl-16">
                               {/* Sites */}
-                              {driver.user.site.length > 0 && (
-                                <div className="flex items-center gap-1 text-sm text-gray-600">
-                                  <MapPin className="h-3 w-3 flex-shrink-0" />
-                                  <span className="truncate">
-                                    {driver.user.site.map(s => s.name).join(", ")}
-                                  </span>
-                                </div>
-                              )}
+
 
                               {/* License Info */}
-                              {(driver.license_number || driver.national_insurance_no) && (
-                                <div className="flex items-center gap-4 text-sm flex-wrap">
-                                  {driver.license_number && (
-                                    <span className="flex items-center gap-1 text-gray-600">
-                                      <Shield className="h-3 w-3" />
-                                      License: {driver.license_number}
-                                    </span>
-                                  )}
-                                  {driver.national_insurance_no && (
-                                    <span className="flex items-center gap-1 text-gray-600">
-                                      <Shield className="h-3 w-3" />
-                                      NI: {driver.national_insurance_no}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+
 
                               {/* Warnings */}
-                              {driver.warnings.length > 0 && (
-                                <div className="space-y-1">
-                                  {driver.warnings.slice(0, 2).map((warning, index) => (
-                                    <div
-                                      key={index}
-                                      className={`flex items-center gap-1 text-xs ${
-                                        warning.includes("✅")
-                                          ? "text-green-600"
-                                          : warning.includes("⏳")
-                                          ? "text-amber-600"
-                                          : warning.includes("⚠️")
-                                          ? "text-red-600"
-                                          : "text-gray-600"
-                                      }`}
-                                    >
-                                      {warning.includes("✅") ? (
-                                        <CheckCircle className="h-3 w-3" />
-                                      ) : warning.includes("⏳") ? (
-                                        <AlertCircle className="h-3 w-3" />
-                                      ) : warning.includes("⚠️") ? (
-                                        <AlertCircle className="h-3 w-3" />
-                                      ) : (
-                                        <AlertCircle className="h-3 w-3" />
-                                      )}
-                                      <span className="truncate">
-                                        {warning.replace(/[✅⏳⚠️]/g, "").trim()}
-                                      </span>
-                                    </div>
-                                  ))}
-                                  {driver.warnings.length > 2 && (
-                                    <span className="text-xs text-gray-500">
-                                      +{driver.warnings.length - 2} more warnings
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+
 
                               {/* Profile Completion Status */}
-                              <div className="flex items-center justify-between pt-2 border-t">
-                                <Badge
-                                  variant="outline"
-                                  className={`${getProfileCompletionColor(
-                                    driver.is_profile_completed
-                                  )} border-transparent`}
-                                >
-                                  {getProfileCompletionStatus(driver.is_profile_completed)}
-                                </Badge>
-                              </div>
+
                             </div>
                           </div>
                         </CardContent>

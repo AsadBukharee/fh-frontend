@@ -88,15 +88,18 @@ const DOCUMENT_TYPE_MAPPING = {
   tax_docs: 12,
   pmi_inspection_docs: 10,
   pmi_certificate: 16,
+  valet_check: 16,
   interiam_pmi_certificate: 17,
   loller_docs: null, // Add appropriate ID if exists
   tacho_calibration_docs: null, // Add appropriate ID if exists
   vehicle_invoice_docs: 2,
   service_records_docs: 4,
-  new_vehicle_checklist_docs: 5,
+  new_vehicle_checklist_docs: 14,
+  last_valet_check_docs: 14,
   logbook_docs: 1,
   COIF_technical_docs: 3,
   other_docs: 6,
+  others_docs: 6,
 };
 
 export default function VehicleDetailPage() {
@@ -148,8 +151,10 @@ export default function VehicleDetailPage() {
     expiryDate: "",
     url: ""
   });
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [draggedOverDocKey, setDraggedOverDocKey] = useState<string | null>(null);
 
-  const openDocDetail = (docConfig: any) => {
+  const openDocDetail = (docConfig: any, initialFile: File | null = null) => {
     const apiDoc = documentsMap.get(docConfig.docCode);
     const initialData = {
       expiryDate: apiDoc?.expiry_date?.split('T')[0] || "",
@@ -162,6 +167,40 @@ export default function VehicleDetailPage() {
       expiryDate: initialData.expiryDate,
       url: initialData.url
     });
+    setPendingFile(initialFile);
+  };
+
+  const handleDocCardDragEnter = (e: React.DragEvent, docKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedOverDocKey(docKey);
+  };
+
+  const handleDocCardDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDocCardDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedOverDocKey(null);
+  };
+
+  const handleDocCardDrop = (e: React.DragEvent, docConfig: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedOverDocKey(null);
+
+    if (e.dataTransfer.files?.[0]) {
+      const droppedFile = e.dataTransfer.files[0];
+      if (docConfig.hasDialog) {
+        setPendingFile(droppedFile);
+        openEditDateDialog(docConfig.dateField, vehicle[docConfig.dateField]);
+      } else {
+        openDocDetail(docConfig, droppedFile);
+      }
+    }
   };
 
   /* ── warning helpers ── */
@@ -181,7 +220,8 @@ export default function VehicleDetailPage() {
 
   const { expandedId, handleExpandedChange } = useAutoScroll(loading, "vehicle_docs", true);
 
-  const fetchData = useCallback(async () => {
+  const refreshVehicleData = useCallback(async () => {
+    if (!id || !token) return;
     try {
       const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
         headers: {
@@ -190,22 +230,6 @@ export default function VehicleDetailPage() {
         },
       });
       const vehicleData = await vehicleRes.json();
-
-      const sitesRes = await fetch(`${API_URL}/api/sites/list-names/`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const sitesData = await sitesRes.json();
-
-      const typesRes = await fetch(`${API_URL}/api/vehicle-types/`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const typesData = await typesRes.json();
 
       if (vehicleData.success) {
         const vehicleDataWithType = {
@@ -237,25 +261,51 @@ export default function VehicleDetailPage() {
       } else {
         setError("Failed to fetch vehicle data");
       }
-
-      if (sitesData.success) {
-        setSites(sitesData.data || []);
-      }
-
-      if (typesData.success) {
-        setVehicleTypes(typesData.data || []);
-      }
     } catch (err) {
       setError("Error fetching data");
       console.error("Error:", err);
-    } finally {
-      setLoading(false);
     }
   }, [id, token]);
 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    await refreshVehicleData();
+    setLoading(false);
+  }, [refreshVehicleData]);
+
   useEffect(() => {
-    if (id && token) fetchData();
-  }, [fetchData, id, token]);
+    if (id && token) {
+      fetchData();
+
+      // Fetch metadata (sites and vehicle types) in parallel, non-blocking
+      const fetchMetaData = async () => {
+        try {
+          const headers = {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          };
+          const [sitesRes, typesRes] = await Promise.all([
+            fetch(`${API_URL}/api/sites/list-names/`, { headers }),
+            fetch(`${API_URL}/api/vehicle-types/`, { headers }),
+          ]);
+          const [sitesData, typesData] = await Promise.all([
+            sitesRes.json(),
+            typesRes.json(),
+          ]);
+
+          if (sitesData.success) {
+            setSites(sitesData.data || []);
+          }
+          if (typesData.success) {
+            setVehicleTypes(typesData.data || []);
+          }
+        } catch (err) {
+          console.error("Error fetching metadata:", err);
+        }
+      };
+      fetchMetaData();
+    }
+  }, [id, token, fetchData]);
 
   const handleEditToggle = () => {
     if (isEditing) {
@@ -383,6 +433,37 @@ export default function VehicleDetailPage() {
     });
   };
 
+  const handleToggleFitted = async (field: "is_tacho_fitted" | "is_wheelchair_lift_fitted", value: boolean) => {
+    if (!token) return;
+    // Optimistically update UI
+    setVehicle((prev: any) => prev ? { ...prev, [field]: value } : prev);
+    setEditVehicle((prev: any) => prev ? { ...prev, [field]: value } : prev);
+    try {
+      const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(field === "is_tacho_fitted" ? `Tacho marked as ${value ? "fitted" : "not fitted"}` : `Wheelchair lift marked as ${value ? "fitted" : "not fitted"}`);
+
+      if (value) {
+        if (field === "is_tacho_fitted") {
+          const tachoItem = complianceItems.find(item => item.key === "tacho");
+          if (tachoItem) openDocDetail(tachoItem);
+        } else if (field === "is_wheelchair_lift_fitted") {
+          const lollerItem = complianceItems.find(item => item.key === "loller");
+          if (lollerItem) openDocDetail(lollerItem);
+        }
+      }
+    } catch {
+      // Revert on failure
+      setVehicle((prev: any) => prev ? { ...prev, [field]: !value } : prev);
+      setEditVehicle((prev: any) => prev ? { ...prev, [field]: !value } : prev);
+      toast.error("Failed to update. Please try again.");
+    }
+  };
+
   const handleImageUpload = async (imageUrl: string) => {
     if (!token) return;
     try {
@@ -451,33 +532,7 @@ export default function VehicleDetailPage() {
 
       if (res.ok) {
         // Refresh vehicle data
-        const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const vehicleData = await vehicleRes.json();
-        if (vehicleData.success) {
-          const vehicleDataWithType = {
-            ...vehicleData.data,
-            vehicle_type: vehicleData.data.vehicle_type,
-            vehicles_type: vehicleData.data.vehicle_type,
-          };
-          setVehicle(vehicleDataWithType);
-          setEditVehicle(vehicleDataWithType);
-
-          if (Array.isArray(vehicleData.data.documents)) {
-            setVehicleDocuments(vehicleData.data.documents);
-            const docMap = new Map();
-            vehicleData.data.documents.forEach((doc: any) => {
-              if (doc.document_type?.code) {
-                docMap.set(doc.document_type.code, doc);
-              }
-            });
-            setDocumentsMap(docMap);
-          }
-        }
+        await refreshVehicleData();
         toast.success(`${docType} uploaded successfully`);
       } else {
         const errorData = await res.json();
@@ -562,33 +617,7 @@ export default function VehicleDetailPage() {
 
       if (res.ok) {
         // Refresh vehicle data
-        const vehicleRes = await fetch(`${API_URL}/api/vehicles/${id}/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const vehicleData = await vehicleRes.json();
-        if (vehicleData.success) {
-          const vehicleDataWithType = {
-            ...vehicleData.data,
-            vehicle_type: vehicleData.data.vehicle_type,
-            vehicles_type: vehicleData.data.vehicle_type,
-          };
-          setVehicle(vehicleDataWithType);
-          setEditVehicle(vehicleDataWithType);
-
-          if (Array.isArray(vehicleData.data.documents)) {
-            setVehicleDocuments(vehicleData.data.documents);
-            const docMap = new Map();
-            vehicleData.data.documents.forEach((doc: any) => {
-              if (doc.document_type?.code) {
-                docMap.set(doc.document_type.code, doc);
-              }
-            });
-            setDocumentsMap(docMap);
-          }
-        }
+        await refreshVehicleData();
         toast.success("Document deleted successfully", { id: toastId });
       } else {
         const errorData = await res.json();
@@ -597,6 +626,94 @@ export default function VehicleDetailPage() {
     } catch (err: any) {
       console.error("Error deleting document:", err);
       toast.error(err.message || "Failed to delete document", { id: toastId });
+    }
+  };
+
+  const handleDirectDocumentUpload = async (docConfig: any, url: string) => {
+    const toastId = toast.loading(`Saving ${docConfig.label}...`);
+    try {
+      const documentTypeId = docConfig.document_type;
+      const apiDoc = documentsMap.get(docConfig.docCode);
+
+      if (documentTypeId) {
+        // Save document via Bulk API (Modern way)
+        const payload = {
+          vehicle_id: vehicleId,
+          documents: [
+            {
+              document_type: documentTypeId,
+              title: docConfig.label,
+              url: url,
+              expiry_date: apiDoc?.expiry_date || null,
+              ...(apiDoc && { document_id: apiDoc.id })
+            }
+          ]
+        };
+
+        const res = await fetch(`${API_URL}/api/documents/documents/vehicle-bulk/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error("Failed to save changes");
+      } else {
+        // Fallback to legacy PATCH for items without document_type (e.g. LOLLER, Tacho)
+        const payload: any = {
+          [docConfig.docCode]: url
+        };
+        if (docConfig.dateField) {
+          payload[docConfig.dateField] = apiDoc?.expiry_date || null;
+        }
+
+        const res = await fetch(`${API_URL}/api/vehicles/${id}/`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error("Failed to save changes");
+      }
+
+      toast.success(`${docConfig.label} uploaded and saved successfully`, { id: toastId });
+      fetchData();
+    } catch (err) {
+      console.error("Error saving document:", err);
+      toast.error(`Failed to save ${docConfig.label}. Please try again.`, { id: toastId });
+    }
+  };
+
+  const handleDirectFileUpload = async (docConfig: any, file: File) => {
+    const toastId = toast.loading(`Uploading ${docConfig.label}...`);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`${API_URL}/media/upload_media/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+
+      const result = await res.json();
+      if (result.success) {
+        toast.dismiss(toastId);
+        await handleDirectDocumentUpload(docConfig, result.data.url);
+      } else {
+        throw new Error(result.message || "Upload failed");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Upload failed: ${err.message || "Please try again."}`, { id: toastId });
     }
   };
 
@@ -612,7 +729,7 @@ export default function VehicleDetailPage() {
         mot_expiry: "mot_check_docs",
         tax_expiry: "tax_docs",
         insurance_expiry: "insurance_docs",
-        last_pmi_date: "pmi_certificate",
+        last_pmi_date: "valet_check",
         loller_test_expiry_date: "loller_docs",
         tacho_calibration_expiry: "tacho_calibration_docs",
         next_loller_test_date: "loller_docs",
@@ -730,8 +847,12 @@ export default function VehicleDetailPage() {
     </div>
   );
 
-  const getExpiryStatus = (expiryDate: string) => {
+  const getExpiryStatus = (expiryDate: string, key?: string) => {
     if (!expiryDate) return { color: "bg-slate-100 text-slate-600", text: "Not set", icon: AlertCircle };
+
+    if (key === "last_pmi") {
+      return { color: "bg-red-50 text-red-600 border-red-200", text: "Date Passed", icon: CheckCircle };
+    }
 
     const today = new Date();
     const expiry = new Date(expiryDate);
@@ -874,7 +995,7 @@ export default function VehicleDetailPage() {
     { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docCode: "mot_check_docs", color: "orange", hasDialog: true, document_type: 9 },
     { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docCode: "insurance_docs", color: "purple", document_type: 13 },
     { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docCode: "tax_docs", color: "green", document_type: 12 },
-    { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docCode: "pmi_inspection_docs", color: "orange", hasDialog: true, document_type: 10 },
+    { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docCode: "valet_check", color: "orange", hasDialog: true, document_type: 16 },
     { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docCode: "loller_docs", color: "pink", requiredForWheelchair: true, document_type: null },
     { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docCode: "tacho_calibration_docs", color: "indigo", requiredForTacho: true, document_type: null },
   ];
@@ -882,10 +1003,10 @@ export default function VehicleDetailPage() {
   const additionalDocuments = [
     { key: "vehicle_invoice_docs", label: "Vehicle Invoice", icon: FileText, document_type: 2, docCode: "vehicle_invoice_docs" },
     { key: "service_records_docs", label: "Service Records", icon: Wrench, document_type: 4, docCode: "service_records_docs" },
-    { key: "new_vehicle_checklist_docs", label: "New Vehicle Checklist", icon: FileCheck, document_type: 14, docCode: "new_vehicle_checklist_docs" },
+    { key: "last_valet_check_docs", label: "New Vehicle Checklist", icon: FileCheck, document_type: 14, docCode: "last_valet_check_docs" },
     { key: "logbook_docs", label: "Log Book / V5C", icon: FileText, document_type: 1, docCode: "logbook_docs" },
     { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText, document_type: 3, docCode: "COIF_technical_docs" },
-    { key: "other_docs", label: "Other Documents", icon: FileText, document_type: 6, docCode: "other_docs" },
+    { key: "others_docs", label: "Other Documents", icon: FileText, document_type: 6, docCode: "others_docs" },
   ];
 
   function TyreCard({ title, pos, ageKey }: { title: string; pos: string; ageKey: string }) {
@@ -1242,9 +1363,14 @@ export default function VehicleDetailPage() {
                       </div>
                     )}
                   </div>
+
+
                 </div>
               </div>
             </div>
+
+            {/* Vehicle Features Card - always visible */}
+
 
             {role === 'superadmin' && (
               <div className="bg-white rounded-xl border border-slate-200 p-6">
@@ -1363,11 +1489,20 @@ export default function VehicleDetailPage() {
                   const hasDoc = hasDocument(docUrl, doc.docCode);
                   const expiryDate = apiDoc?.expiry_date;
 
+                  const isDraggedOver = draggedOverDocKey === doc.docCode;
+
                   return (
                     <div
                       key={doc.key}
                       onClick={() => openDocDetail(doc)}
-                      className="cursor-pointer bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-full group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300"
+                      onDragEnter={(e) => handleDocCardDragEnter(e, doc.docCode)}
+                      onDragOver={handleDocCardDragOver}
+                      onDragLeave={handleDocCardDragLeave}
+                      onDrop={(e) => handleDocCardDrop(e, doc)}
+                      className={cn(
+                        "cursor-pointer bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-full group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300",
+                        isDraggedOver && "border-orange-500 bg-orange-50/20 scale-[1.01] [&>*]:pointer-events-none"
+                      )}
                     >
                       {/* Top Area: Image/Upload */}
                       <div className="relative h-56 mb-6 rounded-3xl overflow-hidden bg-[#F9FAFB] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group/upload">
@@ -1421,7 +1556,7 @@ export default function VehicleDetailPage() {
                             <div className="w-16 h-16 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-4">
                               <Upload className="w-8 h-8 text-[#F26633]" />
                             </div>
-                            <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop Filer Here</p>
+                            <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop File Here</p>
                             <p className="text-[10px] text-slate-400">PDF, Word, Excel, PowerPoint - max 10.0MB</p>
                           </div>
                         )}
@@ -1618,7 +1753,46 @@ export default function VehicleDetailPage() {
                   </h3>
                 </div>
               </div>
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <Wrench className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900">Vehicle Features</h3>
+                </div>
 
+                <div className="grid grid-cols-2 gap-6 max-w-md">
+                  {/* Tacho Fitted */}
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Tacho Fitted</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {vehicle.is_tacho_fitted ? "Fitted" : "Not Fitted"}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={vehicle.is_tacho_fitted ?? false}
+                      onCheckedChange={(c) => handleToggleFitted("is_tacho_fitted", c)}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                  </div>
+
+                  {/* Wheelchair Lift Fitted */}
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Wheelchair Lift</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {vehicle.is_wheelchair_lift_fitted ? "Fitted" : "Not Fitted"}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={vehicle.is_wheelchair_lift_fitted ?? false}
+                      onCheckedChange={(c) => handleToggleFitted("is_wheelchair_lift_fitted", c)}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {complianceItems.map((item) => {
                   const Icon = item.icon;
@@ -1627,7 +1801,7 @@ export default function VehicleDetailPage() {
                   const docFromAPI = documentsMap.get(item.docCode);
                   const docUrl = docFromAPI?.url || docFromVehicle;
                   const hasDoc = hasDocument(docUrl, item.docCode);
-                  const status = getExpiryStatus(dateValue);
+                  const status = getExpiryStatus(dateValue, item.key);
                   const StatusIcon = status.icon;
 
                   const isRequired =
@@ -1635,6 +1809,8 @@ export default function VehicleDetailPage() {
                     (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted));
 
                   if (!shouldShowComplianceItem(item)) return null;
+
+                  const isDraggedOver = draggedOverDocKey === item.docCode;
 
                   return (
                     <div
@@ -1646,9 +1822,14 @@ export default function VehicleDetailPage() {
                           openDocDetail(item);
                         }
                       }}
+                      onDragEnter={(e) => handleDocCardDragEnter(e, item.docCode)}
+                      onDragOver={handleDocCardDragOver}
+                      onDragLeave={handleDocCardDragLeave}
+                      onDrop={(e) => handleDocCardDrop(e, item)}
                       className={cn(
                         "cursor-pointer bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-full group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300",
-                        isRequired && !dateValue && "border-red-300 ring-1 ring-red-200"
+                        isRequired && !dateValue && "border-red-300 ring-1 ring-red-200",
+                        isDraggedOver && "border-orange-500 bg-orange-50/20 scale-[1.01] [&>*]:pointer-events-none"
                       )}
                     >
                       {/* Top Area: Image/Upload */}
@@ -1703,7 +1884,7 @@ export default function VehicleDetailPage() {
                             <div className="w-16 h-16 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-4">
                               <Upload className="w-8 h-8 text-[#F26633]" />
                             </div>
-                            <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop Filer Here</p>
+                            <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop File Here</p>
                             <p className="text-[10px] text-slate-400">PDF, Word, Excel, PowerPoint - max 10.0MB</p>
                           </div>
                         )}
@@ -1723,7 +1904,13 @@ export default function VehicleDetailPage() {
                             {isEditing ? (
                               <Switch
                                 checked={item.key === "loller" ? editVehicle.is_wheelchair_lift_fitted : editVehicle.is_tacho_fitted}
-                                onCheckedChange={(c) => handleInputChange(item.key === "loller" ? "is_wheelchair_lift_fitted" : "is_tacho_fitted", c)}
+                                onCheckedChange={(c) => {
+                                  const field = item.key === "loller" ? "is_wheelchair_lift_fitted" : "is_tacho_fitted";
+                                  handleInputChange(field, c);
+                                  if (c) {
+                                    openDocDetail(item);
+                                  }
+                                }}
                                 onClick={(e) => e.stopPropagation()}
                               />
                             ) : (
@@ -1842,7 +2029,12 @@ export default function VehicleDetailPage() {
         </div>
 
         {/* Date Edit Dialog */}
-        <Dialog open={!!editDateField} onOpenChange={() => setEditDateField(null)}>
+        <Dialog open={!!editDateField} onOpenChange={(open) => {
+          if (!open) {
+            setEditDateField(null);
+            setPendingFile(null);
+          }
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Update Date & Document</DialogTitle>
@@ -1870,7 +2062,11 @@ export default function VehicleDetailPage() {
                 </div>
                 {!skipUpload && !uploadedDoc && (
                   <div className="border-2 border-dashed rounded-xl p-6 text-center">
-                    <FileUploader onUploadSuccess={(url) => setUploadedDoc(url)} id={`date-${editDateField}-upload`} />
+                    <FileUploader
+                      onUploadSuccess={(url) => setUploadedDoc(url)}
+                      id={`date-${editDateField}-upload`}
+                      initialFile={pendingFile}
+                    />
                     <p className="text-sm mt-2">Click to upload (PDF, JPG, PNG)</p>
                   </div>
                 )}
@@ -1885,7 +2081,13 @@ export default function VehicleDetailPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDateField(null)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditDateField(null);
+                  setPendingFile(null);
+                }}
+              >
                 Cancel
               </Button>
               <Button onClick={() => handleDateSave(uploadedDoc || null)} disabled={!tempDate || (!skipUpload && !uploadedDoc)}>
@@ -1896,7 +2098,10 @@ export default function VehicleDetailPage() {
         </Dialog>
 
         {/* Tyre Maintenance Dialog */}
-        <Dialog open={tyreMaintenanceDialogOpen} onOpenChange={setTyreMaintenanceDialogOpen}>
+        <Dialog open={tyreMaintenanceDialogOpen} onOpenChange={(open) => {
+          setTyreMaintenanceDialogOpen(open);
+          if (!open) setPendingFile(null);
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Update Tyre Maintenance Check</DialogTitle>
@@ -1926,6 +2131,7 @@ export default function VehicleDetailPage() {
                       onUploadSuccess={(url) => setUploadedDoc(url)}
                       id="tyre-maintenance-upload"
                       accept=".pdf,.jpg,.jpeg,.png"
+                      initialFile={pendingFile}
                     />
                     <p className="text-sm mt-2">Upload maintenance report (PDF, JPG, PNG)</p>
                   </div>
@@ -1941,13 +2147,20 @@ export default function VehicleDetailPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setTyreMaintenanceDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setTyreMaintenanceDialogOpen(false);
+                  setPendingFile(null);
+                }}
+              >
                 Cancel
               </Button>
               <Button
                 onClick={async () => {
                   await handleDateSave(uploadedDoc || null, "last_tyre_maintenance_check_date");
                   setTyreMaintenanceDialogOpen(false);
+                  setPendingFile(null);
                 }}
                 disabled={!tempDate || (!skipUpload && !uploadedDoc)}
               >
@@ -1958,7 +2171,10 @@ export default function VehicleDetailPage() {
         </Dialog>
 
         {/* Tyre Expiry Dialog */}
-        <Dialog open={tyreExpiryDialogOpen} onOpenChange={setTyreExpiryDialogOpen}>
+        <Dialog open={tyreExpiryDialogOpen} onOpenChange={(open) => {
+          setTyreExpiryDialogOpen(open);
+          if (!open) setPendingFile(null);
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Update Tyre Expiry Date</DialogTitle>
@@ -1983,6 +2199,7 @@ export default function VehicleDetailPage() {
                       onUploadSuccess={(url) => setUploadedDoc(url)}
                       id="tyre-expiry-upload"
                       accept=".pdf,.jpg,.jpeg,.png"
+                      initialFile={pendingFile}
                     />
                     <p className="text-sm mt-2">Upload tyre certificate or documentation</p>
                   </div>
@@ -2015,7 +2232,12 @@ export default function VehicleDetailPage() {
         </Dialog>
 
         {/* Document Detail Dialog */}
-        <Dialog open={!!editingDocument} onOpenChange={() => setEditingDocument(null)}>
+        <Dialog open={!!editingDocument} onOpenChange={(open) => {
+          if (!open) {
+            setEditingDocument(null);
+            setPendingFile(null);
+          }
+        }}>
           <DialogContent className="max-w-4xl p-0 overflow-hidden border-none rounded-[2.5rem] shadow-2xl bg-white">
             <div className="p-10">
               <DialogHeader className="mb-8">
@@ -2027,48 +2249,58 @@ export default function VehicleDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr] gap-12">
                 {/* Left Side: Document Preview Card */}
                 <div className="space-y-6">
-                  <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                    <div className="relative h-64 mb-6 rounded-3xl overflow-hidden bg-[#F9FAFB] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center">
-                      {editingDocData.url ? (
-                        <>
-                          {editingDocData.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                            <img src={editingDocData.url} className="w-full h-full object-cover" alt="Document preview" />
+                  <FileUploader
+                    onUploadSuccess={(url) => setEditingDocData(prev => ({ ...prev, url }))}
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    maxSize={10 * 1024 * 1024}
+                    id="detail-upload"
+                    className="w-full"
+                    initialFile={pendingFile}
+                    trigger={
+                      <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                        <div className="relative h-64 mb-6 rounded-3xl overflow-hidden bg-[#F9FAFB] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center">
+                          {editingDocData.url ? (
+                            <>
+                              {editingDocData.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                                <img src={editingDocData.url} className="w-full h-full object-cover" alt="Document preview" />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center text-slate-400">
+                                  <FileText className="w-16 h-16 mb-2 text-slate-300" />
+                                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">PDF Document</p>
+                                </div>
+                              )}
+                            </>
                           ) : (
-                            <div className="flex flex-col items-center justify-center text-slate-400">
-                              <FileText className="w-16 h-16 mb-2 text-slate-300" />
-                              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">PDF Document</p>
+                            <div className="flex flex-col items-center justify-center p-6 text-center">
+                              <div className="w-16 h-16 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-4">
+                                <Upload className="w-8 h-8 text-[#F26633]" />
+                              </div>
+                              <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop File Here</p>
+                              <p className="text-[10px] text-slate-400">PDF, Word, Excel, PowerPoint - max 10.0MB</p>
                             </div>
                           )}
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center p-6 text-center">
-                          <div className="w-16 h-16 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-4">
-                            <Upload className="w-8 h-8 text-[#F26633]" />
-                          </div>
-                          <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop Filer Here</p>
-                          <p className="text-[10px] text-slate-400">PDF, Word, Excel, PowerPoint - max 10.0MB</p>
                         </div>
-                      )}
-                    </div>
 
-                    <div className="flex gap-4">
-                      <FileUploader
-                        onUploadSuccess={(url) => setEditingDocData(prev => ({ ...prev, url }))}
-                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                        maxSize={10 * 1024 * 1024}
-                        id="detail-upload"
-                        className="flex-1"
-                        trigger={
-                          <Button className="w-full bg-[#F26633] hover:bg-orange-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2">
+                        <div className="flex gap-4">
+                          <Button type="button" className="flex-1 bg-[#F26633] hover:bg-orange-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2">
                             <Upload className="w-4 h-4" /> Upload
                           </Button>
-                        }
-                      />
-                      <Button variant="outline" className="flex-1 bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2">
-                        <Clock className="w-4 h-4" /> Later
-                      </Button>
-                    </div>
-                  </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="flex-1 bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingDocument(null);
+                              setPendingFile(null);
+                            }}
+                          >
+                            <Clock className="w-4 h-4" /> Later
+                          </Button>
+                        </div>
+                      </div>
+                    }
+                  />
                 </div>
 
                 {/* Right Side: Form Fields */}
@@ -2091,22 +2323,18 @@ export default function VehicleDetailPage() {
               <div className="mt-16 flex justify-end gap-4">
                 <Button
                   variant="outline"
-                  onClick={() => setEditingDocument(null)}
+                  onClick={() => {
+                    setEditingDocument(null);
+                    setPendingFile(null);
+                  }}
                   className="h-14 px-10 rounded-2xl bg-[#E9E9E9] hover:bg-slate-200 border-none text-slate-600 font-bold text-lg transition-all"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={async () => {
-                    const dateChanged = editingDocData.expiryDate !== initialDocData.expiryDate;
-                    const docChanged = editingDocData.url !== initialDocData.url;
-
-                    if (dateChanged && !docChanged) {
-                      toast.error("Please upload a new document to support the expiry date change.");
-                      return;
-                    }
-                    if (docChanged && !dateChanged) {
-                      toast.error("Please update the expiry date for the newly uploaded document.");
+                    if (!editingDocData.url) {
+                      toast.error("Please upload a document before saving.");
                       return;
                     }
 
@@ -2190,12 +2418,16 @@ export default function VehicleDetailPage() {
         />
         <MOTDialog
           open={motDialogOpen}
-          onClose={() => setMotDialogOpen(false)}
+          onClose={() => {
+            setMotDialogOpen(false);
+            setPendingFile(null);
+          }}
           currentMOTDate={vehicle.mot_expiry}
           vehicleId={vehicleId}
           vehicleRegistration={vehicle.registration_number}
           username={cookies.get("username") || "User"}
           onUpdateSuccess={fetchData}
+          initialFile={pendingFile}
         />
 
         {previewDoc && (

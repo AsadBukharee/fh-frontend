@@ -23,7 +23,7 @@ const BrakeUploadStep: React.FC<BrakeUploadStepProps> = ({
     <FileUploader
       id="brakeCertificate"
       accept=".pdf,.png,.jpg,.jpeg"
-      maxSize={5 * 1024 * 1024}
+      maxSize={10 * 1024 * 1024}
       onUploadSuccess={(url) => handleUploadSuccess(url, "brake")}
     />
     <Button onClick={() => handleFinalUpload("brake")} disabled={isLoading || !documentUrl} className="mt-3 w-full">

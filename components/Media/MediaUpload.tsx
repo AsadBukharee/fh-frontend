@@ -2,7 +2,7 @@
 
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import React, { useState, ChangeEvent, DragEvent } from "react";
+import React, { useState, ChangeEvent, DragEvent, useEffect } from "react";
 import { CheckCircle, Eye, Upload, File } from "lucide-react";
 import {
   Dialog,
@@ -25,22 +25,30 @@ interface UploadResponse {
 
 interface Props {
   onUploadSuccess: (url: string) => void;
+  onUploadStart?: () => void;
+  onUploadError?: (error: string) => void;
   accept?: string;
   maxSize?: number;       // in bytes
   id?: string;
   trigger?: React.ReactNode;
   hideDefaultUI?: boolean;
   className?: string;
+  initialFile?: File | null;
+  disabled?: boolean;
 }
 
 export default function FileUploader({
   onUploadSuccess,
+  onUploadStart,
+  onUploadError,
   accept = "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx",
   maxSize = 5 * 1024 * 1024, // 5MB default
   id = "file-upload",
   trigger,
   hideDefaultUI = false,
   className,
+  initialFile,
+  disabled = false,
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -52,12 +60,20 @@ export default function FileUploader({
   const cookies = useCookies();
   const token = cookies.get("access_token");
 
+  useEffect(() => {
+    if (initialFile && !disabled) {
+      handleFile(initialFile);
+    }
+  }, [initialFile, disabled]);
+
   const handleFile = (file: File | null) => {
-    if (!file) return;
+    if (!file || disabled) return;
 
     // Size validation
     if (maxSize && file.size > maxSize) {
-      setError(`File too large. Maximum size is ${(maxSize / (1024 * 1024)).toFixed(1)} MB`);
+      const sizeErr = `File too large. Maximum size is ${(maxSize / (1024 * 1024)).toFixed(1)} MB`;
+      setError(sizeErr);
+      onUploadError?.(sizeErr);
       return;
     }
 
@@ -73,12 +89,15 @@ export default function FileUploader({
 
   const handleUpload = async (file: File) => {
     if (!token) {
-      setError("Authentication required. Please log in.");
+      const authErr = "Authentication required. Please log in.";
+      setError(authErr);
+      onUploadError?.(authErr);
       return;
     }
 
     setUploading(true);
     setError(null);
+    onUploadStart?.();
 
     const formData = new FormData();
     formData.append("file", file);
@@ -100,11 +119,15 @@ export default function FileUploader({
         setUploadSuccess(true);
         // We keep selectedFile so we can show the name
       } else {
-        setError(result.message || "Upload failed");
+        const errMsg = result.message || "Upload failed";
+        setError(errMsg);
+        onUploadError?.(errMsg);
       }
     } catch (err) {
       console.error(err);
-      setError("Upload error. Please try again.");
+      const errMsg = "Upload error. Please try again.";
+      setError(errMsg);
+      onUploadError?.(errMsg);
     } finally {
       setUploading(false);
     }
@@ -114,12 +137,14 @@ export default function FileUploader({
   const handleDrag = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    if (disabled) return;
     setDragActive(e.type === "dragenter" || e.type === "dragover");
   };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    if (disabled) return;
     setDragActive(false);
 
     if (e.dataTransfer.files?.[0]) {
@@ -128,7 +153,7 @@ export default function FileUploader({
   };
 
   const openFilePicker = () => {
-    if (!uploading && token) {
+    if (!uploading && token && !disabled) {
       document.getElementById(id)?.click();
     }
   };
@@ -148,12 +173,25 @@ export default function FileUploader({
         accept={accept}
         onChange={handleFileChange}
         className="hidden"
-        disabled={uploading || !token}
+        disabled={uploading || !token || disabled}
       />
 
       {trigger ? (
-        <div onClick={openFilePicker} className="cursor-pointer">
+        <div
+          onClick={openFilePicker}
+          onDragEnter={handleDrag}
+          onDragOver={handleDrag}
+          onDragLeave={handleDrag}
+          onDrop={handleDrop}
+          className={`relative transition-all duration-200 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"} ${dragActive && !disabled ? "opacity-75 scale-[1.01]" : ""}`}
+        >
           {trigger}
+          {uploading && (
+            <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center gap-2 rounded-[2rem] z-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-orange-200 border-t-orange-600"></div>
+              <span className="text-xs font-semibold text-slate-600">Uploading...</span>
+            </div>
+          )}
         </div>
       ) : !hideDefaultUI ? (
         <div className="w-full max-w-md space-y-4">
