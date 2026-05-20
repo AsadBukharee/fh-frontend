@@ -915,9 +915,9 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
 
   const toggleShiftSelection = useCallback(
     (key: string) => {
-      setOpenShiftIndex(openShiftIndex === key ? null : key);
+      setOpenShiftIndex((prev) => (prev === key ? null : key));
     },
-    [openShiftIndex],
+    [],
   );
 
   const clearSearch = useCallback(() => {
@@ -1117,121 +1117,125 @@ const ParentTab: React.FC<{ refreshKey?: number }> = ({ refreshKey }) => {
         </div>
 
         <TabsContent value="completed" className="mt-0">
-          <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
-                    {days.map((day, index) => (
-                      <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
-                        <DayStatsPopover
-                          day={day}
-                          weekNumber={parseInt(selectedWeek.slice(-1))}
-                          token={token ?? ""}
-                        />
-                      </TableHead>
-                    ))}
-                    {isSuperAdmin && <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEmployees.length > 0 ? (
-                    filteredEmployees.map((employee: Employee, userIndex: number) => (
-                      <EmployeeRow
-                        key={employee.id}
-                        employee={employee}
-                        tempSelections={tempShiftSelections[employee.id]}
-                        selectedWeek={selectedWeek}
-                        openShiftIndex={openShiftIndex}
-                        onToggleShift={toggleShiftSelection}
-                        onSelectShift={selectShift}
-                        onClearShift={clearShift}
-                        onEditShift={openEditShiftModal}
-                        onStartRota={handleStartRota}
-                        isSuperAdmin={isSuperAdmin}
-                      />
-
-                    ))
-                  ) : (
+          {activeTab === "completed" && (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-gray-600 py-8">
-                        {debouncedSearchQuery ? (
-                          <>
-                            No matching completed users found.{" "}
-                            <Button variant="link" onClick={clearSearch} className="text-blue-600 p-0">
-                              Clear search
-                            </Button>
-                          </>
-                        ) : (
-                          "No completed users found"
-                        )}
-                      </TableCell>
+                      <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
+                      {days.map((day, index) => (
+                        <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
+                          <DayStatsPopover
+                            day={day}
+                            weekNumber={parseInt(selectedWeek.slice(-1))}
+                            token={token ?? ""}
+                          />
+                        </TableHead>
+                      ))}
+                      {isSuperAdmin && <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>}
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredEmployees.length > 0 ? (
+                      filteredEmployees.map((employee: Employee, userIndex: number) => (
+                        <EmployeeRow
+                          key={employee.id}
+                          employee={employee}
+                          tempSelections={tempShiftSelections[employee.id]}
+                          selectedWeek={selectedWeek}
+                          openShiftIndex={openShiftIndex && openShiftIndex.startsWith(`${employee.id}-`) ? openShiftIndex : null}
+                          onToggleShift={toggleShiftSelection}
+                          onSelectShift={selectShift}
+                          onClearShift={clearShift}
+                          onEditShift={openEditShiftModal}
+                          onStartRota={handleStartRota}
+                          isSuperAdmin={isSuperAdmin}
+                        />
+
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center text-gray-600 py-8">
+                          {debouncedSearchQuery ? (
+                            <>
+                              No matching completed users found.{" "}
+                              <Button variant="link" onClick={clearSearch} className="text-blue-600 p-0">
+                                Clear search
+                              </Button>
+                            </>
+                          ) : (
+                            "No completed users found"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
+          )}
         </TabsContent>
 
         <TabsContent value="incomplete" className="mt-0">
-          <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
-                    {days.map((day, index) => (
-                      <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
-                        <DayStatsPopover
-                          day={day}
-                          weekNumber={parseInt(selectedWeek.slice(-1))}
-                          token={token ?? ""}
-                        />
-                      </TableHead>
-                    ))}
-                    <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEmployees.length > 0 ? (
-                    filteredEmployees.map((employee: Employee, userIndex: number) => (
-                      <EmployeeRow
-                        key={employee.id}
-                        employee={employee}
-                        tempSelections={tempShiftSelections[employee.id]}
-                        selectedWeek={selectedWeek}
-                        openShiftIndex={openShiftIndex}
-                        onToggleShift={toggleShiftSelection}
-                        onSelectShift={selectShift}
-                        onClearShift={clearShift}
-                        onEditShift={openEditShiftModal}
-                        onStartRota={handleStartRota}
-                        isSuperAdmin={isSuperAdmin}
-                      />
-
-                    ))
-                  ) : (
+          {activeTab === "incomplete" && (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-gray-600 py-8">
-                        {debouncedSearchQuery ? (
-                          <>
-                            No matching incomplete users found.{" "}
-                            <Button variant="link" onClick={clearSearch} className="text-blue-600 p-0">
-                              Clear search
-                            </Button>
-                          </>
-                        ) : (
-                          "No incomplete users found"
-                        )}
-                      </TableCell>
+                      <TableHead className="w-[200px] min-w-[200px]">Staff Member</TableHead>
+                      {days.map((day, index) => (
+                        <TableHead key={index} className="text-center w-[130px] min-w-[130px]">
+                          <DayStatsPopover
+                            day={day}
+                            weekNumber={parseInt(selectedWeek.slice(-1))}
+                            token={token ?? ""}
+                          />
+                        </TableHead>
+                      ))}
+                      <TableHead className="text-center w-[120px] min-w-[120px]">Action</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredEmployees.length > 0 ? (
+                      filteredEmployees.map((employee: Employee, userIndex: number) => (
+                        <EmployeeRow
+                          key={employee.id}
+                          employee={employee}
+                          tempSelections={tempShiftSelections[employee.id]}
+                          selectedWeek={selectedWeek}
+                          openShiftIndex={openShiftIndex && openShiftIndex.startsWith(`${employee.id}-`) ? openShiftIndex : null}
+                          onToggleShift={toggleShiftSelection}
+                          onSelectShift={selectShift}
+                          onClearShift={clearShift}
+                          onEditShift={openEditShiftModal}
+                          onStartRota={handleStartRota}
+                          isSuperAdmin={isSuperAdmin}
+                        />
+
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center text-gray-600 py-8">
+                          {debouncedSearchQuery ? (
+                            <>
+                              No matching incomplete users found.{" "}
+                              <Button variant="link" onClick={clearSearch} className="text-blue-600 p-0">
+                                Clear search
+                              </Button>
+                            </>
+                          ) : (
+                            "No incomplete users found"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
+          )}
         </TabsContent>
       </Tabs>
 

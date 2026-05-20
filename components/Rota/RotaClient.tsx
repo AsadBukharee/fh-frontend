@@ -91,23 +91,27 @@ export default function RotaClient({
         </TabsList>
 
         <TabsContent value="parent">
-          <ParentTab refreshKey={refreshKey} />
+          {activeTab === "parent" && <ParentTab refreshKey={refreshKey} />}
         </TabsContent>
         <TabsContent value="child">
-          <ShiftTable year={currentYear} month={currentMonth} refreshKey={refreshKey} />
+          {activeTab === "child" && (
+            <ShiftTable year={currentYear} month={currentMonth} refreshKey={refreshKey} />
+          )}
         </TabsContent>
         <TabsContent value="child2">
-          <ChangeShifts refreshKey={refreshKey} />
+          {activeTab === "child2" && <ChangeShifts refreshKey={refreshKey} />}
         </TabsContent>
         <TabsContent value="child3">
-          <Reporting 
-            refreshKey={refreshKey} 
-            initialData={initialReportingData}
-            contracts={contracts}
-            drivers={drivers}
-            shifts={shifts}
-            role={role}
-          />
+          {activeTab === "child3" && (
+            <Reporting 
+              refreshKey={refreshKey} 
+              initialData={initialReportingData}
+              contracts={contracts}
+              drivers={drivers}
+              shifts={shifts}
+              role={role}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
