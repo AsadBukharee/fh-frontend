@@ -2,19 +2,9 @@
 
 import { cn } from "@/lib/utils";
 import { PencilLine, Check } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { useState } from "react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 
 interface Shift {
@@ -45,16 +35,15 @@ interface ShiftCardProps {
   staffName?: string;
   date?: string;
   showHourlyRate?: boolean;
+  onEditClick?: (data: any) => void;
 }
 
-// ✅ Format hours like "1 Hour", "10.5 Hours"
 function formatHours(hours: string | number) {
   const value = parseFloat(hours as string);
   if (isNaN(value)) return "0 Hrs";
   return `${value} ${value === 1 ? "Hr" : "Hrs"}`;
 }
 
-// ✅ Format salary globally as "£X.00"
 function formatPrice(value: number) {
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
@@ -76,16 +65,10 @@ export function ShiftCard({
   staffName = "Unknown Staff",
   date = "Unknown Date",
   showHourlyRate = false,
+  onEditClick,
 }: ShiftCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-
-  // Editable states
-  const [newShift, setNewShift] = useState<number>(shift_id);
-  const [newSalary, setNewSalary] = useState<number>(rate);
-  const [newHours, setNewHours] = useState<number>(total_hours);
-  const [hoursError, setHoursError] = useState<string | null>(null);
 
   // Inline editing state
   const [isEditingHours, setIsEditingHours] = useState(false);
@@ -94,22 +77,6 @@ export function ShiftCard({
   const cookies = useCookies();
   const role = cookies.get("role");
 
-  // Validate hours input
-  const validateHours = (hours: number): boolean => {
-    if (hours <= 0) {
-      setHoursError("Hours must be greater than 0");
-      return false;
-    }
-    if (hours > 24) {
-      setHoursError("Hours cannot exceed 24 hours");
-      return false;
-    }
-    setHoursError(null);
-    return true;
-  };
-
-
-
   // Inline editing handlers
   const handleDoubleClickHours = () => {
     setIsEditingHours(true);
@@ -117,24 +84,18 @@ export function ShiftCard({
   };
 
   const handleInlineHoursSave = async () => {
-    console.log("🔵 handleInlineHoursSave called", { inlineHours, total_hours });
-
     if (inlineHours <= 0 || inlineHours > 24) {
       alert("Hours must be between 1 and 24");
-      console.log("❌ Validation failed: hours out of range");
       setIsEditingHours(false);
       setInlineHours(total_hours);
       return;
     }
 
-    // Don't make API call if value hasn't changed
     if (inlineHours === total_hours) {
-      console.log("⚠️ No changes detected, skipping API call");
       setIsEditingHours(false);
       return;
     }
 
-    console.log("🚀 Making API call to update hours");
     setIsLoading(true);
     try {
       const token = cookies.get("access_token");
@@ -160,19 +121,14 @@ export function ShiftCard({
         throw new Error("Failed to update hours");
       }
 
-      console.log("✅ Hours updated successfully");
       onShiftUpdate();
     } catch (err) {
       console.error("❌ Error updating hours:", err);
-      setInlineHours(total_hours); // Revert on error
+      setInlineHours(total_hours);
     } finally {
       setIsLoading(false);
       setIsEditingHours(false);
     }
-  };
-
-  const handleHoursBlur = () => {
-    handleInlineHoursSave();
   };
 
   const handleHoursKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -183,53 +139,6 @@ export function ShiftCard({
       setIsEditingHours(false);
     }
   };
-
-  const handleSaveAll = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const token = cookies.get("access_token");
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
-
-      // Update shift type only
-      const response = await fetch(
-        `${API_URL}/api/rota/child-rota/${shift_cell_id}/`,
-        {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({
-            shift: newShift,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.error || "Failed to update shift type");
-        throw new Error("Failed to update shift type");
-      }
-
-      console.log("✅ Shift type updated successfully");
-      onShiftUpdate();
-      setOpen(false);
-    } catch (err) {
-      console.error("❌ Error updating shift type:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Format date for display
-  let formattedDate = "Unknown Date";
-  if (date) {
-    const parsedDate = new Date(date);
-    if (!isNaN(parsedDate.getTime())) {
-      formattedDate = format(parsedDate, "dd/MM/yyyy");
-    }
-  }
 
   return (
     <div
@@ -246,82 +155,24 @@ export function ShiftCard({
           {shiftType} {role === "superadmin" ? `(${formatPrice(rate)} P/H)` : null}
         </span>
 
-        {/* Edit Button with Modal */}
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <PencilLine className="h-4 w-4 cursor-pointer text-gray-600 hover:text-gray-800" />
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Edit Shift Details</DialogTitle>
-            </DialogHeader>
-
-            {/* Read-only information at the top */}
-            <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-md">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Staff Name:</p>
-                  <p className="text-sm font-semibold">{staffName}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Date:</p>
-                  <p className="text-sm font-semibold">{formattedDate}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Shift Type:</p>
-                  <p className="text-sm font-semibold">{shiftType}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Hours:</p>
-                  <p className="text-sm font-semibold">{total_hours} Hrs</p>
-                </div>
-              </div>
-              {showHourlyRate && (
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Hourly Rate:</p>
-                  <p className="text-sm font-semibold">{formatPrice(rate)}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-4">
-              {/* Shift Selection */}
-              <div>
-                <label className="text-sm font-medium">Change Shift Type</label>
-                <select
-                  value={newShift}
-                  onChange={(e) => setNewShift(Number(e.target.value))}
-                  className="w-full border rounded-md p-2"
-                  disabled={isLoading}
-                >
-                  {shift_list.map((shift) => (
-                    <option key={shift.id} value={shift.id}>
-                      {shift.name} - {shift.hours_from?.slice(0, 5)} to {shift.hours_to?.slice(0, 5)} ({shift.total_hours} Hrs)
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-
-            <DialogFooter>
-              <Button
-                onClick={handleSaveAll}
-                disabled={isLoading}
-                style={{
-                  background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
-                  width: "auto",
-                  height: "auto",
-                }}
-              >
-                {isLoading ? "Saving..." : "Save Changes"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <PencilLine 
+          className="h-4 w-4 cursor-pointer text-gray-600 hover:text-gray-800" 
+          onClick={() => {
+            if (onEditClick) {
+              onEditClick({
+                shift_cell_id,
+                shift_id,
+                shiftType,
+                rate,
+                total_hours,
+                shift_list,
+                staffName,
+                date,
+                showHourlyRate
+              });
+            }
+          }}
+        />
       </div>
 
       {/* Display Info */}
@@ -359,6 +210,7 @@ export function ShiftCard({
           </span>
         )}
       </div>
+      {error && <p className="text-red-500 text-[10px] mt-1 w-full text-center">{error}</p>}
     </div>
   );
 }

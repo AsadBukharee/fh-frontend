@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { format, getISOWeek, parseISO, startOfDay } from "date-fns";
+import { useDebounce } from "use-debounce";
 import {
   Users,
   Clock,
@@ -47,6 +48,8 @@ import React from "react";
 import ExportButton from "@/app/utils/ExportButton";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { useAutoScroll } from "@/app/utils/useAutoScroll";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { Button } from "../ui/button";
 
 // Interfaces
 interface Shift {
@@ -206,7 +209,19 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
   const [selectedRole, setSelectedRole] = useState<string>("all");
+  const [activeEditShift, setActiveEditShift] = useState<{
+    shift_cell_id: number;
+    shift_id: number;
+    shiftType: string;
+    rate: number;
+    total_hours: number;
+    shift_list: any[];
+    staffName: string;
+    date: string;
+    showHourlyRate: boolean;
+  } | null>(null);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(
     `${year}-${month}`,
@@ -339,13 +354,15 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
     fetchData();
   }, [selectedMonth, selectedUser, cookies, refreshKey]);
 
-  const filteredUsers = childRotaUsers.filter((user) => {
-    const matchesSearch =
-      user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = selectedRole === "all" || user.role === selectedRole;
-    return matchesSearch && matchesRole;
-  });
+  const filteredUsers = useMemo(() => {
+    return childRotaUsers.filter((user) => {
+      const matchesSearch =
+        user.full_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const matchesRole = selectedRole === "all" || user.role === selectedRole;
+      return matchesSearch && matchesRole;
+    });
+  }, [childRotaUsers, debouncedSearchTerm, selectedRole]);
 
   const filteredShifts = useMemo(() => {
     return shifts.filter((shift) => {
@@ -357,6 +374,16 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
       );
     });
   }, [shifts, startDate, endDate, selectedUser]);
+
+  const shiftsMap = useMemo(() => {
+    const map = new Map<string, Shift>();
+    filteredShifts.forEach((shift) => {
+      if (shift.user?.id) {
+        map.set(`${shift.user.id}_${shift.date}`, shift);
+      }
+    });
+    return map;
+  }, [filteredShifts]);
 
   const summaryStats = useMemo(() => {
     const stats = {
@@ -557,9 +584,11 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
     );
   };
 
-  const uniqueRoles = Array.from(
-    new Set(childRotaUsers.map((user) => user.role).filter(Boolean)),
-  );
+  const uniqueRoles = useMemo(() => {
+    return Array.from(
+      new Set(childRotaUsers.map((user) => user.role).filter(Boolean)),
+    );
+  }, [childRotaUsers]);
 
   if (loading) {
     return (
@@ -990,9 +1019,7 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
 
                           {/* User shift cells */}
                           {(selectedUser ? childRotaUsers.filter(u => u.id === selectedUser) : filteredUsers).map(user => {
-                            const userShift = filteredShifts.find(
-                              shift => shift.date === dayStr && shift.user?.id === user.id
-                            );
+                            const userShift = shiftsMap.get(`${user.id}_${dayStr}`);
                             const cellId = `cell-${user.id}-${dayStr}`;
 
                             return (
@@ -1014,6 +1041,7 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
                                     staffName={user.full_name}
                                     date={userShift.date}
                                     showHourlyRate={role === "superadmin" || role === "admin"}
+                                    onEditClick={setActiveEditShift}
                                   />
                                 ) : (
                                   <div className="h-16 w-full rounded-md bg-gray-100/50 border-dashed border border-gray-300 flex items-center justify-center text-xs text-gray-400">
@@ -1045,6 +1073,162 @@ export function ShiftTable({ year, month, refreshKey }: ShiftTableProps) {
 
       </Card>
 
+      {activeEditShift && (
+        <EditShiftDialog
+          shiftData={activeEditShift}
+          onClose={() => setActiveEditShift(null)}
+          onUpdate={() => {
+            fetchData();
+            setActiveEditShift(null);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+interface EditShiftDialogProps {
+  shiftData: {
+    shift_cell_id: number;
+    shift_id: number;
+    shiftType: string;
+    rate: number;
+    total_hours: number;
+    shift_list: any[];
+    staffName: string;
+    date: string;
+    showHourlyRate: boolean;
+  };
+  onClose: () => void;
+  onUpdate: () => void;
+}
+
+function EditShiftDialog({ shiftData, onClose, onUpdate }: EditShiftDialogProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [newShift, setNewShift] = useState<number>(shiftData.shift_id);
+  const cookies = useCookies();
+
+  const handleSaveAll = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = cookies.get("access_token");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const response = await fetch(
+        `${API_URL}/api/rota/child-rota/${shiftData.shift_cell_id}/`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            shift: newShift,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || "Failed to update shift type");
+        throw new Error("Failed to update shift type");
+      }
+
+      onUpdate();
+    } catch (err) {
+      console.error("❌ Error updating shift type:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  let formattedDate = "Unknown Date";
+  if (shiftData.date) {
+    const parsedDate = new Date(shiftData.date);
+    if (!isNaN(parsedDate.getTime())) {
+      formattedDate = format(parsedDate, "dd/MM/yyyy");
+    }
+  }
+
+  function formatPrice(value: number) {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: "GBP",
+      minimumFractionDigits: 2,
+    }).format(value);
+  }
+
+  return (
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Edit Shift Details</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-md">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Staff Name:</p>
+              <p className="text-sm font-semibold">{shiftData.staffName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Date:</p>
+              <p className="text-sm font-semibold">{formattedDate}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Shift Type:</p>
+              <p className="text-sm font-semibold">{shiftData.shiftType}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Hours:</p>
+              <p className="text-sm font-semibold">{shiftData.total_hours} Hrs</p>
+            </div>
+          </div>
+          {shiftData.showHourlyRate && (
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Hourly Rate:</p>
+              <p className="text-sm font-semibold">{formatPrice(shiftData.rate)}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700">Change Shift Type</label>
+            <select
+              value={newShift}
+              onChange={(e) => setNewShift(Number(e.target.value))}
+              className="w-full border rounded-md p-2 mt-1 text-sm bg-white"
+              disabled={isLoading}
+            >
+              {shiftData.shift_list.map((shift: any) => (
+                <option key={shift.id} value={shift.id}>
+                  {shift.name} - {shift.hours_from?.slice(0, 5)} to {shift.hours_to?.slice(0, 5)} ({shift.total_hours} Hrs)
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+
+        <DialogFooter className="mt-4">
+          <Button
+            onClick={handleSaveAll}
+            disabled={isLoading}
+            className="w-full text-white"
+            style={{
+              background: "linear-gradient(90deg, #f85032 0%, #e73827 20%, #662D8C 100%)",
+            }}
+          >
+            {isLoading ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
