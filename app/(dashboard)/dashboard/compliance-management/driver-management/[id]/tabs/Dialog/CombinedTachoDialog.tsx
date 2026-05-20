@@ -241,12 +241,7 @@ export default function CombinedTachoDialog({
       return;
     }
 
-    // Validation for status description
-    if (formData.tacho_status !== "approved" && !formData.tacho_description) {
-      toast.error("Please provide a reason/description for the Tacho Card status");
-      setCurrentStep(1);
-      return;
-    }
+
     if (formData.download_status === "not_approved" && !formData.download_remarks?.trim()) {
       toast.error("Please provide remarks for the Download rejection");
       setCurrentStep(2);

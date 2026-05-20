@@ -1263,20 +1263,7 @@ export default function ProfessionalCompetencyTab({
       }
     }
 
-    if (modalState.editData.request_status === "pending") {
-      const hasDescription =
-        modalState.editData.description?.trim() ||
-        (modalState.editData.status_reason === "other" && modalState.editData.custom_reason?.trim())
 
-      if (!hasDescription) {
-        dispatchModal({
-          type: 'SET_FORM_ERROR',
-          payload: { field: 'description', value: "Please provide a reason for this status" }
-        });
-        toast.error("Please provide a description or reason");
-        return;
-      }
-    }
 
     await saveChanges();
   }, [modalState.editData, modalState.isEditing, originalExpiryDate, driverLicenseInfo, originalLicenseInfo, saveChanges, hasUploadedNewDocument, isUploadNewDocument]);

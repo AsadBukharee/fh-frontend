@@ -42,6 +42,7 @@ interface MOTDialogProps {
   vehicleRegistration: string;
   username: string;
   onUpdateSuccess: () => void;
+  initialFile?: File | null;
 }
 
 interface MOTData {
@@ -58,6 +59,7 @@ export default function MOTDialog({
   vehicleRegistration,
   username,
   onUpdateSuccess,
+  initialFile,
 }: MOTDialogProps) {
   const [step, setStep] = useState<"upload-cert" | "pass-check" | "task-or-job" | "complete">("upload-cert");
   const [loading, setLoading] = useState(false);
@@ -188,10 +190,7 @@ export default function MOTDialog({
       
       const calculateNextMOTDate = () => {
         if (motData.motDate) {
-          const testDate = new Date(motData.motDate);
-          const nextDate = new Date(testDate);
-          nextDate.setFullYear(nextDate.getFullYear() + 1);
-          return nextDate.toISOString().split('T')[0];
+          return motData.motDate;
         }
         return "";
       };
@@ -378,50 +377,56 @@ export default function MOTDialog({
             </Button>
           </div>
         ) : (
-          <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
-            skipUpload 
-              ? "border-gray-200 bg-gray-50 opacity-50" 
-              : "border-orange-300 bg-orange-50 hover:border-orange-400 hover:bg-orange-100 cursor-pointer"
-          }`}>
-            {isUploadingCert ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="animate-spin rounded-full h-10 w-10 border-3 border-orange-600 border-t-transparent"></div>
-                <p className="text-sm font-medium text-orange-700">Uploading certificate...</p>
-              </div>
-            ) : (
-              <div 
-                onClick={() => !skipUpload && document.getElementById("mot-certificate-upload")?.click()}
-                className={skipUpload ? "" : "cursor-pointer"}
-              >
-                <div className="flex flex-col items-center gap-3">
-                  <div className="p-3 bg-orange-100 rounded-full">
-                    <Upload className="w-7 h-7 text-orange-600" />
+          <FileUploader
+            onUploadSuccess={(url) => {
+              setMotData(prev => ({ ...prev, certificateFile: url }));
+              setIsUploadingCert(false);
+              setCertError(null);
+            }}
+            onUploadStart={() => {
+              setIsUploadingCert(true);
+              setCertError(null);
+            }}
+            onUploadError={(err) => {
+              setIsUploadingCert(false);
+              setCertError(err);
+              setError(err);
+            }}
+            accept=".pdf,.jpg,.jpeg,.png"
+            maxSize={10 * 1024 * 1024}
+            id="mot-certificate-upload"
+            className="w-full"
+            disabled={skipUpload}
+            initialFile={initialFile}
+            trigger={
+              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+                skipUpload 
+                  ? "border-gray-200 bg-gray-50 opacity-50" 
+                  : "border-orange-300 bg-orange-50 hover:border-orange-400 hover:bg-orange-100"
+              }`}>
+                {isUploadingCert ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin rounded-full h-10 w-10 border-3 border-orange-600 border-t-transparent"></div>
+                    <p className="text-sm font-medium text-orange-700">Uploading certificate...</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {skipUpload ? "Certificate upload disabled" : "Click to upload certificate"}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {skipUpload ? "Enable below to upload now" : "PDF, JPG, PNG • Max 10MB"}
-                    </p>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="p-3 bg-orange-100 rounded-full">
+                      <Upload className="w-7 h-7 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {skipUpload ? "Certificate upload disabled" : "Click or drag & drop certificate"}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {skipUpload ? "Enable below to upload now" : "PDF, JPG, PNG • Max 10MB"}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
-            )}
-            {!skipUpload && (
-              <FileUploader
-                onUploadSuccess={(url) => {
-                  setMotData(prev => ({ ...prev, certificateFile: url }));
-                  setIsUploadingCert(false);
-                  setCertError(null);
-                }}
-                accept=".pdf,.jpg,.jpeg,.png"
-                maxSize={10 * 1024 * 1024}
-                id="mot-certificate-upload"
-                hideDefaultUI={true}
-              />
-            )}
-          </div>
+            }
+          />
         )}
       </div>
 

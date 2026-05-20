@@ -287,12 +287,7 @@ export default function CombinedLicenseDialog({
       return;
     }
 
-    // Validation for status description
-    if (formData.dl_status !== "approved" && !formData.dl_description) {
-      toast.error("Please provide a reason/description for the Driving License status");
-      setCurrentStep(1);
-      return;
-    }
+
 
     if (formData.dd1_status === "not_approved" && !formData.dd1_remarks?.trim()) {
       toast.error("Please provide remarks for the D/D1 Category rejection");

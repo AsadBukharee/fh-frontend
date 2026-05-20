@@ -26,7 +26,7 @@ const UploadStep: React.FC<UploadStepProps> = ({
       <FileUploader
         id="certificate"
         accept=".pdf,.png,.jpg,.jpeg"
-        maxSize={5 * 1024 * 1024}
+        maxSize={10 * 1024 * 1024}
         onUploadSuccess={(url) => handleUploadSuccess(url, "certificate")}
       />
       {documentUrl && (
