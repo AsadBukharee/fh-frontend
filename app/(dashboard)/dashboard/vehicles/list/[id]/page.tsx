@@ -145,7 +145,8 @@ export default function VehicleDetailPage() {
   const [editingDocData, setEditingDocData] = useState({
     expiryDate: "",
     isApplicable: true,
-    url: ""
+    url: "",
+    doc_has_expiry: true
   });
   const [initialDocData, setInitialDocData] = useState({
     expiryDate: "",
@@ -159,7 +160,8 @@ export default function VehicleDetailPage() {
     const initialData = {
       expiryDate: apiDoc?.expiry_date?.split('T')[0] || "",
       isApplicable: true,
-      url: apiDoc?.url || vehicle[docConfig.docCode] || vehicle[docConfig.key] || ""
+      url: apiDoc?.url || vehicle[docConfig.docCode] || vehicle[docConfig.key] || "",
+      doc_has_expiry: apiDoc?.doc_has_expiry !== undefined ? apiDoc.doc_has_expiry : (docConfig.doc_has_expiry ?? true)
     };
     setEditingDocument(docConfig);
     setEditingDocData(initialData);
@@ -513,6 +515,7 @@ export default function VehicleDetailPage() {
             title: docType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
             url: fileUrl,
             expiry_date: null,
+            doc_has_expiry: existingDoc?.doc_has_expiry !== undefined ? existingDoc.doc_has_expiry : true,
             ...(existingDoc && { document_id: existingDoc.id }) // Update existing if found
           }
         ]
@@ -645,6 +648,7 @@ export default function VehicleDetailPage() {
               title: docConfig.label,
               url: url,
               expiry_date: apiDoc?.expiry_date || null,
+              doc_has_expiry: apiDoc?.doc_has_expiry !== undefined ? apiDoc.doc_has_expiry : (docConfig.doc_has_expiry ?? true),
               ...(apiDoc && { document_id: apiDoc.id })
             }
           ]
@@ -992,21 +996,21 @@ export default function VehicleDetailPage() {
   };
 
   const complianceItems = [
-    { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docCode: "mot_check_docs", color: "orange", hasDialog: true, document_type: 9 },
-    { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docCode: "insurance_docs", color: "purple", document_type: 13 },
-    { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docCode: "tax_docs", color: "green", document_type: 12 },
-    { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docCode: "valet_check", color: "orange", hasDialog: true, document_type: 16 },
-    { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docCode: "loller_docs", color: "pink", requiredForWheelchair: true, document_type: null },
-    { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docCode: "tacho_calibration_docs", color: "indigo", requiredForTacho: true, document_type: null },
+    { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docCode: "mot_check_docs", color: "orange", hasDialog: true, document_type: 9, doc_has_expiry: true },
+    { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docCode: "insurance_docs", color: "purple", document_type: 13, doc_has_expiry: true },
+    { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docCode: "tax_docs", color: "green", document_type: 12, doc_has_expiry: true },
+    { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docCode: "valet_check", color: "orange", hasDialog: true, document_type: 16, doc_has_expiry: true },
+    { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docCode: "loller_docs", color: "pink", requiredForWheelchair: true, document_type: null, doc_has_expiry: true },
+    { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docCode: "tacho_calibration_docs", color: "indigo", requiredForTacho: true, document_type: null, doc_has_expiry: true },
   ];
 
   const additionalDocuments = [
-    { key: "vehicle_invoice_docs", label: "Vehicle Invoice", icon: FileText, document_type: 2, docCode: "vehicle_invoice_docs" },
-    { key: "service_records_docs", label: "Service Records", icon: Wrench, document_type: 4, docCode: "service_records_docs" },
-    { key: "last_valet_check_docs", label: "New Vehicle Checklist", icon: FileCheck, document_type: 14, docCode: "last_valet_check_docs" },
-    { key: "logbook_docs", label: "Log Book / V5C", icon: FileText, document_type: 1, docCode: "logbook_docs" },
-    { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText, document_type: 3, docCode: "COIF_technical_docs" },
-    { key: "others_docs", label: "Other Documents", icon: FileText, document_type: 6, docCode: "others_docs" },
+    { key: "vehicle_invoice_docs", label: "Vehicle Invoice", icon: FileText, document_type: 2, docCode: "vehicle_invoice_docs", doc_has_expiry: false },
+    { key: "service_records_docs", label: "Service Records", icon: Wrench, document_type: 4, docCode: "service_records_docs", doc_has_expiry: false },
+    { key: "last_valet_check_docs", label: "New Vehicle Checklist", icon: FileCheck, document_type: 14, docCode: "last_valet_check_docs", doc_has_expiry: false },
+    { key: "logbook_docs", label: "Log Book / V5C", icon: FileText, document_type: 1, docCode: "logbook_docs", doc_has_expiry: false },
+    { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText, document_type: 3, docCode: "COIF_technical_docs", doc_has_expiry: false },
+    { key: "others_docs", label: "Other Documents", icon: FileText, document_type: 6, docCode: "others_docs", doc_has_expiry: false },
   ];
 
   function TyreCard({ title, pos, ageKey }: { title: string; pos: string; ageKey: string }) {
@@ -1488,6 +1492,7 @@ export default function VehicleDetailPage() {
                   const docUrl = apiDoc ? apiDoc.url : (vehicle[doc.key as keyof typeof vehicle] as string);
                   const hasDoc = hasDocument(docUrl, doc.docCode);
                   const expiryDate = apiDoc?.expiry_date;
+                  const hasExpiry = apiDoc?.doc_has_expiry !== undefined ? apiDoc.doc_has_expiry : (doc.doc_has_expiry ?? true);
 
                   const isDraggedOver = draggedOverDocKey === doc.docCode;
 
@@ -1574,7 +1579,7 @@ export default function VehicleDetailPage() {
                           </Badge>
                         )}
 
-                        {hasDoc && (
+                        {hasDoc && hasExpiry && (
                           <div className="mt-4 p-4 bg-[#F8F9FA] rounded-2xl flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
@@ -1803,6 +1808,7 @@ export default function VehicleDetailPage() {
                   const hasDoc = hasDocument(docUrl, item.docCode);
                   const status = getExpiryStatus(dateValue, item.key);
                   const StatusIcon = status.icon;
+                  const hasExpiry = docFromAPI?.doc_has_expiry !== undefined ? docFromAPI.doc_has_expiry : (item.doc_has_expiry ?? true);
 
                   const isRequired =
                     (item.requiredForTacho && (isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted)) ||
@@ -1927,25 +1933,27 @@ export default function VehicleDetailPage() {
                           </Badge>
                         )}
 
-                        <div className="mt-4 p-4 bg-[#F8F9FA] rounded-2xl flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                              <Calendar className="w-4 h-4 text-orange-400" />
+                        {hasExpiry && (
+                          <div className="mt-4 p-4 bg-[#F8F9FA] rounded-2xl flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                <Calendar className="w-4 h-4 text-orange-400" />
+                              </div>
+                              <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">
+                                {item.key === "last_pmi" ? "Last PMI" : "Expiry Date"}
+                              </p>
                             </div>
-                            <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">
-                              {item.key === "last_pmi" ? "Last PMI" : "Expiry Date"}
-                            </p>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-[#F26633]">
+                                {dateValue ? formatDate(dateValue) : "DD/MM/YYYY"}
+                              </p>
+                              <Badge className={cn("mt-1 text-[10px] h-5 border-none", status.color)}>
+                                <StatusIcon className="w-3 h-3 mr-1" />
+                                {status.text}
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold text-[#F26633]">
-                              {dateValue ? formatDate(dateValue) : "DD/MM/YYYY"}
-                            </p>
-                            <Badge className={cn("mt-1 text-[10px] h-5 border-none", status.color)}>
-                              <StatusIcon className="w-3 h-3 mr-1" />
-                              {status.text}
-                            </Badge>
-                          </div>
-                        </div>
+                        )}
                       </div>
 
                       {/* Footer Actions */}
@@ -2305,17 +2313,33 @@ export default function VehicleDetailPage() {
 
                 {/* Right Side: Form Fields */}
                 <div className="space-y-8">
-                  <div className="space-y-3">
-                    <Label className="text-base font-bold text-slate-900">Expiry Date</Label>
-                    <div className="relative">
-                      <Input
-                        type="date"
-                        className="h-14 rounded-2xl border-slate-200 bg-white px-5 text-slate-900 font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-                        value={editingDocData.expiryDate}
-                        onChange={(e) => setEditingDocData(prev => ({ ...prev, expiryDate: e.target.value }))}
-                      />
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Has Expiry Date</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {editingDocData.doc_has_expiry ? "Yes" : "No"}
+                      </p>
                     </div>
+                    <Switch
+                      checked={editingDocData.doc_has_expiry}
+                      onCheckedChange={(c) => setEditingDocData(prev => ({ ...prev, doc_has_expiry: c }))}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
                   </div>
+
+                  {editingDocData.doc_has_expiry && (
+                    <div className="space-y-3">
+                      <Label className="text-base font-bold text-slate-900">Expiry Date</Label>
+                      <div className="relative">
+                        <Input
+                          type="date"
+                          className="h-14 rounded-2xl border-slate-200 bg-white px-5 text-slate-900 font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                          value={editingDocData.expiryDate}
+                          onChange={(e) => setEditingDocData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                 </div>
               </div>
@@ -2352,7 +2376,8 @@ export default function VehicleDetailPage() {
                               document_type: documentTypeId,
                               title: editingDocument.label,
                               url: editingDocData.url,
-                              expiry_date: editingDocData.expiryDate || null,
+                              expiry_date: editingDocData.doc_has_expiry ? (editingDocData.expiryDate || null) : null,
+                              doc_has_expiry: editingDocData.doc_has_expiry,
                               ...(apiDoc && { document_id: apiDoc.id })
                             }
                           ]

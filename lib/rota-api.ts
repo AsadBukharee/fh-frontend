@@ -15,7 +15,8 @@ export async function getDrivers(token: string) {
   });
   if (!response.ok) return [];
   const data = await response.json();
-  return data.data || [];
+  const driversData = data.data || [];
+  return driversData.map((d: any) => ({ ...d, name: d.full_name || d.name }));
 }
 
 export async function getShifts(token: string, userId: string) {
