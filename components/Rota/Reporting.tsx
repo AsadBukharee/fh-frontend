@@ -68,7 +68,7 @@ const FilterDropdown = ({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:border-slate-300 transition text-slate-700 text-sm"
+        className="w-full bg-white text-black border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:border-slate-300 transition text-slate-700 text-sm"
       >
         <option value="ALL">All</option>
         {options.map((option) => (
