@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { SearchBar } from "./header/SearchBar";
 import { UserProfileDropdown } from "./header/UserProfileDropdown";
 import { Breadcrumbs } from "./header/Breadcrumbs";
@@ -27,8 +27,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
+
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,8 +44,9 @@ import { format, parseISO } from "date-fns";
 import API_URL from "@/app/utils/ENV";
 import Link from "next/link";
 import AssignSite from "./header/AssignSite";
-import TimeZone from "./header/TimeZone";
 import UkTime from "./UkTime";
+import Roles from "./Roles";
+
 
 /* -------------------------------------------------
    Types
@@ -317,7 +317,7 @@ export function Header() {
               {task.is_overdue && (
                 <Badge variant="destructive" className="text-xs">
                   Overdue
-                 </Badge>
+                </Badge>
               )}
             </div>
           </div>
@@ -402,6 +402,7 @@ export function Header() {
           <AssignSite />
           {/* <TimeZone/> */}
           <UkTime />
+          <Roles />
         </div>
 
         <div className="flex items-center space-x-2 h-[60px] overflow-x-auto pb-1">

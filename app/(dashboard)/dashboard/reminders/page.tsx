@@ -56,6 +56,8 @@ import {
   InfoIcon,
   CalendarDaysIcon,
   ListTodoIcon,
+  Eye,
+  Edit,
 } from "lucide-react";
 import {
   Tooltip,
@@ -64,6 +66,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import CreateTaskDialog from "@/components/task/CreateTaskDialog";
+import ViewTaskDialog from "@/components/task/ViewTaskDialog";
+import UpdateTaskDialog from "@/components/task/UpdateTaskDialog";
 
 // Types
 interface User {
@@ -89,12 +93,90 @@ interface Reminder {
   is_overdue: boolean;
 }
 
+interface TaskType {
+  id: number;
+  name: string;
+  description: string;
+  is_active: boolean;
+}
+
+interface AssignmentLog {
+  id: number;
+  task: number;
+  assigned_to: number;
+  assigned_by: number | null;
+  assigned_to_display: string | null;
+  reason: string | null;
+  created_at: string;
+}
+
+interface HistoryItem {
+  id: number;
+  action: string;
+  user: User;
+  user_display: string | null;
+  old_value: any;
+  new_value: any;
+  comment: string;
+  created_at: string;
+}
+
+interface ChangeLog {
+  id: number;
+  action_type: string;
+  action_type_display: string;
+  user: number;
+  user_display: string | null;
+  field_name: string | null;
+  old_value: any;
+  new_value: any;
+  comment: string;
+  ip_address: string;
+  user_agent: string;
+  created_at: string;
+}
+
+interface Task {
+  id: number;
+  title: string;
+  description: string;
+  task_type: TaskType | null;
+  task_type_display: string | null;
+  assigned_to: User | null;
+  assigned_to_display: string | null;
+  assigned_by: User | null;
+  assigned_by_display: string | null;
+  deadline: string;
+  priority: string;
+  status: string;
+  reason: string | null;
+  estimated_hours: number | null;
+  actual_hours: number | null;
+  completion_notes: string | null;
+  requires_approval: boolean;
+  approved_by: User | null;
+  approved_at: string | null;
+  site: { id: number; name: string } | null;
+  task_category: string;
+  assignment_logs: AssignmentLog[];
+  history: HistoryItem[];
+  change_logs?: ChangeLog[];
+  is_overdue: boolean;
+  days_until_deadline: number;
+  created_at: string;
+  updated_at: string;
+  is_system_generated: boolean;
+  is_own_task: boolean;
+}
+
 interface Event {
   id: string;
   title: string;
   date: Date;
   color: string;
-  reminder: Reminder;
+  reminder?: Reminder;
+  task?: Task;
+  type: "reminder" | "task";
 }
 
 interface TaskPrefillData {
@@ -115,6 +197,9 @@ const Reminders: React.FC = () => {
   const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(
     null
   );
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isViewTaskOpen, setIsViewTaskOpen] = useState(false);
+  const [isUpdateTaskOpen, setIsUpdateTaskOpen] = useState(false);
   const [postponeTime, setPostponeTime] = useState<string>("");
   const [view, setView] = useState<ViewType>("month");
   const [loading, setLoading] = useState(false);
@@ -122,6 +207,41 @@ const Reminders: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [taskPrefill, setTaskPrefill] = useState<TaskPrefillData | null>(null);
+
+  const priorityBadge = (p: string) => {
+    switch (p) {
+      case "high":
+        return "bg-red-100 text-red-800 border-none";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-none";
+      case "low":
+        return "bg-green-100 text-green-800 border-none";
+      default:
+        return "bg-gray-100 text-gray-800 border-none";
+    }
+  };
+
+  const statusBadge = (s: string) => {
+    switch (s) {
+      case "in_progress":
+        return "bg-blue-100 text-blue-800 border-none";
+      case "viewed":
+        return "bg-green-100 text-green-800 border-none";
+      case "not_viewed":
+        return "bg-red-100 text-red-800 border-none";
+      case "completed":
+        return "bg-teal-100 text-teal-800 border-none";
+      case "rejected":
+        return "bg-gray-100 text-gray-800 border-none";
+      default:
+        return "bg-gray-100 text-gray-800 border-none";
+    }
+  };
+
+  const stripHtml = (html: string) => {
+    if (!html) return "—";
+    return html.replace(/<[^>]*>?/gm, '');
+  };
 
   const [newReminder, setNewReminder] = useState({
     title: "",
@@ -147,35 +267,78 @@ const Reminders: React.FC = () => {
     return d;
   }, []);
 
-  // Fetch reminders
+  // Fetch reminders and tasks
   const fetchReminders = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/reminders/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [remindersRes, tasksRes, systemTasksRes] = await Promise.all([
+        fetch(`${API_URL}/api/reminders/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_URL}/api/tasks/?per_page=1000`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_URL}/api/tasks/system-tasks/?per_page=1000`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => null),
+      ]);
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!remindersRes.ok) {
+        const errorData = await remindersRes.json();
         throw new Error(errorData.message || "Failed to fetch reminders");
       }
 
-      const reminders: Reminder[] = await response.json();
+      const reminders: Reminder[] = await remindersRes.json();
 
-      const mappedEvents: Event[] = reminders.map((reminder) => {
+      const mappedReminderEvents: Event[] = reminders.map((reminder) => {
         const safeDate = sanitizeDate(
           reminder.next_reminder || reminder.start_date
         );
         return {
-          id: reminder.id.toString(),
+          id: `reminder-${reminder.id}`,
           title: reminder.title,
           date: safeDate,
           color: mapPriorityToColor(reminder.priority),
           reminder,
+          type: "reminder",
         };
       });
 
-      setEvents(mappedEvents);
+      let mappedTaskEvents: Event[] = [];
+      if (tasksRes && tasksRes.ok) {
+        const data = await tasksRes.json();
+        const tasks: Task[] = data.results || [];
+        mappedTaskEvents = tasks.map((task) => {
+          const safeDate = sanitizeDate(task.deadline);
+          return {
+            id: `task-${task.id}`,
+            title: `[Task] ${task.title}`,
+            date: safeDate,
+            color: mapPriorityToColor(task.priority),
+            task,
+            type: "task",
+          };
+        });
+      }
+
+      let mappedSystemTaskEvents: Event[] = [];
+      if (systemTasksRes && systemTasksRes.ok) {
+        const data = await systemTasksRes.json();
+        const tasks: Task[] = data.results || [];
+        mappedSystemTaskEvents = tasks.map((task) => {
+          const safeDate = sanitizeDate(task.deadline);
+          return {
+            id: `system-task-${task.id}`,
+            title: `[Unassigned] ${task.title}`,
+            date: safeDate,
+            color: mapPriorityToColor(task.priority),
+            task,
+            type: "task",
+          };
+        });
+      }
+
+      setEvents([...mappedReminderEvents, ...mappedTaskEvents, ...mappedSystemTaskEvents]);
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -516,37 +679,54 @@ const Reminders: React.FC = () => {
                         {todayEvents.map((event) => (
                           <Card
                             key={event.id}
-                            className="transition-all hover:shadow-md border-l-4"
+                            className={`transition-all hover:shadow-md border-l-4 ${event.type === 'task' ? 'bg-indigo-50/20' : ''}`}
                             style={{ borderLeftColor: event.color }}
                           >
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <Badge
-                                      className={`flex items-center gap-1 text-xs ${mapPriorityToColor(
-                                        event.reminder.priority
-                                      )}`}
-                                    >
-                                      {getPriorityIcon(event.reminder.priority)}
-                                      {event.reminder.priority}
-                                    </Badge>
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      {event.reminder.status}
-                                    </Badge>
-                                    {event.reminder.is_overdue && (
-                                      <Badge
-                                        variant="destructive"
-                                        className="text-xs"
-                                      >
-                                        Overdue
-                                      </Badge>
+                                    {event.type === "task" ? (
+                                      <>
+                                        <Badge className="bg-indigo-600 text-white flex items-center gap-1 text-[10px] h-5 border-none">
+                                          <ListTodoIcon className="h-3 w-3" />
+                                          Task
+                                        </Badge>
+                                        <Badge className={`text-[10px] h-5 ${priorityBadge(event.task?.priority || "medium")}`}>
+                                          {event.task?.priority}
+                                        </Badge>
+                                        <Badge className={`text-[10px] h-5 ${statusBadge(event.task?.status || "not_viewed")}`}>
+                                          {event.task?.status?.replace(/_/g, " ").toUpperCase()}
+                                        </Badge>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Badge
+                                          className={`flex items-center gap-1 text-xs ${mapPriorityToColor(
+                                            event.reminder!.priority
+                                          )}`}
+                                        >
+                                          {getPriorityIcon(event.reminder!.priority)}
+                                          {event.reminder!.priority}
+                                        </Badge>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs"
+                                        >
+                                          {event.reminder!.status}
+                                        </Badge>
+                                        {event.reminder!.is_overdue && (
+                                          <Badge
+                                            variant="destructive"
+                                            className="text-xs"
+                                          >
+                                            Overdue
+                                          </Badge>
+                                        )}
+                                      </>
                                     )}
                                   </div>
-                                  <h4 className="font-semibold text-sm truncate">
+                                  <h4 className="font-semibold text-sm truncate text-gray-900">
                                     {event.title}
                                   </h4>
                                   <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
@@ -555,30 +735,32 @@ const Reminders: React.FC = () => {
                                     <ClockIcon className="h-3 w-3 ml-2" />
                                     {format(event.date, "h:mm a")}
                                   </div>
-                                  {event.reminder.description && (
+                                  {(event.type === "task" ? event.task?.description : event.reminder!.description) && (
                                     <p className="text-xs text-gray-600 mt-2 line-clamp-2">
-                                      {event.reminder.description}
+                                      {event.type === "task" ? stripHtml(event.task!.description) : event.reminder!.description}
                                     </p>
                                   )}
                                 </div>
 
-                                {event.reminder.status === "active" && (
+                                {event.type === "task" ? (
                                   <div className="flex flex-col gap-1">
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() =>
-                                            handleSnooze(event.reminder.id)
-                                          }
-                                          className="h-7 px-2 text-xs hover:bg-yellow-50"
+                                          onClick={() => {
+                                            setSelectedTask(event.task!);
+                                            setIsViewTaskOpen(true);
+                                            setIsModalOpen(false);
+                                          }}
+                                          className="h-7 px-2 text-xs hover:bg-purple-50 text-purple-600"
                                         >
-                                          <PauseIcon className="h-3 w-3" />
+                                          <Eye className="h-3 w-3" />
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>Snooze for 30 minutes</p>
+                                        <p>View Task</p>
                                       </TooltipContent>
                                     </Tooltip>
                                     <Tooltip>
@@ -586,161 +768,183 @@ const Reminders: React.FC = () => {
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() =>
-                                            handleComplete(event.reminder.id)
-                                          }
-                                          className="h-7 px-2 text-xs hover:bg-green-50"
+                                          onClick={() => {
+                                            setSelectedTask(event.task!);
+                                            setIsUpdateTaskOpen(true);
+                                            setIsModalOpen(false);
+                                          }}
+                                          className="h-7 px-2 text-xs hover:bg-blue-50 text-blue-600"
                                         >
-                                          <CheckIcon className="h-3 w-3" />
+                                          <Edit className="h-3 w-3" />
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>Mark as complete</p>
+                                        <p>Edit Task</p>
                                       </TooltipContent>
                                     </Tooltip>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() =>
-                                            handleCancel(event.reminder.id)
-                                          }
-                                          className="h-7 px-2 text-xs hover:bg-red-50"
-                                        >
-                                          <XIcon className="h-3 w-3" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Cancel reminder</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() =>
-                                            handleCreateTaskFromReminder(event.reminder)
-                                          }
-                                          className="h-7 px-2 text-xs hover:bg-purple-50"
-                                        >
-                                          <ListTodoIcon className="h-3 w-3" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Create task</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                    
-                                    {/* Test button - remove in production */}
-                                    {/* <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() =>
-                                            testPostpone(event.reminder.id)
-                                          }
-                                          className="h-7 px-2 text-xs hover:bg-blue-50"
-                                        >
-                                          Test
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Test postpone 1 hour</p>
-                                      </TooltipContent>
-                                    </Tooltip> */}
-                                    
-                                    <Dialog>
+                                  </div>
+                                ) : (
+                                  event.reminder!.status === "active" && (
+                                    <div className="flex flex-col gap-1">
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <DialogTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                              handleSnooze(event.reminder!.id)
+                                            }
+                                            className="h-7 px-2 text-xs hover:bg-yellow-50"
+                                          >
+                                            <PauseIcon className="h-3 w-3" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Snooze for 30 minutes</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                              handleComplete(event.reminder!.id)
+                                            }
+                                            className="h-7 px-2 text-xs hover:bg-green-50"
+                                          >
+                                            <CheckIcon className="h-3 w-3" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Mark as complete</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                              handleCancel(event.reminder!.id)
+                                            }
+                                            className="h-7 px-2 text-xs hover:bg-red-50"
+                                          >
+                                            <XIcon className="h-3 w-3" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Cancel reminder</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                              handleCreateTaskFromReminder(event.reminder!)
+                                            }
+                                            className="h-7 px-2 text-xs hover:bg-purple-50"
+                                          >
+                                            <ListTodoIcon className="h-3 w-3" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Create task</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                      
+                                      <Dialog>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <DialogTrigger asChild>
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-xs hover:bg-blue-50"
+                                                onClick={() => setPostponeTime("")}
+                                              >
+                                                Postpone
+                                              </Button>
+                                            </DialogTrigger>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Postpone reminder</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                        <DialogContent>
+                                          <DialogHeader>
+                                            <DialogTitle className="flex items-center gap-2">
+                                              <CalendarIcon className="h-5 w-5" />
+                                              Postpone Reminder
+                                            </DialogTitle>
+                                          </DialogHeader>
+                                          <div className="grid gap-4 py-4">
+                                            <div className="grid gap-2">
+                                              <Label htmlFor="postpone_time">
+                                                Select new date and time
+                                              </Label>
+                                              <Input
+                                                id="postpone_time"
+                                                type="datetime-local"
+                                                value={postponeTime}
+                                                onChange={(e) => {
+                                                  const value = e.target.value;
+                                                  setPostponeTime(value);
+                                                }}
+                                                min={format(
+                                                  new Date(),
+                                                  "yyyy-MM-dd'T'HH:mm"
+                                                )}
+                                              />
+                                              <p className="text-xs text-gray-500">
+                                                Current reminder time:{" "}
+                                                {format(
+                                                  event.date,
+                                                  "MMM d, yyyy 'at' h:mm a"
+                                                )}
+                                              </p>
+                                            </div>
+                                            
+                                            {postponeTime && (
+                                              <Alert className="bg-blue-50 border-blue-200">
+                                                <InfoIcon className="h-4 w-4 text-blue-600" />
+                                                <AlertDescription className="text-blue-700">
+                                                  New time: {format(new Date(postponeTime), "MMM d, yyyy 'at' h:mm a")}
+                                                  <br />
+                                                  <span className="text-xs">
+                                                    Unix timestamp: {Math.floor(new Date(postponeTime).getTime() / 1000)}
+                                                  </span>
+                                                </AlertDescription>
+                                              </Alert>
+                                            )}
+                                          </div>
+                                          <div className="flex justify-end gap-2 pt-4 border-t">
                                             <Button
-                                              size="sm"
                                               variant="outline"
-                                              className="h-7 px-2 text-xs hover:bg-blue-50"
-                                              onClick={() => setPostponeTime("")}
+                                              onClick={() => {
+                                                setPostponeTime("");
+                                                document.querySelector('[aria-label="Close"]')?.dispatchEvent(new Event('click'));
+                                              }}
+                                            >
+                                              Cancel
+                                            </Button>
+                                            <Button
+                                              onClick={() => {
+                                                handlePostpone(event.reminder!.id, postponeTime);
+                                                document.querySelector('[aria-label="Close"]')?.dispatchEvent(new Event('click'));
+                                              }}
+                                              disabled={!postponeTime}
+                                              className="bg-blue-500 hover:bg-blue-600"
                                             >
                                               Postpone
                                             </Button>
-                                          </DialogTrigger>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Postpone reminder</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                      <DialogContent>
-                                        <DialogHeader>
-                                          <DialogTitle className="flex items-center gap-2">
-                                            <CalendarIcon className="h-5 w-5" />
-                                            Postpone Reminder
-                                          </DialogTitle>
-                                        </DialogHeader>
-                                        <div className="grid gap-4 py-4">
-                                          <div className="grid gap-2">
-                                            <Label htmlFor="postpone_time">
-                                              Select new date and time
-                                            </Label>
-                                            <Input
-                                              id="postpone_time"
-                                              type="datetime-local"
-                                              value={postponeTime}
-                                              onChange={(e) => {
-                                                const value = e.target.value;
-                                                setPostponeTime(value);
-                                              }}
-                                              min={format(
-                                                new Date(),
-                                                "yyyy-MM-dd'T'HH:mm"
-                                              )}
-                                            />
-                                            <p className="text-xs text-gray-500">
-                                              Current reminder time:{" "}
-                                              {format(
-                                                event.date,
-                                                "MMM d, yyyy 'at' h:mm a"
-                                              )}
-                                            </p>
                                           </div>
-                                          
-                                          {postponeTime && (
-                                            <Alert className="bg-blue-50 border-blue-200">
-                                              <InfoIcon className="h-4 w-4 text-blue-600" />
-                                              <AlertDescription className="text-blue-700">
-                                                New time: {format(new Date(postponeTime), "MMM d, yyyy 'at' h:mm a")}
-                                                <br />
-                                                <span className="text-xs">
-                                                  Unix timestamp: {Math.floor(new Date(postponeTime).getTime() / 1000)}
-                                                </span>
-                                              </AlertDescription>
-                                            </Alert>
-                                          )}
-                                        </div>
-                                        <div className="flex justify-end gap-2 pt-4 border-t">
-                                          <Button
-                                            variant="outline"
-                                            onClick={() => {
-                                              setPostponeTime("");
-                                              document.querySelector('[aria-label="Close"]')?.dispatchEvent(new Event('click'));
-                                            }}
-                                          >
-                                            Cancel
-                                          </Button>
-                                          <Button
-                                            onClick={() => {
-                                              handlePostpone(event.reminder.id, postponeTime);
-                                              document.querySelector('[aria-label="Close"]')?.dispatchEvent(new Event('click'));
-                                            }}
-                                            disabled={!postponeTime}
-                                            className="bg-blue-500 hover:bg-blue-600"
-                                          >
-                                            Postpone
-                                          </Button>
-                                        </div>
-                                      </DialogContent>
-                                    </Dialog>
-                                  </div>
+                                        </DialogContent>
+                                      </Dialog>
+                                    </div>
+                                  )
                                 )}
                               </div>
                             </CardContent>
@@ -1180,7 +1384,7 @@ const Reminders: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Overdue</span>
                 <Badge variant="destructive">
-                  {events.filter((e) => e.reminder.is_overdue).length}
+                  {events.filter((e) => e.type === "task" ? e.task?.is_overdue : e.reminder?.is_overdue).length}
                 </Badge>
               </div>
             </CardContent>
@@ -1346,16 +1550,27 @@ const Reminders: React.FC = () => {
                         <Tooltip key={event.id}>
                           <TooltipTrigger asChild>
                             <div
-                              className={`p-2 text-xs rounded-md truncate transition-all hover:shadow-md cursor-pointer ${mapPriorityToColor(
-                                event.reminder.priority
-                              )} border`}
+                              className={`p-2 text-xs rounded-md truncate transition-all hover:shadow-md cursor-pointer ${
+                                event.type === "task"
+                                  ? "bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100"
+                                  : mapPriorityToColor(event.reminder!.priority)
+                              } border`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedReminder(event.reminder);
+                                if (event.type === "task") {
+                                  setSelectedTask(event.task!);
+                                  setIsViewTaskOpen(true);
+                                } else {
+                                  setSelectedReminder(event.reminder!);
+                                }
                               }}
                             >
                               <div className="flex items-center gap-1 font-medium">
-                                {getPriorityIcon(event.reminder.priority)}
+                                {event.type === "task" ? (
+                                  <ListTodoIcon className="h-3 w-3 text-indigo-600" />
+                                ) : (
+                                  getPriorityIcon(event.reminder!.priority)
+                                )}
                                 <span className="truncate">{event.title}</span>
                               </div>
                               <div className="text-xs opacity-90 mt-0.5">
@@ -1367,7 +1582,9 @@ const Reminders: React.FC = () => {
                             <div className="space-y-1">
                               <p className="font-semibold">{event.title}</p>
                               <p className="text-xs text-gray-600">
-                                {event.reminder.description}
+                                {event.type === "task"
+                                  ? stripHtml(event.task!.description)
+                                  : event.reminder!.description}
                               </p>
                               <div className="flex items-center gap-2 text-xs">
                                 <span className="flex items-center gap-1">
@@ -1380,56 +1597,105 @@ const Reminders: React.FC = () => {
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Badge
-                                  className={`text-xs ${mapPriorityToColor(
-                                    event.reminder.priority
-                                  )}`}
-                                >
-                                  {event.reminder.priority}
-                                </Badge>
-                                {event.reminder.is_overdue && (
-                                  <Badge
-                                    variant="destructive"
-                                    className="text-xs"
-                                  >
-                                    Overdue
-                                  </Badge>
+                                {event.type === "task" ? (
+                                  <>
+                                    <Badge className={`${priorityBadge(event.task!.priority)} text-[10px] h-5`}>
+                                      {event.task!.priority}
+                                    </Badge>
+                                    <Badge className={`${statusBadge(event.task!.status)} text-[10px] h-5`}>
+                                      {event.task!.status.replace(/_/g, " ").toUpperCase()}
+                                    </Badge>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Badge
+                                      className={`text-xs ${mapPriorityToColor(
+                                        event.reminder!.priority
+                                      )}`}
+                                    >
+                                      {event.reminder!.priority}
+                                    </Badge>
+                                    {event.reminder!.is_overdue && (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs"
+                                      >
+                                        Overdue
+                                      </Badge>
+                                    )}
+                                  </>
                                 )}
                               </div>
                               <div className="flex gap-1 pt-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    handleSnooze(event.reminder.id)
-                                  }
-                                  className="h-7 px-2 text-xs"
-                                >
-                                  <PauseIcon className="h-3 w-3 mr-1" />
-                                  Snooze
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    handleComplete(event.reminder.id)
-                                  }
-                                  className="h-7 px-2 text-xs"
-                                >
-                                  <CheckIcon className="h-3 w-3 mr-1" />
-                                  Complete
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    handleCreateTaskFromReminder(event.reminder)
-                                  }
-                                  className="h-7 px-2 text-xs"
-                                >
-                                  <ListTodoIcon className="h-3 w-3 mr-1" />
-                                  Task
-                                </Button>
+                                {event.type === "task" ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedTask(event.task!);
+                                        setIsViewTaskOpen(true);
+                                      }}
+                                      className="h-7 px-2 text-xs hover:bg-purple-50 text-purple-600"
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      View
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedTask(event.task!);
+                                        setIsUpdateTaskOpen(true);
+                                      }}
+                                      className="h-7 px-2 text-xs hover:bg-blue-50 text-blue-600"
+                                    >
+                                      <Edit className="h-3 w-3 mr-1" />
+                                      Edit
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSnooze(event.reminder!.id);
+                                      }}
+                                      className="h-7 px-2 text-xs"
+                                    >
+                                      <PauseIcon className="h-3 w-3 mr-1" />
+                                      Snooze
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleComplete(event.reminder!.id);
+                                      }}
+                                      className="h-7 px-2 text-xs"
+                                    >
+                                      <CheckIcon className="h-3 w-3 mr-1" />
+                                      Complete
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCreateTaskFromReminder(event.reminder!);
+                                      }}
+                                      className="h-7 px-2 text-xs"
+                                    >
+                                      <ListTodoIcon className="h-3 w-3 mr-1" />
+                                      Task
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             </div>
                           </TooltipContent>
@@ -1547,6 +1813,35 @@ const Reminders: React.FC = () => {
         onTaskCreated={handleTaskCreated}
         prefill={taskPrefill || undefined}
       />
+
+      {/* View Task Dialog */}
+      {selectedTask && (
+        <ViewTaskDialog
+          isOpen={isViewTaskOpen}
+          onClose={() => {
+            setIsViewTaskOpen(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+        />
+      )}
+
+      {/* Update Task Dialog */}
+      {selectedTask && (
+        <UpdateTaskDialog
+          isOpen={isUpdateTaskOpen}
+          onClose={() => {
+            setIsUpdateTaskOpen(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+          onTaskUpdated={() => {
+            setIsUpdateTaskOpen(false);
+            setSelectedTask(null);
+            fetchReminders();
+          }}
+        />
+      )}
     </TooltipProvider>
   );
 };

@@ -30,6 +30,7 @@ import {
   ChevronDown,
   Logs,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import {
   Select,
@@ -485,6 +486,28 @@ const Page = () => {
     setIsHistoryOpen(true);
   };
 
+  const handleDeleteTask = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this task? This action cannot be undone.")) {
+      return;
+    }
+    try {
+      const response = await fetch(`${API_HOST}/api/tasks/${id}/`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      alert("Task deleted successfully");
+      refresh();
+    } catch (e) {
+      console.error("Failed to delete task:", e);
+      alert("Failed to delete task. Please try again.");
+    }
+  };
+
   const refresh = () => {
     fetchTasks();
   };
@@ -881,6 +904,12 @@ const Page = () => {
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openHistory(task)}>
                         <Logs className="mr-2 h-4 w-4" /> Logs
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleDeleteTask(task.id)} 
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
 
                     </DropdownMenuContent>
