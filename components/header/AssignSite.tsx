@@ -145,7 +145,7 @@ const AssignSite = () => {
           }}
           disabled={assigning !== null || sites.length <= 1}
         >
-          <SelectTrigger className="h-9 px-2 text-sm">
+          <SelectTrigger className="h-9 px-3 text-xs font-semibold bg-white border-gray-200 hover:border-orange-300 hover:bg-orange-50/10 focus:ring-1 focus:ring-orange-500 transition-all rounded-lg min-w-[140px] shadow-sm flex items-center gap-2">
             <SelectValue placeholder="Select site">
               {selectedValue === "all" ? (
                 <div className="flex items-center gap-2">

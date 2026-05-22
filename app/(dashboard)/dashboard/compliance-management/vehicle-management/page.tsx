@@ -34,15 +34,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2147,10 +2139,10 @@ export default function VehicleDashboard() {
                             </td>
                             <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
                               <DateDisplay
-                                date={row.pmi?.last_pmi_date ?? null}
+                                date={row.pmi?.pmi_expiry ?? null}
                                 isBlackText={true}
                               >
-                                {formatDate(row.pmi?.last_pmi_date, false)}
+                                {formatDate(row.pmi?.pmi_expiry, false)}
                               </DateDisplay>
                             </td>
                             <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
