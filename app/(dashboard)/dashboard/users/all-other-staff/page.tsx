@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -49,7 +50,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Tabs,
-  TabsContent,
+
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
@@ -76,6 +77,7 @@ import {
   EyeOff,
   Eye,
   RefreshCw,
+  MapPin,
 } from "lucide-react";
 import API_URL from "@/app/utils/ENV";
 import { useCookies } from "next-client-cookies";
@@ -168,6 +170,9 @@ const UserRow = React.memo(
     buttonRefs,
     handleMouseMove,
     handleExpandedChange,
+    isSelected,
+    onSelectChange,
+    showCheckbox,
   }: {
     user: User;
     roles: Role[];
@@ -178,8 +183,20 @@ const UserRow = React.memo(
     buttonRefs: React.MutableRefObject<{ [key: string]: HTMLButtonElement | null }>;
     handleMouseMove: (key: string) => (e: React.MouseEvent) => void;
     handleExpandedChange?: (id: string) => void;
+    isSelected?: boolean;
+    onSelectChange?: (userId: number, checked: boolean) => void;
+    showCheckbox?: boolean;
   }) => (
-    <TableRow key={user?.id} id={`user-row-${user?.id}`} className="border-b border-gray-100">
+    <TableRow key={user?.id} id={`user-row-${user?.id}`} className={`border-b border-gray-100 ${isSelected ? 'bg-orange-50' : ''}`}>
+      {showCheckbox && (
+        <TableCell className="w-[40px]">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={(checked) => onSelectChange?.(user?.id, !!checked)}
+            className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+          />
+        </TableCell>
+      )}
       <TableCell className="font-medium">{user?.id}</TableCell>
       <TableCell className="font-medium">
         {user?.avatar ? (
@@ -271,7 +288,7 @@ const UserRow = React.memo(
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => handleDeleteUserClick(user)}
               className="text-red-600 focus:text-red-600 focus:bg-red-50"
             >
@@ -479,8 +496,8 @@ const AddUserModal = React.memo(
                 User Role *
               </Label>
               <MultiSelect
-                options={roles.map((role) => ({ 
-                  label: role.name, 
+                options={roles.map((role) => ({
+                  label: role.name,
                   value: role.slug
                 }))}
                 selected={formData?.role}
@@ -712,8 +729,8 @@ const EditUserModal = React.memo(
             <div className="space-y-4">
               <div className="space-y-2">
                 <MultiSelect
-                  options={roles.map((role) => ({ 
-                    label: role.name, 
+                  options={roles.map((role) => ({
+                    label: role.name,
                     value: role.slug
                   }))}
                   selected={formData?.role || []}
@@ -1048,6 +1065,12 @@ export default function UsersPage() {
   const activeTab = searchParams.get("tab") || "assigned";
   const [unassignedUsersCount, setUnassignedUsersCount] = useState<number | null>(null);
 
+  // Multi-select & bulk assign state
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
+  const [bulkAssignSiteIds, setBulkAssignSiteIds] = useState<string[]>([]);
+  const [bulkAssignLoading, setBulkAssignLoading] = useState(false);
+
 
   const setActiveTab = useCallback((val: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -1089,13 +1112,13 @@ export default function UsersPage() {
       // Apply role filter
       if (filters.role !== "all") {
         filteredUsers = filteredUsers.filter((user) => {
-          const userRoles = Array.isArray(user.roles) && user.roles.length > 0 
-            ? user.roles 
-            : Array.isArray(user.role) 
-              ? user.role 
+          const userRoles = Array.isArray(user.roles) && user.roles.length > 0
+            ? user.roles
+            : Array.isArray(user.role)
+              ? user.role
               : user.role ? [user.role] : [];
-          
-          return userRoles.some(role => 
+
+          return userRoles.some(role =>
             typeof role === 'string' && role.toLowerCase() === filters.role.toLowerCase()
           );
         });
@@ -1260,7 +1283,7 @@ export default function UsersPage() {
           } else if (Array.isArray(json.data)) {
             count = json.data.length;
           }
-          
+
           console.log("Calculated count:", count);
           setUnassignedUsersCount(count);
         } else {
@@ -1417,7 +1440,7 @@ export default function UsersPage() {
 
   const handleEditUserClick = useCallback((user: User) => {
     setSelectedUser(user);
-    
+
     let rolesArray: string[] = [];
     if (user?.roles && Array.isArray(user.roles) && user.roles.length > 0) {
       rolesArray = user.roles;
@@ -1426,11 +1449,11 @@ export default function UsersPage() {
     } else if (user?.role) {
       // Find matching role slug, handling case-insensitivity
       const resolvedRole = roles?.find(
-          (r) =>
-            r?.slug?.toLowerCase() === user?.role?.toString()?.toLowerCase() ||
-            r?.name?.toLowerCase() === user?.role?.toString()?.toLowerCase()
-        )?.slug || user?.role?.toString()?.toLowerCase();
-        rolesArray = [resolvedRole];
+        (r) =>
+          r?.slug?.toLowerCase() === user?.role?.toString()?.toLowerCase() ||
+          r?.name?.toLowerCase() === user?.role?.toString()?.toLowerCase()
+      )?.slug || user?.role?.toString()?.toLowerCase();
+      rolesArray = [resolvedRole];
     }
 
     setFormData({
@@ -1745,6 +1768,135 @@ export default function UsersPage() {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   }, [currentPage, totalPages]);
 
+  // Multi-select handlers
+  const currentPageUsers = useMemo(() => {
+    return users?.slice((currentPage - 1) * perPage, currentPage * perPage) || [];
+  }, [users, currentPage, perPage]);
+
+  const handleSelectUser = useCallback((userId: number, checked: boolean) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(userId);
+      } else {
+        next.delete(userId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        const allIds = new Set(selectedUserIds);
+        currentPageUsers.forEach((u) => allIds.add(u.id));
+        setSelectedUserIds(allIds);
+      } else {
+        const remaining = new Set(selectedUserIds);
+        currentPageUsers.forEach((u) => remaining.delete(u.id));
+        setSelectedUserIds(remaining);
+      }
+    },
+    [currentPageUsers, selectedUserIds],
+  );
+
+  const isAllCurrentPageSelected = useMemo(() => {
+    return currentPageUsers.length > 0 && currentPageUsers.every((u) => selectedUserIds.has(u.id));
+  }, [currentPageUsers, selectedUserIds]);
+
+  const isSomeCurrentPageSelected = useMemo(() => {
+    return currentPageUsers.some((u) => selectedUserIds.has(u.id)) && !isAllCurrentPageSelected;
+  }, [currentPageUsers, selectedUserIds, isAllCurrentPageSelected]);
+
+  // Fetch sites for bulk assign modal
+  const fetchSitesIfNeeded = useCallback(async () => {
+    if (sites?.length > 0) return;
+    setSitesLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/sites/list-names/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cookies.get("access_token")}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.success) {
+          setSites(data?.data || []);
+        }
+      }
+    } catch {
+      showToast("Failed to fetch sites", "error");
+    } finally {
+      setSitesLoading(false);
+    }
+  }, [cookies, showToast, sites.length]);
+
+  const handleOpenBulkAssignModal = useCallback(() => {
+    setBulkAssignSiteIds([]);
+    setIsBulkAssignModalOpen(true);
+    fetchSitesIfNeeded();
+  }, [fetchSitesIfNeeded]);
+
+  const handleBulkAssignSites = useCallback(async () => {
+    if (selectedUserIds.size === 0) {
+      showToast("Please select at least one user", "error");
+      return;
+    }
+    if (bulkAssignSiteIds.length === 0) {
+      showToast("Please select at least one site", "error");
+      return;
+    }
+
+    setBulkAssignLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      const promises = Array.from(selectedUserIds).map(async (userId) => {
+        try {
+          const response = await fetch(`${API_URL}/users/${userId}/allocate-sites/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cookies.get("access_token")}`,
+            },
+            body: JSON.stringify({
+              site_ids: bulkAssignSiteIds.map((id) => Number.parseInt(id)),
+            }),
+          });
+          if (response.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch {
+          failCount++;
+        }
+      });
+
+      await Promise.all(promises);
+
+      if (successCount > 0) {
+        showToast(
+          `Sites assigned successfully to ${successCount} user${successCount > 1 ? "s" : ""}${failCount > 0 ? `. ${failCount} failed.` : ""}`,
+          failCount > 0 ? "error" : "success",
+        );
+      } else {
+        showToast("Failed to assign sites to all selected users", "error");
+      }
+
+      setIsBulkAssignModalOpen(false);
+      setSelectedUserIds(new Set());
+      setBulkAssignSiteIds([]);
+      await fetchUsers();
+    } catch (error) {
+      showToast("An error occurred while assigning sites", "error");
+    } finally {
+      setBulkAssignLoading(false);
+    }
+  }, [selectedUserIds, bulkAssignSiteIds, cookies, showToast, fetchUsers]);
+
   return (
     <div className="p-6 bg-white">
       <header className="bg-white ">
@@ -1893,23 +2045,23 @@ export default function UsersPage() {
         </div>
       </header>
 
-      <Tabs 
-        value={activeTab} 
-        onValueChange={(val) => { 
-          setActiveTab(val); 
-          setCurrentPage(1); 
-        }} 
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => {
+          setActiveTab(val);
+          setCurrentPage(1);
+        }}
         className="w-full"
       >
         <TabsList className="w-full flex bg-muted h-[50px] px-3 bg-gray-100 rounded-md overflow-hidden mb-6">
-          <TabsTrigger 
-            value="assigned" 
+          <TabsTrigger
+            value="assigned"
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 font-medium"
           >
             Assigned Sites
           </TabsTrigger>
-          <TabsTrigger 
-            value="unassigned" 
+          <TabsTrigger
+            value="unassigned"
             className="flex-1 justify-center text-gray-500 py-2 rounded-none data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 font-medium"
           >
             <div className="flex items-center gap-2">
@@ -1928,126 +2080,169 @@ export default function UsersPage() {
         <div className="flex items-center justify-between mb-6">
           <div
             className="relative w-80 gradient-border cursor-glow"
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 100;
-            const y = ((e.clientY - rect.top) / rect.height) * 100;
-            e.currentTarget.style.setProperty("--mouse-x", `${x}%`);
-            e.currentTarget.style.setProperty("--mouse-y", `${y}%`);
-          }}
-        >
-          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
-          <Input
-            placeholder="Search users"
-            className="pl-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              const filteredUsers = filterUsers(rawUsers, filters, e.target.value);
-              setUsers(filteredUsers);
-              setTotalPages(Math.ceil(filteredUsers.length / perPage) || 1);
-              setCurrentPage(1);
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const x = ((e.clientX - rect.left) / rect.width) * 100;
+              const y = ((e.clientY - rect.top) / rect.height) * 100;
+              e.currentTarget.style.setProperty("--mouse-x", `${x}%`);
+              e.currentTarget.style.setProperty("--mouse-y", `${y}%`);
             }}
-          />
+          >
+            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
+            <Input
+              placeholder="Search users"
+              className="pl-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                const filteredUsers = filterUsers(rawUsers, filters, e.target.value);
+                setUsers(filteredUsers);
+                setTotalPages(Math.ceil(filteredUsers.length / perPage) || 1);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
         </div>
-      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" />
-          <span>Loading users...</span>
-        </div>
-      ) : error ? (
-        <div className="flex items-center justify-center py-12 text-red-600">
-          <AlertCircle className="w-5 h-5 mr-2" />
-          {error}
-        </div>
-      ) : (
-        <div className="bg-white rounded-md border border-gray-200 gradient-border cursor-glow">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b border-gray-200">
-                <TableHead className="text-gray-600 font-medium">Sr No.</TableHead>
-                <TableHead className="text-gray-600 font-medium">Name</TableHead>
-                <TableHead className="text-gray-600 font-medium">Role</TableHead>
-                <TableHead className="text-gray-600 font-medium">Contract</TableHead>
-                <TableHead className="text-gray-600 w-[200px] font-medium">Site</TableHead>
-                <TableHead className="text-gray-600 font-medium">Shifts</TableHead>
-                <TableHead className="text-gray-600 font-medium">Status</TableHead>
-                <TableHead className="text-gray-600 font-medium">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users
-                ?.slice((currentPage - 1) * perPage, currentPage * perPage)
-                .map((user) => (
-                  <UserRow
-                    key={user.id}
-                    user={user}
-                    roles={roles}
-                    getTypeColor={getTypeColor}
-                    getStatusColor={getStatusColor}
-                    handleEditUserClick={handleEditUserClick}
-                    handleDeleteUserClick={handleDeleteUserClick}
-                    buttonRefs={buttonRefs}
-                    handleMouseMove={handleMouseMove}
-                    handleExpandedChange={handleExpandedChange}
-                  />
-                ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+            <span>Loading users...</span>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center py-12 text-red-600">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            {error}
+          </div>
+        ) : (
+          <>
+            {/* Bulk Action Bar */}
+            {activeTab === "unassigned" && selectedUserIds.size > 0 && (
+              <div className="mb-4 flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-orange-500 text-white border-none px-3 py-1">
+                    {selectedUserIds.size} user{selectedUserIds.size > 1 ? "s" : ""} selected
+                  </Badge>
+                  <span className="text-sm text-gray-600">Select users to assign sites in bulk</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedUserIds(new Set())}
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Clear Selection
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleOpenBulkAssignModal}
+                    className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white shadow-md"
+                  >
+                    <MapPin className="w-4 h-4 mr-1" />
+                    Assign Site to Selected
+                  </Button>
+                </div>
+              </div>
+            )}
 
-      <div className="flex items-center justify-between mt-6">
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">Page</span>
-          <Badge variant="outline" className="bg-gray-100">
-            {currentPage}
-          </Badge>
-          <span className="text-sm text-gray-600">of {totalPages}</span>
+            <div className="bg-white rounded-md border border-gray-200 gradient-border cursor-glow">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b border-gray-200">
+                    {activeTab === "unassigned" && (
+                      <TableHead className="w-[40px]">
+                        <Checkbox
+                          checked={isAllCurrentPageSelected}
+                          onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                          className={`data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500 ${isSomeCurrentPageSelected ? 'opacity-60' : ''}`}
+                        />
+                      </TableHead>
+                    )}
+                    <TableHead className="text-gray-600 font-medium">Sr No.</TableHead>
+                    <TableHead className="text-gray-600 font-medium">Name</TableHead>
+                    <TableHead className="text-gray-600 font-medium">Role</TableHead>
+                    <TableHead className="text-gray-600 font-medium">Contract</TableHead>
+                    <TableHead className="text-gray-600 w-[200px] font-medium">Site</TableHead>
+                    <TableHead className="text-gray-600 font-medium">Shifts</TableHead>
+                    <TableHead className="text-gray-600 font-medium">Status</TableHead>
+                    <TableHead className="text-gray-600 font-medium">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentPageUsers.map((user) => (
+                    <UserRow
+                      key={user.id}
+                      user={user}
+                      roles={roles}
+                      getTypeColor={getTypeColor}
+                      getStatusColor={getStatusColor}
+                      handleEditUserClick={handleEditUserClick}
+                      handleDeleteUserClick={handleDeleteUserClick}
+                      buttonRefs={buttonRefs}
+                      handleMouseMove={handleMouseMove}
+                      handleExpandedChange={handleExpandedChange}
+                      isSelected={selectedUserIds.has(user.id)}
+                      onSelectChange={handleSelectUser}
+                      showCheckbox={activeTab === "unassigned"}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+
+        <div className="flex items-center justify-between mt-6">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">Page</span>
+            <Badge variant="outline" className="bg-gray-100">
+              {currentPage}
+            </Badge>
+            <span className="text-sm text-gray-600">of {totalPages}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              ref={(el) => {
+                buttonRefs.current["prev"] = el;
+              }}
+              variant="ghost"
+              size="sm"
+              className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
+              onMouseMove={handleMouseMove("prev")}
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1 || loading}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1 relative z-10" />
+              <span className="relative z-10">Previous</span>
+            </Button>
+            <Button
+              ref={(el) => {
+                buttonRefs.current["page1"] = el;
+              }}
+              size="sm"
+              className="bg-red-600 hover:bg-red-700 text-white ripple cursor-glow"
+              onMouseMove={handleMouseMove("page1")}
+            >
+              <span className="relative z-10">{currentPage}</span>
+            </Button>
+            <Button
+              ref={(el) => {
+                buttonRefs.current["next"] = el;
+              }}
+              variant="ghost"
+              size="sm"
+              className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
+              onMouseMove={handleMouseMove("next")}
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages || loading}
+            >
+              <span className="relative z-10">Next</span>
+              <ChevronRight className="w-4 h-4 ml-1 relative z-10" />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            ref={(el) => {
-              buttonRefs.current["prev"] = el;
-            }}
-            variant="ghost"
-            size="sm"
-            className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-            onMouseMove={handleMouseMove("prev")}
-            onClick={handlePreviousPage}
-            disabled={currentPage === 1 || loading}
-          >
-            <ChevronLeft className="w-4 h-4 mr-1 relative z-10" />
-            <span className="relative z-10">Previous</span>
-          </Button>
-          <Button
-            ref={(el) => {
-              buttonRefs.current["page1"] = el;
-            }}
-            size="sm"
-            className="bg-red-600 hover:bg-red-700 text-white ripple cursor-glow"
-            onMouseMove={handleMouseMove("page1")}
-          >
-            <span className="relative z-10">{currentPage}</span>
-          </Button>
-          <Button
-            ref={(el) => {
-              buttonRefs.current["next"] = el;
-            }}
-            variant="ghost"
-            size="sm"
-            className="ripple cursor-glow bg-gray-100 hover:bg-gray-200"
-            onMouseMove={handleMouseMove("next")}
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages || loading}
-          >
-            <span className="relative z-10">Next</span>
-            <ChevronRight className="w-4 h-4 ml-1 relative z-10" />
-          </Button>
-        </div>
-      </div>
 
       </Tabs>
 
@@ -2101,6 +2296,91 @@ export default function UsersPage() {
         applyFilters={applyFilters}
       />
 
+      {/* Bulk Assign Site Modal */}
+      <Dialog open={isBulkAssignModalOpen} onOpenChange={setIsBulkAssignModalOpen}>
+        <DialogContent className="sm:max-w-[500px] z-50 bg-white">
+          <DialogHeader className="space-y-3">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <MapPin className="w-5 h-5 text-orange-500" />
+              Assign Sites to Users
+            </DialogTitle>
+            <DialogDescription>
+              Assign sites to <strong>{selectedUserIds.size}</strong> selected user{selectedUserIds.size > 1 ? "s" : ""}. The selected sites will be allocated to all chosen users.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Select Sites *
+              </Label>
+              {sitesLoading ? (
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-gray-500">Loading sites...</span>
+                </div>
+              ) : (
+                <MultiSelect
+                  options={sites?.map((site) => ({ label: site?.name, value: site?.id?.toString() }))}
+                  selected={bulkAssignSiteIds}
+                  onChange={(selected: string[]) => setBulkAssignSiteIds(selected)}
+                  placeholder="Select sites to assign"
+                />
+              )}
+              <p className="text-sm text-gray-500">
+                Selected sites will be assigned to all {selectedUserIds.size} selected user{selectedUserIds.size > 1 ? "s" : ""}.
+              </p>
+            </div>
+
+            {/* Show selected users preview */}
+            <div className="space-y-2">
+              <Label className="text-sm text-gray-600">Selected Users:</Label>
+              <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto p-2 border rounded-lg bg-gray-50">
+                {Array.from(selectedUserIds).map((userId) => {
+                  const user = users.find((u) => u.id === userId);
+                  return user ? (
+                    <Badge key={userId} className="bg-orange-100 text-orange-700 border border-orange-200">
+                      {user.display_name || user.full_name || user.email}
+                    </Badge>
+                  ) : null;
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsBulkAssignModalOpen(false)}
+              disabled={bulkAssignLoading}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleBulkAssignSites}
+              disabled={bulkAssignLoading || bulkAssignSiteIds.length === 0}
+              className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white"
+            >
+              {bulkAssignLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Assigning ({selectedUserIds.size} users)...
+                </>
+              ) : (
+                <>
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Assign Sites
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {newDriverUserId && (
         <Dialog open={isAddDriverModalOpen} onOpenChange={setIsAddDriverModalOpen}>
           <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto z-50 bg-white">
@@ -2133,7 +2413,7 @@ export default function UsersPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 confirmDeleteUser();
