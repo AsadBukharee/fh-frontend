@@ -1,42 +1,42 @@
-# Step 1: Base image with correct node version
-FROM node:22.16.0-alpine AS base
-
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+# ---------- Dependencies ----------
+FROM node:20-alpine AS deps
 
 WORKDIR /app
 
-# Install dependencies cleanly
-COPY package*.json ./
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Optional: Remove `.npmrc` if not used
-# COPY .npmrc .npmrc
+RUN apk add --no-cache libc6-compat python3 make g++
 
-# Use specified npm version
-RUN npm install -g npm@11.4.2
+COPY package.json package-lock.json ./
 
-# Install app deps
 RUN npm ci
 
-# Copy rest of the app
+
+# ---------- Builder ----------
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build for production
 RUN npm run build
 
-# Step 2: Runtime image
-FROM node:22.16.0-alpine AS runner
+
+# ---------- Runner ----------
+FROM node:20-alpine AS runner
+
+WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-WORKDIR /app
-
-# Copy from builder
-COPY --from=base /app/public ./public
-COPY --from=base /app/.next ./.next
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/package.json ./package.json
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
 EXPOSE 3000
 
