@@ -87,6 +87,7 @@
     "sharp": "^0.34.4",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
+    "typescript": "^5",
     "use-debounce": "^10.0.5",
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
@@ -118,7 +119,6 @@
     "playwright": "^1.59.1",
     "tailwindcss": "^4.1.11",
     "tw-animate-css": "^1.3.5",
-    "typescript": "^5",
     "typescript-eslint": "^8.38.0",
     "vitest": "^4.1.5"
   }
