@@ -656,11 +656,9 @@ export default function VehiclesPage({ activeTab = "assigned" }: { activeTab?: s
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="available">Available</SelectItem>
+                                <SelectItem value="assigned">Assigned</SelectItem>
                                 <SelectItem value="unavailable">Unavailable</SelectItem>
                                 <SelectItem value="disabled">Disabled</SelectItem>
-                                {vehicle.vehicle_status === "assigned" && (
-                                  <SelectItem value="assigned" disabled>Assigned</SelectItem>
-                                )}
                               </SelectContent>
                             </Select>
                           </td>
