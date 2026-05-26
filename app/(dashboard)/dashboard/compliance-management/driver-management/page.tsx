@@ -46,6 +46,7 @@ interface Driver {
     role: string;
   };
   national_insurance_no: string | null;
+  license_issue_number?: string | null;
   profile_status: string;
   driver_compliance: {
     driver_licence_expiry: string | null;
@@ -977,7 +978,7 @@ const DriverManagementPage = () => {
                 {/* Fixed Header Cells */}
                 <TableHead className={`min-w-[200px] ${stickyHeaderClass} ${stickyNameClass} font-semibold text-left`}>Driver Name</TableHead>
                 <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>License No.</TableHead>
-                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>NI Number</TableHead>
+                <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>License Issue No</TableHead>
                 <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>License Expiry</TableHead>
                 <TableHead className={`min-w-[150px] ${stickyHeaderClass} font-semibold text-left`}>D/D1 Expiry</TableHead>
                 <TableHead className={`min-w-[180px] ${stickyHeaderClass} font-semibold text-left`}>Last Driver Check Code</TableHead>
@@ -1022,7 +1023,7 @@ const DriverManagementPage = () => {
                       {driver.user.license_number || "NA"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-left">
-                      {driver.national_insurance_no || "NA"}
+                      {driver.license_issue_number || "NA"}
                     </TableCell>
                     {renderDateCell('driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                     {renderDateCell('d_d1_expiry', driver.driver_compliance.d_d1_expiry, driver)}
