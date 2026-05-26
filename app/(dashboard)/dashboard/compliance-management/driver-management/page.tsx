@@ -43,10 +43,10 @@ interface Driver {
     full_name: string;
     display_name: string;
     license_number: string | null;
+    license_issue_number?: string | null;
     role: string;
   };
   national_insurance_no: string | null;
-  license_issue_number?: string | null;
   profile_status: string;
   driver_compliance: {
     driver_licence_expiry: string | null;
@@ -1023,7 +1023,7 @@ const DriverManagementPage = () => {
                       {driver.user.license_number || "NA"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-left">
-                      {driver.license_issue_number || "NA"}
+                      {driver.user?.license_issue_number || "NA"}
                     </TableCell>
                     {renderDateCell('driver_licence_expiry', driver.driver_compliance.driver_licence_expiry, driver)}
                     {renderDateCell('d_d1_expiry', driver.driver_compliance.d_d1_expiry, driver)}
