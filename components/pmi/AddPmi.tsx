@@ -33,6 +33,7 @@ import {
 } from "../ui/select";
 import { DatePickerField } from "../ui/DatePicker";
 import { format } from "date-fns";
+import SignatureCanvas from "react-signature-canvas";
 
 // Interfaces
 interface Vehicle {
@@ -206,6 +207,19 @@ const AddPMI: FC = () => {
     []
   );
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [step, setStep] = useState(1);
+  const nextStep = () => setStep((prev) => Math.min(prev + 1, 7));
+  const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
+
+  const steps = [
+    "Base Info",
+    "Tyre Pressure",
+    "Tyre Depth",
+    "Tyre Date",
+    "Brake Test & Value",
+    "Correct DPT Code",
+    "Signed & stamp",
+  ];
 
   // Cache vehicles to prevent refetching
   const vehicleCache = useRef<Vehicle[]>([]);
@@ -595,7 +609,10 @@ const AddPMI: FC = () => {
         </DialogTrigger>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New PMI Record</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Add New PMI Record</DialogTitle>
+            <DialogDescription className="text-gray-500 text-sm mt-1">
+              Here you can add a new PMI record
+            </DialogDescription>
           </DialogHeader>
           {error && (
             <div className="bg-red-100 text-red-700 p-3 rounded mb-4 flex items-center">
@@ -603,427 +620,590 @@ const AddPMI: FC = () => {
               {error}
             </div>
           )}
-          <div className="space-y-6">
-            <div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Analysis Date *
-                  </label>
-                  <DatePickerField
-                    label="Analysis Date"
-                    value={formData.analysis_date}
-                    onDateSelected={(date) =>
-                      handleChange("analysis_date", format(date, "yyyy-MM-dd"))
-                    }
-                    startDate={-36500} // optional, ~100 years ago
-                    lastDate={0} // up to today
-                    validator={(val) =>
-                      !val ? "Enter analysis date" : undefined
-                    }
-                  />
-                  {formErrors.analysis_date && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {formErrors.analysis_date}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Vehicle *
-                  </label>
-                  <Select
-                    value={formData.vehicle.toString()}
-                    onValueChange={handleVehicleChange}
-                    disabled={vehiclesLoading}
-                    aria-required="true"
-                  >
-                    <SelectTrigger
-                      className={cn(formErrors.vehicle && "border-red-500")}
-                    >
-                      <SelectValue
-                        placeholder={
-                          vehiclesLoading
-                            ? "Loading vehicles..."
-                            : "Select a vehicle"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {memoizedVehicles.map((vehicle) => (
-                        <SelectItem
-                          key={vehicle.id}
-                          value={vehicle.id.toString()}
-                        >
-                          {vehicle.registration_number} (
-                          {vehicle.vehicle_type_name})
-                          {vehicle.warnings.length > 0 && (
-                            <span className="ml-2 text-red-500">
-                              ⚠️ {vehicle.warnings.length} issues
-                            </span>
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.vehicle && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {formErrors.vehicle}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status *
-                  </label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => handleChange("status", value)}
-                    aria-required="true"
-                  >
-                    <SelectTrigger
-                      className={cn(formErrors.status && "border-red-500")}
-                    >
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="created">Created</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {formErrors.status && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {formErrors.status}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    File Upload
-                  </label>
-                  <FileUploader onUploadSuccess={handleFileUploadSuccess} />
-                  {formErrors.file_url && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {formErrors.file_url}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Maintenance Provider Error
-                  </label>
-                  <input      className=" p-2 border border-gray-200 rounded hover:border-gray-500"
-             
-                    value={formData.maintenence_provider_error}
-                    onChange={(e) =>
-                      handleChange("maintenence_provider_error", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-              <DefectsInput
-                value={formData.defects}
-                onChange={(newValue) => handleChange("defects", newValue)}
-              />
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
-                </label>
-                <Textarea
-                  value={formData.notes}
-                  onChange={(e) => handleChange("notes", e.target.value)}
-                  rows={3}
-                />
-              </div>
+
+          <div className="mb-8">
+            {/* Tabs */}
+            <div className="flex gap-4 mb-8">
+              <button className="px-6 py-2 bg-orange-50 text-orange-500 font-semibold rounded-md border border-orange-100">
+                PMI Analysis Foster Hartley TM
+              </button>
+
             </div>
 
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Brake Information</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Brake Imbalance
-                  </label>
-                  <input      className=" p-2 border border-gray-200 rounded hover:border-gray-500"
-                    value={formData.brake_imbalance}
-                    onChange={(e) =>
-                      handleChange("brake_imbalance", e.target.value)
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Brake Imbalance Note
-                  </label>
-                  <input      className=" p-2 border border-gray-200 rounded hover:border-gray-500"
-                    value={formData.brake_imbalance_note}
-                    onChange={(e) =>
-                      handleChange("brake_imbalance_note", e.target.value)
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Brake Test Not Recorded
-                  </label>
-                  <RadioGroup
-                    value={formData.brake_test_not_recorded}
-                    onValueChange={(value) =>
-                      handleChange("brake_test_not_recorded", value)
-                    }
-                    className="flex space-x-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="yes"
-                        id="brake_test_not_recorded_yes"
-                      />
-                      <Label htmlFor="brake_test_not_recorded_yes">Yes</Label>
+            {/* Stepper Circles */}
+            <div className="relative flex items-center justify-between px-4 mb-8">
+              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-[2px] bg-gray-200 z-0 px-8"></div>
+              {steps.map((label, index) => {
+                const isActive = step === index + 1;
+                const isCompleted = step > index + 1;
+                return (
+                  <div key={label} className="relative z-10 flex flex-col items-center">
+                    <div className={cn(
+                      "w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white",
+                      isActive || isCompleted ? "border-red-500" : "border-gray-300"
+                    )}>
+                      {(isActive || isCompleted) && (
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="no"
-                        id="brake_test_not_recorded_no"
-                      />
-                      <Label htmlFor="brake_test_not_recorded_no">No</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="NA"
-                        id="brake_test_not_recorded_na"
-                      />
-                      <Label htmlFor="brake_test_not_recorded_na">NA</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Brake Test Report Attached
-                  </label>
-                  <RadioGroup
-                    value={formData.brake_test_report_attached}
-                    onValueChange={(value) =>
-                      handleChange("brake_test_report_attached", value)
-                    }
-                    className="flex space-x-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="yes"
-                        id="brake_test_report_attached_yes"
-                      />
-                      <Label htmlFor="brake_test_report_attached_yes">
-                        Yes
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="no"
-                        id="brake_test_report_attached_no"
-                      />
-                      <Label htmlFor="brake_test_report_attached_no">No</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="NA"
-                        id="brake_test_report_attached_na"
-                      />
-                      <Label htmlFor="brake_test_report_attached_na">NA</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Maintenance Error Answer
-                  </label>
-                  <RadioGroup
-                    value={formData.maintenance_error_answer}
-                    onValueChange={(value) =>
-                      handleChange("maintenance_error_answer", value)
-                    }
-                    className="flex space-x-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="yes"
-                        id="maintenance_error_answer_yes"
-                      />
-                      <Label htmlFor="maintenance_error_answer_yes">Yes</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="no"
-                        id="maintenance_error_answer_no"
-                      />
-                      <Label htmlFor="maintenance_error_answer_no">No</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="NA"
-                        id="maintenance_error_answer_na"
-                      />
-                      <Label htmlFor="maintenance_error_answer_na">NA</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Maintenance Error Note
-                  </label>
-                  <input      className=" p-2 border border-gray-200 rounded hover:border-gray-500"
-                    value={formData.maintenance_error_note}
-                    onChange={(e) =>
-                      handleChange("maintenance_error_note", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
+                    <span className={cn(
+                      "absolute top-10 text-xs font-medium whitespace-nowrap",
+                      isActive || isCompleted ? "text-red-500" : "text-gray-400"
+                    )}>
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Tyre Information</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {tyrePositions.map((pos) => (
-                  <div key={pos}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tyre Pressure {pos} (PSI)
-                    </label>
-                    <input      
-                      type="number"
-                      value={formData.tyre_pressure[pos]}
-                      onChange={(e) =>
-                        debouncedHandleTyreChange(
-                          "tyre_pressure",
-                          pos,
-                          e.target.value
-                        )
-                      }
-                      className={cn(
-                        getSafetyColor(
-                          formData.tyre_pressure[pos],
-                          "tyre_pressure"
-                        ),
-                        formErrors.tyre_pressure?.[pos] && "border-red-500 "
-                      )}
-                    />
-                    {formErrors.tyre_pressure?.[pos] && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {formErrors.tyre_pressure[pos]}
-                      </p>
-                    )}
-                  </div>
-                ))}
-                {tyrePositions.map((pos) => (
-                  <div key={pos}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tyre Depth {pos} (mm)
-                    </label>
-                    <input     
-                      type="number"
-                      value={formData.tyre_depth[pos]}
-                      onChange={(e) =>
-                        debouncedHandleTyreChange(
-                          "tyre_depth",
-                          pos,
-                          e.target.value
-                        )
-                      }
-                      className={cn(
-                        getSafetyColor(formData.tyre_depth[pos], "tyre_depth"),
-                        formErrors.tyre_depth?.[pos] && "border-red-500"
-                      )}
-                    />
-                    {formErrors.tyre_depth?.[pos] && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {formErrors.tyre_depth[pos]}
-                      </p>
-                    )}
-                  </div>
-                ))}
-                {tyrePositions.map((pos) => (
-                  <div key={pos}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tyre Date {pos} (YYWW)
-                    </label>
-                    <input      
-                      value={formData.tyre_date[pos]}
-                      onChange={(e) =>
-                        debouncedHandleTyreChange(
-                          "tyre_date",
-                          pos,
-                          e.target.value
-                        )
-                      }
-                      placeholder="e.g., 2325"
-                      className={cn(
-                        `${formErrors.tyre_date?.[pos]} p-2 border border-gray-200 rounded hover:border-gray-500` && "p-2 border  rounded hover:border-gray-500 border-red-500"
-                      )}
-                    />
-                    {formErrors.tyre_date?.[pos] && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {formErrors.tyre_date[pos]}
-                      </p>
-                    )}
-                  </div>
-                ))}
-                {tyrePositions?.map((pos) => (
-                  <div key={pos}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tyre Torque {pos} (Nm)
-                    </label>
-                    <input      
-                      type="number"
-                      value={formData?.tyre_torque[pos]}
-                      onChange={(e) =>
-                        debouncedHandleTyreChange(
-                          "tyre_torque",
-                          pos,
-                          e.target.value
-                        )
-                      }
-                      className={cn(
-                        getSafetyColor(formData.tyre_torque[pos], "tyre_torque"),
-                        formErrors.tyre_torque?.[pos] && "border-red-500"
-                      )}
-                    />
-                    {formErrors.tyre_torque?.[pos] && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {formErrors.tyre_torque[pos]}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
+            {/* Progress Bar */}
+            <div className="w-full h-2 bg-gray-100 rounded-full mb-8 mt-12 overflow-hidden">
+              <div
+                className="h-full bg-orange-500 rounded-full transition-all duration-300"
+                style={{ width: `${(step / steps.length) * 100}%` }}
+              ></div>
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end space-x-2">
+          <div className="space-y-6">
+            {step === 1 && (
+              <div>
+                <h2 className="text-xl font-bold mb-6">
+                  <span className="text-orange-500">Step 1 : </span> PMI Base Information
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Analysis Date *
+                    </label>
+                    <DatePickerField
+                      label="Analysis Date"
+                      value={formData.analysis_date}
+                      onDateSelected={(date) =>
+                        handleChange("analysis_date", format(date, "yyyy-MM-dd"))
+                      }
+                      startDate={-36500}
+                      lastDate={0}
+                      validator={(val) =>
+                        !val ? "Enter analysis date" : undefined
+                      }
+                    />
+                    {formErrors.analysis_date && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {formErrors.analysis_date}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Vehicle *
+                    </label>
+                    <Select
+                      value={formData.vehicle.toString()}
+                      onValueChange={handleVehicleChange}
+                      disabled={vehiclesLoading}
+                      aria-required="true"
+                    >
+                      <SelectTrigger
+                        className={cn(formErrors.vehicle && "border-red-500")}
+                      >
+                        <SelectValue
+                          placeholder={
+                            vehiclesLoading
+                              ? "Loading vehicles..."
+                              : "Select a vehicle"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {memoizedVehicles.map((vehicle) => (
+                          <SelectItem
+                            key={vehicle.id}
+                            value={vehicle.id.toString()}
+                          >
+                            {vehicle.registration_number} (
+                            {vehicle.vehicle_type_name})
+                            {vehicle.warnings.length > 0 && (
+                              <span className="ml-2 text-red-500">
+                                ⚠️ {vehicle.warnings.length} issues
+                              </span>
+                            )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formErrors.vehicle && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {formErrors.vehicle}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Status *
+                    </label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => handleChange("status", value)}
+                      aria-required="true"
+                    >
+                      <SelectTrigger
+                        className={cn(formErrors.status && "border-red-500")}
+                      >
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="created">Created</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {formErrors.status && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {formErrors.status}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      File Upload
+                    </label>
+                    <FileUploader onUploadSuccess={handleFileUploadSuccess} />
+                    {formErrors.file_url && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {formErrors.file_url}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Maintenance Provider Error
+                    </label>
+                    <input className="w-full p-2 border border-gray-200 rounded hover:border-gray-500"
+                      value={formData.maintenence_provider_error}
+                      onChange={(e) =>
+                        handleChange("maintenence_provider_error", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <DefectsInput
+                    value={formData.defects}
+                    onChange={(newValue) => handleChange("defects", newValue)}
+                  />
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                  </label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(e) => handleChange("notes", e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div>
+                <h2 className="text-xl font-bold mb-6">
+                  <span className="text-orange-500">Step 2 : </span> Tyre Pressure
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {tyrePositions.map((pos) => (
+                    <div key={pos}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tyre Pressure {pos} (PSI)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.tyre_pressure[pos]}
+                        onChange={(e) =>
+                          debouncedHandleTyreChange(
+                            "tyre_pressure",
+                            pos,
+                            e.target.value
+                          )
+                        }
+                        className={cn(
+                          "w-full p-2 border rounded",
+                          getSafetyColor(
+                            formData.tyre_pressure[pos],
+                            "tyre_pressure"
+                          ),
+                          formErrors.tyre_pressure?.[pos] && "border-red-500 "
+                        )}
+                      />
+                      {formErrors.tyre_pressure?.[pos] && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {formErrors.tyre_pressure[pos]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div>
+                <h2 className="text-xl font-bold mb-6">
+                  <span className="text-orange-500">Step 3 : </span> Tyre Depth
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {tyrePositions.map((pos) => (
+                    <div key={pos}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tyre Depth {pos} (mm)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.tyre_depth[pos]}
+                        onChange={(e) =>
+                          debouncedHandleTyreChange(
+                            "tyre_depth",
+                            pos,
+                            e.target.value
+                          )
+                        }
+                        className={cn(
+                          "w-full p-2 border rounded",
+                          getSafetyColor(formData.tyre_depth[pos], "tyre_depth"),
+                          formErrors.tyre_depth?.[pos] && "border-red-500"
+                        )}
+                      />
+                      {formErrors.tyre_depth?.[pos] && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {formErrors.tyre_depth[pos]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div>
+                <h2 className="text-xl font-bold mb-6">
+                  <span className="text-orange-500">Step 4 : </span> Tyre Date & Torque
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {tyrePositions.map((pos) => (
+                    <div key={pos}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tyre Date {pos} (YYWW)
+                      </label>
+                      <input
+                        value={formData.tyre_date[pos]}
+                        onChange={(e) =>
+                          debouncedHandleTyreChange(
+                            "tyre_date",
+                            pos,
+                            e.target.value
+                          )
+                        }
+                        placeholder="e.g., 2325"
+                        className={cn(
+                          "w-full p-2 border rounded hover:border-gray-500",
+                          formErrors.tyre_date?.[pos] && "border-red-500"
+                        )}
+                      />
+                      {formErrors.tyre_date?.[pos] && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {formErrors.tyre_date[pos]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                  {tyrePositions?.map((pos) => (
+                    <div key={pos}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tyre Torque {pos} (Nm)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData?.tyre_torque[pos]}
+                        onChange={(e) =>
+                          debouncedHandleTyreChange(
+                            "tyre_torque",
+                            pos,
+                            e.target.value
+                          )
+                        }
+                        className={cn(
+                          "w-full p-2 border rounded hover:border-gray-500",
+                          getSafetyColor(formData.tyre_torque[pos], "tyre_torque"),
+                          formErrors.tyre_torque?.[pos] && "border-red-500"
+                        )}
+                      />
+                      {formErrors.tyre_torque?.[pos] && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {formErrors.tyre_torque[pos]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {step === 5 && (
+              <div>
+                <h2 className="text-xl font-bold mb-6">
+                  <span className="text-orange-500">Step 5 : </span> Brake Test & Value
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Brake Imbalance
+                    </label>
+                    <input className="w-full p-2 border border-gray-200 rounded hover:border-gray-500"
+                      value={formData.brake_imbalance}
+                      onChange={(e) =>
+                        handleChange("brake_imbalance", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Brake Imbalance Note
+                    </label>
+                    <input className="w-full p-2 border border-gray-200 rounded hover:border-gray-500"
+                      value={formData.brake_imbalance_note}
+                      onChange={(e) =>
+                        handleChange("brake_imbalance_note", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Brake Test Not Recorded
+                    </label>
+                    <RadioGroup
+                      value={formData.brake_test_not_recorded}
+                      onValueChange={(value) =>
+                        handleChange("brake_test_not_recorded", value)
+                      }
+                      className="flex space-x-4 mt-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="yes"
+                          id="brake_test_not_recorded_yes"
+                        />
+                        <Label htmlFor="brake_test_not_recorded_yes">Yes</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="no"
+                          id="brake_test_not_recorded_no"
+                        />
+                        <Label htmlFor="brake_test_not_recorded_no">No</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="NA"
+                          id="brake_test_not_recorded_na"
+                        />
+                        <Label htmlFor="brake_test_not_recorded_na">NA</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Brake Test Report Attached
+                    </label>
+                    <RadioGroup
+                      value={formData.brake_test_report_attached}
+                      onValueChange={(value) =>
+                        handleChange("brake_test_report_attached", value)
+                      }
+                      className="flex space-x-4 mt-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="yes"
+                          id="brake_test_report_attached_yes"
+                        />
+                        <Label htmlFor="brake_test_report_attached_yes">
+                          Yes
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="no"
+                          id="brake_test_report_attached_no"
+                        />
+                        <Label htmlFor="brake_test_report_attached_no">No</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="NA"
+                          id="brake_test_report_attached_na"
+                        />
+                        <Label htmlFor="brake_test_report_attached_na">NA</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Maintenance Error Answer
+                    </label>
+                    <RadioGroup
+                      value={formData.maintenance_error_answer}
+                      onValueChange={(value) =>
+                        handleChange("maintenance_error_answer", value)
+                      }
+                      className="flex space-x-4 mt-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="yes"
+                          id="maintenance_error_answer_yes"
+                        />
+                        <Label htmlFor="maintenance_error_answer_yes">Yes</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="no"
+                          id="maintenance_error_answer_no"
+                        />
+                        <Label htmlFor="maintenance_error_answer_no">No</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="NA"
+                          id="maintenance_error_answer_na"
+                        />
+                        <Label htmlFor="maintenance_error_answer_na">NA</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Maintenance Error Note
+                    </label>
+                    <input className="w-full p-2 border border-gray-200 rounded hover:border-gray-500"
+                      value={formData.maintenance_error_note}
+                      onChange={(e) =>
+                        handleChange("maintenance_error_note", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 6 && (
+              <div>
+                <h2 className="text-xl font-bold mb-6">
+                  <span className="text-orange-500">Step 6 : </span> Correct DPT Code
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Correct DTP Code Used
+                    </label>
+                    <input className="w-full p-2 border border-gray-200 rounded hover:border-gray-500"
+                      value={formData.Correct_DTP_Code_Used}
+                      onChange={(e) =>
+                        handleChange("Correct_DTP_Code_Used", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 7 && (
+              <div>
+                <h2 className="text-xl font-bold mb-6">
+                  <span className="text-orange-500">Step 7 : </span> Signed & stamp
+                </h2>
+                <div className="border border-gray-300 rounded-lg p-4 bg-white">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Please sign below:
+                  </label>
+                  <SignatureCanvas
+                    ref={signatureCanvasRef}
+                    penColor="black"
+                    canvasProps={{
+                      className:
+                        "w-full h-48 border-2 border-dashed border-gray-300 rounded-md cursor-crosshair bg-gray-50",
+                    }}
+                    onEnd={() => setSignatureSaved(true)}
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        signatureCanvasRef.current?.clear();
+                        setSignatureSaved(false);
+                      }}
+                    >
+                      <Eraser className="w-4 h-4 mr-2" />
+                      Clear Signature
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="mt-8 flex justify-between items-center">
             <Button
               variant="outline"
-              onClick={() => {
-                setFormData(initialFormData);
-                signatureCanvasRef.current?.clear();
-                setSignatureSaved(false);
-              }}
-              disabled={loading}
+              onClick={prevStep}
+              disabled={step === 1 || loading}
             >
-              Reset Form
+              Back
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              className="bg-orange-500 hover:bg-orange-600"
-              disabled={loading}
-            >
-              {loading ? "Submitting..." : "Add PMI"}
-            </Button>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFormData(initialFormData);
+                  signatureCanvasRef.current?.clear();
+                  setSignatureSaved(false);
+                  setStep(1);
+                }}
+                disabled={loading}
+              >
+                Reset Form
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setOpen(false);
+                  setStep(1);
+                }}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              {step === 7 ? (
+                <Button
+                  onClick={handleSubmit}
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  disabled={loading || !signatureSaved}
+                >
+                  {loading ? "Submitting..." : "Add PMI"}
+                </Button>
+              ) : (
+                <Button
+                  onClick={nextStep}
+                  className="bg-orange-100 text-orange-500 hover:bg-orange-200 font-semibold px-8"
+                  disabled={loading}
+                >
+                  Save & Next
+                </Button>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

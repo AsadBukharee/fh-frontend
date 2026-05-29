@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import {
@@ -101,6 +101,218 @@ const DOCUMENT_TYPE_MAPPING = {
   other_docs: 6,
   others_docs: 6,
 };
+
+// ─── Static config arrays (module-level, never recreated) ───────────────────
+const COMPLIANCE_ITEMS = [
+  { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docCode: "mot_check_docs", color: "orange", hasDialog: true, document_type: 9, doc_has_expiry: true },
+  { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docCode: "insurance_docs", color: "purple", document_type: 13, doc_has_expiry: true },
+  { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docCode: "tax_docs", color: "green", document_type: 12, doc_has_expiry: true },
+  { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docCode: "valet_check", color: "orange", hasDialog: true, document_type: 16, doc_has_expiry: true },
+  { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docCode: "loller_docs", color: "pink", requiredForWheelchair: true, document_type: null, doc_has_expiry: true },
+  { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docCode: "tacho_calibration_docs", color: "indigo", requiredForTacho: true, document_type: null, doc_has_expiry: true },
+];
+
+const ADDITIONAL_DOCUMENTS = [
+  { key: "vehicle_invoice_docs", label: "Vehicle Invoice", icon: FileText, document_type: 2, docCode: "vehicle_invoice_docs", doc_has_expiry: false },
+  { key: "service_records_docs", label: "Service Records", icon: Wrench, document_type: 4, docCode: "service_records_docs", doc_has_expiry: false },
+  { key: "last_valet_check_docs", label: "New Vehicle Checklist", icon: FileCheck, document_type: 14, docCode: "last_valet_check_docs", doc_has_expiry: false },
+  { key: "logbook_docs", label: "Log Book / V5C", icon: FileText, document_type: 1, docCode: "logbook_docs", doc_has_expiry: false },
+  { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText, document_type: 3, docCode: "COIF_technical_docs", doc_has_expiry: false },
+  { key: "others_docs", label: "Other Documents", icon: FileText, document_type: 6, docCode: "others_docs", doc_has_expiry: false },
+];
+
+// ─── Module-level utility functions (stable references, zero re-allocation) ──
+function formatDate(dateString: string) {
+  if (!dateString) return "-";
+  return formatToDDMMYYYY(dateString);
+}
+
+function getWarningStyle(w: string) {
+  if (w.includes("🔴")) return { cls: "bg-red-50 text-red-800 border border-red-200", icon: <XCircle className="h-4 w-4 flex-shrink-0 text-red-500" /> };
+  if (w.includes("⚠️")) return { cls: "bg-orange-50 text-orange-800 border border-orange-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-500" /> };
+  if (w.includes("⏳")) return { cls: "bg-amber-50 text-amber-800 border border-amber-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-500" /> };
+  return { cls: "bg-emerald-50 text-emerald-800 border border-emerald-200", icon: <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" /> };
+}
+
+function stripEmoji(w: string) {
+  return w.replace(/^[\p{Emoji}\s]+/u, "").trim();
+}
+
+function getExpiryStatus(expiryDate: string, key?: string) {
+  if (!expiryDate) return { color: "bg-slate-100 text-slate-600", text: "Not set", icon: AlertCircle };
+
+  if (key === "last_pmi") {
+    return { color: "bg-red-50 text-red-600 border-red-200", text: "Date Passed", icon: CheckCircle };
+  }
+
+  const today = new Date();
+  const expiry = new Date(expiryDate);
+  const diffTime = expiry.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { color: "bg-red-50 text-red-600 border-red-200", text: "Expired", icon: AlertTriangle };
+  if (diffDays <= 30) return { color: "bg-orange-50 text-orange-600 border-orange-200", text: `${diffDays} days left`, icon: Clock };
+  if (diffDays <= 60) return { color: "bg-amber-50 text-amber-600 border-amber-200", text: `${diffDays} days left`, icon: Clock };
+  return { color: "bg-emerald-50 text-emerald-600 border-emerald-200", text: "Valid", icon: CheckCircle };
+}
+
+function hasDocument(docUrl: string | null | undefined, docCode?: string, documentsMap?: Map<string, any>) {
+  if (docCode && documentsMap?.has(docCode)) {
+    return true;
+  }
+  return docUrl && docUrl !== "" && docUrl !== "null" && docUrl.length > 0;
+}
+
+function getDocumentUrl(docCode: string, documentsMap: Map<string, any>, fallbackUrl?: string | null) {
+  const doc = documentsMap.get(docCode);
+  if (doc && doc.url) {
+    return doc.url;
+  }
+  return fallbackUrl;
+}
+
+function getStatusBadgeColor(status: string) {
+  switch (status) {
+    case "available": return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "unavailable": return "bg-slate-100 text-slate-700 border-slate-200";
+    case "assigned": return "bg-orange-50 text-orange-700 border-orange-200";
+    case "disabled": return "bg-red-50 text-red-700 border-red-200";
+    default: return "bg-slate-100 text-slate-700 border-slate-200";
+  }
+}
+
+function getRoadworthyBadgeColor(status: string) {
+  switch (status) {
+    case "no_defect": return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "minor_defect_roadworthy": return "bg-orange-50 text-orange-700 border-orange-200";
+    case "minor_defect_not_roadworthy":
+    case "major_defect_not_roadworthy": return "bg-red-50 text-red-700 border-red-200";
+    default: return "bg-slate-100 text-slate-700 border-slate-200";
+  }
+}
+
+function getStatusDisplayText(status: string) {
+  switch (status) {
+    case "available": return "Available";
+    case "unavailable": return "Unavailable";
+    case "assigned": return "Assigned";
+    case "disabled": return "Disabled";
+    default: return status;
+  }
+}
+
+function getRoadworthyDisplayText(status: string) {
+  switch (status) {
+    case "no_defect": return "No Defect";
+    case "minor_defect_roadworthy": return "Minor Defect - Roadworthy";
+    case "minor_defect_not_roadworthy": return "Minor Defect - Not Roadworthy";
+    case "major_defect_not_roadworthy": return "Major Defect - Not Roadworthy";
+    default: return status;
+  }
+}
+
+// ─── Extracted helper components (module-level — stable identity across renders) ─
+type FieldProps = {
+  label: string;
+  value?: string;
+  isEditing?: boolean;
+  onChange?: (v: string) => void;
+  type?: string;
+};
+
+const Field = React.memo(function Field({ label, value, isEditing, onChange, type = "text" }: FieldProps) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-slate-500">{label}</p>
+      {isEditing ? (
+        <Input
+          value={value || ""}
+          type={type}
+          onChange={(e) => onChange?.(e.target.value)}
+          className="h-9 text-sm"
+        />
+      ) : (
+        <p className="text-sm font-medium text-slate-900">{value || "-"}</p>
+      )}
+    </div>
+  );
+});
+
+type TyreRowProps = {
+  label: string;
+  unit: string;
+  valueKey: string;
+  type?: string;
+  highlight?: boolean;
+  isEditing: boolean;
+  value: any;
+  onValueChange: (key: string, val: any) => void;
+};
+
+const TyreRow = React.memo(function TyreRow({ label, unit, valueKey, type = "text", highlight, isEditing, value, onValueChange }: TyreRowProps) {
+  const displayValue =
+    value !== null && value !== undefined && value !== ""
+      ? `${value}${unit ? ` ${unit}` : ""}`
+      : "N/A";
+
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+      <div className="flex flex-col">
+        <span className="text-sm text-slate-500">{label}</span>
+        {unit && !isEditing && <span className="text-xs text-slate-400">{unit}</span>}
+      </div>
+
+      <div className="min-w-[90px] text-right">
+        {isEditing ? (
+          <div className="relative">
+            <Input
+              type={type}
+              value={value ?? ""}
+              onChange={(e) =>
+                onValueChange(
+                  valueKey,
+                  type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value
+                )
+              }
+              className="h-8 text-sm pr-20 text-right focus:ring-2 focus:ring-blue-500"
+            />
+            {unit && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{unit}</span>}
+          </div>
+        ) : (
+          <span
+            className={`text-sm font-semibold ${highlight ? "text-green-700 bg-green-50 px-2 py-1 rounded-md" : "text-slate-900"
+              }`}
+          >
+            {displayValue}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+});
+
+type TyreCardProps = {
+  title: string;
+  pos: string;
+  ageKey: string;
+  isEditing: boolean;
+  vehicleData: any;
+  onValueChange: (key: string, val: any) => void;
+};
+
+const TyreCard = React.memo(function TyreCard({ title, pos, ageKey, isEditing, vehicleData, onValueChange }: TyreCardProps) {
+  return (
+    <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm">
+      <p className="font-medium text-slate-900 mb-3">{title}</p>
+      <div className="space-y-2 text-sm">
+        <TyreRow label="Pressure" unit="PSI" valueKey={`tyre_pressure_${pos}`} type="number" isEditing={isEditing} value={vehicleData?.[`tyre_pressure_${pos}`]} onValueChange={onValueChange} />
+        <TyreRow label="Depth" unit="mm" valueKey={`tyre_depth_${pos}`} highlight isEditing={isEditing} value={vehicleData?.[`tyre_depth_${pos}`]} onValueChange={onValueChange} />
+        <TyreRow label="Torque" unit="NM" valueKey={`tyre_torque_${pos}`} type="number" isEditing={isEditing} value={vehicleData?.[`tyre_torque_${pos}`]} onValueChange={onValueChange} />
+        <TyreRow label="Tyre Age" unit="" valueKey={ageKey} type="text" isEditing={isEditing} value={vehicleData?.[ageKey]} onValueChange={onValueChange} />
+      </div>
+    </div>
+  );
+});
 
 export default function VehicleDetailPage() {
   const { id } = useParams();
@@ -205,20 +417,11 @@ export default function VehicleDetailPage() {
     }
   };
 
-  /* ── warning helpers ── */
-  const warningCount = vehicle?.warnings?.length || 0;
-  const errorCount = vehicle?.warnings?.filter((w: string) => w.includes("🔴")).length || 0;
-  const cautionCount = vehicle?.warnings?.filter((w: string) => w.includes("⚠️")).length || 0;
-  const pendingCount = vehicle?.warnings?.filter((w: string) => w.includes("⏳")).length || 0;
-
-  const getWarningStyle = (w: string) => {
-    if (w.includes("🔴")) return { cls: "bg-red-50 text-red-800 border border-red-200", icon: <XCircle className="h-4 w-4 flex-shrink-0 text-red-500" /> };
-    if (w.includes("⚠️")) return { cls: "bg-orange-50 text-orange-800 border border-orange-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-500" /> };
-    if (w.includes("⏳")) return { cls: "bg-amber-50 text-amber-800 border border-amber-200", icon: <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-500" /> };
-    return { cls: "bg-emerald-50 text-emerald-800 border border-emerald-200", icon: <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" /> };
-  };
-
-  const stripEmoji = (w: string) => w.replace(/^[\p{Emoji}\s]+/u, "").trim();
+  /* ── warning helpers (memoized to avoid recomputing on every render) ── */
+  const warningCount = useMemo(() => vehicle?.warnings?.length || 0, [vehicle?.warnings]);
+  const errorCount = useMemo(() => vehicle?.warnings?.filter((w: string) => w.includes("🔴")).length || 0, [vehicle?.warnings]);
+  const cautionCount = useMemo(() => vehicle?.warnings?.filter((w: string) => w.includes("⚠️")).length || 0, [vehicle?.warnings]);
+  const pendingCount = useMemo(() => vehicle?.warnings?.filter((w: string) => w.includes("⏳")).length || 0, [vehicle?.warnings]);
 
   const { expandedId, handleExpandedChange } = useAutoScroll(loading, "vehicle_docs", true);
 
@@ -534,7 +737,7 @@ export default function VehicleDetailPage() {
       });
 
       if (res.ok) {
-        // Refresh vehicle data
+        // Refresh vehicle data without full-page spinner
         await refreshVehicleData();
         toast.success(`${docType} uploaded successfully`);
       } else {
@@ -619,7 +822,7 @@ export default function VehicleDetailPage() {
       }
 
       if (res.ok) {
-        // Refresh vehicle data
+        // Refresh vehicle data without full-page spinner
         await refreshVehicleData();
         toast.success("Document deleted successfully", { id: toastId });
       } else {
@@ -686,7 +889,8 @@ export default function VehicleDetailPage() {
       }
 
       toast.success(`${docConfig.label} uploaded and saved successfully`, { id: toastId });
-      fetchData();
+      // Use refreshVehicleData to avoid full-page spinner
+      await refreshVehicleData();
     } catch (err) {
       console.error("Error saving document:", err);
       toast.error(`Failed to save ${docConfig.label}. Please try again.`, { id: toastId });
@@ -818,232 +1022,40 @@ export default function VehicleDetailPage() {
     setDocumentError(null);
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "-";
-    return formatToDDMMYYYY(dateString);
-  };
+  // formatDate is now a module-level function above
 
-  const Field = ({
-    label,
-    value,
-    isEditing,
-    onChange,
-    type = "text",
-  }: {
-    label: string;
-    value?: string;
-    isEditing?: boolean;
-    onChange?: (v: string) => void;
-    type?: string;
-  }) => (
-    <div className="space-y-1">
-      <p className="text-xs text-slate-500">{label}</p>
-      {isEditing ? (
-        <Input
-          value={value || ""}
-          type={type}
-          onChange={(e) => onChange?.(e.target.value)}
-          className="h-9 text-sm"
-        />
-      ) : (
-        <p className="text-sm font-medium text-slate-900">{value || "-"}</p>
-      )}
-    </div>
+  // Field is now a module-level memoized component above
+
+  // getExpiryStatus is now a module-level function above
+
+  // hasDocument is now a module-level function above
+  // It needs documentsMap passed as argument — create bound helper:
+  const hasDocumentBound = useCallback((docUrl: string | null | undefined, docCode?: string) =>
+    hasDocument(docUrl, docCode, documentsMap),
+    [documentsMap]
   );
 
-  const getExpiryStatus = (expiryDate: string, key?: string) => {
-    if (!expiryDate) return { color: "bg-slate-100 text-slate-600", text: "Not set", icon: AlertCircle };
+  const getDocumentUrlBound = useCallback((docCode: string, fallbackUrl?: string | null) =>
+    getDocumentUrl(docCode, documentsMap, fallbackUrl),
+    [documentsMap]
+  );
 
-    if (key === "last_pmi") {
-      return { color: "bg-red-50 text-red-600 border-red-200", text: "Date Passed", icon: CheckCircle };
-    }
+  // getDocumentUrl is now a module-level function above (used via getDocumentUrlBound)
 
-    const today = new Date();
-    const expiry = new Date(expiryDate);
-    const diffTime = expiry.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // getStatusBadgeColor and getRoadworthyBadgeColor are now module-level functions above
 
-    if (diffDays < 0) return { color: "bg-red-50 text-red-600 border-red-200", text: "Expired", icon: AlertTriangle };
-    if (diffDays <= 30) return { color: "bg-orange-50 text-orange-600 border-orange-200", text: `${diffDays} days left`, icon: Clock };
-    if (diffDays <= 60) return { color: "bg-amber-50 text-amber-600 border-amber-200", text: `${diffDays} days left`, icon: Clock };
-    return { color: "bg-emerald-50 text-emerald-600 border-emerald-200", text: "Valid", icon: CheckCircle };
-  };
+  // getStatusDisplayText, TyreRow, getRoadworthyDisplayText are now module-level (see above)
 
-  const hasDocument = (docUrl: string | null | undefined, docCode?: string) => {
-    if (docCode && documentsMap.has(docCode)) {
-      return true;
-    }
-    return docUrl && docUrl !== "" && docUrl !== "null" && docUrl.length > 0;
-  };
+  // complianceItems, additionalDocuments, TyreCard are now module-level constants/components above
+  const complianceItems = COMPLIANCE_ITEMS;
+  const additionalDocuments = ADDITIONAL_DOCUMENTS;
 
-  const getDocumentUrl = (docCode: string, fallbackUrl?: string | null) => {
-    const doc = documentsMap.get(docCode);
-    if (doc && doc.url) {
-      return doc.url;
-    }
-    return fallbackUrl;
-  };
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case "available":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "unavailable":
-        return "bg-slate-100 text-slate-700 border-slate-200";
-      case "assigned":
-        return "bg-orange-50 text-orange-700 border-orange-200";
-      case "disabled":
-        return "bg-red-50 text-red-700 border-red-200";
-      default:
-        return "bg-slate-100 text-slate-700 border-slate-200";
-    }
-  };
-
-  const getRoadworthyBadgeColor = (status: string) => {
-    switch (status) {
-      case "no_defect":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "minor_defect_roadworthy":
-        return "bg-orange-50 text-orange-700 border-orange-200";
-      case "minor_defect_not_roadworthy":
-      case "major_defect_not_roadworthy":
-        return "bg-red-50 text-red-700 border-red-200";
-      default:
-        return "bg-slate-100 text-slate-700 border-slate-200";
-    }
-  };
-
-  const getStatusDisplayText = (status: string) => {
-    switch (status) {
-      case "available":
-        return "Available";
-      case "unavailable":
-        return "Unavailable";
-      case "assigned":
-        return "Assigned";
-      case "disabled":
-        return "Disabled";
-      default:
-        return status;
-    }
-  };
-
-  type TyreRowProps = {
-    label: string;
-    unit: string;
-    valueKey: string;
-    type?: string;
-    highlight?: boolean;
-  };
-
-  function TyreRow({ label, unit, valueKey, type = "text", highlight }: TyreRowProps) {
-    const value = isEditing ? editVehicle?.[valueKey] : vehicle?.[valueKey];
-
-    const displayValue =
-      value !== null && value !== undefined && value !== ""
-        ? `${value}${unit ? ` ${unit}` : ""}`
-        : "N/A";
-
-    return (
-      <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-        <div className="flex flex-col">
-          <span className="text-sm text-slate-500">{label}</span>
-          {unit && !isEditing && <span className="text-xs text-slate-400">{unit}</span>}
-        </div>
-
-        <div className="min-w-[90px] text-right">
-          {isEditing ? (
-            <div className="relative">
-              <Input
-                type={type}
-                value={value ?? ""}
-                onChange={(e) =>
-                  handleInputChange(
-                    valueKey,
-                    type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value
-                  )
-                }
-                className="h-8 text-sm pr-20 text-right focus:ring-2 focus:ring-blue-500"
-              />
-              {unit && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{unit}</span>}
-            </div>
-          ) : (
-            <span
-              className={`text-sm font-semibold ${highlight ? "text-green-700 bg-green-50 px-2 py-1 rounded-md" : "text-slate-900"
-                }`}
-            >
-              {displayValue}
-            </span>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  const getRoadworthyDisplayText = (status: string) => {
-    switch (status) {
-      case "no_defect":
-        return "No Defect";
-      case "minor_defect_roadworthy":
-        return "Minor Defect - Roadworthy";
-      case "minor_defect_not_roadworthy":
-        return "Minor Defect - Not Roadworthy";
-      case "major_defect_not_roadworthy":
-        return "Major Defect - Not Roadworthy";
-      default:
-        return status;
-    }
-  };
-
-  const complianceItems = [
-    { key: "mot", label: "MOT Certificate", icon: CheckCircle, dateField: "mot_expiry", docCode: "mot_check_docs", color: "orange", hasDialog: true, document_type: 9, doc_has_expiry: true },
-    { key: "insurance", label: "Insurance", icon: Shield, dateField: "insurance_expiry", docCode: "insurance_docs", color: "purple", document_type: 13, doc_has_expiry: true },
-    { key: "tax", label: "Road Tax", icon: DollarSign, dateField: "tax_expiry", docCode: "tax_docs", color: "green", document_type: 12, doc_has_expiry: true },
-    { key: "last_pmi", label: "Last PMI Date", icon: Wrench, dateField: "last_pmi_date", docCode: "valet_check", color: "orange", hasDialog: true, document_type: 16, doc_has_expiry: true },
-    { key: "loller", label: "LOLER Test", icon: TestTube, dateField: "loller_test_expiry_date", docCode: "loller_docs", color: "pink", requiredForWheelchair: true, document_type: null, doc_has_expiry: true },
-    { key: "tacho", label: "Tacho Calibration", icon: Gauge, dateField: "tacho_calibration_expiry", docCode: "tacho_calibration_docs", color: "indigo", requiredForTacho: true, document_type: null, doc_has_expiry: true },
-  ];
-
-  const additionalDocuments = [
-    { key: "vehicle_invoice_docs", label: "Vehicle Invoice", icon: FileText, document_type: 2, docCode: "vehicle_invoice_docs", doc_has_expiry: false },
-    { key: "service_records_docs", label: "Service Records", icon: Wrench, document_type: 4, docCode: "service_records_docs", doc_has_expiry: false },
-    { key: "last_valet_check_docs", label: "New Vehicle Checklist", icon: FileCheck, document_type: 14, docCode: "last_valet_check_docs", doc_has_expiry: false },
-    { key: "logbook_docs", label: "Log Book / V5C", icon: FileText, document_type: 1, docCode: "logbook_docs", doc_has_expiry: false },
-    { key: "COIF_technical_docs", label: "COIF Technical", icon: FileText, document_type: 3, docCode: "COIF_technical_docs", doc_has_expiry: false },
-    { key: "others_docs", label: "Other Documents", icon: FileText, document_type: 6, docCode: "others_docs", doc_has_expiry: false },
-  ];
-
-  function TyreCard({ title, pos, ageKey }: { title: string; pos: string; ageKey: string }) {
-    return (
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm">
-        <p className="font-medium text-slate-900 mb-3">{title}</p>
-        <div className="space-y-2 text-sm">
-          <TyreRow label="Pressure" unit="PSI" valueKey={`tyre_pressure_${pos}`} type="number" />
-          <TyreRow label="Depth" unit="mm" valueKey={`tyre_depth_${pos}`} highlight />
-          <TyreRow label="Torque" unit="NM" valueKey={`tyre_torque_${pos}`} type="number" />
-          <TyreRow label="Tyre Age" unit="" valueKey={ageKey} type="text" />
-        </div>
-      </div>
-    );
-  }
-
-  const shouldShowComplianceItem = (item: typeof complianceItems[0]) => {
-    if (showAllCompliance) return true;
-
-    if (item.key === "tacho") {
-      return isEditing ? editVehicle?.is_tacho_fitted : vehicle?.is_tacho_fitted;
-    }
-    if (item.key === "loller") {
-      return isEditing ? editVehicle?.is_wheelchair_lift_fitted : vehicle?.is_wheelchair_lift_fitted;
-    }
-    return true;
-  };
-
-  const calculateTotalPrice = () => {
-    const price = parseFloat(vehicle?.price || "0");
-    const vat = parseFloat(vehicle?.vat_amount || "0");
+  const totalPrice = useMemo(() => {
+    const currentVehicle = isEditing ? editVehicle : vehicle;
+    const price = parseFloat(currentVehicle?.price || "0");
+    const vat = parseFloat(currentVehicle?.vat_amount || "0");
     return price + vat;
-  };
+  }, [isEditing, editVehicle?.price, editVehicle?.vat_amount, vehicle?.price, vehicle?.vat_amount]);
 
   const getCurrentMileage = () => {
     const mileage = vehicle?.last_mileage;
@@ -1407,12 +1419,20 @@ export default function VehicleDetailPage() {
                     )}
                   </div>
 
-                  <Field label="Purchase Mileage" value={vehicle.purchase_mileage ? `${vehicle.purchase_mileage} km` : "-"} />
+                  <Field
+                    label="Purchase Mileage"
+                    type="number"
+                    value={isEditing ? editVehicle.purchase_mileage || "" : (vehicle.purchase_mileage ? `${vehicle.purchase_mileage} km` : "-")}
+                    isEditing={isEditing}
+                    onChange={(v) => handleInputChange("purchase_mileage", v === "" ? "" : Number(v))}
+                  />
 
-                  <div className="space-y-1">
-                    <p className="text-xs text-slate-500">Purchased By</p>
-                    <p className="text-sm font-medium text-slate-900">{vehicle.purchased_by || "-"}</p>
-                  </div>
+                  <Field
+                    label="Purchased By"
+                    value={isEditing ? editVehicle.purchased_by || "" : vehicle.purchased_by || "-"}
+                    isEditing={isEditing}
+                    onChange={(v) => handleInputChange("purchased_by", v)}
+                  />
 
                   <div className="space-y-1">
                     <p className="text-xs text-slate-500">Purchase Price</p>
@@ -1420,7 +1440,18 @@ export default function VehicleDetailPage() {
                       <Input
                         type="number"
                         value={editVehicle.price || ""}
-                        onChange={(e) => handleInputChange("price", e.target.value)}
+                        onChange={(e) => {
+                          const newPrice = e.target.value;
+                          setEditVehicle((prev: any) => {
+                            if (!prev) return prev;
+                            const updated = { ...prev, price: newPrice };
+                            if (prev.has_vat) {
+                              const priceVal = parseFloat(newPrice || "0");
+                              updated.vat_amount = (priceVal * 0.20).toFixed(2);
+                            }
+                            return updated;
+                          });
+                        }}
                         className="h-9 text-sm"
                       />
                     ) : (
@@ -1446,7 +1477,22 @@ export default function VehicleDetailPage() {
                     <div className="space-y-1 flex-1">
                       <p className="text-xs text-slate-500">Has VAT</p>
                       {isEditing ? (
-                        <Switch checked={editVehicle.has_vat} onCheckedChange={(c) => handleInputChange("has_vat", c)} />
+                        <Switch
+                          checked={editVehicle.has_vat}
+                          onCheckedChange={(c) => {
+                            setEditVehicle((prev: any) => {
+                              if (!prev) return prev;
+                              const updated = { ...prev, has_vat: c };
+                              if (c) {
+                                const priceVal = parseFloat(prev.price || "0");
+                                updated.vat_amount = (priceVal * 0.20).toFixed(2);
+                              } else {
+                                updated.vat_amount = "0";
+                              }
+                              return updated;
+                            });
+                          }}
+                        />
                       ) : (
                         <Switch checked={vehicle.has_vat} disabled />
                       )}
@@ -1455,7 +1501,7 @@ export default function VehicleDetailPage() {
 
                   <div className="space-y-1">
                     <p className="text-xs text-slate-500">Total Price</p>
-                    <Badge className="bg-emerald-100 text-emerald-700">£{calculateTotalPrice().toLocaleString()}</Badge>
+                    <Badge className="bg-emerald-100 text-emerald-700">£{totalPrice.toLocaleString()}</Badge>
                   </div>
                 </div>
               </div>
@@ -1486,11 +1532,11 @@ export default function VehicleDetailPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {additionalDocuments.filter(doc => doc.key !== 'vehicle_invoice_docs' || role === 'superadmin').map((doc) => {
+                {additionalDocuments.filter(doc => doc.key !== 'vehicle_invoice_docs' || role === 'superadmin').map((doc: typeof ADDITIONAL_DOCUMENTS[0]) => {
                   const Icon = doc.icon;
                   const apiDoc = documentsMap.get(doc.docCode);
                   const docUrl = apiDoc ? apiDoc.url : (vehicle[doc.key as keyof typeof vehicle] as string);
-                  const hasDoc = hasDocument(docUrl, doc.docCode);
+                  const hasDoc = hasDocumentBound(docUrl, doc.docCode);
                   const expiryDate = apiDoc?.expiry_date;
                   const hasExpiry = apiDoc?.doc_has_expiry !== undefined ? apiDoc.doc_has_expiry : (doc.doc_has_expiry ?? true);
 
@@ -1725,9 +1771,9 @@ export default function VehicleDetailPage() {
 
               <div className="grid grid-cols-[1fr_260px_1fr] gap-8 items-center">
                 <div className="space-y-4">
-                  <TyreCard title="Front Passenger" pos="front_passenger" ageKey="tyre_expiry_front_passenger" />
-                  <TyreCard title="Rear Outer Passenger" pos="rear_outer_passenger" ageKey="tyre_expiry_rear_outer_passenger" />
-                  <TyreCard title="Rear Inner Passenger" pos="rear_inner_passenger" ageKey="tyre_expiry_rear_inner_passenger" />
+                  <TyreCard title="Front Passenger" pos="front_passenger" ageKey="tyre_expiry_front_passenger" isEditing={isEditing} vehicleData={isEditing ? editVehicle : vehicle} onValueChange={handleInputChange} />
+                  <TyreCard title="Rear Outer Passenger" pos="rear_outer_passenger" ageKey="tyre_expiry_rear_outer_passenger" isEditing={isEditing} vehicleData={isEditing ? editVehicle : vehicle} onValueChange={handleInputChange} />
+                  <TyreCard title="Rear Inner Passenger" pos="rear_inner_passenger" ageKey="tyre_expiry_rear_inner_passenger" isEditing={isEditing} vehicleData={isEditing ? editVehicle : vehicle} onValueChange={handleInputChange} />
                 </div>
 
                 <div className="relative flex justify-center">
@@ -1737,9 +1783,9 @@ export default function VehicleDetailPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <TyreCard title="Front Driver" pos="front_driver" ageKey="tyre_expiry_front_driver" />
-                  <TyreCard title="Rear Outer Driver" pos="rear_outer_driver" ageKey="tyre_expiry_rear_outer_driver" />
-                  <TyreCard title="Rear Inner Driver" pos="rear_inner_driver" ageKey="tyre_expiry_rear_inner_driver" />
+                  <TyreCard title="Front Driver" pos="front_driver" ageKey="tyre_expiry_front_driver" isEditing={isEditing} vehicleData={isEditing ? editVehicle : vehicle} onValueChange={handleInputChange} />
+                  <TyreCard title="Rear Outer Driver" pos="rear_outer_driver" ageKey="tyre_expiry_rear_outer_driver" isEditing={isEditing} vehicleData={isEditing ? editVehicle : vehicle} onValueChange={handleInputChange} />
+                  <TyreCard title="Rear Inner Driver" pos="rear_inner_driver" ageKey="tyre_expiry_rear_inner_driver" isEditing={isEditing} vehicleData={isEditing ? editVehicle : vehicle} onValueChange={handleInputChange} />
                 </div>
               </div>
             </div>
@@ -1758,54 +1804,14 @@ export default function VehicleDetailPage() {
                   </h3>
                 </div>
               </div>
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <Wrench className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold text-slate-900">Vehicle Features</h3>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6 max-w-md">
-                  {/* Tacho Fitted */}
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">Tacho Fitted</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {vehicle.is_tacho_fitted ? "Fitted" : "Not Fitted"}
-                      </p>
-                    </div>
-                    <Switch
-                      checked={vehicle.is_tacho_fitted ?? false}
-                      onCheckedChange={(c) => handleToggleFitted("is_tacho_fitted", c)}
-                      className="data-[state=checked]:bg-emerald-500"
-                    />
-                  </div>
-
-                  {/* Wheelchair Lift Fitted */}
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">Wheelchair Lift</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {vehicle.is_wheelchair_lift_fitted ? "Fitted" : "Not Fitted"}
-                      </p>
-                    </div>
-                    <Switch
-                      checked={vehicle.is_wheelchair_lift_fitted ?? false}
-                      onCheckedChange={(c) => handleToggleFitted("is_wheelchair_lift_fitted", c)}
-                      className="data-[state=checked]:bg-emerald-500"
-                    />
-                  </div>
-                </div>
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {complianceItems.map((item) => {
+                {complianceItems.map((item: typeof COMPLIANCE_ITEMS[0]) => {
                   const Icon = item.icon;
                   const dateValue = vehicle[item.dateField as keyof typeof vehicle] as string;
                   const docFromVehicle = vehicle[item.docCode as keyof typeof vehicle] as string;
                   const docFromAPI = documentsMap.get(item.docCode);
                   const docUrl = docFromAPI?.url || docFromVehicle;
-                  const hasDoc = hasDocument(docUrl, item.docCode);
+                  const hasDoc = hasDocumentBound(docUrl, item.docCode);
                   const status = getExpiryStatus(dateValue, item.key);
                   const StatusIcon = status.icon;
                   const hasExpiry = docFromAPI?.doc_has_expiry !== undefined ? docFromAPI.doc_has_expiry : (item.doc_has_expiry ?? true);
@@ -1814,14 +1820,22 @@ export default function VehicleDetailPage() {
                     (item.requiredForTacho && (isEditing ? editVehicle.is_tacho_fitted : vehicle.is_tacho_fitted)) ||
                     (item.requiredForWheelchair && (isEditing ? editVehicle.is_wheelchair_lift_fitted : vehicle.is_wheelchair_lift_fitted));
 
-                  if (!shouldShowComplianceItem(item)) return null;
-
                   const isDraggedOver = draggedOverDocKey === item.docCode;
+
+                  const isTacho = item.key === "tacho";
+                  const isLoller = item.key === "loller";
+                  const isFitted = isTacho ? (isEditing ? editVehicle?.is_tacho_fitted : vehicle?.is_tacho_fitted) : (isLoller ? (isEditing ? editVehicle?.is_wheelchair_lift_fitted : vehicle?.is_wheelchair_lift_fitted) : true);
 
                   return (
                     <div
                       key={item.key}
                       onClick={() => {
+                        if ((isTacho || isLoller) && !isFitted) {
+                          const field = isTacho ? "is_tacho_fitted" : "is_wheelchair_lift_fitted";
+                          handleToggleFitted(field, true);
+                          return;
+                        }
+
                         if (item.hasDialog) {
                           openEditDateDialog(item.dateField, dateValue);
                         } else {
@@ -1835,178 +1849,200 @@ export default function VehicleDetailPage() {
                       className={cn(
                         "cursor-pointer bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-full group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300",
                         isRequired && !dateValue && "border-red-300 ring-1 ring-red-200",
-                        isDraggedOver && "border-orange-500 bg-orange-50/20 scale-[1.01] [&>*]:pointer-events-none"
+                        isDraggedOver && "border-orange-500 bg-orange-50/20 scale-[1.01] [&>*]:pointer-events-none",
+                        (!isFitted) && "justify-center items-center text-center bg-slate-50/50 hover:bg-slate-50 border-dashed"
                       )}
                     >
-                      {/* Top Area: Image/Upload */}
-                      <div className="relative h-56 mb-6 rounded-3xl overflow-hidden bg-[#F9FAFB] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group/upload">
-                        {hasDoc ? (
-                          <>
-                            {docUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                              <img src={docUrl} className="w-full h-full object-cover" alt={item.label} />
-                            ) : (
-                              <div className="flex flex-col items-center justify-center text-slate-400">
-                                <FileText className="w-16 h-16 mb-2 text-slate-300" />
-                                <p className="text-xs font-medium">PDF Document</p>
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/upload:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="rounded-full w-10 h-10 p-0 bg-white hover:bg-slate-50"
-                                onClick={(e) => { e.stopPropagation(); setPreviewDoc(docUrl); }}
-                              >
-                                <Eye className="w-5 h-5 text-slate-600" />
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="rounded-full w-10 h-10 p-0 bg-white hover:bg-slate-50"
-                                onClick={(e) => { e.stopPropagation(); window.open(docUrl, "_blank"); }}
-                              >
-                                <Download className="w-5 h-5 text-slate-600" />
-                              </Button>
-                            </div>
-                            {/* Delete Button */}
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="absolute top-4 right-4 rounded-full w-10 h-10 p-0 bg-[#F15C5C] hover:bg-red-600 border-none shadow-lg z-10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (docFromAPI) {
-                                  handleDeleteDocument(docFromAPI.id, item.label);
-                                } else {
-                                  handleDeleteDocument(item.docCode, item.label, true);
-                                }
-                              }}
-                            >
-                              <Trash2 className="w-5 h-5 text-white" />
-                            </Button>
-                          </>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center p-6 text-center">
-                            <div className="w-16 h-16 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-4">
-                              <Upload className="w-8 h-8 text-[#F26633]" />
-                            </div>
-                            <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop File Here</p>
-                            <p className="text-[10px] text-slate-400">PDF, Word, Excel, PowerPoint - max 10.0MB</p>
+                      {(!isFitted) ? (
+                        <div className="flex flex-col items-center justify-center py-10 pointer-events-none">
+                          <div className={`w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-sm border border-slate-100 mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                            <Icon className={`w-10 h-10 text-slate-400`} />
                           </div>
-                        )}
-                      </div>
-
-                      {/* Content Area */}
-                      <div className="flex-1 px-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="font-bold text-slate-900 text-xl">{item.label}</p>
-                          {isRequired && <Badge className="bg-red-100 text-red-700 text-xs">Required</Badge>}
+                          <h3 className="text-xl font-bold text-slate-900 mb-2">{item.label}</h3>
+                          <p className="text-sm text-slate-500 mb-8">Currently Not Fitted</p>
+                          <Button
+                            className="bg-white border-2 border-slate-200 text-slate-700 hover:border-[#F15A29] hover:text-[#F15A29] hover:bg-orange-50 rounded-xl px-8 h-12 font-bold shadow-sm transition-all"
+                          >
+                            Click to Enable
+                          </Button>
                         </div>
-
-                        {/* Fitted Toggles */}
-                        {(item.key === "loller" || item.key === "tacho") && (
-                          <div className="mb-4 flex items-center gap-2">
-                            <span className="text-xs font-medium text-slate-500">Fitted:</span>
-                            {isEditing ? (
-                              <Switch
-                                checked={item.key === "loller" ? editVehicle.is_wheelchair_lift_fitted : editVehicle.is_tacho_fitted}
-                                onCheckedChange={(c) => {
-                                  const field = item.key === "loller" ? "is_wheelchair_lift_fitted" : "is_tacho_fitted";
-                                  handleInputChange(field, c);
-                                  if (c) {
-                                    openDocDetail(item);
-                                  }
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                      ) : (
+                        <>
+                          {/* Top Area: Image/Upload */}
+                          <div className="relative h-56 mb-6 rounded-3xl overflow-hidden bg-[#F9FAFB] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group/upload">
+                            {hasDoc ? (
+                              <>
+                                {docUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                                  <img src={docUrl} className="w-full h-full object-cover" alt={item.label} />
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center text-slate-400">
+                                    <FileText className="w-16 h-16 mb-2 text-slate-300" />
+                                    <p className="text-xs font-medium">PDF Document</p>
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/upload:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="rounded-full w-10 h-10 p-0 bg-white hover:bg-slate-50"
+                                    onClick={(e) => { e.stopPropagation(); setPreviewDoc(docUrl); }}
+                                  >
+                                    <Eye className="w-5 h-5 text-slate-600" />
+                                  </Button>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="rounded-full w-10 h-10 p-0 bg-white hover:bg-slate-50"
+                                    onClick={(e) => { e.stopPropagation(); window.open(docUrl, "_blank"); }}
+                                  >
+                                    <Download className="w-5 h-5 text-slate-600" />
+                                  </Button>
+                                </div>
+                                {/* Delete Button */}
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="absolute top-4 right-4 rounded-full w-10 h-10 p-0 bg-[#F15C5C] hover:bg-red-600 border-none shadow-lg z-10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (docFromAPI) {
+                                      handleDeleteDocument(docFromAPI.id, item.label);
+                                    } else {
+                                      handleDeleteDocument(item.docCode, item.label, true);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="w-5 h-5 text-white" />
+                                </Button>
+                              </>
                             ) : (
-                              <Badge className={(item.key === "loller" ? vehicle.is_wheelchair_lift_fitted : vehicle.is_tacho_fitted) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>
-                                {(item.key === "loller" ? vehicle.is_wheelchair_lift_fitted : vehicle.is_tacho_fitted) ? "Yes" : "No"}
-                              </Badge>
+                              <div className="flex flex-col items-center justify-center p-6 text-center">
+                                <div className="w-16 h-16 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-4">
+                                  <Upload className="w-8 h-8 text-[#F26633]" />
+                                </div>
+                                <p className="font-bold text-slate-900 text-sm mb-1">Drag & Drop File Here</p>
+                                <p className="text-[10px] text-slate-400">PDF, Word, Excel, PowerPoint - max 10.0MB</p>
+                              </div>
                             )}
                           </div>
-                        )}
 
-                        {!hasDoc && !dateValue && (
-                          <Badge className="bg-slate-100 text-slate-400 hover:bg-slate-100 border-none text-[10px] font-medium px-3 py-1 rounded-full mb-4">
-                            Not set
-                          </Badge>
-                        )}
-
-                        {hasExpiry && (
-                          <div className="mt-4 p-4 bg-[#F8F9FA] rounded-2xl flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                                <Calendar className="w-4 h-4 text-orange-400" />
-                              </div>
-                              <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">
-                                {item.key === "last_pmi" ? "Last PMI" : "Expiry Date"}
-                              </p>
+                          {/* Content Area */}
+                          <div className="flex-1 px-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="font-bold text-slate-900 text-xl">{item.label}</p>
+                              {isRequired && <Badge className="bg-red-100 text-red-700 text-xs">Required</Badge>}
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm font-bold text-[#F26633]">
-                                {dateValue ? formatDate(dateValue) : "DD/MM/YYYY"}
-                              </p>
-                              <Badge className={cn("mt-1 text-[10px] h-5 border-none", status.color)}>
-                                <StatusIcon className="w-3 h-3 mr-1" />
-                                {status.text}
-                              </Badge>
-                            </div>
-                          </div>
-                        )}
-                      </div>
 
-                      {/* Footer Actions */}
-                      <div className="mt-6 flex gap-3">
-                        {!hasDoc ? (
-                          <>
-                            <div className="flex-1" onClick={(e) => e.stopPropagation()}>
-                              <Button
-                                onClick={() => {
-                                  if (item.hasDialog) {
-                                    openEditDateDialog(item.dateField, dateValue);
-                                  } else {
-                                    openDocDetail(item);
-                                  }
+                            {/* Fitted Toggles */}
+                            {(item.key === "loller" || item.key === "tacho") && (
+                              <div
+                                className="mb-4 flex items-center justify-between bg-gray-50 rounded-xl p-3 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const field = item.key === "loller" ? "is_wheelchair_lift_fitted" : "is_tacho_fitted";
+                                  handleToggleFitted(field, false);
                                 }}
-                                className="w-full bg-[#F26633] hover:bg-orange-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2"
                               >
-                                Upload <Upload className="w-4 h-4" />
-                              </Button>
-                            </div>
-                            <Button
-                              variant="outline"
-                              className="flex-1 bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (item.hasDialog) {
-                                  openEditDateDialog(item.dateField, dateValue);
-                                } else {
-                                  openDocDetail(item);
-                                }
-                              }}
-                            >
-                              Later <Clock className="w-4 h-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <div className="w-full" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="outline"
-                              className="w-full bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2"
-                              onClick={() => {
-                                if (item.hasDialog) {
-                                  openEditDateDialog(item.dateField, dateValue);
-                                } else {
-                                  openDocDetail(item);
-                                }
-                              }}
-                            >
-                              Update <Edit className="w-4 h-4" />
-                            </Button>
+                                <div className="space-y-0.5 pointer-events-none flex-1">
+                                  <Label className="text-xs font-bold text-gray-800 cursor-pointer">
+                                    {item.key === "loller" ? "Wheelchair Lift" : "Tacho"}
+                                  </Label>
+                                  <p className="text-[10px] text-gray-400 font-medium">Click to Disable</p>
+                                </div>
+                                <Switch
+                                  checked={true}
+                                  onCheckedChange={(c) => {
+                                    const field = item.key === "loller" ? "is_wheelchair_lift_fitted" : "is_tacho_fitted";
+                                    handleToggleFitted(field, c);
+                                  }}
+                                  className="data-[state=checked]:bg-[#F15A29] scale-75"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            )}
+
+                            {!hasDoc && !dateValue && (
+                              <Badge className="bg-slate-100 text-slate-400 hover:bg-slate-100 border-none text-[10px] font-medium px-3 py-1 rounded-full mb-4">
+                                Not set
+                              </Badge>
+                            )}
+
+                            {hasExpiry && (
+                              <div className="mt-4 p-4 bg-[#F8F9FA] rounded-2xl flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                    <Calendar className="w-4 h-4 text-orange-400" />
+                                  </div>
+                                  <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">
+                                    {item.key === "last_pmi" ? "Last PMI" : "Expiry Date"}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-bold text-[#F26633]">
+                                    {dateValue ? formatDate(dateValue) : "DD/MM/YYYY"}
+                                  </p>
+                                  <Badge className={cn("mt-1 text-[10px] h-5 border-none", status.color)}>
+                                    <StatusIcon className="w-3 h-3 mr-1" />
+                                    {status.text}
+                                  </Badge>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+
+                          {/* Footer Actions */}
+                          <div className="mt-6 flex gap-3">
+                            {!hasDoc ? (
+                              <>
+                                <div className="flex-1" onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    onClick={() => {
+                                      if (item.hasDialog) {
+                                        openEditDateDialog(item.dateField, dateValue);
+                                      } else {
+                                        openDocDetail(item);
+                                      }
+                                    }}
+                                    className="w-full bg-[#F26633] hover:bg-orange-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2"
+                                  >
+                                    Upload <Upload className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  className="flex-1 bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (item.hasDialog) {
+                                      openEditDateDialog(item.dateField, dateValue);
+                                    } else {
+                                      openDocDetail(item);
+                                    }
+                                  }}
+                                >
+                                  Later <Clock className="w-4 h-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  variant="outline"
+                                  className="w-full bg-[#FDECEC] hover:bg-red-50 text-[#F15C5C] border-none font-bold h-12 rounded-xl flex items-center justify-center gap-2"
+                                  onClick={() => {
+                                    if (item.hasDialog) {
+                                      openEditDateDialog(item.dateField, dateValue);
+                                    } else {
+                                      openDocDetail(item);
+                                    }
+                                  }}
+                                >
+                                  Update <Edit className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -2416,8 +2452,8 @@ export default function VehicleDetailPage() {
 
                       toast.success("Document updated successfully", { id: toastId });
                       setEditingDocument(null);
-                      // Refresh data
-                      fetchData();
+                      // Refresh data without full-page spinner
+                      await refreshVehicleData();
                     } catch (err) {
                       toast.error("Failed to save changes", { id: toastId });
                     }

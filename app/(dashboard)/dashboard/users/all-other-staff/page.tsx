@@ -1643,9 +1643,85 @@ export default function UsersPage() {
 
             await Promise.all(promises);
 
-            if (newUser?.role?.some(r => r?.toLowerCase() === "driver")) {
-              setNewDriverUserId(userId);
-              setIsAddDriverModalOpen(true);
+            const hasDriverRole = newUser?.role?.some(r => r?.toLowerCase() === "driver");
+            const isOnlyDriverRole = hasDriverRole && newUser?.role?.length === 1;
+
+            if (hasDriverRole) {
+              if (isOnlyDriverRole) {
+                // Only driver role selected — open the driver creation dialog
+                setNewDriverUserId(userId);
+                setIsAddDriverModalOpen(true);
+              } else {
+                // Multiple roles including driver — create a task for completing driver profile
+                try {
+                  // Fetch task types to find a relevant one
+                  const taskTypesRes = await fetch(`${API_URL}/api/task-types/`, {
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${cookies.get("access_token")}`,
+                    },
+                  });
+                  let taskTypeId: number | null = null;
+                  if (taskTypesRes.ok) {
+                    const taskTypesData = await taskTypesRes.json();
+                    const taskTypesList = taskTypesData.results || taskTypesData.data?.results || [];
+                    // Try to find a relevant task type
+                    const relevantType = taskTypesList.find(
+                      (t: any) =>
+                        t.name?.toLowerCase().includes("driver") ||
+                        t.name?.toLowerCase().includes("profile") ||
+                        t.name?.toLowerCase().includes("onboarding")
+                    );
+                    taskTypeId = relevantType?.id || (taskTypesList.length > 0 ? taskTypesList[0].id : null);
+                  }
+
+                  if (taskTypeId) {
+                    const deadline = new Date();
+                    deadline.setDate(deadline.getDate() + 7); // 7 days deadline
+
+                    const taskPayload = {
+                      title: `Complete Driver Profile - ${newUser.full_name}`,
+                      description: `<p>Please complete the driver profile for <strong>${newUser.full_name}</strong> (${newUser.email}).</p><p>This user was created with multiple roles including Driver. The driver profile details (license, documents, etc.) still need to be filled in.</p>`,
+                      task_type: taskTypeId,
+                      assigned_to: userId,
+                      deadline: deadline.toISOString(),
+                      priority: "high" as const,
+                    };
+
+                    const taskRes = await fetch(`${API_URL}/api/tasks/`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${cookies.get("access_token")}`,
+                      },
+                      body: JSON.stringify(taskPayload),
+                    });
+
+                    if (taskRes.ok) {
+                      showToast(
+                        "A task has been created for completing the driver profile",
+                        "success"
+                      );
+                    } else {
+                      showToast(
+                        "User created but failed to create driver profile task",
+                        "error"
+                      );
+                    }
+                  } else {
+                    showToast(
+                      "User created but no task type found for driver profile task",
+                      "error"
+                    );
+                  }
+                } catch (taskError) {
+                  console.error("Error creating driver profile task:", taskError);
+                  showToast(
+                    "User created but failed to create driver profile task",
+                    "error"
+                  );
+                }
+              }
             }
           }
         } else {
