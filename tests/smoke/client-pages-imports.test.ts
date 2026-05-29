@@ -9,7 +9,7 @@ type PageModule = {
 
 const testFileDir = path.dirname(fileURLToPath(import.meta.url));
 
-const modules = import.meta.glob("../../app/**/page.tsx") as Record<
+const modules = (import.meta as any).glob("../../app/**/page.tsx") as Record<
   string,
   () => Promise<PageModule>
 >;

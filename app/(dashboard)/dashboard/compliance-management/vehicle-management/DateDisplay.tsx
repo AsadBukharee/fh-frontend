@@ -92,6 +92,10 @@ export const getDateStatus = (
       } else {
         date = new Date(dateString);
       }
+    } else if (dateString && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      // Parse YYYY-MM-DD as local time (not UTC) to avoid timezone offset bugs
+      const parts = dateString.split("-");
+      date = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
     } else {
       date = new Date(dateString!);
     }
@@ -191,6 +195,10 @@ const DateDisplay: React.FC<DateDisplayProps> = ({
         } else {
           dateObj = new Date(date);
         }
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        // Parse YYYY-MM-DD as local time (not UTC) to avoid timezone offset bugs
+        const parts = date.split("-");
+        dateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
       } else {
         dateObj = new Date(date);
       }

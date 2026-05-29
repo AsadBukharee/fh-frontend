@@ -1,9 +1,8 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Calendar,
   ChevronLeft,
@@ -99,6 +98,13 @@ interface ApiResponse {
       vehicle_reg: string;
       insurance_expiry: string;
       tax_expiry: string;
+      // Document-level expiry dates
+      insurance_doc_expiry?: string | null;
+      tax_doc_expiry?: string | null;
+      documents?: Array<{
+        document_type: { code: string };
+        expiry_date: string;
+      }>;
     }>;
     calibrations: Array<{
       vehicle: number;
@@ -181,7 +187,6 @@ const formatLocation = (location: string | null | undefined): string => {
 
 export default function VehicleDashboard() {
   const [fullApiData, setFullApiData] = useState<ApiResponse | null>(null);
-  const [filteredData, setFilteredData] = useState<VehicleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 10;
@@ -279,7 +284,7 @@ export default function VehicleDashboard() {
     fetchData();
   }, [fetchData]);
 
-  const buildRows = useCallback((): VehicleRow[] => {
+  const allRows = useMemo((): VehicleRow[] => {
     if (!fullApiData) return [];
 
     const maps = {
@@ -321,8 +326,8 @@ export default function VehicleDashboard() {
     }));
   }, [fullApiData]);
 
-  useEffect(() => {
-    let data = buildRows();
+  const filteredData = useMemo((): VehicleRow[] => {
+    let data = allRows;
 
     if (activeFilter !== "All Data") {
       if (activeFilter === "MOT") data = data.filter((r) => r.mot);
@@ -352,9 +357,13 @@ export default function VehicleDashboard() {
         shouldShowTBC(r.mot?.next_mot_booked_date, "booking"),
       );
 
-    setFilteredData(data);
+    return data;
+  }, [allRows, activeFilter, searchQuery, vehicleRegFilter, statusFilter]);
+
+  // Reset page number back to 1 when filters change
+  useEffect(() => {
     setCurrentPage(1);
-  }, [buildRows, activeFilter, searchQuery, vehicleRegFilter, statusFilter]);
+  }, [activeFilter, searchQuery, vehicleRegFilter, statusFilter]);
 
   const handleDoubleClick = (
     vehicleId: number,
@@ -1479,16 +1488,27 @@ export default function VehicleDashboard() {
     }
   };
 
-  const visibleColumns = getVisibleColumns();
-  const totalPages = Math.ceil(filteredData.length / perPage);
-  const paginated = filteredData.slice(
-    (currentPage - 1) * perPage,
-    currentPage * perPage,
-  );
-  const uniqueRegs = [
-    "All Registrations",
-    ...Array.from(new Set(filteredData.map((r) => r.vehicle_reg))).sort(),
-  ];
+  const visibleColumns = useMemo(() => {
+    return getVisibleColumns();
+  }, [activeFilter]);
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredData.length / perPage);
+  }, [filteredData.length, perPage]);
+
+  const paginated = useMemo(() => {
+    return filteredData.slice(
+      (currentPage - 1) * perPage,
+      currentPage * perPage,
+    );
+  }, [filteredData, currentPage, perPage]);
+
+  const uniqueRegs = useMemo(() => {
+    return [
+      "All Registrations",
+      ...Array.from(new Set(allRows.map((r) => r.vehicle_reg))).sort(),
+    ];
+  }, [allRows]);
 
   const tabs = [
     { key: "All Data", label: "All Data", icon: null },
@@ -2238,33 +2258,35 @@ export default function VehicleDashboard() {
                           </>
                         )}
 
-                        {visibleColumns.showInsurance && (
-                          <>
-                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
-                              <DateDisplay
-                                date={row.insurance?.insurance_expiry ?? null}
-                                fieldType="insurance_expiry"
-                                warningDays={60}
-                                showExpiryText={true}
-                              >
-                                {formatDate(
-                                  row.insurance?.insurance_expiry,
-                                  false,
-                                )}
-                              </DateDisplay>
-                            </td>
-                            <td className="px-3 py-4 text-sm text-gray-700 border-l border-x border-gray-200">
-                              <DateDisplay
-                                date={row.insurance?.tax_expiry ?? null}
-                                fieldType="tax_expiry"
-                                warningDays={45}
-                                showExpiryText={true}
-                              >
-                                {formatDate(row.insurance?.tax_expiry, false)}
-                              </DateDisplay>
-                            </td>
-                          </>
-                        )}
+                        {visibleColumns.showInsurance && (() => {
+                          const getDocExpiry = (code: string) => {
+                            if (row.insurance?.documents) {
+                              const doc = row.insurance.documents.find(d => d.document_type?.code === code);
+                              if (doc?.expiry_date) return doc.expiry_date;
+                            }
+                            return null;
+                          };
+                          return (
+                            <>
+                              <td className="px-3 py-4 text-sm text-gray-700 border-l border-gray-200">
+                                <DateDisplay
+                                  date={getDocExpiry('insurance_docs') ?? row.insurance?.insurance_doc_expiry ?? row.insurance?.insurance_expiry ?? null}
+                                  fieldType="insurance_expiry"
+                                  warningDays={60}
+                                  showExpiryText={true}
+                                />
+                              </td>
+                              <td className="px-3 py-4 text-sm text-gray-700 border-l border-x border-gray-200">
+                                <DateDisplay
+                                  date={getDocExpiry('tax_docs') ?? row.insurance?.tax_doc_expiry ?? row.insurance?.tax_expiry ?? null}
+                                  fieldType="tax_expiry"
+                                  warningDays={45}
+                                  showExpiryText={true}
+                                />
+                              </td>
+                            </>
+                          );
+                        })()}
 
                         {visibleColumns.showCalibrations && (
                           <>
